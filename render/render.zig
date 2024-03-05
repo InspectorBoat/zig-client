@@ -104,10 +104,10 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
 
     window_input.mouse_delta = .{ .x = 0, .z = 0 };
     player.base.rotation.pitch = std.math.clamp(player.base.rotation.pitch, -90, 90);
-
     player.input = .{
         .jump = window_input.keys.get(.space),
         .sneak = window_input.keys.get(.left_shift),
+        .sprint = window_input.keys.get(.left_control),
         .steer = .{
             .x = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.a))) - @as(i8, @intFromBool(window_input.keys.get(.d)))),
             .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.s))) - @as(i8, @intFromBool(window_input.keys.get(.w)))),
@@ -117,7 +117,7 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
 
 pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
-        if (section_y < 3 or section_y > 4) continue;
+        if (section_y != 5) continue;
         if (maybe_section) |section| {
             var staging = GpuStagingBuffer{};
 

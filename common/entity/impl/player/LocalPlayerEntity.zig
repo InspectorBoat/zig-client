@@ -21,6 +21,7 @@ input: struct {
     steer: Vector2(f32) = .{ .x = 0, .z = 0 },
     jump: bool = false,
     sneak: bool = false,
+    sprint: bool = false,
 } = .{},
 
 item_in_use: ?*ItemStack = null,
@@ -82,7 +83,7 @@ pub fn update(self: *@This(), game: *Game.IngameState) !void {
     if (self.remaining_sprint_ticks > 0) {
         self.remaining_sprint_ticks -= 0;
         if (self.remaining_sprint_ticks == 0) {
-            self.setSprinting(false);
+            try self.setSprinting(false);
         }
     }
 
@@ -110,6 +111,7 @@ pub fn update(self: *@This(), game: *Game.IngameState) !void {
     // self.pushAwayFromFullBlocks(game);
 
     // update sprinting
+    try self.updateSprinting();
     // TODO
     // update flying input
     // TODO
@@ -132,7 +134,6 @@ pub fn update(self: *@This(), game: *Game.IngameState) !void {
         self.input = .{
             .jump = false,
             .steer = .{ .x = 0, .z = 0 },
-            // uhh this should be fine under RLS
             .sneak = self.input.sneak,
         };
     } else {
@@ -144,7 +145,7 @@ pub fn update(self: *@This(), game: *Game.IngameState) !void {
         if (self.inWater() or self.inLava()) {
             self.base.velocity.y += 0.04;
         } else if (self.base.colliding.on_ground) {
-            self.jump();
+            try self.jump();
         }
     }
 
@@ -164,7 +165,7 @@ pub fn update(self: *@This(), game: *Game.IngameState) !void {
     }
 
     // update air speed according to sprinting status
-    self.air_speed = if (self.base.isSprinting()) 0.025999999 else 0.02;
+    self.air_speed = if (try self.base.isSprinting()) 0.025999999 else 0.02;
     // update move speed according to movement speed attribute
 
     // stop flying if on ground in creative mode and sync abilities
@@ -201,19 +202,44 @@ pub fn hasControl(self: *@This()) bool {
     return true;
 }
 
+pub fn updateSprinting(self: *@This()) !void {
+    // TODO: Double tap sprint code
+
+    // TODO: Correctly calculate this
+
+    const sufficient_forward_input = self.input.steer.z >= @as(f32, @floatCast(0.8));
+    const sufficient_food = self.player.hunger.food_level > 6 or self.abilities.allow_flying;
+    const not_using_item = self.item_in_use == null;
+    const not_blinded = !self.living.hasStatusEffect(.Blindness);
+    const sprint_input = self.input.sprint;
+
+    if (sprint_input and !try self.base.isSprinting() and
+        (sufficient_forward_input) and
+        (sufficient_food) and
+        (not_using_item) and
+        (not_blinded))
+    {
+        try self.setSprinting(true);
+    }
+
+    if (try self.base.isSprinting() and (!sufficient_forward_input or self.base.colliding.horizontal or !sufficient_food)) {
+        try self.setSprinting(false);
+    }
+}
+
 pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
-    if (self.base.isSprinting() != self.server_status.sprinting) {
+    if (try self.base.isSprinting() != self.server_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
             .network_id = self.base.network_id,
             .data = 0,
-            .action = if (self.base.isSprinting()) .StartSprinting else .StopSprinting,
+            .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
     }
     if (self.base.isSneaking() != self.server_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
             .network_id = self.base.network_id,
             .data = 0,
-            .action = if (self.base.isSprinting()) .StartSprinting else .StopSprinting,
+            .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
     }
 
@@ -281,11 +307,12 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
     const traction = self.getTractionNonLiquid(friction);
     const acceleration = self.getAccelerationFromSteer(steer, traction);
     self.base.velocity = self.base.velocity.add(.{
+        // Why does acceleration.x have to be negated? Vanilla doesn't have this.
         .x = @floatCast(-acceleration.x),
         .y = 0,
         .z = @floatCast(acceleration.z),
     });
-    // vanilla redundantly recalculates friction here
+    // Vanilla redundantly recalculates friction here
     if (self.isClimbing(game)) {
         self.base.velocity.x = std.math.clamp(self.base.velocity.x, -0.15, 0.15);
         self.base.velocity.z = std.math.clamp(self.base.velocity.z, -0.15, 0.15);
@@ -313,7 +340,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
 }
 
 pub fn getGravityNonLiquid(y_velocity: f64) f64 {
-    return (y_velocity - 0.08) * 0.98;
+    return (y_velocity - 0.08) * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
 }
 pub fn getFrictionNonLiquid(self: *const @This(), game: *const Game.IngameState) f32 {
     if (self.base.colliding.on_ground) {
@@ -347,8 +374,7 @@ pub fn getAccelerationFromSteer(self: *const @This(), steer: Vector2(f32), tract
 }
 
 pub fn getGroundWaterSpeed(self: *const @This()) f32 {
-    _ = self;
-    return 0.1;
+    return 0.1 * if (try self.base.isSprinting()) 1 else 0;
 }
 
 // TODO: Implement
@@ -358,9 +384,9 @@ pub fn isClimbing(self: *const @This(), game: *const Game.IngameState) bool {
     return false;
 }
 
-pub fn setSprinting(self: *@This(), sprint_state: bool) void {
+pub fn setSprinting(self: *@This(), sprint_state: bool) !void {
     self.remaining_sprint_ticks = if (sprint_state) 600 else 0;
-    self.base.setSprinting(sprint_state);
+    try self.base.setSprinting(sprint_state);
 }
 
 pub fn syncAbilities(self: *@This(), game: *const Game.IngameState) void {
@@ -368,12 +394,12 @@ pub fn syncAbilities(self: *@This(), game: *const Game.IngameState) void {
     _ = game;
 }
 
-pub fn jump(self: *@This()) void {
+pub fn jump(self: *@This()) !void {
     self.base.velocity.y = @as(f32, @floatCast(0.42));
     // TODO: Implement jump boost
     // self.base.velocity.y += @as(f32, @floatFromInt((self.living.getEffectLevel(.JumpBoost) orelse -1) + 1)) * 0.1;
 
-    if (self.base.isSprinting()) {
+    if (try self.base.isSprinting()) {
         const yaw_radians = self.base.rotation.yaw * @as(f32, @floatCast(@as(f64, std.math.pi) / 180));
         // TODO: Replace this with lookup table version
         self.base.velocity.x -= @sin(yaw_radians) * 0.2;

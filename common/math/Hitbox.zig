@@ -258,7 +258,7 @@ pub fn traceToPlane(from: Vector3(f64), to: Vector3(f64), comptime axis: Axis, p
 ///
 pub fn blockXAxisMovingHitbox(self: @This(), mover: @This(), distance: f64) f64 {
     // cannot collide
-    if (mover.min.y <= self.max.y or mover.min.y >= self.max.y or mover.min.z <= self.max.z or mover.min.z >= self.max.z) {
+    if (mover.max.y <= self.min.y or mover.min.y >= self.max.y or mover.max.z <= self.min.z or mover.min.z >= self.max.z) {
         return distance;
     }
     // colliding by moving +x

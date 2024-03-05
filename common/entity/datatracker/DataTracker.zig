@@ -3,7 +3,7 @@ const ItemStack = @import("../../item/ItemStack.zig");
 const Vector3 = @import("../../type/vector.zig").Vector3;
 const Rotation3 = @import("../../type/rotation.zig").Rotation3;
 
-entries: [32]?DataValue = .{null} ** 32,
+entries: [32]?DataValue = .{.{ .i8 = 0 }} ++ .{null} ** 31,
 
 pub fn put(self: *@This(), id: u5, value: DataValue) !void {
     if (self.entries[id] != null) return error.EntryAlreadyExists;

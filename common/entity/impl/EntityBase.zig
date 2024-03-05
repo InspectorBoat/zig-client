@@ -91,19 +91,7 @@ pub fn move(self: *@This(), velocity: Vector3(f64), game: *const Game.IngameStat
     if (self.getStepHeight() > 0.0 and
         (self.colliding.on_ground or (initial_velocity.y != actual_movement.y and initial_velocity.y < 0)) and
         (initial_velocity.x != actual_movement.x or initial_velocity.z != actual_movement.z))
-    {
-        // const before_step_actual_movement = actual_movement;
-        // const hitbox_before_step = self.hitbox;
-
-        // self.hitbox = initial_hitbox;
-        // actual_movement.y = self.getStepHeight();
-
-        // const step_possible_collisions = game.world.getCollisions(self.hitbox, .{
-        //     .x = initial_velocity.x,
-        //     .y = actual_movement.y,
-        //     .z = initial_velocity.z,
-        // });
-    }
+    {}
 
     // set position from hitbox
     self.pos = getPositionFromHitbox(self.hitbox);
@@ -111,12 +99,14 @@ pub fn move(self: *@This(), velocity: Vector3(f64), game: *const Game.IngameStat
     self.colliding.horizontal = initial_velocity.x != actual_movement.x or initial_velocity.z != actual_movement.z;
     self.colliding.vertical = initial_velocity.y != actual_movement.y;
     self.colliding.on_ground = self.colliding.vertical and initial_velocity.y < 0;
+
+    // get block below, accounting for 1.5 tall blocks
+    self.fall(self.colliding.on_ground, actual_movement.y);
+
     if (initial_velocity.x != actual_movement.x) self.velocity.x = 0;
     if (initial_velocity.z != actual_movement.z) self.velocity.z = 0;
-    self.fall(self.colliding.on_ground, actual_movement.y);
-    // slime block bouncy code
 
-    // block collision effect code
+    if (initial_velocity.y != actual_movement.y) self.velocity.y = 0; // block.applyFallReaction - slime block bounce code is here
 }
 
 // TODO: Implement
@@ -172,12 +162,12 @@ pub fn setRotation(self: *@This(), rotation: Rotation2(f32)) void {
     };
 }
 
-pub fn hasVehicle(self: *const @This()) bool {
+pub fn hasVehicle(self: @This()) bool {
     return self.vehicle != null;
 }
 
 // TODO: Unimplemented
-pub fn isSneaking(self: *const @This()) bool {
+pub fn isSneaking(self: @This()) bool {
     _ = self;
     return false;
 }
@@ -188,14 +178,31 @@ pub fn setSneaking(self: *@This(), sneaking_state: bool) void {
     _ = sneaking_state;
 }
 
-/// TODO: Unimplemented
-pub fn isSprinting(self: *const @This()) bool {
-    _ = self;
-    return false;
+pub fn isSprinting(self: @This()) !bool {
+    return try self.getFlag(3);
 }
 
-/// TODO: Unimplemented
-pub fn setSprinting(self: *@This(), sprinting_state: bool) void {
-    _ = self;
-    _ = sprinting_state;
+pub fn setSprinting(self: *@This(), sprinting_state: bool) !void {
+    return try self.setFlag(3, sprinting_state);
+}
+
+pub fn getFlag(self: @This(), index: u3) !bool {
+    const entry_zero = switch (self.data_tracker.entries[0] orelse return error.MissingEntry) {
+        .i8 => |i| i,
+        else => return error.WrongEntryType,
+    };
+    return (entry_zero & (@as(i8, 1) << index)) != 0;
+}
+
+pub fn setFlag(self: *@This(), index: u3, value: bool) !void {
+    const entry_zero = switch (self.data_tracker.entries[0] orelse return error.MissingEntry) {
+        .i8 => |i| i,
+        else => return error.WrongEntryType,
+    };
+
+    if (value) {
+        try self.data_tracker.update(0, .{ .i8 = entry_zero | (@as(i8, 1) << index) });
+    } else {
+        try self.data_tracker.update(0, .{ .i8 = entry_zero | ~(@as(i8, 1) << index) });
+    }
 }
