@@ -112,13 +112,20 @@ pub const Game = union(GameState) {
     pub fn handleIncomingPackets(self: *@This()) !void {
         switch (self.*) {
             inline .Connecting, .Ingame => |game_state| {
-                game_state.connection_handle.s2c_packet_queue.lock();
-                while (game_state.connection_handle.s2c_packet_queue.read()) |s2c_packet_wrapper| {
+                const s2c_packet_queue = game_state.connection_handle.s2c_packet_queue;
+                s2c_packet_queue.lock();
+                while (s2c_packet_queue.read()) |s2c_packet_wrapper| {
+                    @import("log").handle_packet(.{s2c_packet_wrapper.packet});
+
                     var s2c_packet_wrapper_mut = s2c_packet_wrapper;
-                    @import("log").handle_packet(.{s2c_packet_wrapper_mut.packet});
                     try s2c_packet_wrapper_mut.packet.handleOnMainThread(self, game_state.gpa);
                 }
-                game_state.connection_handle.s2c_packet_queue.unlock();
+                s2c_packet_queue.unlock();
+
+                const c2s_packet_queue = game_state.connection_handle.c2s_packet_queue;
+                c2s_packet_queue.lock();
+                while (c2s_packet_queue.free()) |_| {}
+                c2s_packet_queue.unlock();
             },
             else => unreachable,
         }
