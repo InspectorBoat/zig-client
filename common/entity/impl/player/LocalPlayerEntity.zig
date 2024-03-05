@@ -234,13 +234,13 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
         } });
         self.server_status.sprinting = try self.base.isSprinting();
     }
-    if (self.base.isSneaking() != self.server_status.sprinting) {
+    if (self.isSneaking() != self.server_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
-        self.server_status.sneaking = self.base.isSneaking();
+        self.server_status.sneaking = self.isSneaking();
     }
 
     // if (!self.isCamera()) return;
@@ -315,7 +315,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
     if (self.isClimbing(game)) {
         self.base.velocity.x = std.math.clamp(self.base.velocity.x, -0.15, 0.15);
         self.base.velocity.z = std.math.clamp(self.base.velocity.z, -0.15, 0.15);
-        self.base.velocity.y = @max(self.base.velocity.y, if (self.base.isSneaking()) @as(f64, 0) else @as(f64, -0.15));
+        self.base.velocity.y = @max(self.base.velocity.y, if (self.isSneaking()) @as(f64, 0) else @as(f64, -0.15));
     }
 
     try self.base.move(self.base.velocity, game);
@@ -389,6 +389,10 @@ pub fn setSprinting(self: *@This(), sprint_state: bool) !void {
     try self.base.setSprinting(sprint_state);
 }
 
+pub fn isSneaking(self: @This()) bool {
+    return self.input.sneak and !self.player.sleeping;
+}
+
 pub fn syncAbilities(self: *@This(), game: *const Game.IngameState) void {
     _ = self;
     _ = game;
@@ -408,7 +412,7 @@ pub fn jump(self: *@This()) !void {
 }
 
 pub fn getEyePos(self: @This()) Vector3(f64) {
-    return self.base.pos.add(.{ .x = 0, .y = if (self.base.isSneaking()) 1.54 else 1.62, .z = 0 });
+    return self.base.pos.add(.{ .x = 0, .y = if (self.isSneaking()) 1.54 else 1.62, .z = 0 });
 }
 
 pub const PlayerAbilities = struct {

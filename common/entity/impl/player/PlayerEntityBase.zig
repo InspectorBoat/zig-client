@@ -8,6 +8,7 @@ hunger: struct {
     exhaustion: f32 = 0,
     starvation_timer: i32 = 0,
 } = .{},
+sleeping: bool = false,
 
 pub fn isSpectator(self: *const @This(), game: *const Game.IngameState) bool {
     _ = self;
