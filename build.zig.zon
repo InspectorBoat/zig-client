@@ -1,0 +1,21 @@
+.{
+    .name = "client",
+    .version = "0.0.0",
+    .paths = .{"./src/main.zig"},
+    .dependencies = .{
+        .network = .{
+            .url = "https://github.com/MasterQ32/zig-network/archive/e734600daa590ab39d7bb76a5a5054b6efd1f126.tar.gz",
+            .hash = "122033fba45ac83a780b1db316526158794a7dc184138a57a001a2db0aaa81b9e18c",
+        },
+        .zgl = .{
+            .path = "./libs/zgl",
+        },
+        .mach_glfw = .{
+            .path = "./libs/mach-glfw",
+        },
+        .zalgebra = .{
+            .url = "https://github.com/kooparse/zalgebra/archive/01785b08cdbfb51e125ae939dad1d15928a7f352.tar.gz",
+            .hash = "12206e29e5d0f012c694f413b21cb66238964fdaef0a29781e0bf3ff75ec08a2ed78",
+        },
+    },
+}
