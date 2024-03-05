@@ -232,7 +232,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
-        self.server_status.sprinting = self.base.isSprinting();
+        self.server_status.sprinting = try self.base.isSprinting();
     }
     if (self.base.isSneaking() != self.server_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
