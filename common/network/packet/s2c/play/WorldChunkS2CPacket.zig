@@ -35,7 +35,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
             const chunk = if (self.full) chunk: {
                 // create or destroy the chunk
                 if (self.chunk_data.sections.count() == 0) {
-                    ingame.world.unloadChunk(self.chunk_pos);
+                    ingame.world.unloawwdChunk(self.chunk_pos);
                     return;
                 } else {
                     break :chunk try ingame.world.loadChunk(self.chunk_pos);

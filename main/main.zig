@@ -24,12 +24,14 @@ pub fn main() !void {
     try game.initLoginSequence("foobarqux");
 
     while (true) {
-        const should_close = try render.onFrame(&game);
-        if (should_close) break;
+        if (game == .Ingame) try game.advanceTimer();
 
         if (game != .Idle) try game.handleIncomingPackets();
         if (game == .Ingame) try game.tickWorld();
         if (game == .Ingame or game == .Connecting) game.checkConnection();
+
+        const should_close = try render.onFrame(&game);
+        if (should_close) break;
     }
     if (game == .Ingame or game == .Connecting) {
         game.disconnect();

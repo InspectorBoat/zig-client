@@ -315,6 +315,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
     if (self.isClimbing(game)) {
         self.base.velocity.x = std.math.clamp(self.base.velocity.x, -0.15, 0.15);
         self.base.velocity.z = std.math.clamp(self.base.velocity.z, -0.15, 0.15);
+
         self.base.velocity.y = @max(self.base.velocity.y, if (self.isSneaking()) @as(f64, 0) else @as(f64, -0.15));
     }
 
@@ -414,6 +415,14 @@ pub fn jump(self: *@This()) !void {
 
 pub fn getEyePos(self: @This()) Vector3(f64) {
     return self.base.pos.add(.{ .x = 0, .y = if (self.isSneaking()) 1.54 else 1.62, .z = 0 });
+}
+
+pub fn getInterpolatedEyePos(self: @This(), partial_tick: f64, interpolationFn: fn (f64, f64, f64) f64) Vector3(f64) {
+    return .{
+        .x = interpolationFn(self.base.prev_pos.x, self.base.pos.x, partial_tick),
+        .y = interpolationFn(self.base.prev_pos.y, self.base.pos.y, partial_tick) + if (self.isSneaking()) @as(f64, 1.54) else @as(f64, 1.62),
+        .z = interpolationFn(self.base.prev_pos.z, self.base.pos.z, partial_tick),
+    };
 }
 
 pub const PlayerAbilities = struct {

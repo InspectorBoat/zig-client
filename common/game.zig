@@ -23,7 +23,9 @@ pub const Game = union(GameState) {
         gpa: std.mem.Allocator,
         connection_handle: ConnectionHandle,
         world: World,
+        partial_tick: f64 = 0,
         tick_delay: f64 = 0,
+        ticks_elapsed: usize = 0,
     };
 
     Idle: IdleGame,
@@ -75,21 +77,32 @@ pub const Game = union(GameState) {
         }
     }
 
+    pub fn advanceTimer(self: *@This()) !void {
+        switch (self.*) {
+            .Ingame => |*ingame| {
+                ingame.ticks_elapsed, ingame.partial_tick = ingame.world.tick_timer.advance();
+            },
+            else => unreachable,
+        }
+    }
+
     pub fn tickWorld(self: *@This()) !void {
         switch (self.*) {
             .Ingame => |*ingame| {
-                const ticks_elapsed, const partial_tick = ingame.world.tick_timer.advance();
-                if (ticks_elapsed > 1) @import("log").lag_spike(.{ticks_elapsed});
-                for (0..ticks_elapsed) |_| {
-                    if (partial_tick > 0.0001) {
-                        const delay = partial_tick * @as(f64, @floatFromInt(ingame.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
+                if (ingame.ticks_elapsed > 0) {
+                    if (ingame.partial_tick > 0.0001) {
+                        const delay = ingame.partial_tick * @as(f64, @floatFromInt(ingame.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
                         @import("log").delayed_tick(.{delay});
                         ingame.tick_delay += delay;
                     } else {
                         @import("log").tick_on_time(.{});
                     }
+                }
+                if (ingame.ticks_elapsed > 1) @import("log").lag_spike(.{ingame.ticks_elapsed});
+                for (0..ingame.ticks_elapsed) |_| {
                     try ingame.world.tick(ingame, ingame.gpa);
                 }
+                ingame.ticks_elapsed = 0;
             },
             else => unreachable,
         }

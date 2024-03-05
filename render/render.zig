@@ -56,7 +56,7 @@ pub fn onFrame(game: *Game) !bool {
             handleInputIngame(ingame);
             gl.enable(.depth_test);
 
-            const mvp = getMvpMatrix(ingame.world.player);
+            const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
             gl.uniformMatrix4fv(0, true, @as([*]const [4][4]f32, @ptrCast(mvp.getData()))[0..1]);
 
             var entries = renderer.sections.iterator();
@@ -77,8 +77,9 @@ pub fn onFrame(game: *Game) !bool {
     return false;
 }
 
-pub fn getMvpMatrix(player: LocalPlayerEntity) Mat4 {
-    const eye_pos = player.getEyePos();
+pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
+    const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
+
     const player_pos_cast = za.Vec3_f64.new(
         -eye_pos.x,
         -eye_pos.y,
@@ -94,6 +95,10 @@ pub fn getMvpMatrix(player: LocalPlayerEntity) Mat4 {
     const model = Mat4.fromTranslate(player_pos_cast);
 
     return projection.mul(view.mul(model));
+}
+
+pub fn lerp(start: f64, end: f64, progress: f64) f64 {
+    return (end - start) * progress + start;
 }
 
 pub fn handleInputIngame(ingame: *Game.IngameState) void {

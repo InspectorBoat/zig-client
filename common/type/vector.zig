@@ -122,6 +122,18 @@ pub fn Vector3(comptime Element: type) type {
             return delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
         }
 
+        pub fn distance(self: @This(), other: @This()) Element {
+            return std.math.sqrt(self.distance_squared(other));
+        }
+
+        pub fn magnitudeSquared(self: @This()) Element {
+            return self.x * self.x + self.y * self.y + self.z * self.z;
+        }
+
+        pub fn magnitude(self: @This()) Element {
+            return std.math.sqrt(self.magnitudeSquared());
+        }
+
         pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
             _ = fmt;
             _ = options;
