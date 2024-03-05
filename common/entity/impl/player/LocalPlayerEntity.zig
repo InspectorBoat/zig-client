@@ -217,7 +217,6 @@ pub fn updateSprinting(self: *@This()) !void {
         (not_using_item) and
         (not_blinded))
     {
-        std.log.info("forward: {} input: {}", .{ sufficient_forward_input, sprint_input });
         try self.setSprinting(true);
     }
 
@@ -233,6 +232,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
+        self.server_status.sprinting = self.base.isSprinting();
     }
     if (self.base.isSneaking() != self.server_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
@@ -240,6 +240,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
+        self.server_status.sneaking = self.base.isSneaking();
     }
 
     // if (!self.isCamera()) return;
@@ -306,7 +307,6 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
     const traction = try self.getTractionNonLiquid(friction);
     const acceleration = self.getAccelerationFromSteer(steer, traction);
     self.base.velocity = self.base.velocity.add(.{
-        // Why does acceleration.x have to be negated? Vanilla doesn't have this.
         .x = @floatCast(acceleration.x),
         .y = 0,
         .z = @floatCast(acceleration.z),
