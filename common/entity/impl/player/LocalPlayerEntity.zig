@@ -318,7 +318,8 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
         self.base.velocity.y = @max(self.base.velocity.y, if (self.isSneaking()) @as(f64, 0) else @as(f64, -0.15));
     }
 
-    try self.base.move(self.base.velocity, game);
+    const should_safe_walk = self.base.colliding.on_ground and self.isSneaking();
+    try self.base.move(self.base.velocity, should_safe_walk, game);
 
     if (self.base.colliding.horizontal and self.isClimbing(game)) {
         self.base.velocity.y = 0.2;

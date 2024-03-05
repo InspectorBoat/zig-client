@@ -75,6 +75,33 @@ pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bo
     });
 }
 
+pub fn getCollisionCount(self: *const @This(), hitbox: Hitbox) usize {
+    var collisions_count: usize = 0;
+    const min_pos: Vector3(i32) = .{
+        .x = @intFromFloat(@floor(hitbox.min.x)),
+        .y = @intFromFloat(@floor(hitbox.min.y)),
+        .z = @intFromFloat(@floor(hitbox.min.z)),
+    };
+    const max_pos: Vector3(i32) = .{
+        .x = @intFromFloat(@floor(hitbox.max.x + 1)),
+        .y = @intFromFloat(@floor(hitbox.max.y + 1)),
+        .z = @intFromFloat(@floor(hitbox.max.z + 1)),
+    };
+    var x = min_pos.x;
+    while (x < max_pos.x) : (x += 1) {
+        var y = min_pos.y;
+        while (y < max_pos.y) : (y += 1) {
+            var z = min_pos.z;
+            while (z < max_pos.z) : (z += 1) {
+                for (self.getBlockState(.{ .x = x, .y = y, .z = z }).getHitboxes()) |_| {
+                    collisions_count += 1;
+                }
+            }
+        }
+    }
+    return collisions_count;
+}
+
 pub fn getCollisions(self: *const @This(), hitbox: Hitbox, allocator: std.mem.Allocator) ![]const Hitbox {
     var collisions = std.ArrayList(Hitbox).init(allocator);
     const min_pos: Vector3(i32) = .{

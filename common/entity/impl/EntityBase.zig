@@ -49,12 +49,12 @@ pub fn teleport(self: *@This(), new_pos: Vector3(f64), new_rotation: Rotation2(f
     self.setRotation(self.rotation);
 }
 
-pub fn move(self: *@This(), velocity: Vector3(f64), game: *const Game.IngameState) !void {
+pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *const Game.IngameState) !void {
     // TODO: handle noclip
     const start_pos = self.pos;
     _ = start_pos;
     // handle cobweb
-    const initial_velocity = if (self.colliding.in_cobweb)
+    var initial_velocity = if (self.colliding.in_cobweb)
         velocity.scale(.{ .x = 0.25, .y = 0.05, .z = 0.25 })
     else
         velocity;
@@ -62,6 +62,57 @@ pub fn move(self: *@This(), velocity: Vector3(f64), game: *const Game.IngameStat
     var actual_movement = initial_velocity;
 
     // TODO: handle sneak
+    if (safe_walk) {
+        const sneak_move_increment: f64 = 0.05;
+
+        while (actual_movement.x != 0 and
+            game.world.getCollisionCount(self.hitbox.move(.{ .x = actual_movement.x, .y = -1, .z = 0 })) == 0)
+        {
+            if (actual_movement.x < sneak_move_increment and actual_movement.x >= -sneak_move_increment) {
+                actual_movement.x = 0;
+            } else if (actual_movement.x > 0) {
+                actual_movement.x -= sneak_move_increment;
+            } else {
+                actual_movement.x += sneak_move_increment;
+            }
+            initial_velocity.x = actual_movement.x;
+        }
+
+        while (actual_movement.z != 0 and
+            game.world.getCollisionCount(self.hitbox.move(.{ .x = 0, .y = -1, .z = actual_movement.z })) == 0)
+        {
+            if (actual_movement.z < sneak_move_increment and actual_movement.z >= -sneak_move_increment) {
+                actual_movement.z = 0;
+            } else if (actual_movement.z > 0) {
+                actual_movement.z -= sneak_move_increment;
+            } else {
+                actual_movement.z += sneak_move_increment;
+            }
+            initial_velocity.z = actual_movement.z;
+        }
+
+        while (actual_movement.x != 0 and actual_movement.z != 0 and
+            game.world.getCollisionCount(self.hitbox.move(.{ .x = actual_movement.x, .y = -1, .z = actual_movement.z })) == 0)
+        {
+            if (actual_movement.x < sneak_move_increment and actual_movement.x >= -sneak_move_increment) {
+                actual_movement.x = 0;
+            } else if (actual_movement.x > 0) {
+                actual_movement.x -= sneak_move_increment;
+            } else {
+                actual_movement.x += sneak_move_increment;
+            }
+            initial_velocity.x = actual_movement.x;
+
+            if (actual_movement.z < sneak_move_increment and actual_movement.z >= -sneak_move_increment) {
+                actual_movement.z = 0;
+            } else if (actual_movement.z > 0) {
+                actual_movement.z -= sneak_move_increment;
+            } else {
+                actual_movement.z += sneak_move_increment;
+            }
+            initial_velocity.z = actual_movement.z;
+        }
+    }
 
     const initial_hitbox = self.hitbox;
     _ = initial_hitbox;
