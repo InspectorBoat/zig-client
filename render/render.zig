@@ -109,8 +109,8 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
         .jump = window_input.keys.get(.space),
         .sneak = window_input.keys.get(.left_shift),
         .steer = .{
-            .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.s))) - @as(i8, @intFromBool(window_input.keys.get(.w)))),
             .x = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.a))) - @as(i8, @intFromBool(window_input.keys.get(.d)))),
+            .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.s))) - @as(i8, @intFromBool(window_input.keys.get(.w)))),
         },
     };
 }

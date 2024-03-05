@@ -333,14 +333,12 @@ pub fn getTractionNonLiquid(self: *const @This(), friction: f32) f32 {
 pub fn getAccelerationFromSteer(self: *const @This(), steer: Vector2(f32), traction: f32) Vector2(f32) {
     if (steer.magnitude_squared() < 0.0001) return .{ .x = 0, .z = 0 };
 
-    const magnitude = @min(steer.magnitude(), 1.0);
-    const normalization_scalar = traction / magnitude;
-    const scaled_steer = steer.scaleUniform(normalization_scalar);
-
     const yaw_radians = self.base.rotation.yaw * (@as(f32, @floatCast(std.math.pi)) / 180.0);
 
     const sin = @sin(yaw_radians);
     const cos = @cos(yaw_radians);
+
+    const scaled_steer = steer.scaleUniform(traction / @max(steer.magnitude(), 1.0));
 
     return .{
         .x = scaled_steer.x * cos - scaled_steer.z * sin,
