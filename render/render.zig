@@ -99,8 +99,8 @@ pub fn getMvpMatrix(player: LocalPlayerEntity) Mat4 {
 pub fn handleInputIngame(ingame: *Game.IngameState) void {
     var player = &ingame.world.player;
 
-    player.base.rotation.yaw += @floatCast(window_input.mouse_delta.x / 20);
-    player.base.rotation.pitch += @floatCast(window_input.mouse_delta.z / 20);
+    player.base.rotation.yaw += @floatCast(window_input.mouse_delta.x / 5);
+    player.base.rotation.pitch += @floatCast(window_input.mouse_delta.z / 5);
 
     window_input.mouse_delta = .{ .x = 0, .z = 0 };
     player.base.rotation.pitch = std.math.clamp(player.base.rotation.pitch, -90, 90);
