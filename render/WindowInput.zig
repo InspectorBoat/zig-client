@@ -8,6 +8,8 @@ events: std.fifo.LinearFifo(Event, .Dynamic),
 keys: std.EnumArray(glfw.Key, bool) = std.EnumArray(glfw.Key, bool).initFill(false),
 mouse_delta: Vector2(f64) = .{ .x = 0, .z = 0 },
 mouse_pos: ?Vector2(f64) = null,
+maximized: bool = false,
+window_size: Vector2(i32) = .{ .x = 640, .z = 640 },
 
 pub const Event = union(enum) {
     Pos: struct { xpos: i32, ypos: i32 },
@@ -75,6 +77,7 @@ pub fn sizeCallback(window: glfw.Window, width: i32, height: i32) void {
         .height = height,
         .width = width,
     } }) catch unreachable;
+    window_input.window_size = .{ .x = width, .z = height };
 }
 pub fn closeCallback(window: glfw.Window) void {
     var window_input = window.getUserPointer(@This()) orelse {
@@ -116,6 +119,7 @@ pub fn maximizeCallback(window: glfw.Window, maximized: bool) void {
     window_input.events.writeItem(.{
         .Maximize = .{ .maximized = maximized },
     }) catch unreachable;
+    window_input.maximized = maximized;
 }
 pub fn framebufferSizeCallback(window: glfw.Window, width: u32, height: u32) void {
     var window_input = window.getUserPointer(@This()) orelse {

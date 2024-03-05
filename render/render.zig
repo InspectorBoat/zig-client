@@ -86,7 +86,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
         -eye_pos.z,
     ).cast(f32);
 
-    const projection = za.perspective(90.0, 640.0 / 640.0, 0.05, 1000.0);
+    const projection = za.perspective(90.0, @as(f32, @floatFromInt(window_input.window_size.x)) / @as(f32, @floatFromInt(window_input.window_size.z)), 0.05, 1000.0);
     const view = Mat4.mul(
         Mat4.fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
         Mat4.fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
@@ -102,6 +102,25 @@ pub fn lerp(start: f64, end: f64, progress: f64) f64 {
 }
 
 pub fn handleInputIngame(ingame: *Game.IngameState) void {
+    while (window_input.events.readItem()) |event| {
+        switch (event) {
+            .Key => |key| {
+                switch (key.key) {
+                    .tab => {
+                        if (key.action == .press) {
+                            if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
+                        }
+                    },
+                    else => {},
+                }
+            },
+            .Size => |size| {
+                gl.viewport(0, 0, @intCast(size.width), @intCast(size.height));
+            },
+            else => {},
+        }
+    }
+
     var player = &ingame.world.player;
 
     player.base.rotation.yaw -= @floatCast(window_input.mouse_delta.x / 5);
