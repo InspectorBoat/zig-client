@@ -183,7 +183,7 @@ pub fn isSprinting(self: @This()) !bool {
 }
 
 pub fn setSprinting(self: *@This(), sprinting_state: bool) !void {
-    return try self.setFlag(3, sprinting_state);
+    try self.setFlag(3, sprinting_state);
 }
 
 pub fn getFlag(self: @This(), index: u3) !bool {
@@ -203,6 +203,6 @@ pub fn setFlag(self: *@This(), index: u3, value: bool) !void {
     if (value) {
         try self.data_tracker.update(0, .{ .i8 = entry_zero | (@as(i8, 1) << index) });
     } else {
-        try self.data_tracker.update(0, .{ .i8 = entry_zero | ~(@as(i8, 1) << index) });
+        try self.data_tracker.update(0, .{ .i8 = entry_zero & ~(@as(i8, 1) << index) });
     }
 }

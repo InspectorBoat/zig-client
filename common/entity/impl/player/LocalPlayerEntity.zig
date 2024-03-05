@@ -205,8 +205,6 @@ pub fn hasControl(self: *@This()) bool {
 pub fn updateSprinting(self: *@This()) !void {
     // TODO: Double tap sprint code
 
-    // TODO: Correctly calculate this
-
     const sufficient_forward_input = self.input.steer.z >= @as(f32, @floatCast(0.8));
     const sufficient_food = self.player.hunger.food_level > 6 or self.abilities.allow_flying;
     const not_using_item = self.item_in_use == null;
@@ -219,6 +217,7 @@ pub fn updateSprinting(self: *@This()) !void {
         (not_using_item) and
         (not_blinded))
     {
+        std.log.info("forward: {} input: {}", .{ sufficient_forward_input, sprint_input });
         try self.setSprinting(true);
     }
 
@@ -304,11 +303,11 @@ pub fn moveWithSteerInLava(self: *@This(), steer: Vector2(f32), game: *const Gam
 }
 pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const Game.IngameState) !void {
     const friction = self.getFrictionNonLiquid(game);
-    const traction = self.getTractionNonLiquid(friction);
+    const traction = try self.getTractionNonLiquid(friction);
     const acceleration = self.getAccelerationFromSteer(steer, traction);
     self.base.velocity = self.base.velocity.add(.{
         // Why does acceleration.x have to be negated? Vanilla doesn't have this.
-        .x = @floatCast(-acceleration.x),
+        .x = @floatCast(acceleration.x),
         .y = 0,
         .z = @floatCast(acceleration.z),
     });
@@ -349,9 +348,9 @@ pub fn getFrictionNonLiquid(self: *const @This(), game: *const Game.IngameState)
         return 0.91;
     }
 }
-pub fn getTractionNonLiquid(self: *const @This(), friction: f32) f32 {
+pub fn getTractionNonLiquid(self: *const @This(), friction: f32) !f32 {
     if (self.base.colliding.on_ground) {
-        return self.getGroundWaterSpeed() * (0.16277136 / (friction * friction * friction));
+        return try self.getGroundWaterSpeed() * (0.16277136 / (friction * friction * friction));
     } else {
         return self.air_speed;
     }
@@ -373,8 +372,8 @@ pub fn getAccelerationFromSteer(self: *const @This(), steer: Vector2(f32), tract
     };
 }
 
-pub fn getGroundWaterSpeed(self: *const @This()) f32 {
-    return 0.1 * if (try self.base.isSprinting()) 1 else 0;
+pub fn getGroundWaterSpeed(self: *const @This()) !f32 {
+    return 0.1 * (if (try self.base.isSprinting()) @as(f32, 1.3) else @as(f32, 1.0));
 }
 
 // TODO: Implement
@@ -385,6 +384,7 @@ pub fn isClimbing(self: *const @This(), game: *const Game.IngameState) bool {
 }
 
 pub fn setSprinting(self: *@This(), sprint_state: bool) !void {
+    if (sprint_state) @import("log").player_start_sprint(.{}) else @import("log").player_stop_sprint(.{});
     self.remaining_sprint_ticks = if (sprint_state) 600 else 0;
     try self.base.setSprinting(sprint_state);
 }

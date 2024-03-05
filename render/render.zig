@@ -87,8 +87,8 @@ pub fn getMvpMatrix(player: LocalPlayerEntity) Mat4 {
 
     const projection = za.perspective(90.0, 640.0 / 640.0, 0.05, 1000.0);
     const view = Mat4.mul(
-        Mat4.fromEulerAngles(Vec3.new(-player.base.rotation.pitch, 0, 0)),
-        Mat4.fromEulerAngles(Vec3.new(0, -player.base.rotation.yaw, 0)),
+        Mat4.fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
+        Mat4.fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
     );
 
     const model = Mat4.fromTranslate(player_pos_cast);
@@ -99,8 +99,8 @@ pub fn getMvpMatrix(player: LocalPlayerEntity) Mat4 {
 pub fn handleInputIngame(ingame: *Game.IngameState) void {
     var player = &ingame.world.player;
 
-    player.base.rotation.yaw += @floatCast(window_input.mouse_delta.x / 5);
-    player.base.rotation.pitch += @floatCast(window_input.mouse_delta.z / 5);
+    player.base.rotation.yaw -= @floatCast(window_input.mouse_delta.x / 5);
+    player.base.rotation.pitch -= @floatCast(window_input.mouse_delta.z / 5);
 
     window_input.mouse_delta = .{ .x = 0, .z = 0 };
     player.base.rotation.pitch = std.math.clamp(player.base.rotation.pitch, -90, 90);
@@ -110,7 +110,7 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
         .sprint = window_input.keys.get(.left_control),
         .steer = .{
             .x = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.a))) - @as(i8, @intFromBool(window_input.keys.get(.d)))),
-            .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.s))) - @as(i8, @intFromBool(window_input.keys.get(.w)))),
+            .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.w))) - @as(i8, @intFromBool(window_input.keys.get(.s)))),
         },
     };
 }
