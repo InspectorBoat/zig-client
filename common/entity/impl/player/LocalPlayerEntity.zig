@@ -126,7 +126,9 @@ pub fn update(self: *@This(), game: *Game.IngameState) !void {
     // TODO
 
     // zero velocity if low
-    // TODO
+    if (@abs(self.base.velocity.x) < 0.005) self.base.velocity.x = 0;
+    if (@abs(self.base.velocity.y) < 0.005) self.base.velocity.y = 0;
+    if (@abs(self.base.velocity.z) < 0.005) self.base.velocity.z = 0;
 
     // if dead, stop movement inputs
     // otherwise, if camera, update movement inputs, multiplying steer by 0.98
