@@ -1,8 +1,419 @@
 const std = @import("std");
+const intToEnum = std.meta.intToEnum;
 
-pub const Blocks = union(enum) {
+pub const Block = enum(u12) {
+    Air,
+    Stone,
+    Grass,
+    Dirt,
+    Cobblestone,
+    Planks,
+    Sapling,
+    Bedrock,
+    FlowingWater,
+    Water,
+    FlowingLava,
+    Lava,
+    Sand,
+    Gravel,
+    GoldOre,
+    IronOre,
+    CoalOre,
+    Log,
+    Leaves,
+    Sponge,
+    Glass,
+    LapisOre,
+    LapisBlock,
+    Dispenser,
+    Sandstone,
+    Noteblock,
+    Bed,
+    PoweredRail,
+    DetectorRail,
+    StickyPiston,
+    Web,
+    TallGrass,
+    DeadBush,
+    Piston,
+    PistonHead,
+    Wool,
+    PistonExtension,
+    YellowFlower,
+    RedFlower,
+    BrownMushroom,
+    RedMushroom,
+    GoldBlock,
+    IronBlock,
+    DoubleStoneSlab,
+    StoneSlab,
+    BrickBlock,
+    Tnt,
+    Bookshelf,
+    MossyCobblestone,
+    Obsidian,
+    Torch,
+    Fire,
+    MobSpawner,
+    OakStairs,
+    Chest,
+    RedstoneWire,
+    DiamondOre,
+    DiamondBlock,
+    CraftingTable,
+    Wheat,
+    Farmland,
+    Furnace,
+    LitFurnace,
+    StandingSign,
+    WoodenDoor,
+    Ladder,
+    Rail,
+    StoneStairs,
+    WallSign,
+    Lever,
+    StonePressurePlate,
+    IronDoor,
+    WoodenPressurePlate,
+    RedstoneOre,
+    LitRedstoneOre,
+    UnlitRedstoneTorch,
+    RedstoneTorch,
+    StoneButton,
+    SnowLayer,
+    Ice,
+    Snow,
+    Cactus,
+    Clay,
+    Reeds,
+    Jukebox,
+    Fence,
+    Pumpkin,
+    Netherrack,
+    SoulSand,
+    Glowstone,
+    Portal,
+    LitPumpkin,
+    Cake,
+    UnpoweredRepeater,
+    PoweredRepeater,
+    StainedGlass,
+    Trapdoor,
+    MonsterEgg,
+    Stonebrick,
+    BrownMushroomBlock,
+    RedMushroomBlock,
+    IronBars,
+    GlassPane,
+    MelonBlock,
+    PumpkinStem,
+    MelonStem,
+    Vine,
+    FenceGate,
+    BrickStairs,
+    StoneBrickStairs,
+    Mycelium,
+    Waterlily,
+    NetherBrick,
+    NetherBrickFence,
+    NetherBrickStairs,
+    NetherWart,
+    EnchantingTable,
+    BrewingStand,
+    Cauldron,
+    EndPortal,
+    EndPortalFrame,
+    EndStone,
+    DragonEgg,
+    RedstoneLamp,
+    LitRedstoneLamp,
+    DoubleWoodenSlab,
+    WoodenSlab,
+    Cocoa,
+    SandstoneStairs,
+    EmeraldOre,
+    EnderChest,
+    TripwireHook,
+    Tripwire,
+    EmeraldBlock,
+    SpruceStairs,
+    BirchStairs,
+    JungleStairs,
+    CommandBlock,
+    Beacon,
+    CobblestoneWall,
+    FlowerPot,
+    Carrots,
+    Potatoes,
+    WoodenButton,
+    Skull,
+    Anvil,
+    TrappedChest,
+    LightWeightedPressurePlate,
+    HeavyWeightedPressurePlate,
+    UnpoweredComparator,
+    PoweredComparator,
+    DaylightDetector,
+    RedstoneBlock,
+    QuartzOre,
+    Hopper,
+    QuartzBlock,
+    QuartzStairs,
+    ActivatorRail,
+    Dropper,
+    StainedHardenedClay,
+    StainedGlassPane,
+    Leaves2,
+    Log2,
+    AcaciaStairs,
+    DarkOakStairs,
+    Slime,
+    Barrier,
+    IronTrapdoor,
+    Prismarine,
+    SeaLantern,
+    HayBlock,
+    Carpet,
+    HardenedClay,
+    CoalBlock,
+    PackedIce,
+    DoublePlant,
+    StandingBanner,
+    WallBanner,
+    DaylightDetectorInverted,
+    RedSandstone,
+    RedSandstoneStairs,
+    DoubleStoneSlab2,
+    StoneSlab2,
+    SpruceFenceGate,
+    BirchFenceGate,
+    JungleFenceGate,
+    DarkOakFenceGate,
+    AcaciaFenceGate,
+    SpruceFence,
+    BirchFence,
+    JungleFence,
+    DarkOakFence,
+    AcaciaFence,
+    SpruceDoor,
+    BirchDoor,
+    JungleDoor,
+    AcaciaDoor,
+    DarkOakDoor,
+};
+
+pub const StoredBlockState = packed struct {
+    block: Block,
+    metadata: u4,
+
+    pub fn toConcreteBlockState(self: @This()) ConcreteBlockState {
+        switch (self.block) {
+            .Air => return .Air,
+            .Stone => return .{ .Stone = .{ .variant = intToEnum(ConcreteBlockState.StoneType, self.metadata) catch .Stone } },
+            .Grass => {},
+            .Dirt => {},
+            .Cobblestone => {},
+            .Planks => {},
+            .Sapling => {},
+            .Bedrock => {},
+            .FlowingWater => {},
+            .Water => {},
+            .FlowingLava => {},
+            .Lava => {},
+            .Sand => {},
+            .Gravel => {},
+            .GoldOre => {},
+            .IronOre => {},
+            .CoalOre => {},
+            .Log => {},
+            .Leaves => {},
+            .Sponge => {},
+            .Glass => {},
+            .LapisOre => {},
+            .LapisBlock => {},
+            .Dispenser => {},
+            .Sandstone => {},
+            .Noteblock => {},
+            .Bed => {},
+            .PoweredRail => {},
+            .DetectorRail => {},
+            .StickyPiston => {},
+            .Web => {},
+            .TallGrass => {},
+            .DeadBush => {},
+            .Piston => {},
+            .PistonHead => {},
+            .Wool => {},
+            .PistonExtension => {},
+            .YellowFlower => {},
+            .RedFlower => {},
+            .BrownMushroom => {},
+            .RedMushroom => {},
+            .GoldBlock => {},
+            .IronBlock => {},
+            .DoubleStoneSlab => {},
+            .StoneSlab => {},
+            .BrickBlock => {},
+            .Tnt => {},
+            .Bookshelf => {},
+            .MossyCobblestone => {},
+            .Obsidian => {},
+            .Torch => {},
+            .Fire => {},
+            .MobSpawner => {},
+            .OakStairs => {},
+            .Chest => {},
+            .RedstoneWire => {},
+            .DiamondOre => {},
+            .DiamondBlock => {},
+            .CraftingTable => {},
+            .Wheat => {},
+            .Farmland => {},
+            .Furnace => {},
+            .LitFurnace => {},
+            .StandingSign => {},
+            .WoodenDoor => {},
+            .Ladder => {},
+            .Rail => {},
+            .StoneStairs => {},
+            .WallSign => {},
+            .Lever => {},
+            .StonePressurePlate => {},
+            .IronDoor => {},
+            .WoodenPressurePlate => {},
+            .RedstoneOre => {},
+            .LitRedstoneOre => {},
+            .UnlitRedstoneTorch => {},
+            .RedstoneTorch => {},
+            .StoneButton => {},
+            .SnowLayer => {},
+            .Ice => {},
+            .Snow => {},
+            .Cactus => {},
+            .Clay => {},
+            .Reeds => {},
+            .Jukebox => {},
+            .Fence => {},
+            .Pumpkin => {},
+            .Netherrack => {},
+            .SoulSand => {},
+            .Glowstone => {},
+            .Portal => {},
+            .LitPumpkin => {},
+            .Cake => {},
+            .UnpoweredRepeater => {},
+            .PoweredRepeater => {},
+            .StainedGlass => {},
+            .Trapdoor => {},
+            .MonsterEgg => {},
+            .Stonebrick => {},
+            .BrownMushroomBlock => {},
+            .RedMushroomBlock => {},
+            .IronBars => {},
+            .GlassPane => {},
+            .MelonBlock => {},
+            .PumpkinStem => {},
+            .MelonStem => {},
+            .Vine => {},
+            .FenceGate => {},
+            .BrickStairs => {},
+            .StoneBrickStairs => {},
+            .Mycelium => {},
+            .Waterlily => {},
+            .NetherBrick => {},
+            .NetherBrickFence => {},
+            .NetherBrickStairs => {},
+            .NetherWart => {},
+            .EnchantingTable => {},
+            .BrewingStand => {},
+            .Cauldron => {},
+            .EndPortal => {},
+            .EndPortalFrame => {},
+            .EndStone => {},
+            .DragonEgg => {},
+            .RedstoneLamp => {},
+            .LitRedstoneLamp => {},
+            .DoubleWoodenSlab => {},
+            .WoodenSlab => {},
+            .Cocoa => {},
+            .SandstoneStairs => {},
+            .EmeraldOre => {},
+            .EnderChest => {},
+            .TripwireHook => {},
+            .Tripwire => {},
+            .EmeraldBlock => {},
+            .SpruceStairs => {},
+            .BirchStairs => {},
+            .JungleStairs => {},
+            .CommandBlock => {},
+            .Beacon => {},
+            .CobblestoneWall => {},
+            .FlowerPot => {},
+            .Carrots => {},
+            .Potatoes => {},
+            .WoodenButton => {},
+            .Skull => {},
+            .Anvil => {},
+            .TrappedChest => {},
+            .LightWeightedPressurePlate => {},
+            .HeavyWeightedPressurePlate => {},
+            .UnpoweredComparator => {},
+            .PoweredComparator => {},
+            .DaylightDetector => {},
+            .RedstoneBlock => {},
+            .QuartzOre => {},
+            .Hopper => {},
+            .QuartzBlock => {},
+            .QuartzStairs => {},
+            .ActivatorRail => {},
+            .Dropper => {},
+            .StainedHardenedClay => {},
+            .StainedGlassPane => {},
+            .Leaves2 => {},
+            .Log2 => {},
+            .AcaciaStairs => {},
+            .DarkOakStairs => {},
+            .Slime => {},
+            .Barrier => {},
+            .IronTrapdoor => {},
+            .Prismarine => {},
+            .SeaLantern => {},
+            .HayBlock => {},
+            .Carpet => {},
+            .HardenedClay => {},
+            .CoalBlock => {},
+            .PackedIce => {},
+            .DoublePlant => {},
+            .StandingBanner => {},
+            .WallBanner => {},
+            .DaylightDetectorInverted => {},
+            .RedSandstone => {},
+            .RedSandstoneStairs => {},
+            .DoubleStoneSlab2 => {},
+            .StoneSlab2 => {},
+            .SpruceFenceGate => {},
+            .BirchFenceGate => {},
+            .JungleFenceGate => {},
+            .DarkOakFenceGate => {},
+            .AcaciaFenceGate => {},
+            .SpruceFence => {},
+            .BirchFence => {},
+            .JungleFence => {},
+            .DarkOakFence => {},
+            .AcaciaFence => {},
+            .SpruceDoor => {},
+            .BirchDoor => {},
+            .JungleDoor => {},
+            .AcaciaDoor => {},
+            .DarkOakDoor => {},
+        }
+        @compileError("Unimplemented");
+    }
+};
+
+pub const ConcreteBlockState = union(Block) {
     Air: struct {},
-    Stone: struct { variant: enum { Stone, Granite, SmoothGranite, Diorite, SmoothDiorite, Andesite, SmoothAndesite } },
+    Stone: struct { variant: StoneType },
     Grass: struct { snowy: bool },
     Dirt: struct { variant: enum { Dirt, Podzol, Coarse }, snowy: bool },
     Cobblestone: struct {},
@@ -52,7 +463,7 @@ pub const Blocks = union(enum) {
     MossyCobblestone: struct {},
     Obsidian: struct {},
     Torch: struct { facing: TorchFacing },
-    Fire: struct { age: u4, flip: bool, alt: bool, north: bool, east: bool, south: bool, west: bool, upper: u2 },
+    Fire: struct { age: u4, flip: bool, alt: bool, north: bool, east: bool, south: bool, west: bool, upper: u2 }, // upper is 0...2
     MobSpawner: struct {},
     OakStairs: struct { facing: HorizontalFacing, half: StairHalf, shape: StairShape },
     Chest: struct { facing: HorizontalFacing },
@@ -199,55 +610,61 @@ pub const Blocks = union(enum) {
     JungleDoor: struct { facing: HorizontalFacing, open: bool, hinge: DoorHinge, powered: bool, half: DoorHalf },
     AcaciaDoor: struct { facing: HorizontalFacing, open: bool, hinge: DoorHinge, powered: bool, half: DoorHalf },
     DarkOakDoor: struct { facing: HorizontalFacing, open: bool, hinge: DoorHinge, powered: bool, half: DoorHalf },
-
-    pub const WoodType = enum { Oak, Spruce, Birch, Jungle, Acacia, DarkOak };
-    pub const WoodType1 = enum { Oak, Spruce, Birch, Jungle };
-    pub const WoodType2 = enum { Acacia, DarkOak };
-
-    pub const StoneSlabType = enum { Stone, Sand, Wood, Cobblestone, Brick, Smoothbrick, Netherbrick, Quartz };
-
-    pub const SandType = enum { Sand, RedSand };
-
-    pub const LogAxis = enum { X, Y, Z, None };
-
-    pub const Axis = enum { X, Y, Z };
-    pub const HorizontalAxis = enum { X, Y, Z };
-    pub const Facing = enum { Up, Down, East, West, North, South };
-    pub const HorizontalFacing = enum { East, West, North, South };
-    pub const TorchFacing = enum { Up, East, West, North, South };
-    pub const StemFacing = enum { Up, East, West, North, South };
-    pub const HopperFacing = enum { Down, East, West, North, South };
-
-    pub const RailShape = enum { NorthSouth, EastWest, AscendingEast, AscendingWest, AscendingNorth, AscendingSouth, SouthEast, SouthWest, NorthWest, NorthEast };
-    pub const StraightRailShape = enum { NorthSouth, EastWest, AscendingEast, AscendingWest, AscendingNorth, AscendingSouth };
-
-    pub const Color = enum { White, Orange, Magenta, LightBlue, Yellow, Lime, Pink, Gray, Silver, Cyan, Purple, Blue, Brown, Green, Red, Black };
-
-    pub const PistonType = enum { Default, Sticky };
-
-    pub const SlabHalf = enum { Top, Bottom, Both };
-
-    pub const StairHalf = enum { Top, Bottom };
-    pub const StairShape = enum { Straight, InnerLeft, InnerRight, OuterLeft, OuterRigth };
-
-    pub const WireConnectionSide = enum { Up, Side, None };
-
-    pub const MushroomSides = enum { NorthWest, North, NorthEast, West, Center, East, SouthWest, South, SouthEast, Stem, AllInside, AllOutside, AllStem };
-
-    pub const DoorHinge = enum { Left, Right };
-    pub const DoorHalf = enum { Upper, Lower };
-    pub const TrapdoorHalf = enum { Upper, Lower };
-
-    pub const CobblestoneWallVariant = enum { Normal, Mossy };
-
-    pub const FlowerPotContents = enum { Empty, Poppy, BlueOrchid, Allium, Houstonia, RedTulip, OrangeTulip, WhiteTulip, PinkTulip, OxeyeDaisy, Dandelion, OakSapling, SpruceSapling, BirchSapling, JungleSapling, AcaciaSapling, DarkOakSapling, MushroomRed, MushroomBrown, DeadBush, Fern, Cactus };
-
-    pub const ComparatorMode = enum { Compare, Subtract };
-
-    pub const PrismarineType = enum { Rough, Bricks, Dark };
-
-    pub const DoublePlantType = enum { Sunflower, Syringa, Grass, Fern, Rose, Paeonia };
-    pub const DoublePlantHalf = enum { Upper, Lower };
-
-    pub const RedSandstoneType = enum { Default, Chiseled, Smooth };
 };
+
+pub const StoneType = enum { Stone, Granite, SmoothGranite, Diorite, SmoothDiorite, Andesite, SmoothAndesite };
+
+pub const WoodType = enum { Oak, Spruce, Birch, Jungle, Acacia, DarkOak };
+pub const WoodType1 = enum { Oak, Spruce, Birch, Jungle };
+pub const WoodType2 = enum { Acacia, DarkOak };
+
+pub const StoneSlabType = enum { Stone, Sand, Wood, Cobblestone, Brick, Smoothbrick, Netherbrick, Quartz };
+
+pub const SandType = enum { Sand, RedSand };
+
+pub const LogAxis = enum { X, Y, Z, None };
+
+pub const Axis = enum { X, Y, Z };
+pub const HorizontalAxis = enum { X, Y, Z };
+pub const Facing = enum { Up, Down, East, West, North, South };
+pub const HorizontalFacing = enum { East, West, North, South };
+pub const TorchFacing = enum { Up, East, West, North, South };
+pub const StemFacing = enum { Up, East, West, North, South };
+pub const HopperFacing = enum { Down, East, West, North, South };
+
+pub const RailShape = enum { NorthSouth, EastWest, AscendingEast, AscendingWest, AscendingNorth, AscendingSouth, SouthEast, SouthWest, NorthWest, NorthEast };
+pub const StraightRailShape = enum { NorthSouth, EastWest, AscendingEast, AscendingWest, AscendingNorth, AscendingSouth };
+
+pub const Color = enum { White, Orange, Magenta, LightBlue, Yellow, Lime, Pink, Gray, Silver, Cyan, Purple, Blue, Brown, Green, Red, Black };
+
+pub const PistonType = enum { Default, Sticky };
+
+pub const SlabHalf = enum { Top, Bottom, Both };
+
+pub const StairHalf = enum { Top, Bottom };
+pub const StairShape = enum { Straight, InnerLeft, InnerRight, OuterLeft, OuterRigth };
+
+pub const WireConnectionSide = enum { Up, Side, None };
+
+pub const MushroomSides = enum { NorthWest, North, NorthEast, West, Center, East, SouthWest, South, SouthEast, Stem, AllInside, AllOutside, AllStem };
+
+pub const DoorHinge = enum { Left, Right };
+pub const DoorHalf = enum { Upper, Lower };
+pub const TrapdoorHalf = enum { Upper, Lower };
+
+pub const CobblestoneWallVariant = enum { Normal, Mossy };
+
+pub const FlowerPotContents = enum { Empty, Poppy, BlueOrchid, Allium, Houstonia, RedTulip, OrangeTulip, WhiteTulip, PinkTulip, OxeyeDaisy, Dandelion, OakSapling, SpruceSapling, BirchSapling, JungleSapling, AcaciaSapling, DarkOakSapling, MushroomRed, MushroomBrown, DeadBush, Fern, Cactus };
+
+pub const ComparatorMode = enum { Compare, Subtract };
+
+pub const PrismarineType = enum { Rough, Bricks, Dark };
+
+pub const DoublePlantType = enum { Sunflower, Syringa, Grass, Fern, Rose, Paeonia };
+pub const DoublePlantHalf = enum { Upper, Lower };
+
+pub const RedSandstoneType = enum { Default, Chiseled, Smooth };
+test ConcreteBlockState {
+    const air: ConcreteBlockState = .Air;
+    std.debug.print("{}\n", .{air});
+}
