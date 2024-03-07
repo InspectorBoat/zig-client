@@ -1,6 +1,6 @@
 const std = @import("std");
 
-// Converts an int into enum, returning a default value with ordinal 0 if the tag is out of bounds, and erroring on an invalid value in bounds
+// Converts an int into enum, returning a default value with ordinal 0 if the tag is out of bounds, and panicking on an invalid value in bounds
 pub fn enumFromIntDefault0(comptime EnumTag: type, tag_int: anytype) EnumTag {
     const min, const max = comptime blk: {
         const enum_info = @typeInfo(EnumTag).Enum;
@@ -20,6 +20,7 @@ pub fn enumFromIntDefault0(comptime EnumTag: type, tag_int: anytype) EnumTag {
     return std.meta.intToEnum(EnumTag, tag_int) catch std.debug.panic("Illegal enum ordinal {} for enum {s}\n", .{ tag_int, @typeName(EnumTag) });
 }
 
+// Converts an int into an enum, supplying a default value to be returned if the tag is out of bounds, and panicking on an invalid value in bounds
 pub fn enumFromIntDefault(comptime EnumTag: type, tag_int: anytype, comptime default: EnumTag) EnumTag {
     const min, const max = comptime blk: {
         const enum_info = @typeInfo(EnumTag).Enum;
@@ -39,12 +40,12 @@ pub fn enumFromIntDefault(comptime EnumTag: type, tag_int: anytype, comptime def
     return std.meta.intToEnum(EnumTag, tag_int) catch std.debug.panic("Illegal enum ordinal {} for enum {s}\n", .{ tag_int, @typeName(EnumTag) });
 }
 
-// Converts an int into enum, erroring on any invalid value
+// Converts an int into enum, panicking on any invalid value
 pub fn enumFromIntErroring(comptime EnumTag: type, tag_int: anytype) EnumTag {
     return std.meta.intToEnum(EnumTag, tag_int) catch std.debug.panic("Illegal enum ordinal {} for enum {s}\n", .{ tag_int, @typeName(EnumTag) });
 }
 
-// Converts an int into enum, modulo the max ordinal if the tag is out of bounds, and erroring on an invalid value
+// Converts an int into enum, modulo the max ordinal if the tag is out of bounds, and panicking on an invalid value
 pub fn enumFromIntModulo(comptime EnumTag: type, tag_int: anytype) EnumTag {
     const enum_info = @typeInfo(EnumTag).Enum;
     if (@typeInfo(enum_info.tag_type).Int.signedness == .signed) @compileError("Enum must be unsigned");
@@ -137,11 +138,11 @@ pub const Block = enum(u12) {
     StonePressurePlate,
     IronDoor,
     WoodenPressurePlate,
-    RedstoneOre,
+    RedstoneOre = 73,
     LitRedstoneOre,
     UnlitRedstoneTorch,
     RedstoneTorch,
-    StoneButton,
+    StoneButton = 77,
     SnowLayer,
     Ice,
     Snow,
@@ -476,65 +477,263 @@ pub const StoredBlockState = packed struct {
                 return .{ .OakStairs = .{
                     .facing = metadata.facing,
                     .half = metadata.half,
-                    .shape = undefined,
+                    .shape = unimplemented(),
                 } };
             },
-            .Chest => {},
-            .RedstoneWire => {},
-            .DiamondOre => {},
-            .DiamondBlock => {},
-            .CraftingTable => {},
-            .Wheat => {},
-            .Farmland => {},
-            .Furnace => {},
-            .LitFurnace => {},
-            .StandingSign => {},
-            .WoodenDoor => {},
-            .Ladder => {},
-            .Rail => {},
-            .StoneStairs => {},
-            .WallSign => {},
-            .Lever => {},
-            .StonePressurePlate => {},
-            .IronDoor => {},
-            .WoodenPressurePlate => {},
-            .RedstoneOre => {},
-            .LitRedstoneOre => {},
-            .UnlitRedstoneTorch => {},
-            .RedstoneTorch => {},
-            .StoneButton => {},
-            .SnowLayer => {},
-            .Ice => {},
-            .Snow => {},
-            .Cactus => {},
-            .Clay => {},
-            .Reeds => {},
-            .Jukebox => {},
-            .Fence => {},
-            .Pumpkin => {},
-            .Netherrack => {},
-            .SoulSand => {},
-            .Glowstone => {},
-            .Portal => {},
-            .LitPumpkin => {},
-            .Cake => {},
-            .UnpoweredRepeater => {},
-            .PoweredRepeater => {},
-            .StainedGlass => {},
-            .Trapdoor => {},
-            .MonsterEgg => {},
-            .Stonebrick => {},
-            .BrownMushroomBlock => {},
-            .RedMushroomBlock => {},
-            .IronBars => {},
-            .GlassPane => {},
-            .MelonBlock => {},
-            .PumpkinStem => {},
-            .MelonStem => {},
-            .Vine => {},
-            .FenceGate => {},
-            .BrickStairs => {},
-            .StoneBrickStairs => {},
+            .Chest => return .{ .Chest = .{ .facing = @enumFromInt(@rem(self.metadata, 6) -| 2) } },
+            .RedstoneWire => return .{ .RedstoneWire = .{ .north = undefined, .east = undefined, .south = undefined, .west = undefined, .power = self.metadata } },
+            .DiamondOre => return .DiamondOre,
+            .DiamondBlock => return .DiamondBlock,
+            .CraftingTable => return .CraftingTable,
+            .Wheat => return .{ .Wheat = .{ .age = std.math.cast(u3, self.metadata) orelse std.debug.panic("Illegal wheat age", .{}) } },
+            .Farmland => {
+                const Metadata = packed struct {
+                    moisture: u3,
+                    _: u1,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .Farmland = .{
+                    .moisture = metadata.moisture,
+                } };
+            },
+            .Furnace => return .{ .Furnace = .{ .facing = @enumFromInt(@rem(self.metadata, 6) -| 2) } },
+            .LitFurnace => return .{ .LitFurnace = .{ .facing = @enumFromInt(@rem(self.metadata, 6) -| 2) } },
+            .StandingSign => return .{ .StandingSign = .{ .rotation = self.metadata } },
+            .WoodenDoor => {
+                const Metadata = packed struct {
+                    other: packed union {
+                        upper: packed struct {
+                            hinge: DoorHinge,
+                            powered: bool,
+                            _: u1,
+                        },
+                        lower: packed struct {
+                            facing: u2,
+                            open: bool,
+                        },
+                    },
+                    half: DoorHalf,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .WoodenDoor = .{
+                    .half = metadata.half,
+                    .hinge = if (metadata.half == .Upper) metadata.other.upper.hinge else undefined,
+                    .powered = if (metadata.half == .Upper) metadata.other.upper.powered else undefined,
+                    .facing = if (metadata.half == .Lower) @enumFromInt(metadata.other.lower.facing +% 3) else undefined,
+                    .open = if (metadata.half == .Lower) metadata.other.lower.open else undefined,
+                } };
+            },
+            .Ladder => return .{ .Ladder = .{ .facing = @enumFromInt(@rem(self.metadata, 6) -| 2) } },
+            .Rail => return .{ .Rail = .{ .shape = enumFromIntDefault0(RailShape, self.metadata) } },
+            .StoneStairs => {
+                const Metadata = packed struct {
+                    facing: StairFacing,
+                    half: StairHalf,
+                    _: u1,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .StoneStairs = .{
+                    .facing = metadata.facing,
+                    .half = metadata.half,
+                    .shape = unimplemented(),
+                } };
+            },
+            .WallSign => return .{ .WallSign = .{ .facing = @enumFromInt(@rem(self.metadata, 6) -| 2) } },
+            .Lever => {
+                const Metadata = packed struct {
+                    facing: LeverFacing,
+                    powered: bool,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .Lever = .{
+                    .facing = metadata.facing,
+                    .powered = metadata.powered,
+                } };
+            },
+            .StonePressurePlate => {
+                const Metadata = packed struct {
+                    powered: bool,
+                    _: u3,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .StonePressurePlate = .{ .powered = metadata.powered } };
+            },
+            .IronDoor => {
+                const Metadata = packed struct {
+                    other: packed union {
+                        upper: packed struct {
+                            hinge: DoorHinge,
+                            powered: bool,
+                            _: u1,
+                        },
+                        lower: packed struct {
+                            facing: u2,
+                            open: bool,
+                        },
+                    },
+                    half: DoorHalf,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .IronDoor = .{
+                    .half = metadata.half,
+                    .hinge = if (metadata.half == .Upper) metadata.other.upper.hinge else undefined,
+                    .powered = if (metadata.half == .Upper) metadata.other.upper.powered else undefined,
+                    .facing = if (metadata.half == .Lower) @enumFromInt(metadata.other.lower.facing +% 3) else undefined,
+                    .open = if (metadata.half == .Lower) metadata.other.lower.open else undefined,
+                } };
+            },
+            .WoodenPressurePlate => {
+                const Metadata = packed struct {
+                    powered: bool,
+                    _: u3,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .StonePressurePlate = .{ .powered = metadata.powered } };
+            },
+            .RedstoneOre => return .RedstoneOre,
+            .LitRedstoneOre => return .LitRedstoneOre,
+            .UnlitRedstoneTorch => return .{ .UnlitRedstoneTorch = .{ .facing = enumFromIntDefault(TorchFacing, self.metadata, .Up) } },
+            .RedstoneTorch => return .{ .RedstoneTorch = .{ .facing = enumFromIntDefault(TorchFacing, self.metadata, .Up) } },
+            .StoneButton => {
+                const Metadata = packed struct {
+                    facing: u3,
+                    powered: bool,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .StoneButton = .{
+                    .facing = enumFromIntDefault(Facing, self.metadata, .Up),
+                    .powered = metadata.powered,
+                } };
+            },
+            .SnowLayer => {
+                const Metadata = packed struct {
+                    layers: u3,
+                    _: u1,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .SnowLayer = .{
+                    .facing = metadata.layers,
+                } };
+            },
+            .Ice => return .Ice,
+            .Snow => return .Snow,
+            .Cactus => return .{ .Cactus = .{ .age = self.metadata } },
+            .Clay => return .Clay,
+            .Reeds => return .{ .Reeds = .{ .age = self.metadata } },
+            .Jukebox => return .{ .Jukebox = .{ .has_record = self.metadata > 0 } },
+            .Fence => return unimplemented(),
+            .Pumpkin => return .{ .Pumpkin = .{ .facing = enumFromIntModulo(HorizontalFacing, self.metadata) } },
+            .Netherrack => return .Netherrack,
+            .SoulSand => return .SoulSand,
+            .Glowstone => return .Glowstone,
+            .Portal => return .{ .Portal = .{ .axis = if (self.metadata & 3 == 2) .Z else .X } },
+            .LitPumpkin => return .LitPumpkin,
+            .Cake => return .{ .Cake = .{ .bites = if (self.metadata <= 6) self.metadata else std.debug.panic("Cake had more than 6 slices eaten", .{}) } },
+            .UnpoweredRepeater => {
+                const Metadata = packed struct {
+                    facing: HorizontalFacing,
+                    delay: u2,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .UnpoweredRepeater = .{
+                    .facing = metadata.facing,
+                    .delay = metadata.delay,
+                } };
+            },
+            .PoweredRepeater => {
+                const Metadata = packed struct {
+                    facing: HorizontalFacing,
+                    delay: u2,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .PoweredRepeater = .{
+                    .facing = metadata.facing,
+                    .delay = metadata.delay,
+                } };
+            },
+            .StainedGlass => return .{ .StainedGlass = .{ .color = @enumFromInt(self.metadata) } },
+            .Trapdoor => {
+                const Metadata = packed struct {
+                    facing: u2,
+                    open: bool,
+                    half: TrapdoorHalf,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .Trapdoor = .{
+                    .facing = switch (metadata.facing) {
+                        0 => .North,
+                        1 => .South,
+                        2 => .West,
+                        3 => .East,
+                    },
+                    .open = metadata.open,
+                    .half = metadata.half,
+                } };
+            },
+            .MonsterEgg => return .{ .MonsterEgg = .{ .variant = enumFromIntDefault0(MonsterEggType, self.metadata) } },
+            .Stonebrick => return .{ .Stonebrick = .{ .variant = enumFromIntDefault0(StoneBrickType, self.metadata) } },
+            .BrownMushroomBlock => return .{ .BrownMushroomBlock = .{ .sides = std.meta.intToEnum(MushroomSides, self.metadata) catch .AllInside } },
+            .RedMushroomBlock => return .{ .RedMushroomBlock = .{ .sides = std.meta.intToEnum(MushroomSides, self.metadata) catch .AllInside } },
+            .IronBars => return unimplemented(),
+            .GlassPane => return unimplemented(),
+            .MelonBlock => return .MelonBlock,
+            .PumpkinStem => return .{ .PumpkinStem = .{ .age = std.math.cast(u3, self.metadata) catch std.debug.panic("Pumpkin stem too old!", .{}) } },
+            .MelonStem => return .{ .MelonStem = .{ .age = std.math.cast(u3, self.metadata) catch std.debug.panic("Melon stem too old!", .{}) } },
+            .Vine => {
+                const Metadata = packed struct {
+                    south: bool,
+                    west: bool,
+                    north: bool,
+                    east: bool,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .Vine = .{
+                    .south = metadata.south,
+                    .west = metadata.west,
+                    .north = metadata.north,
+                    .east = metadata.east,
+                    .up = unimplemented(),
+                } };
+            },
+            .FenceGate => {
+                const Metadata = packed struct {
+                    facing: HorizontalFacing,
+                    open: bool,
+                    powered: bool,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .FenceGate = .{
+                    .facing = metadata.facing,
+                    .open = metadata.open,
+                    .powered = metadata.powered,
+                } };
+            },
+            .BrickStairs => {
+                const Metadata = packed struct {
+                    facing: StairFacing,
+                    half: StairHalf,
+                    _: u1,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .BrickStairs = .{
+                    .facing = metadata.facing,
+                    .half = metadata.half,
+                    .shape = unimplemented(),
+                } };
+            },
+            .StoneBrickStairs => {
+                const Metadata = packed struct {
+                    facing: StairFacing,
+                    half: StairHalf,
+                    _: u1,
+                };
+                const metadata: Metadata = @bitCast(self.metadata);
+                return .{ .StoneBrickStairs = .{
+                    .facing = metadata.facing,
+                    .half = metadata.half,
+                    .shape = unimplemented(),
+                } };
+            },
             .Mycelium => {},
             .Waterlily => {},
             .NetherBrick => {},
@@ -698,7 +897,7 @@ pub const ConcreteBlockState = union(Block) {
     Rail: struct { shape: RailShape },
     StoneStairs: struct { facing: StairFacing, half: StairHalf, shape: StairShape },
     WallSign: struct { facing: HorizontalFacing },
-    Lever: struct { facing: enum { DownX, East, West, South, North, UpX, UpZ, DownZ }, powered: bool },
+    Lever: struct { facing: LeverFacing, powered: bool },
     StonePressurePlate: struct { powered: bool },
     IronDoor: struct { facing: HorizontalFacing, open: bool, hinge: DoorHinge, powered: bool, half: DoorHalf },
     WoodenPressurePlate: struct { powered: bool },
@@ -722,12 +921,12 @@ pub const ConcreteBlockState = union(Block) {
     Portal: struct { axis: HorizontalAxis },
     LitPumpkin: struct { facing: HorizontalFacing },
     Cake: struct { bites: u3 },
-    UnpoweredRepeater: struct { locked: bool, delay: u3 },
-    PoweredRepeater: struct { locked: bool, delay: u3 },
+    UnpoweredRepeater: struct { locked: bool, delay: u2 },
+    PoweredRepeater: struct { locked: bool, delay: u2 },
     StainedGlass: struct { color: Color },
     Trapdoor: struct { facing: HorizontalFacing, open: bool, half: TrapdoorHalf },
-    MonsterEgg: struct { enum { Stone, Cobblestone, Stonebrick, MossyStonebrick, CrackedStonebrick, ChiseledStonebrick } },
-    Stonebrick: struct { enum { Default, Mossy, Cracked, Chiseled } },
+    MonsterEgg: struct { variant: MonsterEggType },
+    Stonebrick: struct { variant: StoneBrickType },
     BrownMushroomBlock: struct { sides: MushroomSides },
     RedMushroomBlock: struct { sides: MushroomSides },
     IronBars: struct { north: bool, east: bool, south: bool, west: bool },
@@ -829,6 +1028,10 @@ pub const ConcreteBlockState = union(Block) {
     DarkOakDoor: struct { facing: HorizontalFacing, open: bool, hinge: DoorHinge, powered: bool, half: DoorHalf },
 };
 
+pub const StoneBrickType = enum { Default, Mossy, Cracked, Chiseled };
+
+pub const MonsterEggType = enum { Stone, Cobblestone, Stonebrick, MossyStonebrick, CrackedStonebrick, ChiseledStonebrick };
+
 pub const StoneType = enum(u3) { Stone = 0, Granite = 1, SmoothGranite = 2, Diorite = 3, SmoothDiorite = 4, Andesite = 5, SmoothAndesite = 6 };
 
 pub const WoodType = enum(u3) { Oak = 0, Spruce = 1, Birch = 2, Jungle = 3, Acacia = 4, DarkOak = 5 };
@@ -845,6 +1048,8 @@ pub const Axis = enum { X, Y, Z };
 pub const HorizontalAxis = enum { X, Y, Z };
 pub const Facing = enum(u3) { Down = 0, Up = 1, North = 2, South = 3, West = 4, East = 5 };
 pub const HorizontalFacing = enum(u2) { South = 0, West = 1, North = 2, East = 3 };
+
+pub const LeverFacing = enum(u3) { DownX = 0, East = 1, West = 2, South = 3, North = 4, UpX = 5, UpZ = 6, DownZ = 7 };
 
 pub const TorchFacing = enum(u3) { East = 1, West = 2, South = 3, North = 4, Up = 5 };
 pub const StemFacing = enum { Up, East, West, North, South };
@@ -869,9 +1074,9 @@ pub const WireConnectionSide = enum { Up, Side, None };
 // what the fuck mojang???
 pub const MushroomSides = enum(u4) { NorthWest = 1, North = 2, NorthEast = 3, West = 4, Center = 5, East = 6, SouthWest = 7, South = 8, SouthEast = 9, Stem = 10, AllInside = 0, AllOutside = 14, AllStem = 15 };
 
-pub const DoorHinge = enum { Left, Right };
+pub const DoorHinge = enum(u1) { Left = 0, Right = 1 };
 pub const DoorHalf = enum { Upper, Lower };
-pub const TrapdoorHalf = enum { Upper, Lower };
+pub const TrapdoorHalf = enum(u1) { Bottom = 0, Top = 1 };
 
 pub const CobblestoneWallVariant = enum { Normal, Mossy };
 
@@ -900,4 +1105,6 @@ test ConcreteBlockState {
 
     try expectEqual(toConcreteBlockState(StoredBlockState{ .block = .Stone, .metadata = 0 }), ConcreteBlockState{ .Stone = .{ .variant = StoneType.Stone } });
     try expectEqual(toConcreteBlockState(StoredBlockState{ .block = .Stone, .metadata = 0 }), ConcreteBlockState{ .Stone = .{ .variant = StoneType.Stone } });
+
+    std.debug.print("{}\n", .{@sizeOf(ConcreteBlockState)});
 }
