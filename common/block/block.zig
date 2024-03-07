@@ -64,7 +64,7 @@ pub fn enumFromIntModulo(comptime EnumTag: type, tag_int: anytype) EnumTag {
     return std.meta.intToEnum(EnumTag, tag_int) catch std.debug.panic("Illegal enum ordinal {} for enum {s}\n", .{ tag_int, @typeName(EnumTag) });
 }
 
-pub const Block = enum(u12) {
+pub const Block = enum(u8) {
     Air,
     Stone,
     Grass,
@@ -92,12 +92,12 @@ pub const Block = enum(u12) {
     Sandstone,
     Noteblock,
     Bed,
-    PoweredRail,
+    GoldenRail,
     DetectorRail,
     StickyPiston,
     Web,
-    TallGrass,
-    DeadBush,
+    Tallgrass,
+    Deadbush,
     Piston,
     PistonHead,
     Wool,
@@ -265,7 +265,8 @@ pub const Block = enum(u12) {
     DarkOakDoor,
 };
 
-pub const StoredBlockState = packed struct {
+// The raw bytes sent over
+pub const RawStoredBlockState = packed struct {
     block: Block,
     metadata: u4,
 
@@ -348,13 +349,13 @@ pub const StoredBlockState = packed struct {
                     .part = metadata.part,
                 } };
             },
-            .PoweredRail => {
+            .GoldenRail => {
                 const Metadata = packed struct {
                     shape: StraightRailShape,
                     powered: bool,
                 };
                 const metadata: Metadata = @bitCast(self.metadata);
-                return .{ .PoweredRail = .{
+                return .{ .GoldenRail = .{
                     .shape = metadata.shape,
                     .powered = metadata.powered,
                 } };
@@ -382,8 +383,8 @@ pub const StoredBlockState = packed struct {
                 } };
             },
             .Web => return .Web,
-            .TallGrass => return .{ .TallGrass = .{ .variant = enumFromIntDefault0(TallGrassType, self.metadata) } },
-            .DeadBush => return .DeadBush,
+            .Tallgrass => return .{ .Tallgrass = .{ .variant = enumFromIntDefault0(TallgrassType, self.metadata) } },
+            .Deadbush => return .Deadbush,
             .Piston => {
                 const Metadata = packed struct {
                     facing: u3,
@@ -612,7 +613,7 @@ pub const StoredBlockState = packed struct {
                 };
                 const metadata: Metadata = @bitCast(self.metadata);
                 return .{ .SnowLayer = .{
-                    .facing = metadata.layers,
+                    .layers = metadata.layers,
                 } };
             },
             .Ice => return .Ice,
@@ -627,8 +628,8 @@ pub const StoredBlockState = packed struct {
             .SoulSand => return .SoulSand,
             .Glowstone => return .Glowstone,
             .Portal => return .{ .Portal = .{ .axis = if (self.metadata & 3 == 2) .Z else .X } },
-            .LitPumpkin => return .LitPumpkin,
-            .Cake => return .{ .Cake = .{ .bites = if (self.metadata <= 6) self.metadata else std.debug.panic("Cake had more than 6 slices eaten", .{}) } },
+            .LitPumpkin => return .{ .LitPumpkin = .{ .facing = enumFromIntModulo(HorizontalFacing, self.metadata) } },
+            .Cake => return .{ .Cake = .{ .bites = if (self.metadata <= 6) @truncate(self.metadata) else std.debug.panic("Cake had more than 6 slices eaten", .{}) } },
             .UnpoweredRepeater => {
                 const Metadata = packed struct {
                     facing: HorizontalFacing,
@@ -638,6 +639,7 @@ pub const StoredBlockState = packed struct {
                 return .{ .UnpoweredRepeater = .{
                     .facing = metadata.facing,
                     .delay = metadata.delay,
+                    .locked = unimplemented(),
                 } };
             },
             .PoweredRepeater => {
@@ -649,6 +651,7 @@ pub const StoredBlockState = packed struct {
                 return .{ .PoweredRepeater = .{
                     .facing = metadata.facing,
                     .delay = metadata.delay,
+                    .locked = unimplemented(),
                 } };
             },
             .StainedGlass => return .{ .StainedGlass = .{ .color = @enumFromInt(self.metadata) } },
@@ -677,8 +680,8 @@ pub const StoredBlockState = packed struct {
             .IronBars => return unimplemented(),
             .GlassPane => return unimplemented(),
             .MelonBlock => return .MelonBlock,
-            .PumpkinStem => return .{ .PumpkinStem = .{ .age = std.math.cast(u3, self.metadata) catch std.debug.panic("Pumpkin stem too old!", .{}) } },
-            .MelonStem => return .{ .MelonStem = .{ .age = std.math.cast(u3, self.metadata) catch std.debug.panic("Melon stem too old!", .{}) } },
+            .PumpkinStem => return .{ .PumpkinStem = .{ .age = std.math.cast(u3, self.metadata) orelse std.debug.panic("Pumpkin stem too old!", .{}), .facing = unimplemented() } },
+            .MelonStem => return .{ .MelonStem = .{ .age = std.math.cast(u3, self.metadata) orelse std.debug.panic("Melon stem too old!", .{}), .facing = unimplemented() } },
             .Vine => {
                 const Metadata = packed struct {
                     south: bool,
@@ -706,6 +709,7 @@ pub const StoredBlockState = packed struct {
                     .facing = metadata.facing,
                     .open = metadata.open,
                     .powered = metadata.powered,
+                    .in_wall = unimplemented(),
                 } };
             },
             .BrickStairs => {
@@ -827,6 +831,253 @@ pub const StoredBlockState = packed struct {
     }
 };
 
+// RawStoredBlockState, but stipped of invalid states and converted into a sane format
+pub const FilteredStoredBlockState = packed struct {
+    block: Block,
+    metadata: packed union {
+        Air: packed struct {},
+        Stone: packed struct { variant: StoneType },
+        Grass: packed struct {},
+        Dirt: packed struct { variant: enum { Dirt, Podzol, Coarse } },
+        Cobblestone: packed struct {},
+        Planks: packed struct { variant: WoodType },
+        Sapling: packed struct { variant: WoodType },
+        Bedrock: packed struct {},
+        FlowingWater: packed struct { level: u4 },
+        Water: packed struct { level: u4 },
+        FlowingLava: packed struct { level: u4 },
+        Lava: packed struct { level: u4 },
+        Sand: packed struct { variant: SandType },
+        Gravel: packed struct {},
+        GoldOre: packed struct {},
+        IronOre: packed struct {},
+        CoalOre: packed struct {},
+        Log: packed struct { axis: LogAxis, variant: WoodType1 },
+        Leaves: packed struct { variant: WoodType1, decayable: bool, check_decay: bool },
+        Sponge: packed struct { wet: bool },
+        Glass: packed struct {},
+        LapisOre: packed struct {},
+        LapisBlock: packed struct {},
+        Dispenser: packed struct { facing: Facing, triggered: bool },
+        Sandstone: packed struct { variant: SandstoneType },
+        Noteblock: packed struct {},
+        Bed: packed struct { facing: HorizontalFacing, part: BedHalf, occupied: bool },
+        GoldenRail: packed struct { shape: StraightRailShape, powered: bool },
+        DetectorRail: packed struct { shape: StraightRailShape, powered: bool },
+        StickyPiston: packed struct { facing: Facing, extended: bool },
+        Web: packed struct {},
+        Tallgrass: packed struct { variant: TallgrassType },
+        Deadbush: packed struct {},
+        Piston: packed struct { facing: Facing, extended: bool },
+        PistonHead: packed struct { facing: Facing, type: PistonType },
+        Wool: packed struct { color: Color },
+        PistonExtension: packed struct { facing: Facing, type: PistonType },
+        YellowFlower: packed struct {},
+        RedFlower: packed struct {},
+        BrownMushroom: packed struct {},
+        RedMushroom: packed struct {},
+        GoldBlock: packed struct {},
+        IronBlock: packed struct {},
+        DoubleStoneSlab: packed struct { variant: StoneSlabType, seamless: bool },
+        StoneSlab: packed struct { variant: StoneSlabType, half: SingleSlabHalf },
+        BrickBlock: packed struct {},
+        Tnt: packed struct { explode_on_break: bool },
+        Bookshelf: packed struct {},
+        MossyCobblestone: packed struct {},
+        Obsidian: packed struct {},
+        Torch: packed struct { facing: TorchFacing },
+        Fire: packed struct { age: u4 },
+        MobSpawner: packed struct {},
+        OakStairs: packed struct { facing: StairFacing, half: StairHalf },
+        Chest: packed struct { facing: HorizontalFacing },
+        RedstoneWire: packed struct { power: u4 },
+        DiamondOre: packed struct {},
+        DiamondBlock: packed struct {},
+        CraftingTable: packed struct {},
+        Wheat: packed struct { age: u3 },
+        Farmland: packed struct { moisture: u3 },
+        Furnace: packed struct { facing: HorizontalFacing },
+        LitFurnace: packed struct { facing: HorizontalFacing },
+        StandingSign: packed struct { rotation: u4 },
+        WoodenDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+        Ladder: packed struct { facing: HorizontalFacing },
+        Rail: packed struct { shape: RailShape },
+        StoneStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        WallSign: packed struct { facing: HorizontalFacing },
+        Lever: packed struct { facing: LeverFacing, powered: bool },
+        StonePressurePlate: packed struct { powered: bool },
+        IronDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+        WoodenPressurePlate: packed struct { powered: bool },
+        RedstoneOre: packed struct {},
+        LitRedstoneOre: packed struct {},
+        UnlitRedstoneTorch: packed struct { facing: TorchFacing },
+        RedstoneTorch: packed struct { facing: TorchFacing },
+        StoneButton: packed struct { facing: Facing, powered: bool },
+        SnowLayer: packed struct { layers: u3 },
+        Ice: packed struct {},
+        Snow: packed struct {},
+        Cactus: packed struct { age: u4 },
+        Clay: packed struct {},
+        Reeds: packed struct { age: u4 },
+        Jukebox: packed struct { has_record: bool },
+        Fence: packed struct {},
+        Pumpkin: packed struct { facing: HorizontalFacing },
+        Netherrack: packed struct {},
+        SoulSand: packed struct {},
+        Glowstone: packed struct {},
+        Portal: packed struct { axis: HorizontalAxis },
+        LitPumpkin: packed struct { facing: HorizontalFacing },
+        Cake: packed struct { bites: u3 },
+        UnpoweredRepeater: packed struct { facing: HorizontalFacing, delay: u2 },
+        PoweredRepeater: packed struct { facing: HorizontalFacing, delay: u2 },
+        StainedGlass: packed struct { color: Color },
+        Trapdoor: packed struct { facing: HorizontalFacing, open: bool, half: TrapdoorHalf },
+        MonsterEgg: packed struct { variant: MonsterEggType },
+        Stonebrick: packed struct { variant: StoneBrickType },
+        BrownMushroomBlock: packed struct { sides: MushroomSides },
+        RedMushroomBlock: packed struct { sides: MushroomSides },
+        IronBars: packed struct { north: bool, east: bool, south: bool, west: bool },
+        GlassPane: packed struct { north: bool, east: bool, south: bool, west: bool },
+        MelonBlock: packed struct {},
+        PumpkinStem: packed struct { age: u4 },
+        MelonStem: packed struct { age: u4 },
+        Vine: packed struct { north: bool, east: bool, south: bool, west: bool },
+        FenceGate: packed struct { facing: HorizontalFacing, open: bool, powered: bool },
+        BrickStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        StoneBrickStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        Mycelium: packed struct {},
+        Waterlily: packed struct {},
+        NetherBrick: packed struct {},
+        NetherBrickFence: packed struct {},
+        NetherBrickStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        NetherWart: packed struct { age: u2 },
+        EnchantingTable: packed struct {},
+        BrewingStand: packed struct { has_bottle_0: bool, has_bottle_1: bool, has_bottle_2: bool },
+        Cauldron: packed struct { level: u2 },
+        EndPortal: packed struct {},
+        EndPortalFrame: packed struct { facing: HorizontalFacing, eye: bool },
+        EndStone: packed struct {},
+        DragonEgg: packed struct {},
+        RedstoneLamp: packed struct {},
+        LitRedstoneLamp: packed struct {},
+        DoubleWoodenSlab: packed struct { variant: WoodType, half: SingleSlabHalf },
+        WoodenSlab: packed struct { variant: WoodType },
+        Cocoa: packed struct { age: u2 },
+        SandstoneStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        EmeraldOre: packed struct {},
+        EnderChest: packed struct { facing: HorizontalFacing },
+        TripwireHook: packed struct { facing: HorizontalFacing, powered: bool, attached: bool },
+        Tripwire: packed struct { powered: bool, suspended: bool, attached: bool, disarmed: bool },
+        EmeraldBlock: packed struct {},
+        SpruceStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        BirchStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        JungleStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        CommandBlock: packed struct { triggered: bool },
+        Beacon: packed struct {},
+        CobblestoneWall: packed struct { variant: CobblestoneWallVariant },
+        FlowerPot: packed struct { legacy_data: u4 },
+        Carrots: packed struct { age: u4 },
+        Potatoes: packed struct { age: u4 },
+        WoodenButton: packed struct { facing: Facing, powered: bool },
+        Skull: packed struct { facing: Facing, no_drop: bool },
+        Anvil: packed struct { facing: HorizontalAxis, damage: u2 },
+        TrappedChest: packed struct { facing: HorizontalFacing },
+        LightWeightedPressurePlate: packed struct { power: u4 },
+        HeavyWeightedPressurePlate: packed struct { power: u4 },
+        UnpoweredComparator: packed struct { powered: bool, mode: ComparatorMode },
+        PoweredComparator: packed struct { powered: bool, mode: ComparatorMode },
+        DaylightDetector: packed struct { power: u4 },
+        RedstoneBlock: packed struct {},
+        QuartzOre: packed struct {},
+        Hopper: packed struct { facing: HopperFacing, enabled: bool },
+        QuartzBlock: packed struct {},
+        QuartzStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        ActivatorRail: packed struct { shape: StraightRailShape, powered: bool },
+        Dropper: packed struct { facing: Facing, triggered: bool },
+        StainedHardenedClay: packed struct { color: Color },
+        StainedGlassPane: packed struct { color: Color },
+        Leaves2: packed struct { variant: WoodType2, decayable: bool, check_decay: bool },
+        Log2: packed struct { axis: LogAxis, variant: WoodType2 },
+        AcaciaStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        DarkOakStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        Slime: packed struct {},
+        Barrier: packed struct {},
+        IronTrapdoor: packed struct { facing: HorizontalFacing, open: bool, half: TrapdoorHalf },
+        Prismarine: packed struct { variant: PrismarineType },
+        SeaLantern: packed struct {},
+        HayBlock: packed struct {},
+        Carpet: packed struct { color: Color },
+        HardenedClay: packed struct {},
+        CoalBlock: packed struct {},
+        PackedIce: packed struct {},
+        DoublePlant: packed struct { variant: DoublePlantType, half: DoublePlantHalf, facing: HorizontalAxis },
+        StandingBanner: packed struct { rotation: u4 },
+        WallBanner: packed struct { facing: HorizontalFacing },
+        DaylightDetectorInverted: packed struct { power: u4 },
+        RedSandstone: packed struct { variant: RedSandstoneType },
+        RedSandstoneStairs: packed struct { facing: StairFacing, half: StairHalf }, // fixed
+        DoubleStoneSlab2: packed struct { half: SlabHalf },
+        StoneSlab2: packed struct { half: SlabHalf },
+        SpruceFenceGate: packed struct { facing: HorizontalAxis, open: bool, powered: bool, in_wall: bool },
+        BirchFenceGate: packed struct { facing: HorizontalAxis, open: bool, powered: bool, in_wall: bool },
+        JungleFenceGate: packed struct { facing: HorizontalAxis, open: bool, powered: bool, in_wall: bool },
+        DarkOakFenceGate: packed struct { facing: HorizontalAxis, open: bool, powered: bool, in_wall: bool },
+        AcaciaFenceGate: packed struct { facing: HorizontalAxis, open: bool, powered: bool, in_wall: bool },
+        SpruceFence: packed struct {},
+        BirchFence: packed struct {},
+        JungleFence: packed struct {},
+        DarkOakFence: packed struct {},
+        AcaciaFence: packed struct {},
+        SpruceDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+        BirchDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+        JungleDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+        AcaciaDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+        DarkOakDoor: packed struct {
+            other: packed union {
+                when_upper: packed struct { hinge: DoorHinge, powered: bool },
+                when_lower: packed struct { facing: HorizontalFacing, open: bool },
+            },
+            half: DoorHalf,
+        },
+    },
+};
+
 pub const ConcreteBlockState = union(Block) {
     Air: struct {},
     Stone: struct { variant: StoneType },
@@ -855,12 +1106,12 @@ pub const ConcreteBlockState = union(Block) {
     Sandstone: struct { variant: SandstoneType },
     Noteblock: struct {},
     Bed: struct { facing: HorizontalFacing, part: BedHalf, occupied: bool },
-    PoweredRail: struct { shape: StraightRailShape, powered: bool },
+    GoldenRail: struct { shape: StraightRailShape, powered: bool },
     DetectorRail: struct { shape: StraightRailShape, powered: bool },
     StickyPiston: struct { facing: Facing, extended: bool },
     Web: struct {},
-    TallGrass: struct { variant: TallGrassType },
-    DeadBush: struct {},
+    Tallgrass: struct { variant: TallgrassType },
+    Deadbush: struct {},
     Piston: struct { facing: Facing, extended: bool },
     PistonHead: struct { facing: Facing, type: PistonType, short: bool },
     Wool: struct { color: Color },
@@ -921,8 +1172,8 @@ pub const ConcreteBlockState = union(Block) {
     Portal: struct { axis: HorizontalAxis },
     LitPumpkin: struct { facing: HorizontalFacing },
     Cake: struct { bites: u3 },
-    UnpoweredRepeater: struct { locked: bool, delay: u2 },
-    PoweredRepeater: struct { locked: bool, delay: u2 },
+    UnpoweredRepeater: struct { facing: HorizontalFacing, locked: bool, delay: u2 },
+    PoweredRepeater: struct { facing: HorizontalFacing, locked: bool, delay: u2 },
     StainedGlass: struct { color: Color },
     Trapdoor: struct { facing: HorizontalFacing, open: bool, half: TrapdoorHalf },
     MonsterEgg: struct { variant: MonsterEggType },
@@ -935,7 +1186,7 @@ pub const ConcreteBlockState = union(Block) {
     PumpkinStem: struct { age: u4, facing: StemFacing },
     MelonStem: struct { age: u4, facing: StemFacing },
     Vine: struct { up: bool, north: bool, east: bool, south: bool, west: bool },
-    FenceGate: struct { facing: HorizontalAxis, open: bool, powered: bool, in_wall: bool },
+    FenceGate: struct { facing: HorizontalFacing, open: bool, powered: bool, in_wall: bool },
     BrickStairs: struct { facing: StairFacing, half: StairHalf, shape: StairShape },
     StoneBrickStairs: struct { facing: StairFacing, half: StairHalf, shape: StairShape },
     Mycelium: struct {},
@@ -975,8 +1226,8 @@ pub const ConcreteBlockState = union(Block) {
     Skull: struct { facing: Facing, no_drop: bool },
     Anvil: struct { facing: HorizontalAxis, damage: u2 },
     TrappedChest: struct { facing: HorizontalFacing },
-    LightWeightedPressurePlate: struct { power: u4, powered: u4 },
-    HeavyWeightedPressurePlate: struct { power: u4, powered: u4 },
+    LightWeightedPressurePlate: struct { power: u4 },
+    HeavyWeightedPressurePlate: struct { power: u4 },
     UnpoweredComparator: struct { powered: bool, mode: ComparatorMode },
     PoweredComparator: struct { powered: bool, mode: ComparatorMode },
     DaylightDetector: struct { power: u4 },
@@ -1003,7 +1254,7 @@ pub const ConcreteBlockState = union(Block) {
     HardenedClay: struct {},
     CoalBlock: struct {},
     PackedIce: struct {},
-    DoublePlant: struct { variant: DoublePlantType, half: DoublePlantHalf, facing: HorizontalAxis },
+    DoublePlant: struct { half: DoublePlantHalf, variant: DoublePlantType },
     StandingBanner: struct { rotation: u4 },
     WallBanner: struct { facing: HorizontalFacing },
     DaylightDetectorInverted: struct { power: u4 },
@@ -1036,7 +1287,7 @@ pub const StoneType = enum(u3) { Stone = 0, Granite = 1, SmoothGranite = 2, Dior
 
 pub const WoodType = enum(u3) { Oak = 0, Spruce = 1, Birch = 2, Jungle = 3, Acacia = 4, DarkOak = 5 };
 pub const WoodType1 = enum(u2) { Oak = 0, Spruce = 1, Birch = 2, Jungle = 3 };
-pub const WoodType2 = enum(u3) { Acacia = 4, DarkOak = 5 };
+pub const WoodType2 = enum(u2) { Acacia, DarkOak };
 
 pub const StoneSlabType = enum(u3) { Stone = 0, Sand = 1, Wood = 2, Cobblestone = 3, Brick = 4, Smoothbrick = 5, Netherbrick = 6, Quartz = 7 };
 
@@ -1045,7 +1296,7 @@ pub const SandType = enum(u1) { Sand = 0, RedSand = 1 };
 pub const LogAxis = enum(u2) { X = 1, Y = 0, Z = 2, None = 3 };
 
 pub const Axis = enum { X, Y, Z };
-pub const HorizontalAxis = enum { X, Y, Z };
+pub const HorizontalAxis = enum { X, Z };
 pub const Facing = enum(u3) { Down = 0, Up = 1, North = 2, South = 3, West = 4, East = 5 };
 pub const HorizontalFacing = enum(u2) { South = 0, West = 1, North = 2, East = 3 };
 
@@ -1080,31 +1331,243 @@ pub const TrapdoorHalf = enum(u1) { Bottom = 0, Top = 1 };
 
 pub const CobblestoneWallVariant = enum { Normal, Mossy };
 
-pub const FlowerPotContents = enum { Empty, Poppy, BlueOrchid, Allium, Houstonia, RedTulip, OrangeTulip, WhiteTulip, PinkTulip, OxeyeDaisy, Dandelion, OakSapling, SpruceSapling, BirchSapling, JungleSapling, AcaciaSapling, DarkOakSapling, MushroomRed, MushroomBrown, DeadBush, Fern, Cactus };
+pub const FlowerPotContents = enum { Empty, Poppy, BlueOrchid, Allium, Houstonia, RedTulip, OrangeTulip, WhiteTulip, PinkTulip, OxeyeDaisy, Dandelion, OakSapling, SpruceSapling, BirchSapling, JungleSapling, AcaciaSapling, DarkOakSapling, MushroomRed, MushroomBrown, Deadbush, Fern, Cactus };
 
 pub const ComparatorMode = enum { Compare, Subtract };
 
 pub const PrismarineType = enum { Rough, Bricks, Dark };
 
-pub const DoublePlantType = enum { Sunflower, Syringa, Grass, Fern, Rose, Paeonia };
-pub const DoublePlantHalf = enum { Upper, Lower };
+pub const DoublePlantType = enum(u3) { Sunflower, Syringa, Grass, Fern, Rose, Paeonia };
+pub const DoublePlantHalf = enum(u1) { Upper, Lower };
 
 pub const SandstoneType = enum { Default, Chiseled, Smooth };
 pub const RedSandstoneType = enum { Default, Chiseled, Smooth };
 
 pub const BedHalf = enum(u1) { Foot = 0, Head = 1 };
 
-pub const TallGrassType = enum(u2) { DeadBush = 0, Grass = 1, Fern = 2 };
+pub const TallgrassType = enum(u2) { Deadbush = 0, Grass = 1, Fern = 2 };
 
 test ConcreteBlockState {
-    const expectEqual = std.testing.expectEqual;
-    const toConcreteBlockState = StoredBlockState.toConcreteBlockState;
-
-    try expectEqual(toConcreteBlockState(.{ .block = .Air, .metadata = 0 }), .Air);
-    try expectEqual(toConcreteBlockState(.{ .block = .Air, .metadata = 2 }), .Air);
-
-    try expectEqual(toConcreteBlockState(StoredBlockState{ .block = .Stone, .metadata = 0 }), ConcreteBlockState{ .Stone = .{ .variant = StoneType.Stone } });
-    try expectEqual(toConcreteBlockState(StoredBlockState{ .block = .Stone, .metadata = 0 }), ConcreteBlockState{ .Stone = .{ .variant = StoneType.Stone } });
-
-    std.debug.print("{}\n", .{@sizeOf(ConcreteBlockState)});
+    // for (0..197) |block_id| {
+    //     const block: Block = @enumFromInt(block_id);
+    //     std.debug.print("\n", .{});
+    //     for (0..16) |metadata| {
+    //         std.debug.print("{}", .{if (isValid(@intFromEnum(block), @intCast(metadata))) @as(usize, 1) else @as(usize, 0)});
+    //     }
+    // }
+    const union_field = @typeInfo(FilteredStoredBlockState).Struct.fields[1].type;
+    inline for (@typeInfo(union_field).Union.fields) |field| {
+        std.debug.print("name: {s} | size: {}\n", .{ field.name, @bitSizeOf(field.type) });
+    }
+    std.debug.print("size: {}\n", .{@bitSizeOf(FilteredStoredBlockState)});
 }
+
+pub export fn isValid(block_id: u16, metadata: u8) bool {
+    const block: Block = @enumFromInt(block_id);
+    return valid_metadata_table.get(block).isSet(metadata);
+}
+
+/// A table of valid metadata values for each block
+/// A zero represents an valid value and a one represents a valid value
+/// For example, the only valid metadata value for .Air is 0
+const valid_metadata_table = blk: {
+    var table = std.EnumArray(Block, std.bit_set.IntegerBitSet(16)).initFill(std.bit_set.IntegerBitSet(16).initEmpty());
+    table.set(.Air, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Stone, .{ .mask = @bitReverse(@as(u16, 0b1111111000000000)) });
+    table.set(.Grass, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Dirt, .{ .mask = @bitReverse(@as(u16, 0b1110000000000000)) });
+    table.set(.Cobblestone, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Planks, .{ .mask = @bitReverse(@as(u16, 0b1111110000000000)) });
+    table.set(.Sapling, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Bedrock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.FlowingWater, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Water, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.FlowingLava, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Lava, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Sand, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.Gravel, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.GoldOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.IronOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.CoalOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Log, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Leaves, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Sponge, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.Glass, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.LapisOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.LapisBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Dispenser, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Sandstone, .{ .mask = @bitReverse(@as(u16, 0b1110000000000000)) });
+    table.set(.Noteblock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Bed, .{ .mask = @bitReverse(@as(u16, 0b1111000011111111)) });
+    table.set(.GoldenRail, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.DetectorRail, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.StickyPiston, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Web, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Tallgrass, .{ .mask = @bitReverse(@as(u16, 0b1110000000000000)) });
+    table.set(.Deadbush, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Piston, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.PistonHead, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Wool, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.PistonExtension, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.YellowFlower, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.RedFlower, .{ .mask = @bitReverse(@as(u16, 0b1111111110000000)) });
+    table.set(.BrownMushroom, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.RedMushroom, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.GoldBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.IronBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.DoubleStoneSlab, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.StoneSlab, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.BrickBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Tnt, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.Bookshelf, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.MossyCobblestone, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Obsidian, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Torch, .{ .mask = @bitReverse(@as(u16, 0b0111110000000000)) });
+    table.set(.Fire, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.MobSpawner, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.OakStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Chest, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.RedstoneWire, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.DiamondOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.DiamondBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.CraftingTable, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Wheat, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Farmland, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Furnace, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.LitFurnace, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.StandingSign, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.WoodenDoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.Ladder, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.Rail, .{ .mask = @bitReverse(@as(u16, 0b1111111111000000)) });
+    table.set(.StoneStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.WallSign, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.Lever, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.StonePressurePlate, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.IronDoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.WoodenPressurePlate, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.RedstoneOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.LitRedstoneOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.UnlitRedstoneTorch, .{ .mask = @bitReverse(@as(u16, 0b0111110000000000)) });
+    table.set(.RedstoneTorch, .{ .mask = @bitReverse(@as(u16, 0b0111110000000000)) });
+    table.set(.StoneButton, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.SnowLayer, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Ice, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Snow, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Cactus, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Clay, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Reeds, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Jukebox, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.Fence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Pumpkin, .{ .mask = @bitReverse(@as(u16, 0b1111000000000000)) });
+    table.set(.Netherrack, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.SoulSand, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Glowstone, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Portal, .{ .mask = @bitReverse(@as(u16, 0b0110000000000000)) });
+    table.set(.LitPumpkin, .{ .mask = @bitReverse(@as(u16, 0b1111000000000000)) });
+    table.set(.Cake, .{ .mask = @bitReverse(@as(u16, 0b1111111000000000)) });
+    table.set(.UnpoweredRepeater, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.PoweredRepeater, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.StainedGlass, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Trapdoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.MonsterEgg, .{ .mask = @bitReverse(@as(u16, 0b1111110000000000)) });
+    table.set(.Stonebrick, .{ .mask = @bitReverse(@as(u16, 0b1111000000000000)) });
+    table.set(.BrownMushroomBlock, .{ .mask = @bitReverse(@as(u16, 0b1111111111100011)) });
+    table.set(.RedMushroomBlock, .{ .mask = @bitReverse(@as(u16, 0b1111111111100011)) });
+    table.set(.IronBars, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.GlassPane, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.MelonBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.PumpkinStem, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.MelonStem, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Vine, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.FenceGate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.BrickStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.StoneBrickStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Mycelium, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Waterlily, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.NetherBrick, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.NetherBrickFence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.NetherBrickStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.NetherWart, .{ .mask = @bitReverse(@as(u16, 0b1111000000000000)) });
+    table.set(.EnchantingTable, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.BrewingStand, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Cauldron, .{ .mask = @bitReverse(@as(u16, 0b1111000000000000)) });
+    table.set(.EndPortal, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.EndPortalFrame, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.EndStone, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.DragonEgg, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.RedstoneLamp, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.LitRedstoneLamp, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.DoubleWoodenSlab, .{ .mask = @bitReverse(@as(u16, 0b1111110000000000)) });
+    table.set(.WoodenSlab, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Cocoa, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.SandstoneStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.EmeraldOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.EnderChest, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.TripwireHook, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Tripwire, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.EmeraldBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.SpruceStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.BirchStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.JungleStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.CommandBlock, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.Beacon, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.CobblestoneWall, .{ .mask = @bitReverse(@as(u16, 0b1100000000000000)) });
+    table.set(.FlowerPot, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Carrots, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Potatoes, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.WoodenButton, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Skull, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Anvil, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.TrappedChest, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.LightWeightedPressurePlate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.HeavyWeightedPressurePlate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.UnpoweredComparator, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.PoweredComparator, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.DaylightDetector, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.RedstoneBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.QuartzOre, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Hopper, .{ .mask = @bitReverse(@as(u16, 0b1011110010111100)) });
+    table.set(.QuartzBlock, .{ .mask = @bitReverse(@as(u16, 0b1111100000000000)) });
+    table.set(.QuartzStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.ActivatorRail, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.Dropper, .{ .mask = @bitReverse(@as(u16, 0b1111110011111100)) });
+    table.set(.StainedHardenedClay, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.StainedGlassPane, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Leaves2, .{ .mask = @bitReverse(@as(u16, 0b1100110011001100)) });
+    table.set(.Log2, .{ .mask = @bitReverse(@as(u16, 0b1100110011001100)) });
+    table.set(.AcaciaStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.DarkOakStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.Slime, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.Barrier, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.IronTrapdoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.Prismarine, .{ .mask = @bitReverse(@as(u16, 0b1110000000000000)) });
+    table.set(.SeaLantern, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.HayBlock, .{ .mask = @bitReverse(@as(u16, 0b1000100010000000)) });
+    table.set(.Carpet, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.HardenedClay, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.CoalBlock, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.PackedIce, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.DoublePlant, .{ .mask = @bitReverse(@as(u16, 0b1111110011110000)) });
+    table.set(.StandingBanner, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.WallBanner, .{ .mask = @bitReverse(@as(u16, 0b0011110000000000)) });
+    table.set(.DaylightDetectorInverted, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.RedSandstone, .{ .mask = @bitReverse(@as(u16, 0b1110000000000000)) });
+    table.set(.RedSandstoneStairs, .{ .mask = @bitReverse(@as(u16, 0b1111111100000000)) });
+    table.set(.DoubleStoneSlab2, .{ .mask = @bitReverse(@as(u16, 0b1000000010000000)) });
+    table.set(.StoneSlab2, .{ .mask = @bitReverse(@as(u16, 0b1000000010000000)) });
+    table.set(.SpruceFenceGate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.BirchFenceGate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.JungleFenceGate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.DarkOakFenceGate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.AcaciaFenceGate, .{ .mask = @bitReverse(@as(u16, 0b1111111111111111)) });
+    table.set(.SpruceFence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.BirchFence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.JungleFence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.DarkOakFence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.AcaciaFence, .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) });
+    table.set(.SpruceDoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.BirchDoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.JungleDoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    table.set(.AcaciaDoor, .{ .mask = @bitReverse(@as(u16, 0b1111111111110000)) });
+    break :blk table;
+};
