@@ -33,3 +33,5 @@ pub const decompression_time = LogType(false, "took {d} ms to decompress {} byte
 
 pub const player_start_sprint = LogType(false, "begin sprinting");
 pub const player_stop_sprint = LogType(false, "stop sprinting");
+
+pub const set_block_in_missing_chunk = LogType(false, "attempted to set block in missing chunk {}!");

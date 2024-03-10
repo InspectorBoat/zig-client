@@ -1,6 +1,7 @@
 const std = @import("std");
-const BlockState = @import("../block/BlockState.zig");
+const PackedStructArray = @import("../world/packed_struct_array.zig").PackedStructArray;
+const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 
-block_states: [4096]BlockState,
+block_states: PackedStructArray(FilteredBlockState, 4096),
 block_light: std.PackedIntArray(u4, 4096),
 sky_light: std.PackedIntArray(u4, 4096),

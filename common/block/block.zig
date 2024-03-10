@@ -267,15 +267,37 @@ pub const Block = enum(u8) {
 };
 
 // The raw bytes sent over
-pub const RawBlockState = packed struct {
-    block: Block,
+pub const RawBlockState = packed struct(u16) {
     metadata: u4,
+    block: Block,
+    _: u4 = 0,
+
+    pub const AIR: @This() = .{ .block = .air, .metadata = 0 };
+
+    pub fn from_u16(block: u16) @This() {
+        const Intermediate = packed struct {
+            metadata: u4,
+            block: u12,
+        };
+        const intermediate = @as(Intermediate, @bitCast(block));
+        if (intermediate.block > 198) return AIR;
+        return @bitCast(block);
+    }
+    pub fn toFiltered(self: @This()) FilteredBlockState {
+        if (!valid_metadata_table.get(self.block).isSet(self.metadata)) return .{ .block = .air, .properties = .{ .raw_bits = 0 } };
+        return .{
+            .block = self.block,
+            .properties = .{ .raw_bits = raw_to_filtered_conversion_table.get(self.block).get(self.metadata) },
+        };
+    }
 };
 
 // RawBlockState, but stipped of invalid states and converted into a sane format
 pub const FilteredBlockState = packed struct {
     block: Block,
     properties: BlockProperties,
+
+    pub const AIR: @This() = .{ .block = .air, .properties = .{ .raw_bits = 0 } };
 
     pub const BlockProperties = packed union {
         pub const air = packed struct(u4) { _: u4 = 0 };
@@ -884,17 +906,6 @@ pub const ConcreteBlockState = union(Block) {
     acacia_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
     dark_oak_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
 };
-
-test ConcreteBlockState {
-    std.debug.print("\n\n-----------------\n", .{});
-    std.debug.print("{any}\n", .{raw_to_filtered_conversion_table});
-    std.debug.print("{}\n", .{@sizeOf(ConcreteBlockState)});
-}
-
-pub fn isValid(block_id: u16, metadata: u8) bool {
-    const block: Block = @enumFromInt(block_id);
-    return valid_metadata_table.get(block).isSet(metadata);
-}
 
 /// A table of valid metadata values for each block
 /// Zero represents an valid value that will become air and One represents a valid value that should be looked up

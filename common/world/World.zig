@@ -14,7 +14,8 @@ const PlayerMovePositionAndAngles = @import("../network/packet/c2s/play/PlayerMo
 const PlayerMovePosition = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig").Position;
 const PlayerMove = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig");
 const Hitbox = @import("../math/Hitbox.zig");
-const BlockState = @import("../block/BlockState.zig");
+const RawBlockState = @import("../block/block.zig").RawBlockState;
+const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 
 chunks: std.AutoHashMap(Vector2(i32), Chunk),
 player: LocalPlayerEntity,
@@ -93,7 +94,7 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Hitbox) usize {
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
-                for (self.getBlockState(.{ .x = x, .y = y, .z = z }).getHitboxes()) |_| {
+                if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
                     collisions_count += 1;
                 }
             }
@@ -120,12 +121,19 @@ pub fn getCollisions(self: *const @This(), hitbox: Hitbox, allocator: std.mem.Al
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
-                for (self.getBlockState(.{ .x = x, .y = y, .z = z }).getHitboxes()) |collision| {
-                    try collisions.append(collision.move(.{
-                        .x = @floatFromInt(x),
-                        .y = @floatFromInt(y),
-                        .z = @floatFromInt(z),
-                    }));
+                if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
+                    try collisions.append(Hitbox{
+                        .min = .{
+                            .x = @floatFromInt(x),
+                            .y = @floatFromInt(y),
+                            .z = @floatFromInt(z),
+                        },
+                        .max = .{
+                            .x = @floatFromInt(x + 1),
+                            .y = @floatFromInt(y + 1),
+                            .z = @floatFromInt(z + 1),
+                        },
+                    });
                 }
             }
         }
@@ -142,7 +150,7 @@ pub fn addEntity(self: *@This(), entity: Entity) !void {
     try self.entities.append(entity);
 }
 
-pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) BlockState {
+pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBlockState {
     if (self.chunks.get(.{
         .x = @divFloor(block_pos.x, 16),
         .z = @divFloor(block_pos.z, 16),
@@ -153,10 +161,32 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) BlockState {
                 .y = @mod(block_pos.y, 16),
                 .z = @mod(block_pos.z, 16),
             };
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
+            return section.block_states.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0));
         }
     }
-    return BlockState{ .id = 0 };
+    return FilteredBlockState.AIR;
+}
+pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: FilteredBlockState) void {
+    if (self.chunks.get(.{
+        .x = @divFloor(block_pos.x, 16),
+        .z = @divFloor(block_pos.z, 16),
+    })) |chunk| {
+        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
+            const section_block_pos = .{
+                .x = @mod(block_pos.x, 16),
+                .y = @mod(block_pos.y, 16),
+                .z = @mod(block_pos.z, 16),
+            };
+            section.block_states.set(
+                @intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0),
+                state,
+            );
+        } else {
+            std.log.warn("TODO!", .{});
+        }
+    } else {
+        @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
+    }
 }
 
 /// returns intersecting hitboxes originating from blocks

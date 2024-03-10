@@ -141,7 +141,7 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
 
 pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
-        if (section_y != 5) continue;
+        if (section_y < 4) continue;
         if (maybe_section) |section| {
             var staging = GpuStagingBuffer{};
 
@@ -151,7 +151,7 @@ pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void
                 for (0..16) |y| {
                     for (0..16) |z| {
                         const pos = (y << 8) | (z << 4) | (x << 0);
-                        if (section.block_states[pos].id != 0) {
+                        if (section.block_states.get(pos).block != .air) {
                             staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
                         }
                     }
