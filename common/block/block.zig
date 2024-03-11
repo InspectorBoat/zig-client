@@ -1,4 +1,6 @@
 const std = @import("std");
+const World = @import("../world/World.zig");
+const Vector3 = @import("../type/vector.zig").Vector3;
 
 // Converts an int into enum, returning a default value with ordinal 0 if the tag is out of bounds, and panicking on an invalid value in bounds
 pub fn enumFromIntDefault0(comptime EnumTag: type, tag_int: anytype) EnumTag {
@@ -264,6 +266,14 @@ pub const Block = enum(u8) {
     jungle_door,
     acacia_door,
     dark_oak_door,
+
+    pub fn getFriction(self: @This()) f32 {
+        return switch (self) {
+            .slime => 0.8,
+            .ice, .packed_ice => 0.98,
+            else => 0.6,
+        };
+    }
 };
 
 // The raw bytes sent over
@@ -335,7 +345,7 @@ pub const FilteredBlockState = packed struct {
         pub const deadbush = packed struct(u4) { _: u4 = 0 };
         pub const piston = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool };
         pub const piston_head = packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const wool = packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+        pub const wool = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
         pub const piston_extension = packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } };
         pub const yellow_flower = packed struct(u4) { _: u4 = 0 };
         pub const red_flower = packed struct(u4) { variant: enum(u4) { poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy } };
@@ -395,7 +405,7 @@ pub const FilteredBlockState = packed struct {
         pub const cake = packed struct(u4) { bites: u3, _: u1 = 0 };
         pub const unpowered_repeater = packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } };
         pub const powered_repeater = packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } };
-        pub const stained_glass = packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+        pub const stained_glass = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
         pub const trapdoor = packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } };
         pub const monster_egg = packed struct(u4) { variant: enum(u3) { stone, cobblestone, stone_brick, mossy_brick, cracked_brick, chiseled_brick }, _: u1 = 0 };
         pub const stonebrick = packed struct(u4) { variant: enum(u2) { stonebrick, mossy_stonebrick, cracked_stonebrick, chiseled_stonebrick }, _: u2 = 0 };
@@ -459,8 +469,8 @@ pub const FilteredBlockState = packed struct {
         pub const quartz_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
         pub const activator_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
         pub const dropper = packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const stained_hardened_clay = packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
-        pub const stained_glass_pane = packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+        pub const stained_hardened_clay = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+        pub const stained_glass_pane = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
         pub const leaves2 = packed struct(u4) { variant: enum(u1) { acacia, dark_oak }, check_decay: bool, decayable: bool, _: u1 = 0 };
         pub const log2 = packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u1) { acacia, dark_oak }, _: u1 = 0 };
         pub const acacia_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
@@ -471,7 +481,7 @@ pub const FilteredBlockState = packed struct {
         pub const prismarine = packed struct(u4) { variant: enum(u2) { prismarine, prismarine_bricks, dark_prismarine }, _: u2 = 0 };
         pub const sea_lantern = packed struct(u4) { _: u4 = 0 };
         pub const hay_block = packed struct(u4) { axis: enum(u2) { x, y, z }, _: u2 = 0 };
-        pub const carpet = packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+        pub const carpet = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
         pub const hardened_clay = packed struct(u4) { _: u4 = 0 };
         pub const coal_block = packed struct(u4) { _: u4 = 0 };
         pub const packed_ice = packed struct(u4) { _: u4 = 0 };
@@ -700,215 +710,850 @@ pub const FilteredBlockState = packed struct {
         dark_oak_door: dark_oak_door,
     };
 
-    pub fn toConcreteBlockState(self: @This()) void {
-        switch (self.block) {}
+    pub fn toConcreteBlockState(self: @This(), world: World, block_pos: Vector3(i32)) ConcreteBlockState {
+        return switch (self.block) {
+            .grass => .{ .grass = .{ .virtual = .{
+                .snowy = blk: {
+                    const up = world.getBlock(block_pos.up());
+                    break :blk (up == .snow or up == .snow_layer);
+                },
+            } } },
+            .dirt => .{ .dirt = .{ .virtual = .{
+                .snowy = blk: {
+                    const up = world.getBlock(block_pos.up());
+                    break :blk (self.properties.dirt.variant == .podzol) and (up == .snow or up == .snow_layer);
+                },
+            } } },
+            // stairs
+            .fence => .{ .fence = .{ .virtual = .{
+                .west = blk: {
+                    const west = world.getBlock(block_pos.west());
+                    break :blk (west == .fence);
+                },
+                .south = blk: {
+                    const south = world.getBlock(block_pos.south());
+                    break :blk (south == .fence);
+                },
+                .north = blk: {
+                    const north = world.getBlock(block_pos.north());
+                    break :blk (north == .fence);
+                },
+                .east = blk: {
+                    const east = world.getBlock(block_pos.east());
+                    break :blk (east == .fence);
+                },
+            } } },
+
+            else => |block| {
+                var state: ConcreteBlockState = .{ .air = .{ .stored = @bitCast(self.properties) } };
+                const tag: *Block = @ptrCast(&state);
+
+                tag.* = block;
+                return state;
+            },
+        };
     }
 };
 
 // FilteredBlockState, but with virtual properties resolved
 pub const ConcreteBlockState = union(Block) {
-    air: packed struct(u4) { _: u4 = 0 },
-    stone: packed struct(u4) { variant: enum(u3) { stone, granite, smooth_granite, diorite, smooth_diorite, andesite, smooth_andesite }, _: u1 = 0 },
-    grass: packed struct(u4) { _: u4 = 0 },
-    dirt: packed struct(u4) { variant: enum(u2) { dirt, coarse_dirt, podzol }, _: u2 = 0 },
-    cobblestone: packed struct(u4) { _: u4 = 0 },
-    planks: packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, _: u1 = 0 },
-    sapling: packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, stage: u1 },
-    bedrock: packed struct(u4) { _: u4 = 0 },
-    flowing_water: packed struct(u4) { level: u4 },
-    water: packed struct(u4) { level: u4 },
-    flowing_lava: packed struct(u4) { level: u4 },
-    lava: packed struct(u4) { level: u4 },
-    sand: packed struct(u4) { variant: enum(u1) { sand, red_sand }, _: u3 = 0 },
-    gravel: packed struct(u4) { _: u4 = 0 },
-    gold_ore: packed struct(u4) { _: u4 = 0 },
-    iron_ore: packed struct(u4) { _: u4 = 0 },
-    coal_ore: packed struct(u4) { _: u4 = 0 },
-    log: packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u2) { oak, spruce, birch, jungle } },
-    leaves: packed struct(u4) { variant: enum(u2) { oak, spruce, birch, jungle }, check_decay: bool, decayable: bool },
-    sponge: packed struct(u4) { wet: bool, _: u3 = 0 },
-    glass: packed struct(u4) { _: u4 = 0 },
-    lapis_ore: packed struct(u4) { _: u4 = 0 },
-    lapis_block: packed struct(u4) { _: u4 = 0 },
-    dispenser: packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } },
-    sandstone: packed struct(u4) { variant: enum(u2) { sandstone, chiseled_sandstone, smooth_sandstone }, _: u2 = 0 },
-    noteblock: packed struct(u4) { _: u4 = 0 },
-    bed: packed struct(u4) { occupied: bool, facing: enum(u2) { north, south, west, east }, part: enum(u1) { head, foot } },
-    golden_rail: packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } },
-    detector_rail: packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } },
-    sticky_piston: packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool },
-    web: packed struct(u4) { _: u4 = 0 },
-    tallgrass: packed struct(u4) { variant: enum(u2) { dead_bush, tall_grass, fern }, _: u2 = 0 },
-    deadbush: packed struct(u4) { _: u4 = 0 },
-    piston: packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool },
-    piston_head: packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } },
-    wool: packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } },
-    piston_extension: packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } },
-    yellow_flower: packed struct(u4) { _: u4 = 0 },
-    red_flower: packed struct(u4) { variant: enum(u4) { poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy } },
-    brown_mushroom: packed struct(u4) { _: u4 = 0 },
-    red_mushroom: packed struct(u4) { _: u4 = 0 },
-    gold_block: packed struct(u4) { _: u4 = 0 },
-    iron_block: packed struct(u4) { _: u4 = 0 },
-    double_stone_slab: packed struct(u4) { seamless: bool, variant: enum(u3) { stone, sandstone, wood_old, cobblestone, brick, stone_brick, nether_brick, quartz } },
-    stone_slab: packed struct(u4) { variant: enum(u3) { stone, sandstone, wood_old, cobblestone, brick, stone_brick, nether_brick, quartz }, half: enum(u1) { top, bottom } },
-    brick_block: packed struct(u4) { _: u4 = 0 },
-    tnt: packed struct(u4) { explode: bool, _: u3 = 0 },
-    bookshelf: packed struct(u4) { _: u4 = 0 },
-    mossy_cobblestone: packed struct(u4) { _: u4 = 0 },
-    obsidian: packed struct(u4) { _: u4 = 0 },
-    torch: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
-    fire: packed struct(u4) { age: u4 },
-    mob_spawner: packed struct(u4) { _: u4 = 0 },
-    oak_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    chest: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    redstone_wire: packed struct(u4) { power: u4 },
-    diamond_ore: packed struct(u4) { _: u4 = 0 },
-    diamond_block: packed struct(u4) { _: u4 = 0 },
-    crafting_table: packed struct(u4) { _: u4 = 0 },
-    wheat: packed struct(u4) { age: u3, _: u1 = 0 },
-    farmland: packed struct(u4) { moisture: u3, _: u1 = 0 },
-    furnace: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    lit_furnace: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    standing_sign: packed struct(u4) { rotation: u4 },
-    wooden_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
-    ladder: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    rail: packed struct(u4) { shape: enum(u4) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south, south_east, south_west, north_west, north_east } },
-    stone_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    wall_sign: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    lever: packed struct(u4) { powered: bool, facing: enum(u3) { down_x, east, west, south, north, up_z, up_x, down_z } },
-    stone_pressure_plate: packed struct(u4) { powered: bool, _: u3 = 0 },
-    iron_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
-    wooden_pressure_plate: packed struct(u4) { powered: bool, _: u3 = 0 },
-    redstone_ore: packed struct(u4) { _: u4 = 0 },
-    lit_redstone_ore: packed struct(u4) { _: u4 = 0 },
-    unlit_redstone_torch: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
-    redstone_torch: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
-    stone_button: packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } },
-    snow_layer: packed struct(u4) { layers: u3, _: u1 = 0 },
-    ice: packed struct(u4) { _: u4 = 0 },
-    snow: packed struct(u4) { _: u4 = 0 },
-    cactus: packed struct(u4) { age: u4 },
-    clay: packed struct(u4) { _: u4 = 0 },
-    reeds: packed struct(u4) { age: u4 },
-    jukebox: packed struct(u4) { has_record: bool, _: u3 = 0 },
-    fence: packed struct(u4) { _: u4 = 0 },
-    pumpkin: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    netherrack: packed struct(u4) { _: u4 = 0 },
-    soul_sand: packed struct(u4) { _: u4 = 0 },
-    glowstone: packed struct(u4) { _: u4 = 0 },
-    portal: packed struct(u4) { axis: enum(u1) { x, z }, _: u3 = 0 },
-    lit_pumpkin: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    cake: packed struct(u4) { bites: u3, _: u1 = 0 },
-    unpowered_repeater: packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } },
-    powered_repeater: packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } },
-    stained_glass: packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } },
-    trapdoor: packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } },
-    monster_egg: packed struct(u4) { variant: enum(u3) { stone, cobblestone, stone_brick, mossy_brick, cracked_brick, chiseled_brick }, _: u1 = 0 },
-    stonebrick: packed struct(u4) { variant: enum(u2) { stonebrick, mossy_stonebrick, cracked_stonebrick, chiseled_stonebrick }, _: u2 = 0 },
-    brown_mushroom_block: packed struct(u4) { variant: enum(u4) { north_west, north, north_east, west, center, east, south_west, south, south_east, stem, all_inside, all_outside, all_stem } },
-    red_mushroom_block: packed struct(u4) { variant: enum(u4) { north_west, north, north_east, west, center, east, south_west, south, south_east, stem, all_inside, all_outside, all_stem } },
-    iron_bars: packed struct(u4) { _: u4 = 0 },
-    glass_pane: packed struct(u4) { _: u4 = 0 },
-    melon_block: packed struct(u4) { _: u4 = 0 },
-    pumpkin_stem: packed struct(u4) { age: u3, _: u1 = 0 },
-    melon_stem: packed struct(u4) { age: u3, _: u1 = 0 },
-    vine: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-    fence_gate: packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } },
-    brick_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    stone_brick_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    mycelium: packed struct(u4) { _: u4 = 0 },
-    waterlily: packed struct(u4) { _: u4 = 0 },
-    nether_brick: packed struct(u4) { _: u4 = 0 },
-    nether_brick_fence: packed struct(u4) { _: u4 = 0 },
-    nether_brick_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    nether_wart: packed struct(u4) { age: u2, _: u2 = 0 },
-    enchanting_table: packed struct(u4) { _: u4 = 0 },
-    brewing_stand: packed struct(u4) { has_bottle_2: bool, has_bottle_0: bool, has_bottle_1: bool, _: u1 = 0 },
-    cauldron: packed struct(u4) { level: u2, _: u2 = 0 },
-    end_portal: packed struct(u4) { _: u4 = 0 },
-    end_portal_frame: packed struct(u4) { eye: bool, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    end_stone: packed struct(u4) { _: u4 = 0 },
-    dragon_egg: packed struct(u4) { _: u4 = 0 },
-    redstone_lamp: packed struct(u4) { _: u4 = 0 },
-    lit_redstone_lamp: packed struct(u4) { _: u4 = 0 },
-    double_wooden_slab: packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, _: u1 = 0 },
-    wooden_slab: packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, half: enum(u1) { top, bottom } },
-    cocoa: packed struct(u4) { age: u2, facing: enum(u2) { north, south, west, east } },
-    sandstone_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    emerald_ore: packed struct(u4) { _: u4 = 0 },
-    ender_chest: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    tripwire_hook: packed struct(u4) { powered: bool, facing: enum(u2) { north, south, west, east }, attached: bool },
-    tripwire: packed struct(u4) { powered: bool, disarmed: bool, attached: bool, suspended: bool },
-    emerald_block: packed struct(u4) { _: u4 = 0 },
-    spruce_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    birch_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    jungle_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    command_block: packed struct(u4) { triggered: bool, _: u3 = 0 },
-    beacon: packed struct(u4) { _: u4 = 0 },
-    cobblestone_wall: packed struct(u4) { variant: enum(u1) { cobblestone, mossy_cobblestone }, _: u3 = 0 },
-    flower_pot: packed struct(u4) { legacy_data: u4 },
-    carrots: packed struct(u4) { age: u3, _: u1 = 0 },
-    potatoes: packed struct(u4) { age: u3, _: u1 = 0 },
-    wooden_button: packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } },
-    skull: packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, nodrop: bool },
-    anvil: packed struct(u4) { damage: u2, facing: enum(u2) { north, south, west, east } },
-    trapped_chest: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    light_weighted_pressure_plate: packed struct(u4) { power: u4 },
-    heavy_weighted_pressure_plate: packed struct(u4) { power: u4 },
-    unpowered_comparator: packed struct(u4) { powered: bool, mode: enum(u1) { compare, subtract }, facing: enum(u2) { north, south, west, east } },
-    powered_comparator: packed struct(u4) { powered: bool, mode: enum(u1) { compare, subtract }, facing: enum(u2) { north, south, west, east } },
-    daylight_detector: packed struct(u4) { power: u4 },
-    redstone_block: packed struct(u4) { _: u4 = 0 },
-    quartz_ore: packed struct(u4) { _: u4 = 0 },
-    hopper: packed struct(u4) { facing: enum(u3) { down, north, south, west, east }, enabled: bool },
-    quartz_block: packed struct(u4) { variant: enum(u3) { default, chiseled, lines_x, lines_y, lines_z }, _: u1 = 0 },
-    quartz_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    activator_rail: packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } },
-    dropper: packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } },
-    stained_hardened_clay: packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } },
-    stained_glass_pane: packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } },
-    leaves2: packed struct(u4) { variant: enum(u1) { acacia, dark_oak }, check_decay: bool, decayable: bool, _: u1 = 0 },
-    log2: packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u1) { acacia, dark_oak }, _: u1 = 0 },
-    acacia_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    dark_oak_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    slime: packed struct(u4) { _: u4 = 0 },
-    barrier: packed struct(u4) { _: u4 = 0 },
-    iron_trapdoor: packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } },
-    prismarine: packed struct(u4) { variant: enum(u2) { prismarine, prismarine_bricks, dark_prismarine }, _: u2 = 0 },
-    sea_lantern: packed struct(u4) { _: u4 = 0 },
-    hay_block: packed struct(u4) { axis: enum(u2) { x, y, z }, _: u2 = 0 },
-    carpet: packed struct(u4) { color: enum(u4) { white, orange, magenta, lightBlue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } },
-    hardened_clay: packed struct(u4) { _: u4 = 0 },
-    coal_block: packed struct(u4) { _: u4 = 0 },
-    packed_ice: packed struct(u4) { _: u4 = 0 },
-    double_plant: packed struct(u4) { variant: enum(u3) { sunflower, syringa, double_grass, double_fern, double_rose, paeonia }, half: enum(u1) { upper, lower } },
-    standing_banner: packed struct(u4) { rotation: u4 },
-    wall_banner: packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 },
-    daylight_detector_inverted: packed struct(u4) { power: u4 },
-    red_sandstone: packed struct(u4) { variant: enum(u2) { red_sandstone, chiseled_red_sandstone, smooth_red_sandstone }, _: u2 = 0 },
-    red_sandstone_stairs: packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 },
-    double_stone_slab2: packed struct(u4) { seamless: bool, _: u3 = 0 },
-    stone_slab2: packed struct(u4) { half: enum(u1) { top, bottom }, _: u3 = 0 },
-    spruce_fence_gate: packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } },
-    birch_fence_gate: packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } },
-    jungle_fence_gate: packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } },
-    dark_oak_fence_gate: packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } },
-    acacia_fence_gate: packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } },
-    spruce_fence: packed struct(u4) { _: u4 = 0 },
-    birch_fence: packed struct(u4) { _: u4 = 0 },
-    jungle_fence: packed struct(u4) { _: u4 = 0 },
-    dark_oak_fence: packed struct(u4) { _: u4 = 0 },
-    acacia_fence: packed struct(u4) { _: u4 = 0 },
-    spruce_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
-    birch_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
-    jungle_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
-    acacia_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
-    dark_oak_door: packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } },
+    const BlockProperties = FilteredBlockState.BlockProperties;
+    air: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.air,
+    },
+    stone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stone,
+    },
+    grass: packed struct(u8) {
+        virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
+        stored: BlockProperties.grass,
+    },
+    dirt: packed struct(u8) {
+        virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
+        stored: BlockProperties.dirt,
+    },
+    cobblestone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.cobblestone,
+    },
+    planks: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.planks,
+    },
+    sapling: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.sapling,
+    },
+    bedrock: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.bedrock,
+    },
+    flowing_water: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.flowing_water,
+    },
+    water: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.water,
+    },
+    flowing_lava: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.flowing_lava,
+    },
+    lava: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lava,
+    },
+    sand: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.sand,
+    },
+    gravel: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.gravel,
+    },
+    gold_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.gold_ore,
+    },
+    iron_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.iron_ore,
+    },
+    coal_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.coal_ore,
+    },
+    log: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.log,
+    },
+    leaves: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.leaves,
+    },
+    sponge: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.sponge,
+    },
+    glass: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.glass,
+    },
+    lapis_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lapis_ore,
+    },
+    lapis_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lapis_block,
+    },
+    dispenser: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.dispenser,
+    },
+    sandstone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.sandstone,
+    },
+    noteblock: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.noteblock,
+    },
+    bed: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.bed,
+    },
+    golden_rail: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.golden_rail,
+    },
+    detector_rail: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.detector_rail,
+    },
+    sticky_piston: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.sticky_piston,
+    },
+    web: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.web,
+    },
+    tallgrass: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.tallgrass,
+    },
+    deadbush: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.deadbush,
+    },
+    piston: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.piston,
+    },
+    piston_head: packed struct(u8) {
+        virtual: packed struct(u4) { short: bool, _: u3 = 0 },
+        stored: BlockProperties.piston_head,
+    },
+    wool: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wool,
+    },
+    piston_extension: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.piston_extension,
+    },
+    yellow_flower: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.yellow_flower,
+    },
+    red_flower: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.red_flower,
+    },
+    brown_mushroom: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.brown_mushroom,
+    },
+    red_mushroom: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.red_mushroom,
+    },
+    gold_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.gold_block,
+    },
+    iron_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.iron_block,
+    },
+    double_stone_slab: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.double_stone_slab,
+    },
+    stone_slab: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stone_slab,
+    },
+    brick_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.brick_block,
+    },
+    tnt: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.tnt,
+    },
+    bookshelf: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.bookshelf,
+    },
+    mossy_cobblestone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.mossy_cobblestone,
+    },
+    obsidian: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.obsidian,
+    },
+    torch: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.torch,
+    },
+    fire: packed struct(u8) { // TODO: Split
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.fire,
+    },
+    mob_spawner: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.mob_spawner,
+    },
+    oak_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.oak_stairs,
+    },
+    chest: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.chest,
+    },
+    redstone_wire: packed struct(u8) { // TODO: Split
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.redstone_wire,
+    },
+    diamond_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.diamond_ore,
+    },
+    diamond_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.diamond_block,
+    },
+    crafting_table: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.crafting_table,
+    },
+    wheat: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wheat,
+    },
+    farmland: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.farmland,
+    },
+    furnace: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.furnace,
+    },
+    lit_furnace: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lit_furnace,
+    },
+    standing_sign: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.standing_sign,
+    },
+    wooden_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wooden_door,
+    },
+    ladder: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.ladder,
+    },
+    rail: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.rail,
+    },
+    stone_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.stone_stairs,
+    },
+    wall_sign: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wall_sign,
+    },
+    lever: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lever,
+    },
+    stone_pressure_plate: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stone_pressure_plate,
+    },
+    iron_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.iron_door,
+    },
+    wooden_pressure_plate: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wooden_pressure_plate,
+    },
+    redstone_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.redstone_ore,
+    },
+    lit_redstone_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lit_redstone_ore,
+    },
+    unlit_redstone_torch: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.unlit_redstone_torch,
+    },
+    redstone_torch: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.redstone_torch,
+    },
+    stone_button: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stone_button,
+    },
+    snow_layer: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.snow_layer,
+    },
+    ice: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.ice,
+    },
+    snow: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.snow,
+    },
+    cactus: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.cactus,
+    },
+    clay: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.clay,
+    },
+    reeds: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.reeds,
+    },
+    jukebox: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.jukebox,
+    },
+    fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.fence,
+    },
+    pumpkin: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.pumpkin,
+    },
+    netherrack: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.netherrack,
+    },
+    soul_sand: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.soul_sand,
+    },
+    glowstone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.glowstone,
+    },
+    portal: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.portal,
+    },
+    lit_pumpkin: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lit_pumpkin,
+    },
+    cake: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.cake,
+    },
+    unpowered_repeater: packed struct(u8) {
+        virtual: packed struct(u4) { locked: bool, _: u3 = 0 },
+        stored: BlockProperties.unpowered_repeater,
+    },
+    powered_repeater: packed struct(u8) {
+        virtual: packed struct(u4) { locked: bool, _: u3 = 0 },
+        stored: BlockProperties.powered_repeater,
+    },
+    stained_glass: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stained_glass,
+    },
+    trapdoor: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.trapdoor,
+    },
+    monster_egg: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.monster_egg,
+    },
+    stonebrick: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stonebrick,
+    },
+    brown_mushroom_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.brown_mushroom_block,
+    },
+    red_mushroom_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.red_mushroom_block,
+    },
+    iron_bars: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.iron_bars,
+    },
+    glass_pane: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.glass_pane,
+    },
+    melon_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.melon_block,
+    },
+    pumpkin_stem: packed struct(u8) {
+        virtual: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
+        stored: BlockProperties.pumpkin_stem,
+    },
+    melon_stem: packed struct(u8) {
+        virtual: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
+        stored: BlockProperties.melon_stem,
+    },
+    vine: packed struct(u8) {
+        virtual: packed struct(u4) { up: bool, _: u3 = 0 },
+        stored: BlockProperties.vine,
+    },
+    fence_gate: packed struct(u8) {
+        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+        stored: BlockProperties.fence_gate,
+    },
+    brick_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.brick_stairs,
+    },
+    stone_brick_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.stone_brick_stairs,
+    },
+    mycelium: packed struct(u8) {
+        virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
+        stored: BlockProperties.mycelium,
+    },
+    waterlily: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.waterlily,
+    },
+    nether_brick: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.nether_brick,
+    },
+    nether_brick_fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.nether_brick_fence,
+    },
+    nether_brick_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.nether_brick_stairs,
+    },
+    nether_wart: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.nether_wart,
+    },
+    enchanting_table: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.enchanting_table,
+    },
+    brewing_stand: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.brewing_stand,
+    },
+    cauldron: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.cauldron,
+    },
+    end_portal: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.end_portal,
+    },
+    end_portal_frame: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.end_portal_frame,
+    },
+    end_stone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.end_stone,
+    },
+    dragon_egg: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.dragon_egg,
+    },
+    redstone_lamp: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.redstone_lamp,
+    },
+    lit_redstone_lamp: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.lit_redstone_lamp,
+    },
+    double_wooden_slab: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.double_wooden_slab,
+    },
+    wooden_slab: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wooden_slab,
+    },
+    cocoa: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.cocoa,
+    },
+    sandstone_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.sandstone_stairs,
+    },
+    emerald_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.emerald_ore,
+    },
+    ender_chest: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.ender_chest,
+    },
+    tripwire_hook: packed struct(u8) {
+        virtual: packed struct(u4) { suspended: bool, _: u3 = 0 },
+        stored: BlockProperties.tripwire_hook,
+    },
+    tripwire: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.tripwire,
+    },
+    emerald_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.emerald_block,
+    },
+    spruce_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.spruce_stairs,
+    },
+    birch_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.birch_stairs,
+    },
+    jungle_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.jungle_stairs,
+    },
+    command_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.command_block,
+    },
+    beacon: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.beacon,
+    },
+    cobblestone_wall: packed struct(u8) { // TODO: Split
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.cobblestone_wall,
+    },
+    flower_pot: packed struct(u8) { // TODO: Split
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.flower_pot,
+    },
+    carrots: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.carrots,
+    },
+    potatoes: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.potatoes,
+    },
+    wooden_button: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wooden_button,
+    },
+    skull: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.skull,
+    },
+    anvil: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.anvil,
+    },
+    trapped_chest: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.trapped_chest,
+    },
+    light_weighted_pressure_plate: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.light_weighted_pressure_plate,
+    },
+    heavy_weighted_pressure_plate: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.heavy_weighted_pressure_plate,
+    },
+    unpowered_comparator: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.unpowered_comparator,
+    },
+    powered_comparator: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.powered_comparator,
+    },
+    daylight_detector: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.daylight_detector,
+    },
+    redstone_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.redstone_block,
+    },
+    quartz_ore: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.quartz_ore,
+    },
+    hopper: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.hopper,
+    },
+    quartz_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.quartz_block,
+    },
+    quartz_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.quartz_stairs,
+    },
+    activator_rail: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.activator_rail,
+    },
+    dropper: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.dropper,
+    },
+    stained_hardened_clay: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stained_hardened_clay,
+    },
+    stained_glass_pane: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.stained_glass_pane,
+    },
+    leaves2: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.leaves2,
+    },
+    log2: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.log2,
+    },
+    acacia_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.acacia_stairs,
+    },
+    dark_oak_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.dark_oak_stairs,
+    },
+    slime: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.slime,
+    },
+    barrier: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.barrier,
+    },
+    iron_trapdoor: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.iron_trapdoor,
+    },
+    prismarine: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.prismarine,
+    },
+    sea_lantern: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.sea_lantern,
+    },
+    hay_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.hay_block,
+    },
+    carpet: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.carpet,
+    },
+    hardened_clay: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.hardened_clay,
+    },
+    coal_block: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.coal_block,
+    },
+    packed_ice: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.packed_ice,
+    },
+    double_plant: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.double_plant,
+    },
+    standing_banner: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.standing_banner,
+    },
+    wall_banner: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.wall_banner,
+    },
+    daylight_detector_inverted: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.daylight_detector_inverted,
+    },
+    red_sandstone: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.red_sandstone,
+    },
+    red_sandstone_stairs: packed struct(u8) {
+        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+        stored: BlockProperties.red_sandstone_stairs,
+    },
+    double_stone_slab2: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.double_stone_slab2,
+    },
+    stone_slab2: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.stone_slab2,
+    },
+    spruce_fence_gate: packed struct(u8) {
+        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+        stored: BlockProperties.spruce_fence_gate,
+    },
+    birch_fence_gate: packed struct(u8) {
+        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+        stored: BlockProperties.birch_fence_gate,
+    },
+    jungle_fence_gate: packed struct(u8) {
+        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+        stored: BlockProperties.jungle_fence_gate,
+    },
+    dark_oak_fence_gate: packed struct(u8) {
+        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+        stored: BlockProperties.dark_oak_fence_gate,
+    },
+    acacia_fence_gate: packed struct(u8) {
+        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+        stored: BlockProperties.acacia_fence_gate,
+    },
+    spruce_fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.spruce_fence,
+    },
+    birch_fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.birch_fence,
+    },
+    jungle_fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.jungle_fence,
+    },
+    dark_oak_fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.dark_oak_fence,
+    },
+    acacia_fence: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.acacia_fence,
+    },
+    spruce_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.spruce_door,
+    },
+    birch_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.birch_door,
+    },
+    jungle_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.jungle_door,
+    },
+    acacia_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.acacia_door,
+    },
+    dark_oak_door: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.dark_oak_door,
+    },
 };
 
 /// A table of valid metadata values for each block
-/// Zero represents an valid value that will become air and One represents a valid value that should be looked up
+/// Zero represents an invalid value that will become air and One represents a valid value that should be looked up in raw_to_filtered_conversion_table
 /// For example, the only valid metadata value for .Air is 0
 const valid_metadata_table = blk: {
     var table = std.EnumArray(Block, std.bit_set.IntegerBitSet(16)).initUndefined();
@@ -1161,7 +1806,7 @@ const raw_to_filtered_conversion_table = blk: {
     table.set(.deadbush, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.deadbush, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.piston, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.piston, 16, .{ .{ .facing = .down, .extended = false }, .{ .facing = .up, .extended = false }, .{ .facing = .north, .extended = false }, .{ .facing = .south, .extended = false }, .{ .facing = .west, .extended = false }, .{ .facing = .east, .extended = false }, undefined, undefined, .{ .facing = .down, .extended = true }, .{ .facing = .up, .extended = true }, .{ .facing = .north, .extended = true }, .{ .facing = .south, .extended = true }, .{ .facing = .west, .extended = true }, .{ .facing = .east, .extended = true }, undefined, undefined })));
     table.set(.piston_head, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.piston_head, 16, .{ .{ .variant = .normal, .facing = .down }, .{ .variant = .normal, .facing = .up }, .{ .variant = .normal, .facing = .north }, .{ .variant = .normal, .facing = .south }, .{ .variant = .normal, .facing = .west }, .{ .variant = .normal, .facing = .east }, undefined, undefined, .{ .variant = .sticky, .facing = .down }, .{ .variant = .sticky, .facing = .up }, .{ .variant = .sticky, .facing = .north }, .{ .variant = .sticky, .facing = .south }, .{ .variant = .sticky, .facing = .west }, .{ .variant = .sticky, .facing = .east }, undefined, undefined })));
-    table.set(.wool, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.wool, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .lightBlue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
+    table.set(.wool, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.wool, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .light_blue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
     table.set(.piston_extension, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.piston_extension, 16, .{ .{ .variant = .normal, .facing = .down }, .{ .variant = .normal, .facing = .up }, .{ .variant = .normal, .facing = .north }, .{ .variant = .normal, .facing = .south }, .{ .variant = .normal, .facing = .west }, .{ .variant = .normal, .facing = .east }, undefined, undefined, .{ .variant = .sticky, .facing = .down }, .{ .variant = .sticky, .facing = .up }, .{ .variant = .sticky, .facing = .north }, .{ .variant = .sticky, .facing = .south }, .{ .variant = .sticky, .facing = .west }, .{ .variant = .sticky, .facing = .east }, undefined, undefined })));
     table.set(.yellow_flower, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.yellow_flower, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.red_flower, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.red_flower, 16, .{ .{ .variant = .poppy }, .{ .variant = .blue_orchid }, .{ .variant = .allium }, .{ .variant = .houstonia }, .{ .variant = .red_tulip }, .{ .variant = .orange_tulip }, .{ .variant = .white_tulip }, .{ .variant = .pink_tulip }, .{ .variant = .oxeye_daisy }, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
@@ -1221,7 +1866,7 @@ const raw_to_filtered_conversion_table = blk: {
     table.set(.cake, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.cake, 16, .{ .{ .bites = 0 }, .{ .bites = 1 }, .{ .bites = 2 }, .{ .bites = 3 }, .{ .bites = 4 }, .{ .bites = 5 }, .{ .bites = 6 }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.unpowered_repeater, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.unpowered_repeater, 16, .{ .{ .delay = 0, .facing = .south }, .{ .delay = 0, .facing = .west }, .{ .delay = 0, .facing = .north }, .{ .delay = 0, .facing = .east }, .{ .delay = 1, .facing = .south }, .{ .delay = 1, .facing = .west }, .{ .delay = 1, .facing = .north }, .{ .delay = 1, .facing = .east }, .{ .delay = 2, .facing = .south }, .{ .delay = 2, .facing = .west }, .{ .delay = 2, .facing = .north }, .{ .delay = 2, .facing = .east }, .{ .delay = 3, .facing = .south }, .{ .delay = 3, .facing = .west }, .{ .delay = 3, .facing = .north }, .{ .delay = 3, .facing = .east } })));
     table.set(.powered_repeater, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.powered_repeater, 16, .{ .{ .delay = 0, .facing = .south }, .{ .delay = 0, .facing = .west }, .{ .delay = 0, .facing = .north }, .{ .delay = 0, .facing = .east }, .{ .delay = 1, .facing = .south }, .{ .delay = 1, .facing = .west }, .{ .delay = 1, .facing = .north }, .{ .delay = 1, .facing = .east }, .{ .delay = 2, .facing = .south }, .{ .delay = 2, .facing = .west }, .{ .delay = 2, .facing = .north }, .{ .delay = 2, .facing = .east }, .{ .delay = 3, .facing = .south }, .{ .delay = 3, .facing = .west }, .{ .delay = 3, .facing = .north }, .{ .delay = 3, .facing = .east } })));
-    table.set(.stained_glass, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stained_glass, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .lightBlue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
+    table.set(.stained_glass, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stained_glass, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .light_blue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
     table.set(.trapdoor, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.trapdoor, 16, .{ .{ .open = false, .half = .bottom, .facing = .north }, .{ .open = false, .half = .bottom, .facing = .south }, .{ .open = false, .half = .bottom, .facing = .west }, .{ .open = false, .half = .bottom, .facing = .east }, .{ .open = true, .half = .bottom, .facing = .north }, .{ .open = true, .half = .bottom, .facing = .south }, .{ .open = true, .half = .bottom, .facing = .west }, .{ .open = true, .half = .bottom, .facing = .east }, .{ .open = false, .half = .top, .facing = .north }, .{ .open = false, .half = .top, .facing = .south }, .{ .open = false, .half = .top, .facing = .west }, .{ .open = false, .half = .top, .facing = .east }, .{ .open = true, .half = .top, .facing = .north }, .{ .open = true, .half = .top, .facing = .south }, .{ .open = true, .half = .top, .facing = .west }, .{ .open = true, .half = .top, .facing = .east } })));
     table.set(.monster_egg, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.monster_egg, 16, .{ .{ .variant = .stone }, .{ .variant = .cobblestone }, .{ .variant = .stone_brick }, .{ .variant = .mossy_brick }, .{ .variant = .cracked_brick }, .{ .variant = .chiseled_brick }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.stonebrick, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stonebrick, 16, .{ .{ .variant = .stonebrick }, .{ .variant = .mossy_stonebrick }, .{ .variant = .cracked_stonebrick }, .{ .variant = .chiseled_stonebrick }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
@@ -1285,8 +1930,8 @@ const raw_to_filtered_conversion_table = blk: {
     table.set(.quartz_stairs, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.quartz_stairs, 16, .{ .{ .half = .bottom, .facing = .east }, .{ .half = .bottom, .facing = .west }, .{ .half = .bottom, .facing = .south }, .{ .half = .bottom, .facing = .north }, .{ .half = .top, .facing = .east }, .{ .half = .top, .facing = .west }, .{ .half = .top, .facing = .south }, .{ .half = .top, .facing = .north }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.activator_rail, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.activator_rail, 16, .{ .{ .powered = false, .shape = .north_south }, .{ .powered = false, .shape = .east_west }, .{ .powered = false, .shape = .ascending_east }, .{ .powered = false, .shape = .ascending_west }, .{ .powered = false, .shape = .ascending_north }, .{ .powered = false, .shape = .ascending_south }, undefined, undefined, .{ .powered = true, .shape = .north_south }, .{ .powered = true, .shape = .east_west }, .{ .powered = true, .shape = .ascending_east }, .{ .powered = true, .shape = .ascending_west }, .{ .powered = true, .shape = .ascending_north }, .{ .powered = true, .shape = .ascending_south }, undefined, undefined })));
     table.set(.dropper, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.dropper, 16, .{ .{ .triggered = false, .facing = .down }, .{ .triggered = false, .facing = .up }, .{ .triggered = false, .facing = .north }, .{ .triggered = false, .facing = .south }, .{ .triggered = false, .facing = .west }, .{ .triggered = false, .facing = .east }, undefined, undefined, .{ .triggered = true, .facing = .down }, .{ .triggered = true, .facing = .up }, .{ .triggered = true, .facing = .north }, .{ .triggered = true, .facing = .south }, .{ .triggered = true, .facing = .west }, .{ .triggered = true, .facing = .east }, undefined, undefined })));
-    table.set(.stained_hardened_clay, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stained_hardened_clay, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .lightBlue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
-    table.set(.stained_glass_pane, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stained_glass_pane, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .lightBlue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
+    table.set(.stained_hardened_clay, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stained_hardened_clay, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .light_blue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
+    table.set(.stained_glass_pane, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.stained_glass_pane, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .light_blue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
     table.set(.leaves2, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.leaves2, 16, .{ .{ .variant = .acacia, .check_decay = false, .decayable = true }, .{ .variant = .dark_oak, .check_decay = false, .decayable = true }, undefined, undefined, .{ .variant = .acacia, .check_decay = false, .decayable = false }, .{ .variant = .dark_oak, .check_decay = false, .decayable = false }, undefined, undefined, .{ .variant = .acacia, .check_decay = true, .decayable = true }, .{ .variant = .dark_oak, .check_decay = true, .decayable = true }, undefined, undefined, .{ .variant = .acacia, .check_decay = true, .decayable = false }, .{ .variant = .dark_oak, .check_decay = true, .decayable = false }, undefined, undefined })));
     table.set(.log2, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.log2, 16, .{ .{ .axis = .y, .variant = .acacia }, .{ .axis = .y, .variant = .dark_oak }, undefined, undefined, .{ .axis = .x, .variant = .acacia }, .{ .axis = .x, .variant = .dark_oak }, undefined, undefined, .{ .axis = .z, .variant = .acacia }, .{ .axis = .z, .variant = .dark_oak }, undefined, undefined, .{ .axis = .none, .variant = .acacia }, .{ .axis = .none, .variant = .dark_oak }, undefined, undefined })));
     table.set(.acacia_stairs, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.acacia_stairs, 16, .{ .{ .half = .bottom, .facing = .east }, .{ .half = .bottom, .facing = .west }, .{ .half = .bottom, .facing = .south }, .{ .half = .bottom, .facing = .north }, .{ .half = .top, .facing = .east }, .{ .half = .top, .facing = .west }, .{ .half = .top, .facing = .south }, .{ .half = .top, .facing = .north }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
@@ -1297,7 +1942,7 @@ const raw_to_filtered_conversion_table = blk: {
     table.set(.prismarine, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.prismarine, 16, .{ .{ .variant = .prismarine }, .{ .variant = .prismarine_bricks }, .{ .variant = .dark_prismarine }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.sea_lantern, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.sea_lantern, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.hay_block, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.hay_block, 16, .{ .{ .axis = .y }, undefined, undefined, undefined, .{ .axis = .x }, undefined, undefined, undefined, .{ .axis = .z }, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
-    table.set(.carpet, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.carpet, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .lightBlue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
+    table.set(.carpet, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.carpet, 16, .{ .{ .color = .white }, .{ .color = .orange }, .{ .color = .magenta }, .{ .color = .light_blue }, .{ .color = .yellow }, .{ .color = .lime }, .{ .color = .pink }, .{ .color = .gray }, .{ .color = .silver }, .{ .color = .cyan }, .{ .color = .purple }, .{ .color = .blue }, .{ .color = .brown }, .{ .color = .green }, .{ .color = .red }, .{ .color = .black } })));
     table.set(.hardened_clay, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.hardened_clay, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.coal_block, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.coal_block, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.packed_ice, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.packed_ice, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
@@ -1327,3 +1972,13 @@ const raw_to_filtered_conversion_table = blk: {
 
     break :blk table;
 };
+
+test ConcreteBlockState {
+    std.debug.print("\n------------------\n", .{});
+
+    const filtered = FilteredBlockState{
+        .block = .stained_glass_pane,
+        .properties = .{ .stained_glass_pane = .{ .color = .light_blue } },
+    };
+    std.debug.print("{}\n", .{filtered.toConcreteBlockState(undefined)});
+}

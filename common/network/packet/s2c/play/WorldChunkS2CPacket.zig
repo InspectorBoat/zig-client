@@ -51,6 +51,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
 }
 
 pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, full: bool, has_sky_light: bool, allocator: std.mem.Allocator) !void {
+    const start = try std.time.Instant.now();
     // copy block state data
     for (0..16) |section_y| {
         if (chunk_data.sections.has(@intCast(section_y))) {
@@ -96,6 +97,8 @@ pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, ful
     if (full) {
         @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
     }
+
+    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
     try @import("render").onChunkUpdate(pos, chunk);
 }
 

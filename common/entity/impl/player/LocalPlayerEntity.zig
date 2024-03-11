@@ -346,11 +346,14 @@ pub fn getGravityNonLiquid(y_velocity: f64) f64 {
     return (y_velocity - 0.08) * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
 }
 pub fn getFrictionNonLiquid(self: *const @This(), game: *const Game.IngameState) f32 {
-    _ = game;
     if (self.base.colliding.on_ground) {
-        // TODO: Implement FilteredBlockState.getFriction
-        // Friction is independent of state
-        return 0.6 * 0.91;
+        const pos = Vector3(i32){
+            .x = @intFromFloat(@floor(self.base.pos.x)),
+            .y = @intFromFloat(@floor(self.base.pos.y)),
+            .z = @intFromFloat(@floor(self.base.pos.z)),
+        };
+        const block = game.world.getBlock(pos.down());
+        return block.getFriction() * @as(f32, 0.91);
     } else {
         return 0.91;
     }

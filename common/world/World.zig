@@ -14,6 +14,7 @@ const PlayerMovePositionAndAngles = @import("../network/packet/c2s/play/PlayerMo
 const PlayerMovePosition = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig").Position;
 const PlayerMove = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig");
 const Hitbox = @import("../math/Hitbox.zig");
+const Block = @import("../block/block.zig").Block;
 const RawBlockState = @import("../block/block.zig").RawBlockState;
 const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 
@@ -166,6 +167,24 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBloc
     }
     return FilteredBlockState.AIR;
 }
+
+pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
+    if (self.chunks.get(.{
+        .x = @divFloor(block_pos.x, 16),
+        .z = @divFloor(block_pos.z, 16),
+    })) |chunk| {
+        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
+            const section_block_pos = .{
+                .x = @mod(block_pos.x, 16),
+                .y = @mod(block_pos.y, 16),
+                .z = @mod(block_pos.z, 16),
+            };
+            return section.block_states.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)).block;
+        }
+    }
+    return .air;
+}
+
 pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: FilteredBlockState) void {
     if (self.chunks.get(.{
         .x = @divFloor(block_pos.x, 16),

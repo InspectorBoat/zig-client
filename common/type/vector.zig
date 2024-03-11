@@ -143,5 +143,48 @@ pub fn Vector3(comptime Element: type) type {
                 self.z,
             });
         }
+
+        pub fn up(self: @This()) @This() {
+            return @This(){
+                .x = self.x,
+                .y = self.y + 1,
+                .z = self.z,
+            };
+        }
+        pub fn down(self: @This()) @This() {
+            return @This(){
+                .x = self.x,
+                .y = self.y - 1,
+                .z = self.z,
+            };
+        }
+        pub fn north(self: @This()) @This() {
+            return @This(){
+                .x = self.x,
+                .y = self.y,
+                .z = self.z - 1,
+            };
+        }
+        pub fn south(self: @This()) @This() {
+            return @This(){
+                .x = self.x,
+                .y = self.y,
+                .z = self.z + 1,
+            };
+        }
+        pub fn west(self: @This()) @This() {
+            return @This(){
+                .x = self.x - 1,
+                .y = self.y,
+                .z = self.z,
+            };
+        }
+        pub fn east(self: @This()) @This() {
+            return @This(){
+                .x = self.x + 1,
+                .y = self.y,
+                .z = self.z,
+            };
+        }
     };
 }
