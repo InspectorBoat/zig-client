@@ -975,7 +975,7 @@ pub const ConcreteBlockState = union(Block) {
         stored: BlockProperties.oak_stairs,
     },
     chest: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 } = .{},
         stored: BlockProperties.chest,
     },
     redstone_wire: packed struct(u8) { // TODO: Split
@@ -1343,7 +1343,7 @@ pub const ConcreteBlockState = union(Block) {
         stored: BlockProperties.anvil,
     },
     trapped_chest: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 } = .{},
         stored: BlockProperties.trapped_chest,
     },
     light_weighted_pressure_plate: packed struct(u8) {
@@ -1550,6 +1550,1232 @@ pub const ConcreteBlockState = union(Block) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.dark_oak_door,
     },
+
+    const Hitbox = struct {
+        min: Vector3(f32),
+        max: Vector3(f32),
+    };
+
+    pub fn getRaytraceHitbox(self: @This()) [3]Hitbox {
+        const EMPTY: Hitbox = .{
+            .min = .{ .x = 0, .y = 0, .z = 0 },
+            .max = .{ .x = 0, .y = 0, .z = 0 },
+        };
+        const CUBE: Hitbox = .{
+            .min = .{ .x = 0, .y = 0, .z = 0 },
+            .max = .{ .x = 1, .y = 1, .z = 1 },
+        };
+        const NONE: [2]Hitbox = .{ EMPTY, EMPTY, EMPTY };
+        const FULL: [2]Hitbox = .{ CUBE, EMPTY, EMPTY };
+        return switch (self) {
+            .air => NONE,
+            .stone => FULL,
+            .grass => FULL,
+            .dirt => FULL,
+            .cobblestone => FULL,
+            .planks => FULL,
+            .sapling => .{
+                .{
+                    .min = .{ .x = 0.1, .y = 0.1, .z = 0.1 },
+                    .max = .{ .x = 0.9, .y = 0.8, .z = 0.9 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .bedrock => FULL,
+            .flowing_water => @panic("TODO"),
+            .water => @panic("TODO"),
+            .flowing_lava => @panic("TODO"),
+            .lava => @panic("TODO"),
+            .sand => FULL,
+            .gravel => FULL,
+            .gold_ore => FULL,
+            .iron_ore => FULL,
+            .coal_ore => FULL,
+            .log => FULL,
+            .leaves => FULL,
+            .sponge => FULL,
+            .glass => FULL,
+            .lapis_ore => FULL,
+            .lapis_block => FULL,
+            .dispenser => FULL,
+            .sandstone => FULL,
+            .noteblock => FULL,
+            .bed => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.5625, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .golden_rail => |golden_rail| .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = if (golden_rail.stored.shape == .ascending_east or golden_rail.stored.shape == .ascending_north or golden_rail.stored.shape == .ascending_south or golden_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .detector_rail => |detector_rail| .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = if (detector_rail.stored.shape == .ascending_east or detector_rail.stored.shape == .ascending_north or detector_rail.stored.shape == .ascending_south or detector_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .sticky_piston => |sticky_piston| .{
+                if (sticky_piston.stored.extended) switch (sticky_piston.stored.facing) {
+                    .down => .{
+                        .min = .{ .x = 0.0, .y = 0.25, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .up => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.75, .z = 1.0 },
+                    },
+                    .north => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.25 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.75 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
+                    },
+                } else CUBE,
+                EMPTY,
+                EMPTY,
+            },
+            .web => FULL,
+            .tallgrass => .{
+                .{
+                    .min = .{ .x = 0.1, .y = 0.1, .z = 0.1 },
+                    .max = .{ .x = 0.9, .y = 0.8, .z = 0.9 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .deadbush => .{
+                .{
+                    .min = .{ .x = 0.1, .y = 0.1, .z = 0.1 },
+                    .max = .{ .x = 0.9, .y = 0.8, .z = 0.9 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .piston => |piston| .{
+                if (piston.stored.extended) switch (piston.stored.facing) {
+                    .down => .{
+                        .min = .{ .x = 0.0, .y = 0.25, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .up => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.75, .z = 1.0 },
+                    },
+                    .north => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.25 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.75 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
+                    },
+                } else CUBE,
+                EMPTY,
+                EMPTY,
+            },
+            .piston_head => |piston_head| .{
+                switch (piston_head.stored.facing) {
+                    .down => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
+                    },
+                    .up => .{
+                        .min = .{ .x = 0.0, .y = 0.75, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .north => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.25 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.75 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.25, .y = 1.0, .z = 1.0 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.75, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .wool => FULL,
+            .piston_extension => NONE,
+            .yellow_flower => .{
+                .{
+                    .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
+                    .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .red_flower => .{
+                .{
+                    .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
+                    .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .brown_mushroom => .{
+                .{
+                    .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
+                    .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .red_mushroom => .{
+                .{
+                    .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
+                    .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .gold_block => FULL,
+            .iron_block => FULL,
+            .double_stone_slab => FULL,
+            .stone_slab => |stone_slab| .{
+                .{
+                    .min = .{ .x = 0, .y = if (stone_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
+                    .max = .{ .x = 1, .y = if (stone_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .brick_block => FULL,
+            .tnt => FULL,
+            .bookshelf => FULL,
+            .mossy_cobblestone => FULL,
+            .obsidian => FULL,
+            .torch => |torch| .{
+                blk: {
+                    const wall_width: f32 = 0.15;
+                    const floor_width: f32 = 0.1;
+                    break :blk switch (torch.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                        },
+                        .west => .{
+                            .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
+                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
+                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
+                        },
+                        .up => .{
+                            .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
+                            .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
+                        },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .fire => NONE,
+            .mob_spawner => FULL,
+            .oak_stairs => @panic("TODO"),
+            .chest => |chest| .{
+                switch (chest.virtual.connection) {
+                    .north => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 1.0 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 1.0, .y = 0.875, .z = 0.9375 },
+                    },
+                    .none => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .redstone_wire => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.0625, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .diamond_ore => FULL,
+            .diamond_block => FULL,
+            .crafting_table => FULL,
+            .wheat => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .farmland => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.9375, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .furnace => FULL,
+            .lit_furnace => FULL,
+            .standing_sign => .{
+                .{
+                    .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
+                    .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .wooden_door => @panic("TODO"),
+            .ladder => |ladder| .{
+                switch (ladder.stored.facing) {
+                    .north => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.875 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.125 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.875, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .rail => |rail| .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = if (rail.stored.shape == .ascending_east or rail.stored.shape == .ascending_north or rail.stored.shape == .ascending_south or rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .stone_stairs => @panic("TODO"),
+            .wall_sign => |wall_sign| .{
+                switch (wall_sign.stored.facing) {
+                    .north => .{
+                        .{ .x = 0.0, .y = 0.28125, .z = 0.875 },
+                        .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                    },
+                    .south => .{
+                        .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
+                        .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
+                    },
+                    .west => .{
+                        .{ .x = 0.875, .y = 0.28125, .z = 0.0 },
+                        .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                    },
+                    .east => .{
+                        .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
+                        .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .lever => |lever| .{
+                switch (lever.stored.facing) {
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.2, .z = 0.3125 },
+                        .max = .{ .x = 0.375, .y = 0.8, .z = 0.6875 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.625, .y = 0.2, .z = 0.3125 },
+                        .max = .{ .x = 1.0, .y = 0.8, .z = 0.6875 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.0 },
+                        .max = .{ .x = 0.6875, .y = 0.8, .z = 0.375 },
+                    },
+                    .north => .{
+                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.625 },
+                        .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
+                    },
+                    .up_z, .up_x => .{
+                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
+                        .max = .{ .x = 0.75, .y = 0.6, .z = 0.75 },
+                    },
+                    .down_x, .down_z => .{
+                        .min = .{ .x = 0.25, .y = 0.4, .z = 0.25 },
+                        .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .stone_pressure_plate => |stone_pressure_plate| .{
+                .{
+                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = if (stone_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .iron_door => @panic("TODO"),
+            .wooden_pressure_plate => |wooden_pressure_plate| .{
+                .{
+                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = if (wooden_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .redstone_ore => FULL,
+            .lit_redstone_ore => FULL,
+            .unlit_redstone_torch => |unlit_redstone_torch| .{
+                blk: {
+                    const wall_width: f32 = 0.15;
+                    const floor_width: f32 = 0.1;
+                    break :blk switch (unlit_redstone_torch.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                        },
+                        .west => .{
+                            .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
+                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
+                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
+                        },
+                        .up => {
+                            .{ 0.5 - floor_width, 0.0, 0.5 - floor_width, 0.5 + floor_width, 0.6, 0.5 + floor_width };
+                        },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .redstone_torch => |redstone_torch| .{
+                blk: {
+                    const wall_width: f32 = 0.15;
+                    const floor_width: f32 = 0.1;
+                    break :blk switch (redstone_torch.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                        },
+                        .west => .{
+                            .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
+                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
+                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
+                        },
+                        .up => {
+                            .{ 0.5 - floor_width, 0.0, 0.5 - floor_width, 0.5 + floor_width, 0.6, 0.5 + floor_width };
+                        },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .stone_button => |stone_button| .{
+                blk: {
+                    const button_depth = @as(f32, @floatFromInt(@intFromBool(stone_button.stored.powered))) / 16.0;
+                    break :blk switch (stone_button.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
+                            .max = .{ .x = button_depth, .y = 0.625, .z = 0.6875 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 1.0 - button_depth, .y = 0.375, .z = 0.3125 },
+                            .max = .{ .x = 1.0, .y = 0.625, .z = 0.6875 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.3125, .y = 0.375, .z = 0.0 },
+                            .max = .{ .x = 0.6875, .y = 0.625, .z = button_depth },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.3125, .y = 0.375, .z = 1.0 - button_depth },
+                            .max = .{ .x = 0.6875, .y = 0.625, .z = 1.0 },
+                        },
+                        .up => .{
+                            .min = .{ .x = 0.3125, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 0.6875, .y = button_depth, .z = 0.625 },
+                        },
+                        .down => .{
+                            .min = .{ .x = 0.3125, .y = 1.0 - button_depth, .z = 0.375 },
+                            .max = .{ .x = 0.6875, .y = 1.0, .z = 0.625 },
+                        },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .snow_layer => |snow_layer| .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = @as(f32, @floatFromInt(snow_layer.stored.layers + 1)) / 8.0, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .ice => FULL,
+            .snow => FULL,
+            .cactus => FULL,
+            .clay => FULL,
+            .reeds => .{
+                .{
+                    .min = .{ .x = 0.125, .y = 0.0, .z = 0.125 },
+                    .max = .{ .x = 0.875, .y = 1.0, .z = 0.875 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .jukebox => FULL,
+            .fence => |fence| .{
+                .{
+                    .min = .{ .x = if (fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .pumpkin => FULL,
+            .netherrack => FULL,
+            .soul_sand => FULL,
+            .glowstone => FULL,
+            .portal => |portal| .{
+                switch (portal.stored.axis) {
+                    .x => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .z => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .lit_pumpkin => FULL,
+            .cake => |cake| .{
+                .{
+                    .min = .{ .x = @as(f32, @floatFromInt(cake.stored.bites * 2 + 1)) / 16.0, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = 1.0, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .unpowered_repeater => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .powered_repeater => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .stained_glass => FULL,
+            .trapdoor => @panic("TODO"),
+            .monster_egg => FULL,
+            .stonebrick => FULL,
+            .brown_mushroom_block => FULL,
+            .red_mushroom_block => FULL,
+            .iron_bars => |iron_bars| .{
+                blk: {
+                    const any = iron_bars.virtual.north or iron_bars.virtual.south or iron_bars.virtual.west or iron_bars.virtual.east;
+                    if (!any) break :blk FULL;
+                    .{
+                        .min = .{ .x = if (iron_bars.virtual.west) 0.0 else 0.4375, .y = 0.0, .z = if (iron_bars.virtual.north) 0.0 else 0.4375 },
+                        .max = .{ .x = if (iron_bars.virtual.east) 1.0 else 0.5625, .y = 1.0, .z = if (iron_bars.virtual.south) 1.0 else 0.5625 },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .glass_pane => |glass_pane| .{
+                blk: {
+                    const any = glass_pane.virtual.north or glass_pane.virtual.south or glass_pane.virtual.west or glass_pane.virtual.east;
+                    if (!any) break :blk FULL;
+                    .{
+                        .min = .{ .x = if (glass_pane.virtual.west) 0.0 else 0.4375, .y = 0.0, .z = if (glass_pane.virtual.north) 0.0 else 0.4375 },
+                        .max = .{ .x = if (glass_pane.virtual.east) 1.0 else 0.5625, .y = 1.0, .z = if (glass_pane.virtual.south) 1.0 else 0.5625 },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .melon_block => FULL,
+            .pumpkin_stem => |pumpkin_stem| .{
+                .{
+                    .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
+                    .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(pumpkin_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .melon_stem => |melon_stem| .{
+                .{
+                    .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
+                    .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(melon_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .vine => @panic("TODO"),
+            .fence_gate => |fence_gate| .{
+                switch (fence_gate.stored.facing) {
+                    .north, .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .west, .east => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .brick_stairs => @panic("TODO"),
+            .stone_brick_stairs => @panic("TODO"),
+            .mycelium => FULL,
+            .waterlily => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                    .max = .{ .x = 1.0, .y = 0.015625, .z = 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .nether_brick => FULL,
+            .nether_brick_fence => |nether_brick_fence| .{
+                .{
+                    .min = .{ .x = if (nether_brick_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (nether_brick_fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (nether_brick_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (nether_brick_fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .nether_brick_stairs => @panic("TODO"),
+            .nether_wart => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                    .max = .{ .x = 1.0, .y = 0.25, .z = 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .enchanting_table => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                    .max = .{ .x = 1.0, .y = 0.75, .z = 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .brewing_stand => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                    .max = .{ .x = 1.0, .y = 0.125, .z = 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .cauldron => FULL,
+            .end_portal => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.0625, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .end_portal_frame => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.8125, .z = 0.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .end_stone => FULL,
+            .dragon_egg => .{
+                .{
+                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = 1.0, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .redstone_lamp => FULL,
+            .lit_redstone_lamp => FULL,
+            .double_wooden_slab => FULL,
+            .wooden_slab => |wooden_slab| .{
+                .{
+                    .min = .{ .x = 0, .y = if (wooden_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
+                    .max = .{ .x = 1, .y = if (wooden_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .cocoa => |cocoa| .{
+                blk: {
+                    const width = @as(f32, @floatFromInt(4 + @as(u8, @intCast(cocoa.stored.age)) * 2));
+                    const height = @as(f32, @floatFromInt(5 + @as(u8, @intCast(cocoa.stored.age)) * 2));
+                    break :blk switch (cocoa.stored.facing) {
+                        .south => .{
+                            .min = .{
+                                .x = (8.0 - width / 2.0) / 16.0,
+                                .y = (12.0 - height) / 16.0,
+                                .z = (15.0 - width) / 16.0,
+                            },
+                            .max = .{
+                                .x = (8.0 + width / 2.0) / 16.0,
+                                .y = 0.75,
+                                .z = 0.9375,
+                            },
+                        },
+                        .north => .{
+                            .min = .{
+                                .x = (8.0 - width / 2.0) / 16.0,
+                                .y = (12.0 - height) / 16.0,
+                                .z = 0.0625,
+                            },
+                            .max = .{
+                                .x = (8.0 + width / 2.0) / 16.0,
+                                .y = 0.75,
+                                .z = (1.0 + width) / 16.0,
+                            },
+                        },
+                        .west => .{
+                            .min = .{
+                                .x = 0.0625,
+                                .y = (12.0 - height) / 16.0,
+                                .z = (8.0 - width / 2.0) / 16.0,
+                            },
+                            .max = .{
+                                .x = (1.0 + width) / 16.0,
+                                .y = 0.75,
+                                .z = (8.0 + width / 2.0) / 16.0,
+                            },
+                        },
+                        .east => .{
+                            .min = .{
+                                .x = (15.0 - width) / 16.0,
+                                .y = (12.0 - height) / 16.0,
+                                .z = (8.0 - width / 2.0) / 16.0,
+                            },
+                            .max = .{
+                                .x = 0.9375,
+                                .y = 0.75,
+                                .z = (8.0 + width / 2.0) / 16.0,
+                            },
+                        },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .sandstone_stairs => @panic("TODO"),
+            .emerald_ore => FULL,
+            .ender_chest => .{
+                .{
+                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .tripwire_hook => |tripwire_hook| .{
+                switch (tripwire_hook.stored.facing) {
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.2, .z = 0.3125 },
+                        .max = .{ .x = 0.375, .y = 0.8, .z = 0.6875 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.625, .y = 0.2, .z = 0.3125 },
+                        .max = .{ .x = 1.0, .y = 0.8, .z = 0.6875 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.0 },
+                        .max = .{ .x = 0.6875, .y = 0.8, .z = 0.375 },
+                    },
+                    .north => .{
+                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.625 },
+                        .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .tripwire => |tripwire| .{
+                if (!tripwire.stored.suspended)
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.09375, .z = 1.0 },
+                    }
+                else if (!tripwire.stored.attached)
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.5, .z = 1.0 },
+                    }
+                else
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0625, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.15625, .z = 1.0 },
+                    },
+                EMPTY,
+                EMPTY,
+            },
+            .emerald_block => FULL,
+            .spruce_stairs => @panic("TODO"),
+            .birch_stairs => @panic("TODO"),
+            .jungle_stairs => @panic("TODO"),
+            .command_block => FULL,
+            .beacon => FULL,
+            .cobblestone_wall => @panic("TODO"),
+            .flower_pot => .{
+                .{
+                    .min = .{ .x = 0.3125, .y = 0.0, .z = 0.3125 },
+                    .lmax = .{ .x = 0.6875, .y = 0.375, .z = 0.6875 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .carrots => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .potatoes => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .wooden_button => |wooden_button| .{
+                blk: {
+                    const button_depth = @as(f32, @floatFromInt(@intFromBool(wooden_button.stored.powered))) / 16.0;
+                    break :blk switch (wooden_button.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
+                            .max = .{ .x = button_depth, .y = 0.625, .z = 0.6875 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 1.0 - button_depth, .y = 0.375, .z = 0.3125 },
+                            .max = .{ .x = 1.0, .y = 0.625, .z = 0.6875 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.3125, .y = 0.375, .z = 0.0 },
+                            .max = .{ .x = 0.6875, .y = 0.625, .z = button_depth },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.3125, .y = 0.375, .z = 1.0 - button_depth },
+                            .max = .{ .x = 0.6875, .y = 0.625, .z = 1.0 },
+                        },
+                        .up => .{
+                            .min = .{ .x = 0.3125, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 0.6875, .y = button_depth, .z = 0.625 },
+                        },
+                        .down => .{
+                            .min = .{ .x = 0.3125, .y = 1.0 - button_depth, .z = 0.375 },
+                            .max = .{ .x = 0.6875, .y = 1.0, .z = 0.625 },
+                        },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .skull => |skull| {
+                switch (skull.stored.facing) {
+                    .north => .{
+                        .min = .{ .x = 0.25, .y = 0.25, .z = 0.5 },
+                        .max = .{ .x = 0.75, .y = 0.75, .z = 1.0 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.25, .y = 0.25, .z = 0.0 },
+                        .max = .{ .x = 0.75, .y = 0.75, .z = 0.5 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.5, .y = 0.25, .z = 0.25 },
+                        .max = .{ .x = 1.0, .y = 0.75, .z = 0.75 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.25, .z = 0.25 },
+                        .max = .{ .x = 0.5, .y = 0.75, .z = 0.75 },
+                    },
+                }
+            },
+            .anvil => |anvil| .{
+                switch (anvil.stored.facing) {
+                    .west, .east => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.125 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.875 },
+                    },
+                    .north, .south => .{
+                        .min = .{ .x = 0.125, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.875, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .trapped_chest => |trapped_chest| .{
+                switch (trapped_chest.virtual.connection) {
+                    .north => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 1.0 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 1.0, .y = 0.875, .z = 0.9375 },
+                    },
+                    .none => .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .light_weighted_pressure_plate => |light_weighted_pressure_plate| .{
+                .{
+                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = if (light_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .heavy_weighted_pressure_plate => |heavy_weighted_pressure_plate| .{
+                .{
+                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                    .max = .{ .x = 0.9375, .y = if (heavy_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .unpowered_comparator => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .powered_comparator => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .daylight_detector => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.375, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .redstone_block => FULL,
+            .quartz_ore => FULL,
+            .hopper => FULL,
+            .quartz_block => FULL,
+            .quartz_stairs => @panic("TODO"),
+            .activator_rail => |activator_rail| .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = if (activator_rail.stored.shape == .ascending_east or activator_rail.stored.shape == .ascending_north or activator_rail.stored.shape == .ascending_south or activator_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .dropper => FULL,
+            .stained_hardened_clay => FULL,
+            .stained_glass_pane => |stained_glass_pane| .{
+                blk: {
+                    const any = stained_glass_pane.virtual.north or stained_glass_pane.virtual.south or stained_glass_pane.virtual.west or stained_glass_pane.virtual.east;
+                    if (!any) break :blk FULL;
+                    .{
+                        .min = .{ .x = if (stained_glass_pane.virtual.west) 0.0 else 0.4375, .y = 0.0, .z = if (stained_glass_pane.virtual.north) 0.0 else 0.4375 },
+                        .max = .{ .x = if (stained_glass_pane.virtual.east) 1.0 else 0.5625, .y = 1.0, .z = if (stained_glass_pane.virtual.south) 1.0 else 0.5625 },
+                    };
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .leaves2 => FULL,
+            .log2 => FULL,
+            .acacia_stairs => @panic("TODO"),
+            .dark_oak_stairs => @panic("TODO"),
+            .slime => FULL,
+            .barrier => FULL,
+            .iron_trapdoor => @panic("TODO"),
+            .prismarine => FULL,
+            .sea_lantern => FULL,
+            .hay_block => FULL,
+            .carpet => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                    .max = .{ .x = 1.0, .y = 0.0625, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .hardened_clay => FULL,
+            .coal_block => FULL,
+            .packed_ice => FULL,
+            .double_plant => FULL,
+            .standing_banner => .{
+                .{
+                    .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
+                    .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .wall_banner => |wall_banner| .{
+                switch (wall_banner.stored.facing) {
+                    .north => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.875 },
+                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                    },
+                    .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
+                    },
+                    .west => .{
+                        .min = .{ .x = 0.875, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                    },
+                    .east => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .daylight_detector_inverted => .{
+                .{
+                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.1 },
+                    .max = .{ .x = 1.0, .y = 0.375, .z = 1.0 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .red_sandstone => FULL,
+            .red_sandstone_stairs => @panic("TODO"),
+            .double_stone_slab2 => FULL,
+            .stone_slab2 => |stone_slab2| .{
+                .{
+                    .min = .{ .x = 0, .y = if (stone_slab2.stored.half == .top) 0.5 else 0.0, .z = 0 },
+                    .max = .{ .x = 1, .y = if (stone_slab2.stored.half == .top) 1.0 else 0.5, .z = 1 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .spruce_fence_gate => |spruce_fence_gate| .{
+                switch (spruce_fence_gate.stored.facing) {
+                    .north, .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .west, .east => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .birch_fence_gate => |birch_fence_gate| .{
+                switch (birch_fence_gate.stored.facing) {
+                    .north, .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .west, .east => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .jungle_fence_gate => |jungle_fence_gate| .{
+                switch (jungle_fence_gate.stored.facing) {
+                    .north, .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .west, .east => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .dark_oak_fence_gate => |dark_oak_fence_gate| .{
+                switch (dark_oak_fence_gate.stored.facing) {
+                    .north, .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .west, .east => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .acacia_fence_gate => |acacia_fence_gate| .{
+                switch (acacia_fence_gate.stored.facing) {
+                    .north, .south => .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                    },
+                    .west, .east => .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .spruce_fence => |spruce_fence| .{
+                .{
+                    .min = .{ .x = if (spruce_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (spruce_fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (spruce_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (spruce_fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .birch_fence => |birch_fence| .{
+                .{
+                    .min = .{ .x = if (birch_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (birch_fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (birch_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (birch_fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .jungle_fence => |jungle_fence| .{
+                .{
+                    .min = .{ .x = if (jungle_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (jungle_fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (jungle_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (jungle_fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .dark_oak_fence => |dark_oak_fence| .{
+                .{
+                    .min = .{ .x = if (dark_oak_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (dark_oak_fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (dark_oak_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (dark_oak_fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .acacia_fence => |acacia_fence| .{
+                .{
+                    .min = .{ .x = if (acacia_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (acacia_fence.virtual.north) 0.0 else 0.375 },
+                    .max = .{ .x = if (acacia_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (acacia_fence.virtual.south) 0.0 else 0.625 },
+                },
+                EMPTY,
+                EMPTY,
+            },
+            .spruce_door => @panic("TODO"),
+            .birch_door => @panic("TODO"),
+            .jungle_door => @panic("TODO"),
+            .acacia_door => @panic("TODO"),
+            .dark_oak_door => @panic("TODO"),
+        };
+    }
 };
 
 /// A table of valid metadata values for each block
