@@ -1,6 +1,7 @@
 const std = @import("std");
 const World = @import("../world/World.zig");
 const Vector3 = @import("../type/vector.zig").Vector3;
+const Hitbox = @import("../math/Hitbox.zig");
 
 // Converts an int into enum, returning a default value with ordinal 0 if the tag is out of bounds, and panicking on an invalid value in bounds
 pub fn enumFromIntDefault0(comptime EnumTag: type, tag_int: anytype) EnumTag {
@@ -712,37 +713,52 @@ pub const FilteredBlockState = packed struct {
 
     pub fn toConcreteBlockState(self: @This(), world: World, block_pos: Vector3(i32)) ConcreteBlockState {
         return switch (self.block) {
-            .grass => .{ .grass = .{ .virtual = .{
-                .snowy = blk: {
-                    const up = world.getBlock(block_pos.up());
-                    break :blk (up == .snow or up == .snow_layer);
+            .grass => .{
+                .grass = .{
+                    .virtual = .{
+                        .snowy = blk: {
+                            const up = world.getBlock(block_pos.up());
+                            break :blk (up == .snow or up == .snow_layer);
+                        },
+                    },
+                    .stored = @bitCast(self.properties),
                 },
-            } } },
-            .dirt => .{ .dirt = .{ .virtual = .{
-                .snowy = blk: {
-                    const up = world.getBlock(block_pos.up());
-                    break :blk (self.properties.dirt.variant == .podzol) and (up == .snow or up == .snow_layer);
+            },
+            .dirt => .{
+                .dirt = .{
+                    .virtual = .{
+                        .snowy = blk: {
+                            const up = world.getBlock(block_pos.up());
+                            break :blk (self.properties.dirt.variant == .podzol) and (up == .snow or up == .snow_layer);
+                        },
+                    },
+                    .stored = @bitCast(self.properties),
                 },
-            } } },
+            },
             // stairs
-            .fence => .{ .fence = .{ .virtual = .{
-                .west = blk: {
-                    const west = world.getBlock(block_pos.west());
-                    break :blk (west == .fence);
+            .fence => .{
+                .fence = .{
+                    .virtual = .{
+                        .west = blk: {
+                            const west = world.getBlock(block_pos.west());
+                            break :blk (west == .fence);
+                        },
+                        .south = blk: {
+                            const south = world.getBlock(block_pos.south());
+                            break :blk (south == .fence);
+                        },
+                        .north = blk: {
+                            const north = world.getBlock(block_pos.north());
+                            break :blk (north == .fence);
+                        },
+                        .east = blk: {
+                            const east = world.getBlock(block_pos.east());
+                            break :blk (east == .fence);
+                        },
+                    },
+                    .stored = @bitCast(self.properties),
                 },
-                .south = blk: {
-                    const south = world.getBlock(block_pos.south());
-                    break :blk (south == .fence);
-                },
-                .north = blk: {
-                    const north = world.getBlock(block_pos.north());
-                    break :blk (north == .fence);
-                },
-                .east = blk: {
-                    const east = world.getBlock(block_pos.east());
-                    break :blk (east == .fence);
-                },
-            } } },
+            },
 
             else => |block| {
                 var state: ConcreteBlockState = .{ .air = .{ .stored = @bitCast(self.properties) } };
@@ -1551,11 +1567,6 @@ pub const ConcreteBlockState = union(Block) {
         stored: BlockProperties.dark_oak_door,
     },
 
-    const Hitbox = struct {
-        min: Vector3(f32),
-        max: Vector3(f32),
-    };
-
     pub fn getRaytraceHitbox(self: @This()) [3]Hitbox {
         const EMPTY: Hitbox = .{
             .min = .{ .x = 0, .y = 0, .z = 0 },
@@ -1565,8 +1576,8 @@ pub const ConcreteBlockState = union(Block) {
             .min = .{ .x = 0, .y = 0, .z = 0 },
             .max = .{ .x = 1, .y = 1, .z = 1 },
         };
-        const NONE: [2]Hitbox = .{ EMPTY, EMPTY, EMPTY };
-        const FULL: [2]Hitbox = .{ CUBE, EMPTY, EMPTY };
+        const NONE: [3]Hitbox = .{ EMPTY, EMPTY, EMPTY };
+        const FULL: [3]Hitbox = .{ CUBE, EMPTY, EMPTY };
         return switch (self) {
             .air => NONE,
             .stone => FULL,
@@ -1913,20 +1924,20 @@ pub const ConcreteBlockState = union(Block) {
             .wall_sign => |wall_sign| .{
                 switch (wall_sign.stored.facing) {
                     .north => .{
-                        .{ .x = 0.0, .y = 0.28125, .z = 0.875 },
-                        .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                        .min = .{ .x = 0.0, .y = 0.28125, .z = 0.875 },
+                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
                     },
                     .south => .{
-                        .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
-                        .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
+                        .min = .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
                     },
                     .west => .{
-                        .{ .x = 0.875, .y = 0.28125, .z = 0.0 },
-                        .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                        .min = .{ .x = 0.875, .y = 0.28125, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
                     },
                     .east => .{
-                        .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
-                        .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
+                        .min = .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
+                        .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
                     },
                 },
                 EMPTY,
@@ -2002,8 +2013,9 @@ pub const ConcreteBlockState = union(Block) {
                             .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
                             .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
                         },
-                        .up => {
-                            .{ 0.5 - floor_width, 0.0, 0.5 - floor_width, 0.5 + floor_width, 0.6, 0.5 + floor_width };
+                        .up => .{
+                            .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
+                            .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
                         },
                     };
                 },
@@ -2031,8 +2043,9 @@ pub const ConcreteBlockState = union(Block) {
                             .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
                             .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
                         },
-                        .up => {
-                            .{ 0.5 - floor_width, 0.0, 0.5 - floor_width, 0.5 + floor_width, 0.6, 0.5 + floor_width };
+                        .up => .{
+                            .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
+                            .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
                         },
                     };
                 },
@@ -2153,10 +2166,9 @@ pub const ConcreteBlockState = union(Block) {
             .iron_bars => |iron_bars| .{
                 blk: {
                     const any = iron_bars.virtual.north or iron_bars.virtual.south or iron_bars.virtual.west or iron_bars.virtual.east;
-                    if (!any) break :blk FULL;
-                    .{
-                        .min = .{ .x = if (iron_bars.virtual.west) 0.0 else 0.4375, .y = 0.0, .z = if (iron_bars.virtual.north) 0.0 else 0.4375 },
-                        .max = .{ .x = if (iron_bars.virtual.east) 1.0 else 0.5625, .y = 1.0, .z = if (iron_bars.virtual.south) 1.0 else 0.5625 },
+                    break :blk if (!any) CUBE else .{
+                        .min = .{ .x = if (iron_bars.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (iron_bars.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
+                        .max = .{ .x = if (iron_bars.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (iron_bars.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
                     };
                 },
                 EMPTY,
@@ -2165,10 +2177,9 @@ pub const ConcreteBlockState = union(Block) {
             .glass_pane => |glass_pane| .{
                 blk: {
                     const any = glass_pane.virtual.north or glass_pane.virtual.south or glass_pane.virtual.west or glass_pane.virtual.east;
-                    if (!any) break :blk FULL;
-                    .{
-                        .min = .{ .x = if (glass_pane.virtual.west) 0.0 else 0.4375, .y = 0.0, .z = if (glass_pane.virtual.north) 0.0 else 0.4375 },
-                        .max = .{ .x = if (glass_pane.virtual.east) 1.0 else 0.5625, .y = 1.0, .z = if (glass_pane.virtual.south) 1.0 else 0.5625 },
+                    break :blk if (!any) CUBE else .{
+                        .min = .{ .x = if (glass_pane.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (glass_pane.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
+                        .max = .{ .x = if (glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
                     };
                 },
                 EMPTY,
@@ -2407,7 +2418,7 @@ pub const ConcreteBlockState = union(Block) {
             .flower_pot => .{
                 .{
                     .min = .{ .x = 0.3125, .y = 0.0, .z = 0.3125 },
-                    .lmax = .{ .x = 0.6875, .y = 0.375, .z = 0.6875 },
+                    .max = .{ .x = 0.6875, .y = 0.375, .z = 0.6875 },
                 },
                 EMPTY,
                 EMPTY,
@@ -2461,7 +2472,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .skull => |skull| {
+            .skull => |skull| .{
                 switch (skull.stored.facing) {
                     .north => .{
                         .min = .{ .x = 0.25, .y = 0.25, .z = 0.5 },
@@ -2479,7 +2490,13 @@ pub const ConcreteBlockState = union(Block) {
                         .min = .{ .x = 0.0, .y = 0.25, .z = 0.25 },
                         .max = .{ .x = 0.5, .y = 0.75, .z = 0.75 },
                     },
-                }
+                    else => .{
+                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
+                        .max = .{ .x = 0.5, .y = 0.5, .z = 0.75 },
+                    },
+                },
+                EMPTY,
+                EMPTY,
             },
             .anvil => |anvil| .{
                 switch (anvil.stored.facing) {
@@ -2579,10 +2596,9 @@ pub const ConcreteBlockState = union(Block) {
             .stained_glass_pane => |stained_glass_pane| .{
                 blk: {
                     const any = stained_glass_pane.virtual.north or stained_glass_pane.virtual.south or stained_glass_pane.virtual.west or stained_glass_pane.virtual.east;
-                    if (!any) break :blk FULL;
-                    .{
-                        .min = .{ .x = if (stained_glass_pane.virtual.west) 0.0 else 0.4375, .y = 0.0, .z = if (stained_glass_pane.virtual.north) 0.0 else 0.4375 },
-                        .max = .{ .x = if (stained_glass_pane.virtual.east) 1.0 else 0.5625, .y = 1.0, .z = if (stained_glass_pane.virtual.south) 1.0 else 0.5625 },
+                    break :blk if (!any) CUBE else .{
+                        .min = .{ .x = if (stained_glass_pane.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (stained_glass_pane.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
+                        .max = .{ .x = if (stained_glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (stained_glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
                     };
                 },
                 EMPTY,

@@ -7,3 +7,4 @@ pub const Rotation3 = @import("./type/rotation.zig").Rotation3;
 pub const Uuid = @import("./type/Uuid.zig");
 pub const Game = @import("./game.zig").Game;
 pub const LocalPlayerEntity = @import("./entity/impl/player/LocalPlayerEntity.zig");
+pub const Hitbox = @import("./math/Hitbox.zig");

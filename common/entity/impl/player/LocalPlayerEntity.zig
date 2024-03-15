@@ -9,6 +9,7 @@ const Vector2 = @import("../../../type/vector.zig").Vector2;
 const Vector3 = @import("../../../type/vector.zig").Vector3;
 const World = @import("../../../world/World.zig");
 const Rotation2 = @import("../../../type/rotation.zig").Rotation2;
+const HitResult = @import("../../../math/HitResult.zig");
 
 base: EntityBase,
 living: LivingEntityBase = .{},
@@ -42,7 +43,11 @@ server_status: struct {
     ticks_since_sent_movement: i32 = 0,
 } = .{},
 
+crosshair: HitResult = .{ .hit_type = .miss, .hit_pos = null, .dir = null },
+
 pub fn update(self: *@This(), game: *Game.IngameState) !void {
+    self.crosshair = HitResult.rayTrace(game.world, self.getEyePos(), self.base.rotation, 3, .{});
+
     // tick spectator onground and noclip
     if (self.player.isSpectator(game)) {
         self.base.colliding.on_ground = false;

@@ -134,14 +134,12 @@ pub fn Vector3(comptime Element: type) type {
             return std.math.sqrt(self.magnitudeSquared());
         }
 
-        pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-            _ = fmt;
-            _ = options;
-            try writer.print("{{ x: {d} y: {d} z: {d} }}", .{
-                self.x,
-                self.y,
-                self.z,
-            });
+        pub fn anyNaN(self: @This()) bool {
+            return std.math.isNan(self.x) or std.math.isNan(self.y) or std.math.isNan(self.z);
+        }
+
+        pub fn equals(self: @This(), other: @This()) bool {
+            return self.x == other.x and self.y == other.y and self.z == other.z;
         }
 
         pub fn up(self: @This()) @This() {
@@ -185,6 +183,16 @@ pub fn Vector3(comptime Element: type) type {
                 .y = self.y,
                 .z = self.z,
             };
+        }
+
+        pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+            _ = fmt;
+            _ = options;
+            try writer.print("{{ x: {d} y: {d} z: {d} }}", .{
+                self.x,
+                self.y,
+                self.z,
+            });
         }
     };
 }

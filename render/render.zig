@@ -97,6 +97,8 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
+pub fn renderBox(box: @import("common").Hitbox) void {}
+
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {
     return (end - start) * progress + start;
 }

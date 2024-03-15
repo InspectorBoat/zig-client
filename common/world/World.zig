@@ -152,6 +152,8 @@ pub fn addEntity(self: *@This(), entity: Entity) !void {
 }
 
 pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBlockState {
+    if (block_pos.y < 0 or block_pos.y > 255) return FilteredBlockState.AIR;
+
     if (self.chunks.get(.{
         .x = @divFloor(block_pos.x, 16),
         .z = @divFloor(block_pos.z, 16),
@@ -173,6 +175,7 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
         .x = @divFloor(block_pos.x, 16),
         .z = @divFloor(block_pos.z, 16),
     })) |chunk| {
+        if (block_pos.y < 0 or block_pos.y > 255) return .air;
         if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
             const section_block_pos = .{
                 .x = @mod(block_pos.x, 16),
