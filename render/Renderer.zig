@@ -2,9 +2,13 @@ const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
 const Vector3 = @import("common").Vector3;
+const Hitbox = @import("common").Hitbox;
+const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 
 vao: gl.VertexArray,
 program: gl.Program,
+debug_cube_buffer: gl.Buffer,
+debug_cube_staging_buffer: GpuStagingBuffer = .{},
 sections: std.AutoHashMap(Vector3(i32), SectionRenderInfo),
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
@@ -18,11 +22,30 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     vao.attribFormat(0, 3, .float, false, 0);
     vao.attribBinding(0, 0);
 
+    const debug_cube_buffer = gl.Buffer.create();
+    debug_cube_buffer.storage(f32, 36 * 3 * 1024, null, .{ .dynamic_storage = true });
+
     return .{
         .vao = vao,
         .program = program,
+        .debug_cube_buffer = debug_cube_buffer,
         .sections = std.AutoHashMap(Vector3(i32), SectionRenderInfo).init(allocator),
     };
+}
+
+pub fn renderBox(self: *@This(), box: Hitbox) void {
+    self.debug_cube_staging_buffer.writeBox(
+        .{
+            .x = @floatCast(box.min.x),
+            .y = @floatCast(box.min.y),
+            .z = @floatCast(box.min.z),
+        },
+        .{
+            .x = @floatCast(box.max.x),
+            .y = @floatCast(box.max.y),
+            .z = @floatCast(box.max.z),
+        },
+    );
 }
 
 pub const SectionRenderInfo = struct {

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Vector3 = @import("../type/vector.zig").Vector3;
-const HitResult = @import("./HitResult.zig");
+const HitResult = @import("./hitresult.zig").HitResult;
 const Direction = @import("../type/direction.zig").Direction;
 
 min: Vector3(f64),

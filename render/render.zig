@@ -12,9 +12,9 @@ const WindowInput = @import("./WindowInput.zig");
 const Renderer = @import("./Renderer.zig");
 const LocalPlayerEntity = @import("common").LocalPlayerEntity;
 
-var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
-var window_input: WindowInput = undefined;
-var renderer: Renderer = undefined;
+pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
+pub var window_input: WindowInput = undefined;
+pub var renderer: Renderer = undefined;
 
 pub fn onStartup() !void {
     const gpa = gpa_impl.allocator();
@@ -70,6 +70,13 @@ pub fn onFrame(game: *Game) !bool {
 
                 gl.drawArrays(.triangles, 0, entry.value_ptr.vertices);
             }
+
+            renderer.debug_cube_buffer.subData(0, u8, @ptrCast(renderer.debug_cube_staging_buffer.getSlice()));
+
+            gl.disable(.depth_test);
+            renderer.program.uniform3f(1, 0.0, 0.0, 0.0);
+            renderer.vao.vertexBuffer(0, renderer.debug_cube_buffer, 0, 3 * @sizeOf(f32));
+            gl.drawArrays(.triangles, 0, renderer.debug_cube_staging_buffer.write_index / @sizeOf(f32));
         },
         else => {},
     }
@@ -96,8 +103,6 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
 
     return projection.mul(view.mul(model));
 }
-
-pub fn renderBox(box: @import("common").Hitbox) void {}
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {
     return (end - start) * progress + start;
@@ -144,6 +149,7 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
 pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
         if (section_y < 4) continue;
+        if (true) continue;
         if (maybe_section) |section| {
             var staging = GpuStagingBuffer{};
 
