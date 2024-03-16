@@ -35,7 +35,7 @@ remaining_sprint_ticks: i32 = 0,
 in_water: bool = false,
 in_cobweb: bool = false,
 
-server_status: struct {
+server_movement_status: struct {
     rotation: Rotation2(f32) = .{ .pitch = 0, .yaw = 0 },
     pos: Vector3(f64) = .{ .x = 0, .y = 0, .z = 0 },
     sprinting: bool = false,
@@ -233,28 +233,28 @@ pub fn updateSprinting(self: *@This()) !void {
 }
 
 pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
-    if (try self.base.isSprinting() != self.server_status.sprinting) {
+    if (try self.base.isSprinting() != self.server_movement_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
-        self.server_status.sprinting = try self.base.isSprinting();
+        self.server_movement_status.sprinting = try self.base.isSprinting();
     }
-    if (self.isSneaking() != self.server_status.sprinting) {
+    if (self.isSneaking() != self.server_movement_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
         } });
-        self.server_status.sneaking = self.isSneaking();
+        self.server_movement_status.sneaking = self.isSneaking();
     }
 
     // if (!self.isCamera()) return;
-    const send_movement = self.server_status.ticks_since_sent_movement >= 20 or
-        self.server_status.pos.distance_squared(self.base.pos) > 0.0009;
-    const send_rotation = self.base.rotation.pitch != self.server_status.rotation.pitch or
-        self.base.rotation.yaw != self.server_status.rotation.yaw;
+    const send_movement = self.server_movement_status.ticks_since_sent_movement >= 20 or
+        self.server_movement_status.pos.distance_squared(self.base.pos) > 0.0009;
+    const send_rotation = self.base.rotation.pitch != self.server_movement_status.rotation.pitch or
+        self.base.rotation.yaw != self.server_movement_status.rotation.yaw;
 
     if (send_movement and send_rotation) {
         try game.connection_handle.sendPlayPacket(.{ .PlayerMovePositionAndAngles = .{
@@ -279,13 +279,13 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameState) !void {
     }
 
     if (send_movement) {
-        self.server_status.pos = self.base.pos;
-        self.server_status.ticks_since_sent_movement = 0;
+        self.server_movement_status.pos = self.base.pos;
+        self.server_movement_status.ticks_since_sent_movement = 0;
     } else {
-        self.server_status.ticks_since_sent_movement += 1;
+        self.server_movement_status.ticks_since_sent_movement += 1;
     }
     if (send_rotation) {
-        self.server_status.rotation = self.base.rotation;
+        self.server_movement_status.rotation = self.base.rotation;
     }
 }
 
