@@ -73,10 +73,13 @@ pub fn onFrame(game: *Game) !bool {
 
             renderer.debug_cube_buffer.subData(0, u8, @ptrCast(renderer.debug_cube_staging_buffer.getSlice()));
 
-            gl.disable(.depth_test);
             renderer.program.uniform3f(1, 0.0, 0.0, 0.0);
             renderer.vao.vertexBuffer(0, renderer.debug_cube_buffer, 0, 3 * @sizeOf(f32));
-            gl.drawArrays(.triangles, 0, renderer.debug_cube_staging_buffer.write_index / @sizeOf(f32));
+            gl.drawArrays(
+                .triangles,
+                0,
+                renderer.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3,
+            );
         },
         else => {},
     }
@@ -149,7 +152,6 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
 pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
         if (section_y < 4) continue;
-        if (true) continue;
         if (maybe_section) |section| {
             var staging = GpuStagingBuffer{};
 
@@ -171,7 +173,7 @@ pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void
                 .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
                 .{
                     .buffer = buffer,
-                    .vertices = staging.write_index / @sizeOf(f32),
+                    .vertices = staging.write_index / @sizeOf(f32) / 3,
                 },
             );
         }

@@ -25,7 +25,7 @@ pub const HitResult = union(HitType) {
         rotation: Rotation2(f32),
         range: f64,
         comptime options: struct {
-            allow_liquids: bool = false,
+            ignore_liquids: bool = true,
             ignore_blocks_without_collision: bool = false,
         },
     ) @This() {
@@ -47,7 +47,7 @@ pub const HitResult = union(HitType) {
 
         @import("render").renderer.debug_cube_staging_buffer.write_index = 0;
 
-        for (0..201) |_| {
+        for (0..10) |_| {
             if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
             if (from_block_pos.equals(to_block_pos)) {
@@ -113,18 +113,57 @@ pub const HitResult = union(HitType) {
             const block = world.getBlock(from_block_pos);
             for (world.getBlockState(from_block_pos).toConcreteBlockState(world, from_block_pos).getRaytraceHitbox()) |hitbox| {
                 if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
-                if (!options.ignore_blocks_without_collision or true) { // TODO: implement block#getCollisionShape
-                    if (block != .water or options.allow_liquids) { // TODO: implement water level
-                        const hit_result = rayTraceHitbox(hitbox, from, to);
-                        if (hit_result == .block) {
-                            return hit_result;
-                        }
-                    }
+
+                if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
+                if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
+
+                const hit_result = rayTraceHitbox(
+                    hitbox,
+                    from.sub(.{
+                        .x = @floatFromInt(from_block_pos.x),
+                        .y = @floatFromInt(from_block_pos.y),
+                        .z = @floatFromInt(from_block_pos.z),
+                    }),
+                    to.sub(.{
+                        .x = @floatFromInt(from_block_pos.x),
+                        .y = @floatFromInt(from_block_pos.y),
+                        .z = @floatFromInt(from_block_pos.z),
+                    }),
+                );
+                if (hit_result == .block) {
+                    const pos: Vector3(i32) = from_block_pos.add(
+                        switch (hit_result.block.dir) {
+                            .East => .{ .x = 1, .y = 0, .z = 0 },
+                            .West => .{ .x = -1, .y = 0, .z = 0 },
+                            .North => .{ .x = 0, .y = 0, .z = -1 },
+                            .South => .{ .x = 0, .y = 0, .z = 1 },
+                            .Up => .{ .x = 0, .y = 1, .z = 0 },
+                            .Down => .{ .x = 0, .y = -1, .z = 0 },
+                        },
+                    );
+
+                    @import("render").renderer.renderBox(.{
+                        .min = .{
+                            .x = @floatFromInt(pos.x),
+                            .y = @floatFromInt(pos.y),
+                            .z = @floatFromInt(pos.z),
+                        },
+                        .max = .{
+                            .x = @floatFromInt(pos.x + 1),
+                            .y = @floatFromInt(pos.y + 1),
+                            .z = @floatFromInt(pos.z + 1),
+                        },
+                    });
+                    return hit_result;
                 }
             }
         }
 
         return .miss;
+    }
+
+    fn between(min: anytype, mid: anytype, max: anytype) bool {
+        return mid >= min and mid <= max;
     }
 
     pub fn rayTraceHitbox(hitbox: Hitbox, from: Vector3(f64), to: Vector3(f64)) @This() {
@@ -139,13 +178,13 @@ pub const HitResult = union(HitType) {
         var hit_pos: ?Vector3(f64) = null;
         var dir: ?Direction = null;
         if (maybe_clip_min_x) |clip_min_x| {
-            if (clip_min_x.y >= hitbox.min.y and clip_min_x.y <= hitbox.max.y and clip_min_x.z >= hitbox.min.z and clip_min_x.z <= hitbox.max.z) {
+            if (between(hitbox.min.y, clip_min_x.y, hitbox.max.y) and between(hitbox.min.z, clip_min_x.z, hitbox.max.z)) {
                 hit_pos = clip_min_x;
                 dir = .West;
             }
         }
         if (maybe_clip_min_y) |clip_min_y| {
-            if (clip_min_y.x >= hitbox.min.x and clip_min_y.x <= hitbox.max.x and clip_min_y.z >= hitbox.min.z and clip_min_y.z <= hitbox.max.z) {
+            if (between(hitbox.min.x, clip_min_y.x, hitbox.max.x) and between(hitbox.min.z, clip_min_y.z, hitbox.max.z)) {
                 if (hit_pos == null or clip_min_y.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_min_y;
                     dir = .Down;
@@ -153,7 +192,7 @@ pub const HitResult = union(HitType) {
             }
         }
         if (maybe_clip_min_z) |clip_min_z| {
-            if (clip_min_z.x >= hitbox.min.x and clip_min_z.x <= hitbox.max.x and clip_min_z.y >= hitbox.min.y and clip_min_z.y <= hitbox.max.y) {
+            if (between(hitbox.min.x, clip_min_z.x, hitbox.max.x) and between(hitbox.min.y, clip_min_z.y, hitbox.max.y)) {
                 if (hit_pos == null or clip_min_z.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_min_z;
                     dir = .North;
@@ -161,7 +200,7 @@ pub const HitResult = union(HitType) {
             }
         }
         if (maybe_clip_max_x) |clip_max_x| {
-            if (clip_max_x.y >= hitbox.min.y and clip_max_x.y <= hitbox.max.y and clip_max_x.z >= hitbox.min.z and clip_max_x.z <= hitbox.max.z) {
+            if (between(hitbox.min.y, clip_max_x.y, hitbox.max.y) and between(hitbox.min.z, clip_max_x.z, hitbox.max.z)) {
                 if (hit_pos == null or clip_max_x.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_max_x;
                     dir = .East;
@@ -169,7 +208,7 @@ pub const HitResult = union(HitType) {
             }
         }
         if (maybe_clip_max_y) |clip_max_y| {
-            if (clip_max_y.x >= hitbox.min.x and clip_max_y.x <= hitbox.max.x and clip_max_y.z >= hitbox.min.z and clip_max_y.z <= hitbox.max.z) {
+            if (between(hitbox.min.x, clip_max_y.x, hitbox.max.x) and between(hitbox.min.z, clip_max_y.z, hitbox.max.z)) {
                 if (hit_pos == null or clip_max_y.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_max_y;
                     dir = .Up;
@@ -177,7 +216,7 @@ pub const HitResult = union(HitType) {
             }
         }
         if (maybe_clip_max_z) |clip_max_z| {
-            if (clip_max_z.x >= hitbox.min.x and clip_max_z.x <= hitbox.max.x and clip_max_z.y >= hitbox.min.y and clip_max_z.y <= hitbox.max.y) {
+            if (between(hitbox.min.x, clip_max_z.x, hitbox.max.x) and between(hitbox.min.y, clip_max_z.y, hitbox.max.y)) {
                 if (hit_pos == null or clip_max_z.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_max_z;
                     dir = .South;
@@ -195,15 +234,14 @@ pub const HitResult = union(HitType) {
 
     pub fn interpolateToTargetX(from: Vector3(f64), to: Vector3(f64), x_plane: f64) ?Vector3(f64) {
         const delta = to.sub(from);
-        if (delta.x * delta.x < @as(f32, 0.0000001)) {
+
+        if (delta.x * delta.x < @as(f32, 0.0000001)) return null;
+
+        const ray_progress = (x_plane - from.x) / delta.x;
+        if (ray_progress < 0.0 or ray_progress > 1.0) {
             return null;
-        } else {
-            const ray_progress = (x_plane - from.x) / delta.x;
-            if (ray_progress < 0.0 or ray_progress > 1.0) {
-                return null;
-            }
-            return from.add(delta.scaleUniform(ray_progress));
         }
+        return from.add(delta.scaleUniform(ray_progress));
     }
     pub fn interpolateToTargetY(from: Vector3(f64), to: Vector3(f64), y_plane: f64) ?Vector3(f64) {
         const delta = to.sub(from);
