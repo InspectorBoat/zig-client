@@ -3,12 +3,18 @@ const World = @import("../world/World.zig");
 const Vector3 = @import("../type/vector.zig").Vector3;
 const Hitbox = @import("../math/Hitbox.zig");
 
+// Requirements of system:
+// Looking up the raytrace hitboxes for a blockstate, which depends on virtual properties, must be fast
+// Looking up the collision hitboxes for a blockstate, which depends on virtual properties, must be fast
+// looking up toughness, friction, tool, etc. for a block, must be fast
+// blockstates must take up 16 bits or less
+
 // The types of each block
 pub const Block = enum(u8) {
     air,
     stone,
-    grass, // snowy
-    dirt, // snowy
+    grass,
+    dirt,
     cobblestone,
     planks,
     sapling,
@@ -56,11 +62,11 @@ pub const Block = enum(u8) {
     mossy_cobblestone,
     obsidian,
     torch,
-    fire, // alt north east south west upper flip
+    fire,
     mob_spawner,
     oak_stairs,
     chest,
-    redstone_wire, // south north west east
+    redstone_wire,
     diamond_ore,
     diamond_block,
     crafting_table,
@@ -72,7 +78,7 @@ pub const Block = enum(u8) {
     wooden_door,
     ladder,
     rail,
-    stone_stairs, // shape
+    stone_stairs,
     wall_sign,
     lever,
     stone_pressure_plate,
@@ -90,7 +96,7 @@ pub const Block = enum(u8) {
     clay,
     reeds,
     jukebox,
-    fence, // north east south west
+    fence,
     pumpkin,
     netherrack,
     soul_sand,
@@ -98,28 +104,28 @@ pub const Block = enum(u8) {
     portal,
     lit_pumpkin,
     cake,
-    unpowered_repeater, // locked
-    powered_repeater, // locked
+    unpowered_repeater,
+    powered_repeater,
     stained_glass,
     trapdoor,
     monster_egg,
     stonebrick,
     brown_mushroom_block,
     red_mushroom_block,
-    iron_bars, // north east south west
-    glass_pane, // north east south west
+    iron_bars,
+    glass_pane,
     melon_block,
-    pumpkin_stem, // facing
-    melon_stem, // facing
-    vine, // up
-    fence_gate, // in_wall
-    brick_stairs, // shape
-    stone_brick_stairs, // shape
-    mycelium, // snowy
+    pumpkin_stem,
+    melon_stem,
+    vine,
+    fence_gate,
+    brick_stairs,
+    stone_brick_stairs,
+    mycelium,
     waterlily,
     nether_brick,
-    nether_brick_fence, // north east south west
-    nether_brick_stairs, // shape
+    nether_brick_fence,
+    nether_brick_stairs,
     nether_wart,
     enchanting_table,
     brewing_stand,
@@ -133,19 +139,19 @@ pub const Block = enum(u8) {
     double_wooden_slab,
     wooden_slab,
     cocoa,
-    sandstone_stairs, // shape
+    sandstone_stairs,
     emerald_ore,
     ender_chest,
-    tripwire_hook, // suspended
-    tripwire, // north east south west
+    tripwire_hook,
+    tripwire,
     emerald_block,
-    spruce_stairs, // shape
-    birch_stairs, // shape
-    jungle_stairs, // shape
+    spruce_stairs,
+    birch_stairs,
+    jungle_stairs,
     command_block,
     beacon,
-    cobblestone_wall, // north east south west up
-    flower_pot, // contents
+    cobblestone_wall,
+    flower_pot,
     carrots,
     potatoes,
     wooden_button,
@@ -161,15 +167,15 @@ pub const Block = enum(u8) {
     quartz_ore,
     hopper,
     quartz_block,
-    quartz_stairs, // shape
+    quartz_stairs,
     activator_rail,
     dropper,
     stained_hardened_clay,
-    stained_glass_pane, // north east south west
+    stained_glass_pane,
     leaves2,
     log2,
-    acacia_stairs, // shape
-    dark_oak_stairs, // shape
+    acacia_stairs,
+    dark_oak_stairs,
     slime,
     barrier,
     iron_trapdoor,
@@ -185,19 +191,19 @@ pub const Block = enum(u8) {
     wall_banner,
     daylight_detector_inverted,
     red_sandstone,
-    red_sandstone_stairs, // shape
+    red_sandstone_stairs,
     double_stone_slab2,
     stone_slab2,
-    spruce_fence_gate, // in_wall
-    birch_fence_gate, // in_wall
-    jungle_fence_gate, // in_wall
-    dark_oak_fence_gate, // in_wall
-    acacia_fence_gate, // in_wall
-    spruce_fence, // north east south west
-    birch_fence, // north east south west
-    jungle_fence, // north east south west
-    dark_oak_fence, // north east south west
-    acacia_fence, // north east south west
+    spruce_fence_gate,
+    birch_fence_gate,
+    jungle_fence_gate,
+    dark_oak_fence_gate,
+    acacia_fence_gate,
+    spruce_fence,
+    birch_fence,
+    jungle_fence,
+    dark_oak_fence,
+    acacia_fence,
     spruce_door,
     birch_door,
     jungle_door,
@@ -1530,10 +1536,10 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
             },
             .bedrock => FULL,
-            .flowing_water => @panic("TODO"),
-            .water => @panic("TODO"),
-            .flowing_lava => @panic("TODO"),
-            .lava => @panic("TODO"),
+            .flowing_water => FULL, // TODO
+            .water => FULL, // TODO
+            .flowing_lava => FULL, // TODO
+            .lava => FULL, // TODO
             .sand => FULL,
             .gravel => FULL,
             .gold_ore => FULL,
@@ -1761,7 +1767,7 @@ pub const ConcreteBlockState = union(Block) {
             },
             .fire => NONE,
             .mob_spawner => FULL,
-            .oak_stairs => @panic("TODO"),
+            .oak_stairs => FULL, // TODO
             .chest => |chest| .{
                 switch (chest.virtual.connection) {
                     .north => .{
@@ -1825,7 +1831,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .wooden_door => @panic("TODO"),
+            .wooden_door => FULL, // TODO
             .ladder => |ladder| .{
                 switch (ladder.stored.facing) {
                     .north => .{
@@ -1856,7 +1862,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .stone_stairs => @panic("TODO"),
+            .stone_stairs => FULL, // TODO
             .wall_sign => |wall_sign| .{
                 switch (wall_sign.stored.facing) {
                     .north => .{
@@ -1917,7 +1923,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .iron_door => @panic("TODO"),
+            .iron_door => FULL, // TODO
             .wooden_pressure_plate => |wooden_pressure_plate| .{
                 .{
                     .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
@@ -2094,7 +2100,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
             },
             .stained_glass => FULL,
-            .trapdoor => @panic("TODO"),
+            .trapdoor => FULL, // TODO
             .monster_egg => FULL,
             .stonebrick => FULL,
             .brown_mushroom_block => FULL,
@@ -2138,7 +2144,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .vine => @panic("TODO"),
+            .vine => FULL, // TODO
             .fence_gate => |fence_gate| .{
                 switch (fence_gate.stored.facing) {
                     .north, .south => .{
@@ -2153,8 +2159,8 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .brick_stairs => @panic("TODO"),
-            .stone_brick_stairs => @panic("TODO"),
+            .brick_stairs => FULL, // TODO
+            .stone_brick_stairs => FULL, // TODO
             .mycelium => FULL,
             .waterlily => .{
                 .{
@@ -2173,7 +2179,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .nether_brick_stairs => @panic("TODO"),
+            .nether_brick_stairs => FULL, // TODO
             .nether_wart => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
@@ -2293,7 +2299,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .sandstone_stairs => @panic("TODO"),
+            .sandstone_stairs => FULL, // TODO
             .emerald_ore => FULL,
             .ender_chest => .{
                 .{
@@ -2345,12 +2351,12 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
             },
             .emerald_block => FULL,
-            .spruce_stairs => @panic("TODO"),
-            .birch_stairs => @panic("TODO"),
-            .jungle_stairs => @panic("TODO"),
+            .spruce_stairs => FULL, // TODO
+            .birch_stairs => FULL, // TODO
+            .jungle_stairs => FULL, // TODO
             .command_block => FULL,
             .beacon => FULL,
-            .cobblestone_wall => @panic("TODO"),
+            .cobblestone_wall => FULL, // TODO
             .flower_pot => .{
                 .{
                     .min = .{ .x = 0.3125, .y = 0.0, .z = 0.3125 },
@@ -2518,7 +2524,7 @@ pub const ConcreteBlockState = union(Block) {
             .quartz_ore => FULL,
             .hopper => FULL,
             .quartz_block => FULL,
-            .quartz_stairs => @panic("TODO"),
+            .quartz_stairs => FULL, // TODO
             .activator_rail => |activator_rail| .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
@@ -2542,11 +2548,11 @@ pub const ConcreteBlockState = union(Block) {
             },
             .leaves2 => FULL,
             .log2 => FULL,
-            .acacia_stairs => @panic("TODO"),
-            .dark_oak_stairs => @panic("TODO"),
+            .acacia_stairs => FULL, // TODO
+            .dark_oak_stairs => FULL, // TODO
             .slime => FULL,
             .barrier => FULL,
-            .iron_trapdoor => @panic("TODO"),
+            .iron_trapdoor => FULL, // TODO
             .prismarine => FULL,
             .sea_lantern => FULL,
             .hay_block => FULL,
@@ -2601,7 +2607,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
             },
             .red_sandstone => FULL,
-            .red_sandstone_stairs => @panic("TODO"),
+            .red_sandstone_stairs => FULL, // TODO
             .double_stone_slab2 => FULL,
             .stone_slab2 => |stone_slab2| .{
                 .{
@@ -2721,11 +2727,11 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
-            .spruce_door => @panic("TODO"),
-            .birch_door => @panic("TODO"),
-            .jungle_door => @panic("TODO"),
-            .acacia_door => @panic("TODO"),
-            .dark_oak_door => @panic("TODO"),
+            .spruce_door => FULL, // TODO
+            .birch_door => FULL, // TODO
+            .jungle_door => FULL, // TODO
+            .acacia_door => FULL, // TODO
+            .dark_oak_door => FULL, // TODO
         };
     }
 };

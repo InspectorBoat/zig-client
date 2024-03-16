@@ -36,4 +36,5 @@ pub const player_stop_sprint = LogType(false, "stop sprinting");
 
 pub const set_block_in_missing_chunk = LogType(false, "attempted to set block in missing chunk {}!");
 
-pub const recieved_chunk = LogType(true, "decoded recieved chunk in {d} ms");
+pub const recieved_chunk = LogType(false, "decoded recieved chunk in {d} ms");
+pub const load_new_chunk = LogType(true, "loaded new chunk at {}");

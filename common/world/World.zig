@@ -54,6 +54,8 @@ pub fn tick(self: *@This(), game: *Game.IngameState, allocator: std.mem.Allocato
 }
 
 pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
+    @import("log").load_new_chunk(.{self.chunk_pos});
+
     const maybe_chunk = try self.chunks.getOrPut(chunk_pos);
     std.debug.assert(!maybe_chunk.found_existing);
 
@@ -65,9 +67,13 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
     return chunk;
 }
 
-pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32)) void {
-    const existed = self.chunks.remove(chunk_pos);
-    std.debug.assert(existed);
+pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) void {
+    if (self.chunks.fetchRemove(chunk_pos)) |entry| {
+        var chunk = entry.value;
+        chunk.deinit(allocator);
+    } else {
+        unreachable;
+    }
 }
 
 pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bool {
