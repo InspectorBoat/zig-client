@@ -54,7 +54,7 @@ pub fn tick(self: *@This(), game: *Game.IngameState, allocator: std.mem.Allocato
 }
 
 pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
-    @import("log").load_new_chunk(.{self.chunk_pos});
+    @import("log").load_new_chunk(.{chunk_pos});
 
     const maybe_chunk = try self.chunks.getOrPut(chunk_pos);
     std.debug.assert(!maybe_chunk.found_existing);
