@@ -10,7 +10,7 @@ const Hitbox = @import("../math/Hitbox.zig");
 // looking up toughness, friction, tool, etc. for a block, must be fast
 // Fully resolved blockstates must take up 16 bits or less
 
-// To accomplish, we split off the blocks that have too many virtual blockstates into multiple blocks
+// To accomplish this, we split off the blocks that have too many virtual blockstates into multiple blocks
 
 // To look up the raytrace/collision hitboxes, we use a hashmap
 // To look up the toughness/friction/tool/solidity, we directly use the block bits
@@ -660,6 +660,17 @@ pub const FilteredBlockState = packed struct {
     };
 
     pub fn toConcreteBlockState(self: @This(), world: World, block_pos: Vector3(i32)) ConcreteBlockState {
+        // comptime var virtual = 0;
+        // inline for (@typeInfo(BlockProperties).Union.fields) |block_property| {
+        //     const field_info = @typeInfo(block_property.type);
+        //     if (field_info == .Struct) {
+        //         if (field_info.Struct.fields[0].type != u4) {
+        //             @compileLog(block_property.name);
+        //             virtual += 1;
+        //         }
+        //     }
+        // }
+        // @compileLog(virtual);
         return switch (self.block) {
             .grass => .{
                 .grass = .{
@@ -719,8 +730,233 @@ pub const FilteredBlockState = packed struct {
     }
 };
 
+// Block, but with some blocks split to be used with ConcreteBlockState
+pub const ConcreteBlock = enum(u8) {
+    air,
+    stone,
+    grass,
+    dirt,
+    cobblestone,
+    planks,
+    sapling,
+    bedrock,
+    flowing_water,
+    water,
+    flowing_lava,
+    lava,
+    sand,
+    gravel,
+    gold_ore,
+    iron_ore,
+    coal_ore,
+    log,
+    leaves,
+    sponge,
+    glass,
+    lapis_ore,
+    lapis_block,
+    dispenser,
+    sandstone,
+    noteblock,
+    bed,
+    golden_rail,
+    detector_rail,
+    sticky_piston,
+    web,
+    tallgrass,
+    deadbush,
+    piston,
+    piston_head,
+    wool,
+    piston_extension,
+    yellow_flower,
+    red_flower,
+    brown_mushroom,
+    red_mushroom,
+    gold_block,
+    iron_block,
+    double_stone_slab,
+    stone_slab,
+    brick_block,
+    tnt,
+    bookshelf,
+    mossy_cobblestone,
+    obsidian,
+    torch,
+    fire,
+    mob_spawner,
+    oak_stairs,
+    chest,
+    redstone_wire,
+    diamond_ore,
+    diamond_block,
+    crafting_table,
+    wheat,
+    farmland,
+    furnace,
+    lit_furnace,
+    standing_sign,
+    wooden_door,
+    ladder,
+    rail,
+    stone_stairs,
+    wall_sign,
+    lever,
+    stone_pressure_plate,
+    iron_door,
+    wooden_pressure_plate,
+    redstone_ore,
+    lit_redstone_ore,
+    unlit_redstone_torch,
+    redstone_torch,
+    stone_button,
+    snow_layer,
+    ice,
+    snow,
+    cactus,
+    clay,
+    reeds,
+    jukebox,
+    fence,
+    pumpkin,
+    netherrack,
+    soul_sand,
+    glowstone,
+    portal,
+    lit_pumpkin,
+    cake,
+    unpowered_repeater,
+    powered_repeater,
+    stained_glass,
+    trapdoor,
+    monster_egg,
+    stonebrick,
+    brown_mushroom_block,
+    red_mushroom_block,
+    iron_bars,
+    glass_pane,
+    melon_block,
+    pumpkin_stem,
+    melon_stem,
+    vine,
+    fence_gate,
+    brick_stairs,
+    stone_brick_stairs,
+    mycelium,
+    waterlily,
+    nether_brick,
+    nether_brick_fence,
+    nether_brick_stairs,
+    nether_wart,
+    enchanting_table,
+    brewing_stand,
+    cauldron,
+    end_portal,
+    end_portal_frame,
+    end_stone,
+    dragon_egg,
+    redstone_lamp,
+    lit_redstone_lamp,
+    double_wooden_slab,
+    wooden_slab,
+    cocoa,
+    sandstone_stairs,
+    emerald_ore,
+    ender_chest,
+    tripwire_hook,
+    tripwire,
+    emerald_block,
+    spruce_stairs,
+    birch_stairs,
+    jungle_stairs,
+    command_block,
+    beacon,
+    cobblestone_wall,
+    flower_pot,
+    carrots,
+    potatoes,
+    wooden_button,
+    skull,
+    anvil,
+    trapped_chest,
+    light_weighted_pressure_plate,
+    heavy_weighted_pressure_plate,
+    unpowered_comparator,
+    powered_comparator,
+    daylight_detector,
+    redstone_block,
+    quartz_ore,
+    hopper,
+    quartz_block,
+    quartz_stairs,
+    activator_rail,
+    dropper,
+    stained_hardened_clay,
+    stained_glass_pane,
+    leaves2,
+    log2,
+    acacia_stairs,
+    dark_oak_stairs,
+    slime,
+    barrier,
+    iron_trapdoor,
+    prismarine,
+    sea_lantern,
+    hay_block,
+    carpet,
+    hardened_clay,
+    coal_block,
+    packed_ice,
+    double_plant,
+    standing_banner,
+    wall_banner,
+    daylight_detector_inverted,
+    red_sandstone,
+    red_sandstone_stairs,
+    double_stone_slab2,
+    stone_slab2,
+    spruce_fence_gate,
+    birch_fence_gate,
+    jungle_fence_gate,
+    dark_oak_fence_gate,
+    acacia_fence_gate,
+    spruce_fence,
+    birch_fence,
+    jungle_fence,
+    dark_oak_fence,
+    acacia_fence,
+    spruce_door,
+    birch_door,
+    jungle_door,
+    acacia_door,
+    dark_oak_door,
+
+    fire_upper,
+
+    redstone_wire_none_flat,
+    redstone_wire_none_upper,
+    redstone_wire_flat_none,
+    redstone_wire_flat_flat,
+    redstone_wire_flat_upper,
+    redstone_wire_upper_none,
+    redstone_wire_upper_flat,
+    redstone_wire_upper_upper,
+
+    cobblestone_wall_upper,
+
+    flower_pot_2,
+
+    pub fn getFriction(self: @This()) f32 {
+        return switch (self) {
+            .slime => 0.8,
+            .ice, .packed_ice => 0.98,
+            else => 0.6,
+        };
+    }
+};
+
 // FilteredBlockState, but with virtual properties resolved
-pub const ConcreteBlockState = union(Block) {
+pub const ConcreteBlockState = union(ConcreteBlock) {
     const BlockProperties = FilteredBlockState.BlockProperties;
     air: packed struct(u8) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
@@ -926,10 +1162,14 @@ pub const ConcreteBlockState = union(Block) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.torch,
     },
+
+    /// This block is split due to virtual blockstates not fitting into 4 bits.
+    /// See fire_upper
     fire: packed struct(u8) { // TODO: Split
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
         stored: BlockProperties.fire,
     },
+
     mob_spawner: packed struct(u8) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.mob_spawner,
@@ -942,10 +1182,17 @@ pub const ConcreteBlockState = union(Block) {
         virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 } = .{},
         stored: BlockProperties.chest,
     },
-    redstone_wire: packed struct(u8) { // TODO: Split
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+
+    /// This block is split due to virtual blockstates not fitting into 4 bits.
+    /// See the following:
+    ///                           redstone_wire_none_flat,  redstone_wire_none_upper,
+    /// redstone_wire_flat_none,  redstone_wire_flat_flat,  redstone_wire_flat_upper,
+    /// redstone_wire_upper_none, redstone_wire_upper_flat, redstone_wire_upper_upper
+    redstone_wire: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
         stored: BlockProperties.redstone_wire,
     },
+
     diamond_ore: packed struct(u8) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.diamond_ore,
@@ -1278,14 +1525,21 @@ pub const ConcreteBlockState = union(Block) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.beacon,
     },
-    cobblestone_wall: packed struct(u8) { // TODO: Split
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+
+    /// This block is split due to virtual blockstates not fitting into 4 bits.
+    /// See cobblestone_wall_upper
+    cobblestone_wall: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
         stored: BlockProperties.cobblestone_wall,
     },
-    flower_pot: packed struct(u8) { // TODO: Split
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+
+    /// This block is split due to virtual blockstates not fitting into 4 bits.
+    /// See flower_pot_2
+    flower_pot: packed struct(u8) {
+        virtual: packed struct(u4) { contents: enum { empty, poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy, dandelion, oak_sapling, spruce_sapling, birch_sapling, jungle_sapling, acacia_sapling } },
         stored: BlockProperties.flower_pot,
     },
+
     carrots: packed struct(u8) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.carrots,
@@ -1513,6 +1767,54 @@ pub const ConcreteBlockState = union(Block) {
     dark_oak_door: packed struct(u8) {
         virtual: packed struct(u4) { _: u4 = 0 } = .{},
         stored: BlockProperties.dark_oak_door,
+    },
+
+    fire_upper: packed struct(u8) {
+        virtual: packed struct(u4) { _: u4 = 0 } = .{},
+        stored: BlockProperties.fire,
+    },
+
+    redstone_wire_none_flat: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_none_upper: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_flat_none: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_flat_flat: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_flat_upper: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_upper_none: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_upper_flat: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+    redstone_wire_upper_upper: packed struct(u8) {
+        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+        stored: BlockProperties.redstone_wire,
+    },
+
+    cobblestone_wall_upper: packed struct(u8) {
+        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+        stored: BlockProperties.cobblestone_wall,
+    },
+
+    flower_pot_2: packed struct(u8) {
+        virtual: packed struct(u4) { contents: enum { dark_oak_sapling, mushroom_red, mushroom_brown, dead_bush, fern, cactus }, _: u1 = 0 },
+        stored: BlockProperties.flower_pot,
     },
 
     pub fn getRaytraceHitbox(self: @This()) [3]Hitbox {
@@ -1771,7 +2073,9 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
+
             .fire => NONE,
+
             .mob_spawner => FULL,
             .oak_stairs => FULL, // TODO
             .chest => |chest| .{
@@ -1800,6 +2104,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
+
             .redstone_wire => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
@@ -1808,6 +2113,7 @@ pub const ConcreteBlockState = union(Block) {
                 EMPTY,
                 EMPTY,
             },
+
             .diamond_ore => FULL,
             .diamond_block => FULL,
             .crafting_table => FULL,
@@ -2738,6 +3044,20 @@ pub const ConcreteBlockState = union(Block) {
             .jungle_door => FULL, // TODO
             .acacia_door => FULL, // TODO
             .dark_oak_door => FULL, // TODO
+
+            .fire_upper => FULL, // TODO
+
+            .redstone_wire_none_flat => FULL, // TODO
+            .redstone_wire_none_upper => FULL, // TODO
+            .redstone_wire_flat_none => FULL, // TODO
+            .redstone_wire_flat_flat => FULL, // TODO
+            .redstone_wire_flat_upper => FULL, // TODO
+            .redstone_wire_upper_none => FULL, // TODO
+            .redstone_wire_upper_flat => FULL, // TODO
+            .redstone_wire_upper_upper => FULL, // TODO
+
+            .cobblestone_wall_upper => FULL, // TODO
+            .flower_pot_2 => FULL, // TODO
         };
     }
 };
@@ -2948,17 +3268,20 @@ const valid_metadata_table = blk: {
     break :blk table;
 };
 
-fn bitCastArrayElements(comptime ElementType: type, comptime length: usize, array: [length]ElementType) [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) {
-    @setEvalBranchQuota(1000000);
-    var casted: [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) = undefined;
-    for (array, &casted) |original, *casted_ptr| {
-        casted_ptr.* = @bitCast(original);
-    }
-    return casted;
-}
-
 /// converts metadata -> packed struct through lookup table
 const raw_to_filtered_conversion_table = blk: {
+    const bitCastArrayElements = struct {
+        /// Casts an array of packed structs into an array of that packed struct's backing int
+        fn bitCastArrayElements(comptime ElementType: type, comptime length: usize, array: [length]ElementType) [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) {
+            @setEvalBranchQuota(1000000);
+            var casted: [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) = undefined;
+            for (array, &casted) |original, *casted_ptr| {
+                casted_ptr.* = @bitCast(original);
+            }
+            return casted;
+        }
+    }.bitCastArrayElements;
+
     var table = std.EnumArray(Block, std.PackedIntArray(u4, 16)).initUndefined();
     const properties = FilteredBlockState.BlockProperties;
     table.set(.air, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.air, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
@@ -3101,7 +3424,7 @@ const raw_to_filtered_conversion_table = blk: {
     table.set(.command_block, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.command_block, 16, .{ .{ .triggered = false }, .{ .triggered = true }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.beacon, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.beacon, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.cobblestone_wall, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.cobblestone_wall, 16, .{ .{ .variant = .cobblestone }, .{ .variant = .mossy_cobblestone }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
-    table.set(.flower_pot, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.flower_pot, 16, .{ .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{0}, .{1}, .{2}, .{3}, .{4}, .{5} })));
+    table.set(.flower_pot, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.flower_pot, 16, .{ .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{} })));
     table.set(.carrots, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.carrots, 16, .{ .{ .age = 0 }, .{ .age = 1 }, .{ .age = 2 }, .{ .age = 3 }, .{ .age = 4 }, .{ .age = 5 }, .{ .age = 6 }, .{ .age = 7 }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.potatoes, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.potatoes, 16, .{ .{ .age = 0 }, .{ .age = 1 }, .{ .age = 2 }, .{ .age = 3 }, .{ .age = 4 }, .{ .age = 5 }, .{ .age = 6 }, .{ .age = 7 }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.wooden_button, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.wooden_button, 16, .{ .{ .powered = false, .facing = .down }, .{ .powered = false, .facing = .east }, .{ .powered = false, .facing = .west }, .{ .powered = false, .facing = .south }, .{ .powered = false, .facing = .north }, .{ .powered = false, .facing = .up }, undefined, undefined, .{ .powered = true, .facing = .down }, .{ .powered = true, .facing = .east }, .{ .powered = true, .facing = .west }, .{ .powered = true, .facing = .south }, .{ .powered = true, .facing = .north }, .{ .powered = true, .facing = .up }, undefined, undefined })));
@@ -3165,10 +3488,4 @@ const raw_to_filtered_conversion_table = blk: {
 
 test ConcreteBlockState {
     std.debug.print("\n------------------\n", .{});
-
-    const filtered = FilteredBlockState{
-        .block = .stained_glass_pane,
-        .properties = .{ .stained_glass_pane = .{ .color = .light_blue } },
-    };
-    std.debug.print("{}\n", .{filtered.toConcreteBlockState(undefined)});
 }
