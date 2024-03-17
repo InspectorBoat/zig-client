@@ -6,8 +6,14 @@ const Hitbox = @import("../math/Hitbox.zig");
 // Requirements of system:
 // Looking up the raytrace hitboxes for a blockstate, which depends on virtual properties, must be fast
 // Looking up the collision hitboxes for a blockstate, which depends on virtual properties, must be fast
+// Looking up the model for a blockstate, which depends on virtual properties, must be fast
 // looking up toughness, friction, tool, etc. for a block, must be fast
-// blockstates must take up 16 bits or less
+// Fully resolved blockstates must take up 16 bits or less
+
+// To accomplish, we split off the blocks that have too many virtual blockstates into multiple blocks
+
+// To look up the raytrace/collision hitboxes, we use a hashmap
+// To look up the toughness/friction/tool/solidity, we directly use the block bits
 
 // The types of each block
 pub const Block = enum(u8) {
@@ -393,7 +399,7 @@ pub const FilteredBlockState = packed struct {
         pub const command_block = packed struct(u4) { triggered: bool, _: u3 = 0 };
         pub const beacon = packed struct(u4) { _: u4 = 0 };
         pub const cobblestone_wall = packed struct(u4) { variant: enum(u1) { cobblestone, mossy_cobblestone }, _: u3 = 0 };
-        pub const flower_pot = packed struct(u4) { legacy_data: u4 };
+        pub const flower_pot = packed struct(u4) { _: u4 = 0 };
         pub const carrots = packed struct(u4) { age: u3, _: u1 = 0 };
         pub const potatoes = packed struct(u4) { age: u3, _: u1 = 0 };
         pub const wooden_button = packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } };
@@ -2942,7 +2948,7 @@ const valid_metadata_table = blk: {
     break :blk table;
 };
 
-pub fn bitCastArrayElements(comptime ElementType: type, comptime length: usize, array: [length]ElementType) [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) {
+fn bitCastArrayElements(comptime ElementType: type, comptime length: usize, array: [length]ElementType) [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) {
     @setEvalBranchQuota(1000000);
     var casted: [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) = undefined;
     for (array, &casted) |original, *casted_ptr| {
@@ -3095,7 +3101,7 @@ const raw_to_filtered_conversion_table = blk: {
     table.set(.command_block, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.command_block, 16, .{ .{ .triggered = false }, .{ .triggered = true }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.beacon, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.beacon, 16, .{ .{}, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.cobblestone_wall, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.cobblestone_wall, 16, .{ .{ .variant = .cobblestone }, .{ .variant = .mossy_cobblestone }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
-    table.set(.flower_pot, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.flower_pot, 16, .{ .{ .legacy_data = 0 }, .{ .legacy_data = 1 }, .{ .legacy_data = 2 }, .{ .legacy_data = 3 }, .{ .legacy_data = 4 }, .{ .legacy_data = 5 }, .{ .legacy_data = 6 }, .{ .legacy_data = 7 }, .{ .legacy_data = 8 }, .{ .legacy_data = 9 }, .{ .legacy_data = 10 }, .{ .legacy_data = 11 }, .{ .legacy_data = 12 }, .{ .legacy_data = 13 }, .{ .legacy_data = 14 }, .{ .legacy_data = 15 } })));
+    table.set(.flower_pot, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.flower_pot, 16, .{ .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{}, .{0}, .{1}, .{2}, .{3}, .{4}, .{5} })));
     table.set(.carrots, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.carrots, 16, .{ .{ .age = 0 }, .{ .age = 1 }, .{ .age = 2 }, .{ .age = 3 }, .{ .age = 4 }, .{ .age = 5 }, .{ .age = 6 }, .{ .age = 7 }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.potatoes, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.potatoes, 16, .{ .{ .age = 0 }, .{ .age = 1 }, .{ .age = 2 }, .{ .age = 3 }, .{ .age = 4 }, .{ .age = 5 }, .{ .age = 6 }, .{ .age = 7 }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined })));
     table.set(.wooden_button, std.PackedIntArray(u4, 16).init(bitCastArrayElements(properties.wooden_button, 16, .{ .{ .powered = false, .facing = .down }, .{ .powered = false, .facing = .east }, .{ .powered = false, .facing = .west }, .{ .powered = false, .facing = .south }, .{ .powered = false, .facing = .north }, .{ .powered = false, .facing = .up }, undefined, undefined, .{ .powered = true, .facing = .down }, .{ .powered = true, .facing = .east }, .{ .powered = true, .facing = .west }, .{ .powered = true, .facing = .south }, .{ .powered = true, .facing = .north }, .{ .powered = true, .facing = .up }, undefined, undefined })));

@@ -16,7 +16,7 @@ const PlayerMove = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig")
 const Hitbox = @import("../math/Hitbox.zig");
 const Block = @import("../block/block.zig").Block;
 const RawBlockState = @import("../block/block.zig").RawBlockState;
-const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
+const FilteredBlockState = @import("../block/block.zig").BlockState;
 
 chunks: std.AutoHashMap(Vector2(i32), Chunk),
 player: LocalPlayerEntity,

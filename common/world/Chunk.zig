@@ -1,6 +1,6 @@
 const std = @import("std");
 const Section = @import("../world/Section.zig");
-const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
+const FilteredBlockState = @import("../block/block.zig").BlockState;
 
 sections: [16]?*Section,
 biomes: [256]u8,
