@@ -3,22 +3,19 @@ const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const Vector3 = @import("../../../../type/vector.zig").Vector3;
 const RawBlockState = @import("../../../../block/block.zig").RawBlockState;
-const FilteredBlockState = @import("../../../../block/block.zig").FilteredBlockState;
+const ConcreteBlockState = @import("../../../../block/block.zig").ConcreteBlockState;
 
 block_pos: Vector3(i32),
-state: FilteredBlockState,
+state: RawBlockState,
 
 comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
 
-    const block_pos = try buffer.readBlockPos();
-    const raw: RawBlockState = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
-
     return @This(){
-        .block_pos = block_pos,
-        .state = raw.toFiltered(),
+        .block_pos = try buffer.readBlockPos(),
+        .state = @bitCast(@as(u16, @intCast(try buffer.readVarInt()))),
     };
 }
 
@@ -26,7 +23,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     _ = allocator;
     switch (game.*) {
         .Ingame => |*ingame| {
-            ingame.world.setBlockState(self.block_pos, self.state);
+            ingame.world.setBlockState(self.block_pos, self.state.toFiltered().toConcrete());
         },
         else => unreachable,
     }

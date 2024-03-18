@@ -111,7 +111,7 @@ pub const HitResult = union(HitType) {
             };
 
             const block = world.getBlock(from_block_pos);
-            for (world.getBlockState(from_block_pos).toConcreteBlockState(world, from_block_pos).getRaytraceHitbox()) |hitbox| {
+            for (world.getBlockState(from_block_pos).getRaytraceHitbox()) |hitbox| {
                 if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
 
                 if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape

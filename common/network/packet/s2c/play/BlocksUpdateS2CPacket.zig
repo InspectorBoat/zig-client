@@ -20,8 +20,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
     for (updates) |*update| {
         const pos = try buffer.readPacked(packed struct { y: u8, z: u4, x: u4 });
         update.pos = .{ .x = pos.x, .y = pos.y, .z = pos.z };
-        const raw: RawBlockState = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
-        update.state = raw.toFiltered();
+        update.state = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
     }
 
     return @This(){
@@ -34,11 +33,14 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     switch (game.*) {
         .Ingame => |*ingame| {
             for (self.updates) |update| {
-                ingame.world.setBlockState(.{
-                    .x = self.chunk_pos.x * 16 + update.pos.x,
-                    .y = update.pos.y,
-                    .z = self.chunk_pos.z * 16 + update.pos.z,
-                }, update.state);
+                ingame.world.setBlockState(
+                    .{
+                        .x = self.chunk_pos.x * 16 + update.pos.x,
+                        .y = update.pos.y,
+                        .z = self.chunk_pos.z * 16 + update.pos.z,
+                    },
+                    update.state.toFiltered().toConcrete(),
+                );
             }
         },
         else => unreachable,
@@ -48,5 +50,5 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
 
 pub const BlockUpdate = struct {
     pos: Vector3(i32),
-    state: FilteredBlockState,
+    state: RawBlockState,
 };

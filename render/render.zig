@@ -161,7 +161,7 @@ pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void
                 for (0..16) |y| {
                     for (0..16) |z| {
                         const pos = (y << 8) | (z << 4) | (x << 0);
-                        if (section.block_states.get(pos).block != .air) {
+                        if (section.block_states[pos].block != .air) {
                             staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
                         }
                     }

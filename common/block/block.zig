@@ -241,7 +241,7 @@ pub const RawBlockState = packed struct(u16) {
 };
 
 // RawBlockState, but stipped of invalid states and converted into a sane format
-pub const FilteredBlockState = packed struct {
+pub const FilteredBlockState = packed struct(u12) {
     block: Block,
     properties: BlockProperties,
 
@@ -648,86 +648,11 @@ pub const FilteredBlockState = packed struct {
         dark_oak_door: dark_oak_door,
     };
 
-    pub fn toConcreteBlockState(self: @This(), world: World, block_pos: Vector3(i32)) ConcreteBlockState {
-        _ = world;
-        _ = block_pos;
-        // @setEvalBranchQuota(1000000);
-        // comptime var virtual = 0;
-        // inline for (@typeInfo(ConcreteBlockState).Union.fields) |block| {
-        //     const field_info = @typeInfo(block.type);
-        //     const virtual_properties = field_info.Struct.fields[0].type;
-        //     if (field_info == .Struct) {
-        //         if (comptime !std.mem.eql(u8, @typeInfo(virtual_properties).Struct.fields[0].name, "_")) {
-        //             @compileLog(block.name);
-        //             virtual += 1;
-        //             if (comptime std.mem.containsAtLeast(u8, block.name, 1, "stairs")) {
-        //                 virtual -= 1;
-        //             }
-        //             if (comptime std.mem.containsAtLeast(u8, block.name, 1, "fence")) {
-        //                 virtual -= 1;
-        //             }
-        //             if (comptime std.mem.containsAtLeast(u8, block.name, 1, "redstone_wire")) {
-        //                 virtual -= 1;
-        //             }
-        //         }
-        //     }
-        // }
-        // virtual += 2;
-        // @compileLog(virtual);
-        return switch (self.block) {
-            .grass => ConcreteBlockState.AIR,
-            .dirt => ConcreteBlockState.AIR,
-            .piston_head => ConcreteBlockState.AIR,
-            .fire => ConcreteBlockState.AIR,
-            .oak_stairs => ConcreteBlockState.AIR,
-            .chest => ConcreteBlockState.AIR,
-            .redstone_wire => ConcreteBlockState.AIR,
-            .stone_stairs => ConcreteBlockState.AIR,
-            .fence => ConcreteBlockState.AIR,
-            .unpowered_repeater => ConcreteBlockState.AIR,
-            .powered_repeater => ConcreteBlockState.AIR,
-            .iron_bars => ConcreteBlockState.AIR,
-            .glass_pane => ConcreteBlockState.AIR,
-            .pumpkin_stem => ConcreteBlockState.AIR,
-            .melon_stem => ConcreteBlockState.AIR,
-            .vine => ConcreteBlockState.AIR,
-            .fence_gate => ConcreteBlockState.AIR,
-            .brick_stairs => ConcreteBlockState.AIR,
-            .stone_brick_stairs => ConcreteBlockState.AIR,
-            .mycelium => ConcreteBlockState.AIR,
-            .nether_brick_fence => ConcreteBlockState.AIR,
-            .nether_brick_stairs => ConcreteBlockState.AIR,
-            .sandstone_stairs => ConcreteBlockState.AIR,
-            .tripwire_hook => ConcreteBlockState.AIR,
-            .tripwire => ConcreteBlockState.AIR,
-            .spruce_stairs => ConcreteBlockState.AIR,
-            .birch_stairs => ConcreteBlockState.AIR,
-            .jungle_stairs => ConcreteBlockState.AIR,
-            .cobblestone_wall => ConcreteBlockState.AIR,
-            .flower_pot => ConcreteBlockState.AIR,
-            .trapped_chest => ConcreteBlockState.AIR,
-            .quartz_stairs => ConcreteBlockState.AIR,
-            .stained_glass_pane => ConcreteBlockState.AIR,
-            .acacia_stairs => ConcreteBlockState.AIR,
-            .dark_oak_stairs => ConcreteBlockState.AIR,
-            .red_sandstone_stairs => ConcreteBlockState.AIR,
-            .spruce_fence_gate => ConcreteBlockState.AIR,
-            .birch_fence_gate => ConcreteBlockState.AIR,
-            .jungle_fence_gate => ConcreteBlockState.AIR,
-            .dark_oak_fence_gate => ConcreteBlockState.AIR,
-            .acacia_fence_gate => ConcreteBlockState.AIR,
-            .spruce_fence => ConcreteBlockState.AIR,
-            .birch_fence => ConcreteBlockState.AIR,
-            .jungle_fence => ConcreteBlockState.AIR,
-            .dark_oak_fence => ConcreteBlockState.AIR,
-            .acacia_fence => ConcreteBlockState.AIR,
-
-            else => |block| {
-                return .{
-                    .block = @enumFromInt(@intFromEnum(block)),
-                    .properties = .{ .raw_bits = .{ .virtual = 0, .stored = @bitCast(self.properties) } },
-                };
-            },
+    /// Casts to a concrete block state - DOES NOT resolve virtual states
+    pub fn toConcrete(self: @This()) ConcreteBlockState {
+        return .{
+            .block = @enumFromInt(@intFromEnum(self.block)),
+            .properties = .{ .raw_bits = .{ .virtual = 0, .stored = @bitCast(self.properties) } },
         };
     }
 };
@@ -959,7 +884,7 @@ pub const ConcreteBlock = enum(u8) {
 
 // FilteredBlockState, but with virtual properties resolved
 pub const ConcreteBlockState = packed struct(u16) {
-    const AIR: ConcreteBlockState = .{
+    pub const AIR: ConcreteBlockState = .{
         .block = .air,
         .properties = .{ .air = .{ .stored = .{} } },
     };
@@ -1832,6 +1757,61 @@ pub const ConcreteBlockState = packed struct(u16) {
 
     block: ConcreteBlock,
     properties: BlockProperties,
+
+    pub fn update(self: @This()) @This() {
+        switch (self.block) {
+            .grass => ConcreteBlockState.AIR,
+            .dirt => ConcreteBlockState.AIR,
+            .piston_head => ConcreteBlockState.AIR,
+            .fire => ConcreteBlockState.AIR,
+            .oak_stairs => ConcreteBlockState.AIR,
+            .chest => ConcreteBlockState.AIR,
+            .redstone_wire => ConcreteBlockState.AIR,
+            .stone_stairs => ConcreteBlockState.AIR,
+            .fence => ConcreteBlockState.AIR,
+            .unpowered_repeater => ConcreteBlockState.AIR,
+            .powered_repeater => ConcreteBlockState.AIR,
+            .iron_bars => ConcreteBlockState.AIR,
+            .glass_pane => ConcreteBlockState.AIR,
+            .pumpkin_stem => ConcreteBlockState.AIR,
+            .melon_stem => ConcreteBlockState.AIR,
+            .vine => ConcreteBlockState.AIR,
+            .fence_gate => ConcreteBlockState.AIR,
+            .brick_stairs => ConcreteBlockState.AIR,
+            .stone_brick_stairs => ConcreteBlockState.AIR,
+            .mycelium => ConcreteBlockState.AIR,
+            .nether_brick_fence => ConcreteBlockState.AIR,
+            .nether_brick_stairs => ConcreteBlockState.AIR,
+            .sandstone_stairs => ConcreteBlockState.AIR,
+            .tripwire_hook => ConcreteBlockState.AIR,
+            .tripwire => ConcreteBlockState.AIR,
+            .spruce_stairs => ConcreteBlockState.AIR,
+            .birch_stairs => ConcreteBlockState.AIR,
+            .jungle_stairs => ConcreteBlockState.AIR,
+            .cobblestone_wall => ConcreteBlockState.AIR,
+            .flower_pot => ConcreteBlockState.AIR,
+            .trapped_chest => ConcreteBlockState.AIR,
+            .quartz_stairs => ConcreteBlockState.AIR,
+            .stained_glass_pane => ConcreteBlockState.AIR,
+            .acacia_stairs => ConcreteBlockState.AIR,
+            .dark_oak_stairs => ConcreteBlockState.AIR,
+            .red_sandstone_stairs => ConcreteBlockState.AIR,
+            .spruce_fence_gate => ConcreteBlockState.AIR,
+            .birch_fence_gate => ConcreteBlockState.AIR,
+            .jungle_fence_gate => ConcreteBlockState.AIR,
+            .dark_oak_fence_gate => ConcreteBlockState.AIR,
+            .acacia_fence_gate => ConcreteBlockState.AIR,
+            .spruce_fence => ConcreteBlockState.AIR,
+            .birch_fence => ConcreteBlockState.AIR,
+            .jungle_fence => ConcreteBlockState.AIR,
+            .dark_oak_fence => ConcreteBlockState.AIR,
+            .acacia_fence => ConcreteBlockState.AIR,
+
+            else => {
+                return self;
+            },
+        }
+    }
 
     pub fn payload(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);

@@ -15,8 +15,10 @@ const PlayerMovePosition = @import("../network/packet/c2s/play/PlayerMoveC2SPack
 const PlayerMove = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig");
 const Hitbox = @import("../math/Hitbox.zig");
 const Block = @import("../block/block.zig").Block;
+const ConcreteBlock = @import("../block/block.zig").ConcreteBlock;
 const RawBlockState = @import("../block/block.zig").RawBlockState;
 const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
+const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
 
 chunks: std.AutoHashMap(Vector2(i32), Chunk),
 player: LocalPlayerEntity,
@@ -157,8 +159,8 @@ pub fn addEntity(self: *@This(), entity: Entity) !void {
     try self.entities.append(entity);
 }
 
-pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBlockState {
-    if (block_pos.y < 0 or block_pos.y > 255) return FilteredBlockState.AIR;
+pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlockState {
+    if (block_pos.y < 0 or block_pos.y > 255) return ConcreteBlockState.AIR;
 
     if (self.chunks.get(.{
         .x = @divFloor(block_pos.x, 16),
@@ -170,13 +172,13 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBloc
                 .y = @mod(block_pos.y, 16),
                 .z = @mod(block_pos.z, 16),
             };
-            return section.block_states.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0));
+            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
         }
     }
-    return FilteredBlockState.AIR;
+    return ConcreteBlockState.AIR;
 }
 
-pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
+pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
     if (self.chunks.get(.{
         .x = @divFloor(block_pos.x, 16),
         .z = @divFloor(block_pos.z, 16),
@@ -188,13 +190,13 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
                 .y = @mod(block_pos.y, 16),
                 .z = @mod(block_pos.z, 16),
             };
-            return section.block_states.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)).block;
+            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
         }
     }
     return .air;
 }
 
-pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: FilteredBlockState) void {
+pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: ConcreteBlockState) void {
     if (self.chunks.get(.{
         .x = @divFloor(block_pos.x, 16),
         .z = @divFloor(block_pos.z, 16),
@@ -205,10 +207,7 @@ pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: Filte
                 .y = @mod(block_pos.y, 16),
                 .z = @mod(block_pos.z, 16),
             };
-            section.block_states.set(
-                @intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0),
-                state,
-            );
+            section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
         } else {
             std.log.warn("TODO!", .{});
         }
