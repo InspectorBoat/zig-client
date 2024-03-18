@@ -20,7 +20,8 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
     for (updates) |*update| {
         const pos = try buffer.readPacked(packed struct { y: u8, z: u4, x: u4 });
         update.pos = .{ .x = pos.x, .y = pos.y, .z = pos.z };
-        update.state = RawBlockState.from_u16(@intCast(try buffer.readVarInt())).toFiltered();
+        const raw: RawBlockState = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
+        update.state = raw.toFiltered();
     }
 
     return @This(){

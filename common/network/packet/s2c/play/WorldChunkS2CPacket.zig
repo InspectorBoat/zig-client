@@ -59,12 +59,12 @@ pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, ful
                 chunk.sections[section_y] = try allocator.create(Section);
             }
             const section = chunk.sections[section_y].?;
-            const raw_data = @as(*align(1) const [4096]u16, @ptrCast(try chunk_data.buffer.readArrayNonAllocating(4096 * 2)));
+            const raw_data = @as(*align(1) const [4096]RawBlockState, @ptrCast(try chunk_data.buffer.readArrayNonAllocating(4096 * 2)));
             for (0..16) |y| {
                 for (0..16) |z| {
                     for (0..16) |x| {
                         const pos_index = (y << 8) | (z << 4) | (x << 0);
-                        section.block_states.set(pos_index, RawBlockState.from_u16(raw_data[pos_index]).toFiltered());
+                        section.block_states.set(pos_index, raw_data[pos_index].toFiltered());
                     }
                 }
             }

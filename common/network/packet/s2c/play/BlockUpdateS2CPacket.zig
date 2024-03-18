@@ -12,9 +12,13 @@ comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
+
+    const block_pos = try buffer.readBlockPos();
+    const raw: RawBlockState = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
+
     return @This(){
-        .block_pos = try buffer.readBlockPos(),
-        .state = RawBlockState.from_u16(@intCast(try buffer.readVarInt())).toFiltered(),
+        .block_pos = block_pos,
+        .state = raw.toFiltered(),
     };
 }
 

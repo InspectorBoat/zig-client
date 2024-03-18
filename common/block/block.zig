@@ -228,25 +228,14 @@ pub const Block = enum(u8) {
 // The raw bytes sent over
 pub const RawBlockState = packed struct(u16) {
     metadata: u4,
-    block: Block,
-    _: u4 = 0,
+    block: u12,
 
-    pub const AIR: @This() = .{ .block = .air, .metadata = 0 };
-
-    pub fn from_u16(block: u16) @This() {
-        const Intermediate = packed struct {
-            metadata: u4,
-            block: u12,
-        };
-        const intermediate = @as(Intermediate, @bitCast(block));
-        if (intermediate.block > 198) return AIR;
-        return @bitCast(block);
-    }
     pub fn toFiltered(self: @This()) FilteredBlockState {
-        if (!valid_metadata_table.get(self.block).isSet(self.metadata)) return .{ .block = .air, .properties = .{ .raw_bits = 0 } };
+        const block: Block = std.meta.intToEnum(Block, self.block) catch return FilteredBlockState.AIR;
+        if (!valid_metadata_table.get(block).isSet(self.metadata)) return FilteredBlockState.AIR;
         return .{
-            .block = self.block,
-            .properties = .{ .raw_bits = raw_to_filtered_conversion_table.get(self.block).get(self.metadata) },
+            .block = block,
+            .properties = .{ .raw_bits = metadata_conversion_table.get(block).get(self.metadata) },
         };
     }
 };
@@ -3457,7 +3446,7 @@ const valid_metadata_table = blk: {
 };
 
 /// converts metadata -> packed struct through lookup table
-const raw_to_filtered_conversion_table = blk: {
+const metadata_conversion_table = blk: {
     const bitCastArrayElements = struct {
         /// Casts an array of packed structs into an array of that packed struct's backing int
         fn bitCastArrayElements(comptime ElementType: type, comptime length: usize, array: [length]ElementType) [length]std.meta.Int(.unsigned, @bitSizeOf(ElementType)) {
