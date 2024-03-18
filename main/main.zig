@@ -15,7 +15,7 @@ pub fn main() !void {
     try network.init();
     defer network.deinit();
 
-    var game = Game{ .Idle = .{ .gpa = gpa } };
+    var game: Game = .{ .Idle = .{ .gpa = gpa } };
 
     var c2s_packet_alloc_impl = std.heap.GeneralPurposeAllocator(.{}){};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
