@@ -1,9 +1,9 @@
 const std = @import("std");
-const Vector3 = @import("../type/vector.zig").Vector3;
-const Rotation2 = @import("../type/rotation.zig").Rotation2;
+const Vector3 = @import("../math/vector.zig").Vector3;
+const Rotation2 = @import("../math/rotation.zig").Rotation2;
 const World = @import("../world/World.zig");
-const Direction = @import("../type/direction.zig").Direction;
-const Hitbox = @import("./Hitbox.zig");
+const Direction = @import("../math/direction.zig").Direction;
+const Box = @import("./box.zig").Box;
 
 pub const HitType = enum { block, entity, miss };
 
@@ -166,7 +166,7 @@ pub const HitResult = union(HitType) {
         return mid >= min and mid <= max;
     }
 
-    pub fn rayTraceHitbox(hitbox: Hitbox, from: Vector3(f64), to: Vector3(f64)) @This() {
+    pub fn rayTraceHitbox(hitbox: Box(f64), from: Vector3(f64), to: Vector3(f64)) @This() {
         const maybe_clip_min_x = interpolateToTargetX(from, to, hitbox.min.x);
         const maybe_clip_min_y = interpolateToTargetY(from, to, hitbox.min.y);
         const maybe_clip_min_z = interpolateToTargetZ(from, to, hitbox.min.z);

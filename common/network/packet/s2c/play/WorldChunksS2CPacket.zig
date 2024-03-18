@@ -1,7 +1,7 @@
 const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Vector2 = @import("../../../../type/vector.zig").Vector2;
+const Vector2 = @import("../../../../math/vector.zig").Vector2;
 const foo = @import("builtin");
 const WorldChunkS2CPacket = @import("../../../../network/packet/s2c/play/WorldChunkS2CPacket.zig");
 

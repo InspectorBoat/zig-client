@@ -5,10 +5,10 @@ const LivingEntityBase = @import("../living/LivingEntityBase.zig");
 const PlayerEntityBase = @import("./PlayerEntityBase.zig");
 const ItemStack = @import("../../../item/ItemStack.zig");
 const Game = @import("../../../game.zig").Game;
-const Vector2 = @import("../../../type/vector.zig").Vector2;
-const Vector3 = @import("../../../type/vector.zig").Vector3;
+const Vector2 = @import("../../../math/vector.zig").Vector2;
+const Vector3 = @import("../../../math/vector.zig").Vector3;
 const World = @import("../../../world/World.zig");
-const Rotation2 = @import("../../../type/rotation.zig").Rotation2;
+const Rotation2 = @import("../../../math/rotation.zig").Rotation2;
 const HitResult = @import("../../../math/hitresult.zig").HitResult;
 
 base: EntityBase,

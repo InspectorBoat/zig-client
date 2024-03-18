@@ -3,7 +3,7 @@ const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const ScaledVector = @import("../../../../network/type/scaled_vector.zig").ScaledVector;
 const ScaledRotation = @import("../../../../network/type/scaled_rotation.zig").ScaledRotation;
-const Uuid = @import("../../../../type/uuid.zig");
+const Uuid = @import("../../../../entity/Uuid.zig");
 const DataTracker = @import("../../../../entity/datatracker/DataTracker.zig");
 const EntityDataS2CPacket = @import("./EntityDataS2CPacket.zig");
 

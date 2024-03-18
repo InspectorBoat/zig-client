@@ -1,8 +1,8 @@
 const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Vector3 = @import("../../../../type/vector.zig").Vector3;
-const Rotation2 = @import("../../../../type/rotation.zig").Rotation2;
+const Vector3 = @import("../../../../math/vector.zig").Vector3;
+const Rotation2 = @import("../../../../math/rotation.zig").Rotation2;
 const PlayerMovePositionAndAngles = @import("../../../../network/packet/c2s/play/PlayerMoveC2SPacket.zig").PositionAndAngles;
 
 pos: Vector3(f64),

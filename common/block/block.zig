@@ -1,7 +1,7 @@
 const std = @import("std");
 const World = @import("../world/World.zig");
-const Vector3 = @import("../type/vector.zig").Vector3;
-const Hitbox = @import("../math/Hitbox.zig");
+const Vector3 = @import("../math/vector.zig").Vector3;
+const Box = @import("../math/box.zig").Box;
 
 // Requirements of system:
 // Looking up the raytrace hitboxes for a blockstate, which depends on virtual properties, must be fast
@@ -1821,17 +1821,17 @@ pub const ConcreteBlockState = packed struct(u16) {
         return @field(self.properties, @tagName(block));
     }
 
-    pub fn getRaytraceHitbox(self: @This()) [3]Hitbox {
-        const EMPTY: Hitbox = .{
+    pub fn getRaytraceHitbox(self: @This()) [3]Box(f64) {
+        const EMPTY: Box(f64) = .{
             .min = .{ .x = 0, .y = 0, .z = 0 },
             .max = .{ .x = 0, .y = 0, .z = 0 },
         };
-        const CUBE: Hitbox = .{
+        const CUBE: Box(f64) = .{
             .min = .{ .x = 0, .y = 0, .z = 0 },
             .max = .{ .x = 1, .y = 1, .z = 1 },
         };
-        const NONE: [3]Hitbox = .{ EMPTY, EMPTY, EMPTY };
-        const FULL: [3]Hitbox = .{ CUBE, EMPTY, EMPTY };
+        const NONE: [3]Box(f64) = .{ EMPTY, EMPTY, EMPTY };
+        const FULL: [3]Box(f64) = .{ CUBE, EMPTY, EMPTY };
         return switch (self.block) {
             .air => NONE,
             .stone => FULL,

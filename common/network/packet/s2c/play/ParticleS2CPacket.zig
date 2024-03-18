@@ -2,7 +2,7 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const ParticleType = @import("../../../../particle/particletype.zig").ParticleType;
-const Vector3 = @import("../../../../type/vector.zig").Vector3;
+const Vector3 = @import("../../../../math/vector.zig").Vector3;
 
 type: ParticleType,
 pos: Vector3(f32),

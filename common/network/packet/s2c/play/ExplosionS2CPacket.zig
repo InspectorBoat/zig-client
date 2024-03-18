@@ -2,7 +2,7 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const ScaledVector = @import("../../../../network/type/scaled_vector.zig").ScaledVector;
-const Vector3 = @import("../../../../type/vector.zig").Vector3;
+const Vector3 = @import("../../../../math/vector.zig").Vector3;
 
 pos: Vector3(f64),
 power: f32,

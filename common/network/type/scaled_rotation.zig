@@ -1,4 +1,4 @@
-const Rotation2 = @import("../../type/rotation.zig").Rotation2;
+const Rotation2 = @import("../../math/rotation.zig").Rotation2;
 
 pub fn ScaledRotation(comptime Element: type, comptime Factor: comptime_float) type {
     return struct {

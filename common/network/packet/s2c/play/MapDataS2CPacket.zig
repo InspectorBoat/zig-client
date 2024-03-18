@@ -2,7 +2,7 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const MapDecoration = @import("../../../../world/MapDecoration.zig");
-const Vector2 = @import("../../../../type/vector.zig").Vector2;
+const Vector2 = @import("../../../../math/vector.zig").Vector2;
 
 map_id: i32,
 scale: i8,

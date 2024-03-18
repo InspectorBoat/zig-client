@@ -1,7 +1,7 @@
 const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Vector3 = @import("../../../../type/vector.zig").Vector3;
+const Vector3 = @import("../../../../math/vector.zig").Vector3;
 const RawBlockState = @import("../../../../block/block.zig").RawBlockState;
 const ConcreteBlockState = @import("../../../../block/block.zig").ConcreteBlockState;
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 const WritePacketBuffer = @import("../../../../network/packet/WritePacketBuffer.zig");
-const Rotation2 = @import("../../../../type/rotation.zig").Rotation2;
-const Vector3 = @import("../../../../type/vector.zig").Vector3;
+const Rotation2 = @import("../../../../math/rotation.zig").Rotation2;
+const Vector3 = @import("../../../../math/vector.zig").Vector3;
 
 on_ground: bool,
 

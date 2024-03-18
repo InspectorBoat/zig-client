@@ -1,6 +1,6 @@
 const std = @import("std");
-const Vector2 = @import("../type/vector.zig").Vector2;
-const Vector3 = @import("../type/vector.zig").Vector3;
+const Vector2 = @import("../math/vector.zig").Vector2;
+const Vector3 = @import("../math/vector.zig").Vector3;
 const Chunk = @import("../world/Chunk.zig");
 const Game = @import("../game.zig").Game;
 const TickTimer = @import("../world/TickTimer.zig");
@@ -13,7 +13,7 @@ const Entity = @import("../entity/entity.zig").Entity;
 const PlayerMovePositionAndAngles = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig").PositionAndAngles;
 const PlayerMovePosition = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig").Position;
 const PlayerMove = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig");
-const Hitbox = @import("../math/Hitbox.zig");
+const Box = @import("../math/box.zig").Box;
 const Block = @import("../block/block.zig").Block;
 const ConcreteBlock = @import("../block/block.zig").ConcreteBlock;
 const RawBlockState = @import("../block/block.zig").RawBlockState;
@@ -85,7 +85,7 @@ pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bo
     });
 }
 
-pub fn getCollisionCount(self: *const @This(), hitbox: Hitbox) usize {
+pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
     var collisions_count: usize = 0;
     const min_pos: Vector3(i32) = .{
         .x = @intFromFloat(@floor(hitbox.min.x)),
@@ -112,8 +112,8 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Hitbox) usize {
     return collisions_count;
 }
 
-pub fn getCollisions(self: *const @This(), hitbox: Hitbox, allocator: std.mem.Allocator) ![]const Hitbox {
-    var collisions = std.ArrayList(Hitbox).init(allocator);
+pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.Allocator) ![]const Box(f64) {
+    var collisions = std.ArrayList(Box(f64)).init(allocator);
     const min_pos: Vector3(i32) = .{
         .x = @intFromFloat(@floor(hitbox.min.x)),
         .y = @intFromFloat(@floor(hitbox.min.y)),
@@ -131,7 +131,7 @@ pub fn getCollisions(self: *const @This(), hitbox: Hitbox, allocator: std.mem.Al
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
                 if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
-                    try collisions.append(Hitbox{
+                    try collisions.append(Box(f64){
                         .min = .{
                             .x = @floatFromInt(x),
                             .y = @floatFromInt(y),
@@ -217,7 +217,7 @@ pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: Concr
 }
 
 /// returns intersecting hitboxes originating from blocks
-pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Hitbox, allocator: std.mem.Allocator) []const Hitbox {
+pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator: std.mem.Allocator) []const Box(f64) {
     const min_pos = Vector3(i32){
         .x = @intFromFloat(hitbox.min.x),
         .y = @intFromFloat(hitbox.min.y),

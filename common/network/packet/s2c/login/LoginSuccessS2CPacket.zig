@@ -2,7 +2,7 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const Connection = @import("../../../../network/connection.zig").Connection;
-const Uuid = @import("../../../../type/Uuid.zig");
+const Uuid = @import("../../../../entity/Uuid.zig");
 
 uuid: Uuid,
 name: []const u8,

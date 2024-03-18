@@ -1,7 +1,7 @@
 const std = @import("std");
 const VarIntByte = @import("../../network/type/var_int_byte.zig").VarIntByte;
-const Vector3 = @import("../../type/vector.zig").Vector3;
-const Uuid = @import("../../type/Uuid.zig");
+const Vector3 = @import("../../math/vector.zig").Vector3;
+const Uuid = @import("../../entity/Uuid.zig");
 const ItemStack = @import("../../item/ItemStack.zig");
 
 /// A buffer to read incoming packet data (s2c)

@@ -1,8 +1,8 @@
 const std = @import("std");
 const VarIntByte = @import("../../network/type/var_int_byte.zig").VarIntByte;
-const Vector3 = @import("../../type/vector.zig").Vector3;
+const Vector3 = @import("../../math/vector.zig").Vector3;
 const ItemStack = @import("../../item/ItemStack.zig");
-const Uuid = @import("../../type/Uuid.zig");
+const Uuid = @import("../../entity/Uuid.zig");
 const ReadPacketBuffer = @import("./ReadPacketBuffer.zig");
 
 /// A buffer to write packet data (c2s)

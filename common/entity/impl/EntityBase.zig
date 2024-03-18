@@ -1,8 +1,8 @@
 const Entity = @import("../../entity/entity.zig").Entity;
 const Game = @import("../../game.zig").Game;
-const Hitbox = @import("../../math/Hitbox.zig");
-const Vector3 = @import("../../type/vector.zig").Vector3;
-const Rotation2 = @import("../../type/rotation.zig").Rotation2;
+const Box = @import("../../math/box.zig").Box;
+const Vector3 = @import("../../math/vector.zig").Vector3;
+const Rotation2 = @import("../../math/rotation.zig").Rotation2;
 const DataTracker = @import("../../entity/datatracker/DataTracker.zig");
 const std = @import("std");
 
@@ -21,7 +21,7 @@ colliding: struct {
 } = .{},
 fall_distance: f32 = 0,
 no_clip: bool = false,
-hitbox: Hitbox = .{ .min = .{ .x = 0, .y = 0, .z = 0 }, .max = .{ .x = 1, .y = 1, .z = 1 } },
+hitbox: Box(f64) = .{ .min = .{ .x = 0, .y = 0, .z = 0 }, .max = .{ .x = 1, .y = 1, .z = 1 } },
 
 vehicle: ?*Entity = null,
 
@@ -117,7 +117,7 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
     const initial_hitbox = self.hitbox;
     _ = initial_hitbox;
     // handle collisions
-    const possible_collisions: []const Hitbox = try game.world.getCollisions(self.hitbox.grow(initial_velocity), game.gpa);
+    const possible_collisions = try game.world.getCollisions(self.hitbox.grow(initial_velocity), game.gpa);
     defer game.gpa.free(possible_collisions);
     // move and collide on the y axis
     for (possible_collisions) |blocking_hitbox| {
@@ -174,7 +174,7 @@ pub fn fall(self: *@This(), on_ground: bool, distance: f64) void {
     }
 }
 
-pub fn getPositionFromHitbox(hitbox: Hitbox) Vector3(f64) {
+pub fn getPositionFromHitbox(hitbox: Box(f64)) Vector3(f64) {
     return .{
         .x = (hitbox.min.x + hitbox.max.x) / 2,
         .y = hitbox.min.y,

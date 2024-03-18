@@ -2,7 +2,7 @@ const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
 const Vector3 = @import("common").Vector3;
-const Hitbox = @import("common").Hitbox;
+const Box = @import("common").Box;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 
 vao: gl.VertexArray,
@@ -33,7 +33,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn renderBox(self: *@This(), box: Hitbox) void {
+pub fn renderBox(self: *@This(), box: Box(f64)) void {
     self.debug_cube_staging_buffer.writeBox(
         .{
             .x = @floatCast(box.min.x),

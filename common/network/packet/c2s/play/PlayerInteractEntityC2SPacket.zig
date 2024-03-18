@@ -1,6 +1,6 @@
 const std = @import("std");
 const WritePacketBuffer = @import("../../../../network/packet/WritePacketBuffer.zig");
-const Vector3 = @import("../../../../type/vector.zig").Vector3;
+const Vector3 = @import("../../../../math/vector.zig").Vector3;
 
 target_network_id: i32,
 action: Action,

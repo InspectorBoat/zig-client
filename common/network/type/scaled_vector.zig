@@ -1,5 +1,5 @@
 const std = @import("std");
-const Vector3 = @import("../../type/vector.zig").Vector3;
+const Vector3 = @import("../../math/vector.zig").Vector3;
 
 pub fn ScaledVector(comptime Element: type, comptime Factor: comptime_float) type {
     switch (@typeInfo(Element)) {
