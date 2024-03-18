@@ -660,71 +660,84 @@ pub const FilteredBlockState = packed struct {
     };
 
     pub fn toConcreteBlockState(self: @This(), world: World, block_pos: Vector3(i32)) ConcreteBlockState {
+        _ = world;
+        _ = block_pos;
+        // @setEvalBranchQuota(1000000);
         // comptime var virtual = 0;
-        // inline for (@typeInfo(BlockProperties).Union.fields) |block_property| {
-        //     const field_info = @typeInfo(block_property.type);
+        // inline for (@typeInfo(ConcreteBlockState).Union.fields) |block| {
+        //     const field_info = @typeInfo(block.type);
+        //     const virtual_properties = field_info.Struct.fields[0].type;
         //     if (field_info == .Struct) {
-        //         if (field_info.Struct.fields[0].type != u4) {
-        //             @compileLog(block_property.name);
+        //         if (comptime !std.mem.eql(u8, @typeInfo(virtual_properties).Struct.fields[0].name, "_")) {
+        //             @compileLog(block.name);
         //             virtual += 1;
+        //             if (comptime std.mem.containsAtLeast(u8, block.name, 1, "stairs")) {
+        //                 virtual -= 1;
+        //             }
+        //             if (comptime std.mem.containsAtLeast(u8, block.name, 1, "fence")) {
+        //                 virtual -= 1;
+        //             }
+        //             if (comptime std.mem.containsAtLeast(u8, block.name, 1, "redstone_wire")) {
+        //                 virtual -= 1;
+        //             }
         //         }
         //     }
         // }
+        // virtual += 2;
         // @compileLog(virtual);
         return switch (self.block) {
-            .grass => .{
-                .grass = .{
-                    .virtual = .{
-                        .snowy = blk: {
-                            const up = world.getBlock(block_pos.up());
-                            break :blk (up == .snow or up == .snow_layer);
-                        },
-                    },
-                    .stored = @bitCast(self.properties),
-                },
-            },
-            .dirt => .{
-                .dirt = .{
-                    .virtual = .{
-                        .snowy = blk: {
-                            const up = world.getBlock(block_pos.up());
-                            break :blk (self.properties.dirt.variant == .podzol) and (up == .snow or up == .snow_layer);
-                        },
-                    },
-                    .stored = @bitCast(self.properties),
-                },
-            },
-            // stairs
-            .fence => .{
-                .fence = .{
-                    .virtual = .{
-                        .west = blk: {
-                            const west = world.getBlock(block_pos.west());
-                            break :blk (west == .fence);
-                        },
-                        .south = blk: {
-                            const south = world.getBlock(block_pos.south());
-                            break :blk (south == .fence);
-                        },
-                        .north = blk: {
-                            const north = world.getBlock(block_pos.north());
-                            break :blk (north == .fence);
-                        },
-                        .east = blk: {
-                            const east = world.getBlock(block_pos.east());
-                            break :blk (east == .fence);
-                        },
-                    },
-                    .stored = @bitCast(self.properties),
-                },
-            },
+            .grass => ConcreteBlockState.AIR,
+            .dirt => ConcreteBlockState.AIR,
+            .piston_head => ConcreteBlockState.AIR,
+            .fire => ConcreteBlockState.AIR,
+            .oak_stairs => ConcreteBlockState.AIR,
+            .chest => ConcreteBlockState.AIR,
+            .redstone_wire => ConcreteBlockState.AIR,
+            .stone_stairs => ConcreteBlockState.AIR,
+            .fence => ConcreteBlockState.AIR,
+            .unpowered_repeater => ConcreteBlockState.AIR,
+            .powered_repeater => ConcreteBlockState.AIR,
+            .iron_bars => ConcreteBlockState.AIR,
+            .glass_pane => ConcreteBlockState.AIR,
+            .pumpkin_stem => ConcreteBlockState.AIR,
+            .melon_stem => ConcreteBlockState.AIR,
+            .vine => ConcreteBlockState.AIR,
+            .fence_gate => ConcreteBlockState.AIR,
+            .brick_stairs => ConcreteBlockState.AIR,
+            .stone_brick_stairs => ConcreteBlockState.AIR,
+            .mycelium => ConcreteBlockState.AIR,
+            .nether_brick_fence => ConcreteBlockState.AIR,
+            .nether_brick_stairs => ConcreteBlockState.AIR,
+            .sandstone_stairs => ConcreteBlockState.AIR,
+            .tripwire_hook => ConcreteBlockState.AIR,
+            .tripwire => ConcreteBlockState.AIR,
+            .spruce_stairs => ConcreteBlockState.AIR,
+            .birch_stairs => ConcreteBlockState.AIR,
+            .jungle_stairs => ConcreteBlockState.AIR,
+            .cobblestone_wall => ConcreteBlockState.AIR,
+            .flower_pot => ConcreteBlockState.AIR,
+            .trapped_chest => ConcreteBlockState.AIR,
+            .quartz_stairs => ConcreteBlockState.AIR,
+            .stained_glass_pane => ConcreteBlockState.AIR,
+            .acacia_stairs => ConcreteBlockState.AIR,
+            .dark_oak_stairs => ConcreteBlockState.AIR,
+            .red_sandstone_stairs => ConcreteBlockState.AIR,
+            .spruce_fence_gate => ConcreteBlockState.AIR,
+            .birch_fence_gate => ConcreteBlockState.AIR,
+            .jungle_fence_gate => ConcreteBlockState.AIR,
+            .dark_oak_fence_gate => ConcreteBlockState.AIR,
+            .acacia_fence_gate => ConcreteBlockState.AIR,
+            .spruce_fence => ConcreteBlockState.AIR,
+            .birch_fence => ConcreteBlockState.AIR,
+            .jungle_fence => ConcreteBlockState.AIR,
+            .dark_oak_fence => ConcreteBlockState.AIR,
+            .acacia_fence => ConcreteBlockState.AIR,
 
             else => |block| {
-                var state: ConcreteBlockState = .{ .air = .{ .stored = @bitCast(self.properties) } };
-                const tag: *Block = @ptrCast(&state);
-
-                tag.* = block;
-                return state;
+                return .{
+                    .block = @enumFromInt(@intFromEnum(block)),
+                    .properties = .{ .raw_bits = .{ .virtual = 0, .stored = @bitCast(self.properties) } },
+                };
             },
         };
     }
@@ -956,866 +969,888 @@ pub const ConcreteBlock = enum(u8) {
 };
 
 // FilteredBlockState, but with virtual properties resolved
-pub const ConcreteBlockState = union(ConcreteBlock) {
-    const BlockProperties = FilteredBlockState.BlockProperties;
-    air: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.air,
-    },
-    stone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stone,
-    },
-    grass: packed struct(u8) {
-        virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
-        stored: BlockProperties.grass,
-    },
-    dirt: packed struct(u8) {
-        virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
-        stored: BlockProperties.dirt,
-    },
-    cobblestone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.cobblestone,
-    },
-    planks: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.planks,
-    },
-    sapling: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.sapling,
-    },
-    bedrock: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.bedrock,
-    },
-    flowing_water: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.flowing_water,
-    },
-    water: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.water,
-    },
-    flowing_lava: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.flowing_lava,
-    },
-    lava: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lava,
-    },
-    sand: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.sand,
-    },
-    gravel: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.gravel,
-    },
-    gold_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.gold_ore,
-    },
-    iron_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.iron_ore,
-    },
-    coal_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.coal_ore,
-    },
-    log: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.log,
-    },
-    leaves: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.leaves,
-    },
-    sponge: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.sponge,
-    },
-    glass: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.glass,
-    },
-    lapis_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lapis_ore,
-    },
-    lapis_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lapis_block,
-    },
-    dispenser: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.dispenser,
-    },
-    sandstone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.sandstone,
-    },
-    noteblock: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.noteblock,
-    },
-    bed: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.bed,
-    },
-    golden_rail: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.golden_rail,
-    },
-    detector_rail: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.detector_rail,
-    },
-    sticky_piston: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.sticky_piston,
-    },
-    web: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.web,
-    },
-    tallgrass: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.tallgrass,
-    },
-    deadbush: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.deadbush,
-    },
-    piston: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.piston,
-    },
-    piston_head: packed struct(u8) {
-        virtual: packed struct(u4) { short: bool, _: u3 = 0 },
-        stored: BlockProperties.piston_head,
-    },
-    wool: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wool,
-    },
-    piston_extension: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.piston_extension,
-    },
-    yellow_flower: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.yellow_flower,
-    },
-    red_flower: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.red_flower,
-    },
-    brown_mushroom: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.brown_mushroom,
-    },
-    red_mushroom: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.red_mushroom,
-    },
-    gold_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.gold_block,
-    },
-    iron_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.iron_block,
-    },
-    double_stone_slab: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.double_stone_slab,
-    },
-    stone_slab: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stone_slab,
-    },
-    brick_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.brick_block,
-    },
-    tnt: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.tnt,
-    },
-    bookshelf: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.bookshelf,
-    },
-    mossy_cobblestone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.mossy_cobblestone,
-    },
-    obsidian: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.obsidian,
-    },
-    torch: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.torch,
-    },
+pub const ConcreteBlockState = packed struct(u16) {
+    const AIR: ConcreteBlockState = .{
+        .block = .air,
+        .properties = .{ .air = .{ .stored = .{} } },
+    };
 
-    /// This block is split due to virtual blockstates not fitting into 4 bits.
-    /// See fire_upper
-    fire: packed struct(u8) { // TODO: Split
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.fire,
-    },
+    const BlockProperties = packed union {
+        const StoredBlockProperties = FilteredBlockState.BlockProperties;
+        raw_bits: packed struct(u8) {
+            virtual: u4,
+            stored: u4,
+        },
+        air: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.air,
+        },
+        stone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stone,
+        },
+        grass: packed struct(u8) {
+            virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.grass,
+        },
+        dirt: packed struct(u8) {
+            virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.dirt,
+        },
+        cobblestone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.cobblestone,
+        },
+        planks: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.planks,
+        },
+        sapling: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.sapling,
+        },
+        bedrock: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.bedrock,
+        },
+        flowing_water: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.flowing_water,
+        },
+        water: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.water,
+        },
+        flowing_lava: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.flowing_lava,
+        },
+        lava: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lava,
+        },
+        sand: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.sand,
+        },
+        gravel: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.gravel,
+        },
+        gold_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.gold_ore,
+        },
+        iron_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.iron_ore,
+        },
+        coal_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.coal_ore,
+        },
+        log: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.log,
+        },
+        leaves: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.leaves,
+        },
+        sponge: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.sponge,
+        },
+        glass: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.glass,
+        },
+        lapis_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lapis_ore,
+        },
+        lapis_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lapis_block,
+        },
+        dispenser: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.dispenser,
+        },
+        sandstone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.sandstone,
+        },
+        noteblock: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.noteblock,
+        },
+        bed: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.bed,
+        },
+        golden_rail: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.golden_rail,
+        },
+        detector_rail: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.detector_rail,
+        },
+        sticky_piston: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.sticky_piston,
+        },
+        web: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.web,
+        },
+        tallgrass: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.tallgrass,
+        },
+        deadbush: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.deadbush,
+        },
+        piston: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.piston,
+        },
+        piston_head: packed struct(u8) {
+            virtual: packed struct(u4) { short: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.piston_head,
+        },
+        wool: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wool,
+        },
+        piston_extension: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.piston_extension,
+        },
+        yellow_flower: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.yellow_flower,
+        },
+        red_flower: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.red_flower,
+        },
+        brown_mushroom: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.brown_mushroom,
+        },
+        red_mushroom: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.red_mushroom,
+        },
+        gold_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.gold_block,
+        },
+        iron_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.iron_block,
+        },
+        double_stone_slab: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.double_stone_slab,
+        },
+        stone_slab: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stone_slab,
+        },
+        brick_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.brick_block,
+        },
+        tnt: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.tnt,
+        },
+        bookshelf: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.bookshelf,
+        },
+        mossy_cobblestone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.mossy_cobblestone,
+        },
+        obsidian: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.obsidian,
+        },
+        torch: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.torch,
+        },
 
-    mob_spawner: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.mob_spawner,
-    },
-    oak_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.oak_stairs,
-    },
-    chest: packed struct(u8) {
-        virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 } = .{},
-        stored: BlockProperties.chest,
-    },
+        /// This block is split due to virtual blockstates not fitting into 4 bits.
+        /// See fire_upper
+        fire: packed struct(u8) { // TODO: Split
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.fire,
+        },
 
-    /// This block is split due to virtual blockstates not fitting into 4 bits.
-    /// See the following:
-    ///                           redstone_wire_none_flat,  redstone_wire_none_upper,
-    /// redstone_wire_flat_none,  redstone_wire_flat_flat,  redstone_wire_flat_upper,
-    /// redstone_wire_upper_none, redstone_wire_upper_flat, redstone_wire_upper_upper
-    redstone_wire: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
+        mob_spawner: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.mob_spawner,
+        },
+        oak_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.oak_stairs,
+        },
+        chest: packed struct(u8) {
+            virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 },
+            stored: StoredBlockProperties.chest,
+        },
 
-    diamond_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.diamond_ore,
-    },
-    diamond_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.diamond_block,
-    },
-    crafting_table: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.crafting_table,
-    },
-    wheat: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wheat,
-    },
-    farmland: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.farmland,
-    },
-    furnace: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.furnace,
-    },
-    lit_furnace: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lit_furnace,
-    },
-    standing_sign: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.standing_sign,
-    },
-    wooden_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wooden_door,
-    },
-    ladder: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.ladder,
-    },
-    rail: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.rail,
-    },
-    stone_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.stone_stairs,
-    },
-    wall_sign: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wall_sign,
-    },
-    lever: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lever,
-    },
-    stone_pressure_plate: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stone_pressure_plate,
-    },
-    iron_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.iron_door,
-    },
-    wooden_pressure_plate: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wooden_pressure_plate,
-    },
-    redstone_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.redstone_ore,
-    },
-    lit_redstone_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lit_redstone_ore,
-    },
-    unlit_redstone_torch: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.unlit_redstone_torch,
-    },
-    redstone_torch: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.redstone_torch,
-    },
-    stone_button: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stone_button,
-    },
-    snow_layer: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.snow_layer,
-    },
-    ice: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.ice,
-    },
-    snow: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.snow,
-    },
-    cactus: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.cactus,
-    },
-    clay: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.clay,
-    },
-    reeds: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.reeds,
-    },
-    jukebox: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.jukebox,
-    },
-    fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.fence,
-    },
-    pumpkin: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.pumpkin,
-    },
-    netherrack: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.netherrack,
-    },
-    soul_sand: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.soul_sand,
-    },
-    glowstone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.glowstone,
-    },
-    portal: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.portal,
-    },
-    lit_pumpkin: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lit_pumpkin,
-    },
-    cake: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.cake,
-    },
-    unpowered_repeater: packed struct(u8) {
-        virtual: packed struct(u4) { locked: bool, _: u3 = 0 },
-        stored: BlockProperties.unpowered_repeater,
-    },
-    powered_repeater: packed struct(u8) {
-        virtual: packed struct(u4) { locked: bool, _: u3 = 0 },
-        stored: BlockProperties.powered_repeater,
-    },
-    stained_glass: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stained_glass,
-    },
-    trapdoor: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.trapdoor,
-    },
-    monster_egg: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.monster_egg,
-    },
-    stonebrick: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stonebrick,
-    },
-    brown_mushroom_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.brown_mushroom_block,
-    },
-    red_mushroom_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.red_mushroom_block,
-    },
-    iron_bars: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.iron_bars,
-    },
-    glass_pane: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.glass_pane,
-    },
-    melon_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.melon_block,
-    },
-    pumpkin_stem: packed struct(u8) {
-        virtual: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
-        stored: BlockProperties.pumpkin_stem,
-    },
-    melon_stem: packed struct(u8) {
-        virtual: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
-        stored: BlockProperties.melon_stem,
-    },
-    vine: packed struct(u8) {
-        virtual: packed struct(u4) { up: bool, _: u3 = 0 },
-        stored: BlockProperties.vine,
-    },
-    fence_gate: packed struct(u8) {
-        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
-        stored: BlockProperties.fence_gate,
-    },
-    brick_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.brick_stairs,
-    },
-    stone_brick_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.stone_brick_stairs,
-    },
-    mycelium: packed struct(u8) {
-        virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
-        stored: BlockProperties.mycelium,
-    },
-    waterlily: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.waterlily,
-    },
-    nether_brick: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.nether_brick,
-    },
-    nether_brick_fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.nether_brick_fence,
-    },
-    nether_brick_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.nether_brick_stairs,
-    },
-    nether_wart: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.nether_wart,
-    },
-    enchanting_table: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.enchanting_table,
-    },
-    brewing_stand: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.brewing_stand,
-    },
-    cauldron: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.cauldron,
-    },
-    end_portal: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.end_portal,
-    },
-    end_portal_frame: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.end_portal_frame,
-    },
-    end_stone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.end_stone,
-    },
-    dragon_egg: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.dragon_egg,
-    },
-    redstone_lamp: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.redstone_lamp,
-    },
-    lit_redstone_lamp: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.lit_redstone_lamp,
-    },
-    double_wooden_slab: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.double_wooden_slab,
-    },
-    wooden_slab: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wooden_slab,
-    },
-    cocoa: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.cocoa,
-    },
-    sandstone_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.sandstone_stairs,
-    },
-    emerald_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.emerald_ore,
-    },
-    ender_chest: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.ender_chest,
-    },
-    tripwire_hook: packed struct(u8) {
-        virtual: packed struct(u4) { suspended: bool, _: u3 = 0 },
-        stored: BlockProperties.tripwire_hook,
-    },
-    tripwire: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.tripwire,
-    },
-    emerald_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.emerald_block,
-    },
-    spruce_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.spruce_stairs,
-    },
-    birch_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.birch_stairs,
-    },
-    jungle_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.jungle_stairs,
-    },
-    command_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.command_block,
-    },
-    beacon: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.beacon,
-    },
+        /// This block is split due to virtual blockstates not fitting into 4 bits.
+        /// See the following:
+        ///                           redstone_wire_none_flat,  redstone_wire_none_upper,
+        /// redstone_wire_flat_none,  redstone_wire_flat_flat,  redstone_wire_flat_upper,
+        /// redstone_wire_upper_none, redstone_wire_upper_flat, redstone_wire_upper_upper
+        redstone_wire: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
 
-    /// This block is split due to virtual blockstates not fitting into 4 bits.
-    /// See cobblestone_wall_upper
-    cobblestone_wall: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.cobblestone_wall,
-    },
+        diamond_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.diamond_ore,
+        },
+        diamond_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.diamond_block,
+        },
+        crafting_table: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.crafting_table,
+        },
+        wheat: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wheat,
+        },
+        farmland: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.farmland,
+        },
+        furnace: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.furnace,
+        },
+        lit_furnace: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lit_furnace,
+        },
+        standing_sign: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.standing_sign,
+        },
+        wooden_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wooden_door,
+        },
+        ladder: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.ladder,
+        },
+        rail: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.rail,
+        },
+        stone_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.stone_stairs,
+        },
+        wall_sign: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wall_sign,
+        },
+        lever: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lever,
+        },
+        stone_pressure_plate: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stone_pressure_plate,
+        },
+        iron_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.iron_door,
+        },
+        wooden_pressure_plate: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wooden_pressure_plate,
+        },
+        redstone_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.redstone_ore,
+        },
+        lit_redstone_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lit_redstone_ore,
+        },
+        unlit_redstone_torch: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.unlit_redstone_torch,
+        },
+        redstone_torch: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.redstone_torch,
+        },
+        stone_button: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stone_button,
+        },
+        snow_layer: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.snow_layer,
+        },
+        ice: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.ice,
+        },
+        snow: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.snow,
+        },
+        cactus: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.cactus,
+        },
+        clay: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.clay,
+        },
+        reeds: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.reeds,
+        },
+        jukebox: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.jukebox,
+        },
+        fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.fence,
+        },
+        pumpkin: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.pumpkin,
+        },
+        netherrack: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.netherrack,
+        },
+        soul_sand: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.soul_sand,
+        },
+        glowstone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.glowstone,
+        },
+        portal: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.portal,
+        },
+        lit_pumpkin: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lit_pumpkin,
+        },
+        cake: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.cake,
+        },
+        unpowered_repeater: packed struct(u8) {
+            virtual: packed struct(u4) { locked: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.unpowered_repeater,
+        },
+        powered_repeater: packed struct(u8) {
+            virtual: packed struct(u4) { locked: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.powered_repeater,
+        },
+        stained_glass: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stained_glass,
+        },
+        trapdoor: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.trapdoor,
+        },
+        monster_egg: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.monster_egg,
+        },
+        stonebrick: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stonebrick,
+        },
+        brown_mushroom_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.brown_mushroom_block,
+        },
+        red_mushroom_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.red_mushroom_block,
+        },
+        iron_bars: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.iron_bars,
+        },
+        glass_pane: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.glass_pane,
+        },
+        melon_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.melon_block,
+        },
+        pumpkin_stem: packed struct(u8) {
+            virtual: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
+            stored: StoredBlockProperties.pumpkin_stem,
+        },
+        melon_stem: packed struct(u8) {
+            virtual: packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 },
+            stored: StoredBlockProperties.melon_stem,
+        },
+        vine: packed struct(u8) {
+            virtual: packed struct(u4) { up: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.vine,
+        },
+        fence_gate: packed struct(u8) {
+            virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.fence_gate,
+        },
+        brick_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.brick_stairs,
+        },
+        stone_brick_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.stone_brick_stairs,
+        },
+        mycelium: packed struct(u8) {
+            virtual: packed struct(u4) { snowy: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.mycelium,
+        },
+        waterlily: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.waterlily,
+        },
+        nether_brick: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.nether_brick,
+        },
+        nether_brick_fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.nether_brick_fence,
+        },
+        nether_brick_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.nether_brick_stairs,
+        },
+        nether_wart: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.nether_wart,
+        },
+        enchanting_table: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.enchanting_table,
+        },
+        brewing_stand: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.brewing_stand,
+        },
+        cauldron: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.cauldron,
+        },
+        end_portal: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.end_portal,
+        },
+        end_portal_frame: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.end_portal_frame,
+        },
+        end_stone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.end_stone,
+        },
+        dragon_egg: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.dragon_egg,
+        },
+        redstone_lamp: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.redstone_lamp,
+        },
+        lit_redstone_lamp: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.lit_redstone_lamp,
+        },
+        double_wooden_slab: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.double_wooden_slab,
+        },
+        wooden_slab: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wooden_slab,
+        },
+        cocoa: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.cocoa,
+        },
+        sandstone_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.sandstone_stairs,
+        },
+        emerald_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.emerald_ore,
+        },
+        ender_chest: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.ender_chest,
+        },
+        tripwire_hook: packed struct(u8) {
+            virtual: packed struct(u4) { suspended: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.tripwire_hook,
+        },
+        tripwire: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.tripwire,
+        },
+        emerald_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.emerald_block,
+        },
+        spruce_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.spruce_stairs,
+        },
+        birch_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.birch_stairs,
+        },
+        jungle_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.jungle_stairs,
+        },
+        command_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.command_block,
+        },
+        beacon: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.beacon,
+        },
 
-    /// This block is split due to virtual blockstates not fitting into 4 bits.
-    /// See flower_pot_2
-    flower_pot: packed struct(u8) {
-        virtual: packed struct(u4) { contents: enum { empty, poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy, dandelion, oak_sapling, spruce_sapling, birch_sapling, jungle_sapling, acacia_sapling } },
-        stored: BlockProperties.flower_pot,
-    },
+        /// This block is split due to virtual blockstates not fitting into 4 bits.
+        /// See cobblestone_wall_upper
+        cobblestone_wall: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.cobblestone_wall,
+        },
 
-    carrots: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.carrots,
-    },
-    potatoes: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.potatoes,
-    },
-    wooden_button: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wooden_button,
-    },
-    skull: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.skull,
-    },
-    anvil: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.anvil,
-    },
-    trapped_chest: packed struct(u8) {
-        virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 } = .{},
-        stored: BlockProperties.trapped_chest,
-    },
-    light_weighted_pressure_plate: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.light_weighted_pressure_plate,
-    },
-    heavy_weighted_pressure_plate: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.heavy_weighted_pressure_plate,
-    },
-    unpowered_comparator: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.unpowered_comparator,
-    },
-    powered_comparator: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.powered_comparator,
-    },
-    daylight_detector: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.daylight_detector,
-    },
-    redstone_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.redstone_block,
-    },
-    quartz_ore: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.quartz_ore,
-    },
-    hopper: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.hopper,
-    },
-    quartz_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.quartz_block,
-    },
-    quartz_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.quartz_stairs,
-    },
-    activator_rail: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.activator_rail,
-    },
-    dropper: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.dropper,
-    },
-    stained_hardened_clay: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stained_hardened_clay,
-    },
-    stained_glass_pane: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.stained_glass_pane,
-    },
-    leaves2: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.leaves2,
-    },
-    log2: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.log2,
-    },
-    acacia_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.acacia_stairs,
-    },
-    dark_oak_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.dark_oak_stairs,
-    },
-    slime: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.slime,
-    },
-    barrier: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.barrier,
-    },
-    iron_trapdoor: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.iron_trapdoor,
-    },
-    prismarine: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.prismarine,
-    },
-    sea_lantern: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.sea_lantern,
-    },
-    hay_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.hay_block,
-    },
-    carpet: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.carpet,
-    },
-    hardened_clay: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.hardened_clay,
-    },
-    coal_block: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.coal_block,
-    },
-    packed_ice: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.packed_ice,
-    },
-    double_plant: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.double_plant,
-    },
-    standing_banner: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.standing_banner,
-    },
-    wall_banner: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.wall_banner,
-    },
-    daylight_detector_inverted: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.daylight_detector_inverted,
-    },
-    red_sandstone: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.red_sandstone,
-    },
-    red_sandstone_stairs: packed struct(u8) {
-        virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
-        stored: BlockProperties.red_sandstone_stairs,
-    },
-    double_stone_slab2: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.double_stone_slab2,
-    },
-    stone_slab2: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.stone_slab2,
-    },
-    spruce_fence_gate: packed struct(u8) {
-        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
-        stored: BlockProperties.spruce_fence_gate,
-    },
-    birch_fence_gate: packed struct(u8) {
-        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
-        stored: BlockProperties.birch_fence_gate,
-    },
-    jungle_fence_gate: packed struct(u8) {
-        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
-        stored: BlockProperties.jungle_fence_gate,
-    },
-    dark_oak_fence_gate: packed struct(u8) {
-        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
-        stored: BlockProperties.dark_oak_fence_gate,
-    },
-    acacia_fence_gate: packed struct(u8) {
-        virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
-        stored: BlockProperties.acacia_fence_gate,
-    },
-    spruce_fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.spruce_fence,
-    },
-    birch_fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.birch_fence,
-    },
-    jungle_fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.jungle_fence,
-    },
-    dark_oak_fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.dark_oak_fence,
-    },
-    acacia_fence: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.acacia_fence,
-    },
-    spruce_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.spruce_door,
-    },
-    birch_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.birch_door,
-    },
-    jungle_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.jungle_door,
-    },
-    acacia_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.acacia_door,
-    },
-    dark_oak_door: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.dark_oak_door,
-    },
+        /// This block is split due to virtual blockstates not fitting into 4 bits.
+        /// See flower_pot_2
+        flower_pot: packed struct(u8) {
+            virtual: packed struct(u4) { contents: enum { empty, poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy, dandelion, oak_sapling, spruce_sapling, birch_sapling, jungle_sapling, acacia_sapling } },
+            stored: StoredBlockProperties.flower_pot,
+        },
 
-    fire_upper: packed struct(u8) {
-        virtual: packed struct(u4) { _: u4 = 0 } = .{},
-        stored: BlockProperties.fire,
-    },
+        carrots: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.carrots,
+        },
+        potatoes: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.potatoes,
+        },
+        wooden_button: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wooden_button,
+        },
+        skull: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.skull,
+        },
+        anvil: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.anvil,
+        },
+        trapped_chest: packed struct(u8) {
+            virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 },
+            stored: StoredBlockProperties.trapped_chest,
+        },
+        light_weighted_pressure_plate: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.light_weighted_pressure_plate,
+        },
+        heavy_weighted_pressure_plate: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.heavy_weighted_pressure_plate,
+        },
+        unpowered_comparator: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.unpowered_comparator,
+        },
+        powered_comparator: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.powered_comparator,
+        },
+        daylight_detector: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.daylight_detector,
+        },
+        redstone_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.redstone_block,
+        },
+        quartz_ore: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.quartz_ore,
+        },
+        hopper: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.hopper,
+        },
+        quartz_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.quartz_block,
+        },
+        quartz_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.quartz_stairs,
+        },
+        activator_rail: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.activator_rail,
+        },
+        dropper: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.dropper,
+        },
+        stained_hardened_clay: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stained_hardened_clay,
+        },
+        stained_glass_pane: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.stained_glass_pane,
+        },
+        leaves2: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.leaves2,
+        },
+        log2: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.log2,
+        },
+        acacia_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.acacia_stairs,
+        },
+        dark_oak_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.dark_oak_stairs,
+        },
+        slime: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.slime,
+        },
+        barrier: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.barrier,
+        },
+        iron_trapdoor: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.iron_trapdoor,
+        },
+        prismarine: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.prismarine,
+        },
+        sea_lantern: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.sea_lantern,
+        },
+        hay_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.hay_block,
+        },
+        carpet: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.carpet,
+        },
+        hardened_clay: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.hardened_clay,
+        },
+        coal_block: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.coal_block,
+        },
+        packed_ice: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.packed_ice,
+        },
+        double_plant: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.double_plant,
+        },
+        standing_banner: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.standing_banner,
+        },
+        wall_banner: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.wall_banner,
+        },
+        daylight_detector_inverted: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.daylight_detector_inverted,
+        },
+        red_sandstone: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.red_sandstone,
+        },
+        red_sandstone_stairs: packed struct(u8) {
+            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            stored: StoredBlockProperties.red_sandstone_stairs,
+        },
+        double_stone_slab2: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.double_stone_slab2,
+        },
+        stone_slab2: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.stone_slab2,
+        },
+        spruce_fence_gate: packed struct(u8) {
+            virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.spruce_fence_gate,
+        },
+        birch_fence_gate: packed struct(u8) {
+            virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.birch_fence_gate,
+        },
+        jungle_fence_gate: packed struct(u8) {
+            virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.jungle_fence_gate,
+        },
+        dark_oak_fence_gate: packed struct(u8) {
+            virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.dark_oak_fence_gate,
+        },
+        acacia_fence_gate: packed struct(u8) {
+            virtual: packed struct(u4) { in_wall: bool, _: u3 = 0 },
+            stored: StoredBlockProperties.acacia_fence_gate,
+        },
+        spruce_fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.spruce_fence,
+        },
+        birch_fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.birch_fence,
+        },
+        jungle_fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.jungle_fence,
+        },
+        dark_oak_fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.dark_oak_fence,
+        },
+        acacia_fence: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.acacia_fence,
+        },
+        spruce_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.spruce_door,
+        },
+        birch_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.birch_door,
+        },
+        jungle_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.jungle_door,
+        },
+        acacia_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.acacia_door,
+        },
+        dark_oak_door: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.dark_oak_door,
+        },
 
-    redstone_wire_none_flat: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_none_upper: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_flat_none: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_flat_flat: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_flat_upper: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_upper_none: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_upper_flat: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
-    redstone_wire_upper_upper: packed struct(u8) {
-        virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
-        stored: BlockProperties.redstone_wire,
-    },
+        fire_upper: packed struct(u8) {
+            virtual: packed struct(u4) { _: u4 = 0 } = .{},
+            stored: StoredBlockProperties.fire,
+        },
 
-    cobblestone_wall_upper: packed struct(u8) {
-        virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
-        stored: BlockProperties.cobblestone_wall,
-    },
+        redstone_wire_none_flat: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_none_upper: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_flat_none: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_flat_flat: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_flat_upper: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_upper_none: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_upper_flat: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
+        redstone_wire_upper_upper: packed struct(u8) {
+            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            stored: StoredBlockProperties.redstone_wire,
+        },
 
-    flower_pot_2: packed struct(u8) {
-        virtual: packed struct(u4) { contents: enum { dark_oak_sapling, mushroom_red, mushroom_brown, dead_bush, fern, cactus }, _: u1 = 0 },
-        stored: BlockProperties.flower_pot,
-    },
+        cobblestone_wall_upper: packed struct(u8) {
+            virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
+            stored: StoredBlockProperties.cobblestone_wall,
+        },
+
+        flower_pot_2: packed struct(u8) {
+            virtual: packed struct(u4) { contents: enum { dark_oak_sapling, mushroom_red, mushroom_brown, dead_bush, fern, cactus }, _: u1 = 0 },
+            stored: StoredBlockProperties.flower_pot,
+        },
+    };
+
+    block: ConcreteBlock,
+    properties: BlockProperties,
+
+    pub fn payload(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
+        std.debug.assert(self.block == block);
+        return @field(self.properties, @tagName(block));
+    }
+    pub fn payloadUnchecked(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
+        return @field(self.properties, @tagName(block));
+    }
 
     pub fn getRaytraceHitbox(self: @This()) [3]Hitbox {
         const EMPTY: Hitbox = .{
@@ -1828,7 +1863,7 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
         };
         const NONE: [3]Hitbox = .{ EMPTY, EMPTY, EMPTY };
         const FULL: [3]Hitbox = .{ CUBE, EMPTY, EMPTY };
-        return switch (self) {
+        return switch (self.block) {
             .air => NONE,
             .stone => FULL,
             .grass => FULL,
@@ -1870,51 +1905,60 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
                 EMPTY,
             },
-            .golden_rail => |golden_rail| .{
-                .{
-                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                    .max = .{ .x = 1.0, .y = if (golden_rail.stored.shape == .ascending_east or golden_rail.stored.shape == .ascending_north or golden_rail.stored.shape == .ascending_south or golden_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
-                },
-                EMPTY,
-                EMPTY,
+            .golden_rail => {
+                const golden_rail = self.payload(.golden_rail);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = if (golden_rail.stored.shape == .ascending_east or golden_rail.stored.shape == .ascending_north or golden_rail.stored.shape == .ascending_south or golden_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .detector_rail => |detector_rail| .{
-                .{
-                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                    .max = .{ .x = 1.0, .y = if (detector_rail.stored.shape == .ascending_east or detector_rail.stored.shape == .ascending_north or detector_rail.stored.shape == .ascending_south or detector_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
-                },
-                EMPTY,
-                EMPTY,
+            .detector_rail => {
+                const detector_rail = self.payload(.detector_rail);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = if (detector_rail.stored.shape == .ascending_east or detector_rail.stored.shape == .ascending_north or detector_rail.stored.shape == .ascending_south or detector_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .sticky_piston => |sticky_piston| .{
-                if (sticky_piston.stored.extended) switch (sticky_piston.stored.facing) {
-                    .down => .{
-                        .min = .{ .x = 0.0, .y = 0.25, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .up => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.75, .z = 1.0 },
-                    },
-                    .north => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.25 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.75 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
-                    },
-                } else CUBE,
-                EMPTY,
-                EMPTY,
+            .sticky_piston => {
+                const sticky_piston = self.payload(.sticky_piston);
+                return .{
+                    if (sticky_piston.stored.extended) switch (sticky_piston.stored.facing) {
+                        .down => .{
+                            .min = .{ .x = 0.0, .y = 0.25, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .up => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.75, .z = 1.0 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.25 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.75 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.25, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
+                        },
+                    } else CUBE,
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .web => FULL,
             .tallgrass => .{
@@ -1933,65 +1977,71 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
                 EMPTY,
             },
-            .piston => |piston| .{
-                if (piston.stored.extended) switch (piston.stored.facing) {
-                    .down => .{
-                        .min = .{ .x = 0.0, .y = 0.25, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .up => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.75, .z = 1.0 },
-                    },
-                    .north => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.25 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.75 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
-                    },
-                } else CUBE,
-                EMPTY,
-                EMPTY,
+            .piston => {
+                const piston = self.payload(.piston);
+                return .{
+                    if (piston.stored.extended) switch (piston.stored.facing) {
+                        .down => .{
+                            .min = .{ .x = 0.0, .y = 0.25, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .up => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.75, .z = 1.0 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.25 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.75 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.25, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
+                        },
+                    } else CUBE,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .piston_head => |piston_head| .{
-                switch (piston_head.stored.facing) {
-                    .down => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
+            .piston_head => {
+                const piston_head = self.payload(.piston_head);
+                return .{
+                    switch (piston_head.stored.facing) {
+                        .down => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
+                        },
+                        .up => .{
+                            .min = .{ .x = 0.0, .y = 0.75, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.25 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.75 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.25, .y = 1.0, .z = 1.0 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.75, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                    .up => .{
-                        .min = .{ .x = 0.0, .y = 0.75, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .north => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.25 },
-                    },
-                    .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.75 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.25, .y = 1.0, .z = 1.0 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.75, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .wool => FULL,
             .piston_extension => NONE,
@@ -2030,79 +2080,88 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
             .gold_block => FULL,
             .iron_block => FULL,
             .double_stone_slab => FULL,
-            .stone_slab => |stone_slab| .{
-                .{
-                    .min = .{ .x = 0, .y = if (stone_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
-                    .max = .{ .x = 1, .y = if (stone_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
-                },
-                EMPTY,
-                EMPTY,
+            .stone_slab => {
+                const stone_slab = self.payload(.stone_slab);
+                return .{
+                    .{
+                        .min = .{ .x = 0, .y = if (stone_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
+                        .max = .{ .x = 1, .y = if (stone_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .brick_block => FULL,
             .tnt => FULL,
             .bookshelf => FULL,
             .mossy_cobblestone => FULL,
             .obsidian => FULL,
-            .torch => |torch| .{
-                blk: {
-                    const wall_width: f32 = 0.15;
-                    const floor_width: f32 = 0.1;
-                    break :blk switch (torch.stored.facing) {
-                        .east => .{
-                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
-                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
-                        },
-                        .west => .{
-                            .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
-                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
-                        },
-                        .south => .{
-                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
-                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
-                        },
-                        .north => .{
-                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
-                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
-                        },
-                        .up => .{
-                            .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
-                            .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
-                        },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .torch => {
+                const torch = self.payload(.torch);
+                return .{
+                    blk: {
+                        const wall_width: f32 = 0.15;
+                        const floor_width: f32 = 0.1;
+                        break :blk switch (torch.stored.facing) {
+                            .east => .{
+                                .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                                .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                            },
+                            .west => .{
+                                .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
+                                .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
+                            },
+                            .south => .{
+                                .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
+                                .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
+                            },
+                            .north => .{
+                                .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
+                                .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
+                            },
+                            .up => .{
+                                .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
+                                .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
+                            },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
 
             .fire => NONE,
 
             .mob_spawner => FULL,
             .oak_stairs => FULL, // TODO
-            .chest => |chest| .{
-                switch (chest.virtual.connection) {
-                    .north => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+            .chest => {
+                const chest = self.payload(.chest);
+                return .{
+                    switch (chest.virtual.connection) {
+                        .north => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 1.0 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 1.0, .y = 0.875, .z = 0.9375 },
+                        },
+                        .none => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                        },
                     },
-                    .south => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 1.0 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 1.0, .y = 0.875, .z = 0.9375 },
-                    },
-                    .none => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
 
             .redstone_wire => .{
@@ -2144,208 +2203,238 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
             },
             .wooden_door => FULL, // TODO
-            .ladder => |ladder| .{
-                switch (ladder.stored.facing) {
-                    .north => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.875 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+            .ladder => {
+                const ladder = self.payload(.ladder);
+                return .{
+                    switch (ladder.stored.facing) {
+                        .north => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.875 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.125 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.875, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
+                        },
                     },
-                    .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.125 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.875, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .rail => |rail| .{
-                .{
-                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                    .max = .{ .x = 1.0, .y = if (rail.stored.shape == .ascending_east or rail.stored.shape == .ascending_north or rail.stored.shape == .ascending_south or rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
-                },
-                EMPTY,
-                EMPTY,
+            .rail => {
+                const rail = self.payload(.rail);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = if (rail.stored.shape == .ascending_east or rail.stored.shape == .ascending_north or rail.stored.shape == .ascending_south or rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .stone_stairs => FULL, // TODO
-            .wall_sign => |wall_sign| .{
-                switch (wall_sign.stored.facing) {
-                    .north => .{
-                        .min = .{ .x = 0.0, .y = 0.28125, .z = 0.875 },
-                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+            .wall_sign => {
+                const wall_sign = self.payload(.wall_sign);
+                return .{
+                    switch (wall_sign.stored.facing) {
+                        .north => .{
+                            .min = .{ .x = 0.0, .y = 0.28125, .z = 0.875 },
+                            .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.875, .y = 0.28125, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
+                            .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
+                        },
                     },
-                    .south => .{
-                        .min = .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.875, .y = 0.28125, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.28125, .z = 0.0 },
-                        .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .lever => |lever| .{
-                switch (lever.stored.facing) {
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.2, .z = 0.3125 },
-                        .max = .{ .x = 0.375, .y = 0.8, .z = 0.6875 },
+            .lever => {
+                const lever = self.payload(.lever);
+                return .{
+                    switch (lever.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.3125 },
+                            .max = .{ .x = 0.375, .y = 0.8, .z = 0.6875 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.625, .y = 0.2, .z = 0.3125 },
+                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.6875 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.3125, .y = 0.2, .z = 0.0 },
+                            .max = .{ .x = 0.6875, .y = 0.8, .z = 0.375 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.3125, .y = 0.2, .z = 0.625 },
+                            .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
+                        },
+                        .up_z, .up_x => .{
+                            .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
+                            .max = .{ .x = 0.75, .y = 0.6, .z = 0.75 },
+                        },
+                        .down_x, .down_z => .{
+                            .min = .{ .x = 0.25, .y = 0.4, .z = 0.25 },
+                            .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
+                        },
                     },
-                    .west => .{
-                        .min = .{ .x = 0.625, .y = 0.2, .z = 0.3125 },
-                        .max = .{ .x = 1.0, .y = 0.8, .z = 0.6875 },
-                    },
-                    .south => .{
-                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.0 },
-                        .max = .{ .x = 0.6875, .y = 0.8, .z = 0.375 },
-                    },
-                    .north => .{
-                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.625 },
-                        .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
-                    },
-                    .up_z, .up_x => .{
-                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
-                        .max = .{ .x = 0.75, .y = 0.6, .z = 0.75 },
-                    },
-                    .down_x, .down_z => .{
-                        .min = .{ .x = 0.25, .y = 0.4, .z = 0.25 },
-                        .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .stone_pressure_plate => |stone_pressure_plate| .{
-                .{
-                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                    .max = .{ .x = 0.9375, .y = if (stone_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
-                },
-                EMPTY,
-                EMPTY,
+            .stone_pressure_plate => {
+                const stone_pressure_plate = self.payload(.stone_pressure_plate);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = if (stone_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .iron_door => FULL, // TODO
-            .wooden_pressure_plate => |wooden_pressure_plate| .{
-                .{
-                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                    .max = .{ .x = 0.9375, .y = if (wooden_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
-                },
-                EMPTY,
-                EMPTY,
+            .wooden_pressure_plate => {
+                const wooden_pressure_plate = self.payload(.wooden_pressure_plate);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = if (wooden_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .redstone_ore => FULL,
             .lit_redstone_ore => FULL,
-            .unlit_redstone_torch => |unlit_redstone_torch| .{
-                blk: {
-                    const wall_width: f32 = 0.15;
-                    const floor_width: f32 = 0.1;
-                    break :blk switch (unlit_redstone_torch.stored.facing) {
-                        .east => .{
-                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
-                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
-                        },
-                        .west => .{
-                            .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
-                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
-                        },
-                        .south => .{
-                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
-                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
-                        },
-                        .north => .{
-                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
-                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
-                        },
-                        .up => .{
-                            .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
-                            .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
-                        },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .unlit_redstone_torch => {
+                const unlit_redstone_torch = self.payload(.unlit_redstone_torch);
+                return .{
+                    blk: {
+                        const wall_width: f32 = 0.15;
+                        const floor_width: f32 = 0.1;
+                        break :blk switch (unlit_redstone_torch.stored.facing) {
+                            .east => .{
+                                .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                                .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                            },
+                            .west => .{
+                                .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
+                                .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
+                            },
+                            .south => .{
+                                .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
+                                .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
+                            },
+                            .north => .{
+                                .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
+                                .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
+                            },
+                            .up => .{
+                                .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
+                                .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
+                            },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .redstone_torch => |redstone_torch| .{
-                blk: {
-                    const wall_width: f32 = 0.15;
-                    const floor_width: f32 = 0.1;
-                    break :blk switch (redstone_torch.stored.facing) {
-                        .east => .{
-                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
-                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
-                        },
-                        .west => .{
-                            .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
-                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
-                        },
-                        .south => .{
-                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
-                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
-                        },
-                        .north => .{
-                            .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
-                            .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
-                        },
-                        .up => .{
-                            .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
-                            .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
-                        },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .redstone_torch => {
+                const redstone_torch = self.payload(.redstone_torch);
+                return .{
+                    blk: {
+                        const wall_width: f32 = 0.15;
+                        const floor_width: f32 = 0.1;
+                        break :blk switch (redstone_torch.stored.facing) {
+                            .east => .{
+                                .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                                .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                            },
+                            .west => .{
+                                .min = .{ .x = 1.0 - wall_width * 2.0, .y = 0.2, .z = 0.5 - wall_width },
+                                .max = .{ .x = 1.0, .y = 0.8, .z = 0.5 + wall_width },
+                            },
+                            .south => .{
+                                .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 0.0 },
+                                .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = wall_width * 2.0 },
+                            },
+                            .north => .{
+                                .min = .{ .x = 0.5 - wall_width, .y = 0.2, .z = 1.0 - wall_width * 2.0 },
+                                .max = .{ .x = 0.5 + wall_width, .y = 0.8, .z = 1.0 },
+                            },
+                            .up => .{
+                                .min = .{ .x = 0.5 - floor_width, .y = 0.0, .z = 0.5 - floor_width },
+                                .max = .{ .x = 0.5 + floor_width, .y = 0.6, .z = 0.5 + floor_width },
+                            },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .stone_button => |stone_button| .{
-                blk: {
-                    const button_depth = @as(f32, @floatFromInt(@intFromBool(stone_button.stored.powered))) / 16.0;
-                    break :blk switch (stone_button.stored.facing) {
-                        .east => .{
-                            .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
-                            .max = .{ .x = button_depth, .y = 0.625, .z = 0.6875 },
-                        },
-                        .west => .{
-                            .min = .{ .x = 1.0 - button_depth, .y = 0.375, .z = 0.3125 },
-                            .max = .{ .x = 1.0, .y = 0.625, .z = 0.6875 },
-                        },
-                        .south => .{
-                            .min = .{ .x = 0.3125, .y = 0.375, .z = 0.0 },
-                            .max = .{ .x = 0.6875, .y = 0.625, .z = button_depth },
-                        },
-                        .north => .{
-                            .min = .{ .x = 0.3125, .y = 0.375, .z = 1.0 - button_depth },
-                            .max = .{ .x = 0.6875, .y = 0.625, .z = 1.0 },
-                        },
-                        .up => .{
-                            .min = .{ .x = 0.3125, .y = 0.0, .z = 0.375 },
-                            .max = .{ .x = 0.6875, .y = button_depth, .z = 0.625 },
-                        },
-                        .down => .{
-                            .min = .{ .x = 0.3125, .y = 1.0 - button_depth, .z = 0.375 },
-                            .max = .{ .x = 0.6875, .y = 1.0, .z = 0.625 },
-                        },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .stone_button => {
+                const stone_button = self.payload(.stone_button);
+                return .{
+                    blk: {
+                        const button_depth = @as(f32, @floatFromInt(@intFromBool(stone_button.stored.powered))) / 16.0;
+                        break :blk switch (stone_button.stored.facing) {
+                            .east => .{
+                                .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
+                                .max = .{ .x = button_depth, .y = 0.625, .z = 0.6875 },
+                            },
+                            .west => .{
+                                .min = .{ .x = 1.0 - button_depth, .y = 0.375, .z = 0.3125 },
+                                .max = .{ .x = 1.0, .y = 0.625, .z = 0.6875 },
+                            },
+                            .south => .{
+                                .min = .{ .x = 0.3125, .y = 0.375, .z = 0.0 },
+                                .max = .{ .x = 0.6875, .y = 0.625, .z = button_depth },
+                            },
+                            .north => .{
+                                .min = .{ .x = 0.3125, .y = 0.375, .z = 1.0 - button_depth },
+                                .max = .{ .x = 0.6875, .y = 0.625, .z = 1.0 },
+                            },
+                            .up => .{
+                                .min = .{ .x = 0.3125, .y = 0.0, .z = 0.375 },
+                                .max = .{ .x = 0.6875, .y = button_depth, .z = 0.625 },
+                            },
+                            .down => .{
+                                .min = .{ .x = 0.3125, .y = 1.0 - button_depth, .z = 0.375 },
+                                .max = .{ .x = 0.6875, .y = 1.0, .z = 0.625 },
+                            },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .snow_layer => |snow_layer| .{
-                .{
-                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                    .max = .{ .x = 1.0, .y = @as(f32, @floatFromInt(snow_layer.stored.layers + 1)) / 8.0, .z = 1.0 },
-                },
-                EMPTY,
-                EMPTY,
+            .snow_layer => {
+                const snow_layer = self.payload(.snow_layer);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = @as(f32, @floatFromInt(snow_layer.stored.layers + 1)) / 8.0, .z = 1.0 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .ice => FULL,
             .snow => FULL,
@@ -2360,40 +2449,49 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
             },
             .jukebox => FULL,
-            .fence => |fence| .{
-                .{
-                    .min = .{ .x = if (fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
+            .fence => {
+                const fence = self.payload(.fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (fence.virtual.south) 0.0 else 0.625 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .pumpkin => FULL,
             .netherrack => FULL,
             .soul_sand => FULL,
             .glowstone => FULL,
-            .portal => |portal| .{
-                switch (portal.stored.axis) {
-                    .x => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .portal => {
+                const portal = self.payload(.portal);
+                return .{
+                    switch (portal.stored.axis) {
+                        .x => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .z => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                    .z => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .lit_pumpkin => FULL,
-            .cake => |cake| .{
-                .{
-                    .min = .{ .x = @as(f32, @floatFromInt(cake.stored.bites * 2 + 1)) / 16.0, .y = 0.0, .z = 0.0625 },
-                    .max = .{ .x = 0.9375, .y = 1.0, .z = 0.9375 },
-                },
-                EMPTY,
-                EMPTY,
+            .cake => {
+                const cake = self.payload(.cake);
+                return .{
+                    .{
+                        .min = .{ .x = @as(f32, @floatFromInt(cake.stored.bites * 2 + 1)) / 16.0, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = 1.0, .z = 0.9375 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .unpowered_repeater => .{
                 .{
@@ -2417,59 +2515,74 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
             .stonebrick => FULL,
             .brown_mushroom_block => FULL,
             .red_mushroom_block => FULL,
-            .iron_bars => |iron_bars| .{
-                blk: {
-                    const any = iron_bars.virtual.north or iron_bars.virtual.south or iron_bars.virtual.west or iron_bars.virtual.east;
-                    break :blk if (!any) CUBE else .{
-                        .min = .{ .x = if (iron_bars.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (iron_bars.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
-                        .max = .{ .x = if (iron_bars.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (iron_bars.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .iron_bars => {
+                const iron_bars = self.payload(.iron_bars);
+                return .{
+                    blk: {
+                        const any = iron_bars.virtual.north or iron_bars.virtual.south or iron_bars.virtual.west or iron_bars.virtual.east;
+                        break :blk if (!any) CUBE else .{
+                            .min = .{ .x = if (iron_bars.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (iron_bars.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
+                            .max = .{ .x = if (iron_bars.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (iron_bars.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .glass_pane => |glass_pane| .{
-                blk: {
-                    const any = glass_pane.virtual.north or glass_pane.virtual.south or glass_pane.virtual.west or glass_pane.virtual.east;
-                    break :blk if (!any) CUBE else .{
-                        .min = .{ .x = if (glass_pane.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (glass_pane.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
-                        .max = .{ .x = if (glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .glass_pane => {
+                const glass_pane = self.payload(.glass_pane);
+                return .{
+                    blk: {
+                        const any = glass_pane.virtual.north or glass_pane.virtual.south or glass_pane.virtual.west or glass_pane.virtual.east;
+                        break :blk if (!any) CUBE else .{
+                            .min = .{ .x = if (glass_pane.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (glass_pane.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
+                            .max = .{ .x = if (glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .melon_block => FULL,
-            .pumpkin_stem => |pumpkin_stem| .{
-                .{
-                    .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
-                    .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(pumpkin_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
-                },
-                EMPTY,
-                EMPTY,
+            .pumpkin_stem => {
+                const pumpkin_stem = self.payload(.pumpkin_stem);
+                return .{
+                    .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(pumpkin_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .melon_stem => |melon_stem| .{
-                .{
-                    .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
-                    .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(melon_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
-                },
-                EMPTY,
-                EMPTY,
+            .melon_stem => {
+                const melon_stem = self.payload(.melon_stem);
+                return .{
+                    .{
+                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
+                        .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(melon_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .vine => FULL, // TODO
-            .fence_gate => |fence_gate| .{
-                switch (fence_gate.stored.facing) {
-                    .north, .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .fence_gate => {
+                const fence_gate = self.payload(.fence_gate);
+                return .{
+                    switch (fence_gate.stored.facing) {
+                        .north, .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .west, .east => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                    .west, .east => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .brick_stairs => FULL, // TODO
             .stone_brick_stairs => FULL, // TODO
@@ -2483,13 +2596,16 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
             },
             .nether_brick => FULL,
-            .nether_brick_fence => |nether_brick_fence| .{
-                .{
-                    .min = .{ .x = if (nether_brick_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (nether_brick_fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (nether_brick_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (nether_brick_fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
+            .nether_brick_fence => {
+                const nether_brick_fence = self.payload(.nether_brick_fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (nether_brick_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (nether_brick_fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (nether_brick_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (nether_brick_fence.virtual.south) 0.0 else 0.625 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .nether_brick_stairs => FULL, // TODO
             .nether_wart => .{
@@ -2545,71 +2661,77 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
             .redstone_lamp => FULL,
             .lit_redstone_lamp => FULL,
             .double_wooden_slab => FULL,
-            .wooden_slab => |wooden_slab| .{
-                .{
-                    .min = .{ .x = 0, .y = if (wooden_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
-                    .max = .{ .x = 1, .y = if (wooden_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
-                },
-                EMPTY,
-                EMPTY,
+            .wooden_slab => {
+                const wooden_slab = self.payload(.wooden_slab);
+                return .{
+                    .{
+                        .min = .{ .x = 0, .y = if (wooden_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
+                        .max = .{ .x = 1, .y = if (wooden_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .cocoa => |cocoa| .{
-                blk: {
-                    const width = @as(f32, @floatFromInt(4 + @as(u8, @intCast(cocoa.stored.age)) * 2));
-                    const height = @as(f32, @floatFromInt(5 + @as(u8, @intCast(cocoa.stored.age)) * 2));
-                    break :blk switch (cocoa.stored.facing) {
-                        .south => .{
-                            .min = .{
-                                .x = (8.0 - width / 2.0) / 16.0,
-                                .y = (12.0 - height) / 16.0,
-                                .z = (15.0 - width) / 16.0,
+            .cocoa => {
+                const cocoa = self.payload(.cocoa);
+                return .{
+                    blk: {
+                        const width = @as(f32, @floatFromInt(4 + @as(u8, @intCast(cocoa.stored.age)) * 2));
+                        const height = @as(f32, @floatFromInt(5 + @as(u8, @intCast(cocoa.stored.age)) * 2));
+                        break :blk switch (cocoa.stored.facing) {
+                            .south => .{
+                                .min = .{
+                                    .x = (8.0 - width / 2.0) / 16.0,
+                                    .y = (12.0 - height) / 16.0,
+                                    .z = (15.0 - width) / 16.0,
+                                },
+                                .max = .{
+                                    .x = (8.0 + width / 2.0) / 16.0,
+                                    .y = 0.75,
+                                    .z = 0.9375,
+                                },
                             },
-                            .max = .{
-                                .x = (8.0 + width / 2.0) / 16.0,
-                                .y = 0.75,
-                                .z = 0.9375,
+                            .north => .{
+                                .min = .{
+                                    .x = (8.0 - width / 2.0) / 16.0,
+                                    .y = (12.0 - height) / 16.0,
+                                    .z = 0.0625,
+                                },
+                                .max = .{
+                                    .x = (8.0 + width / 2.0) / 16.0,
+                                    .y = 0.75,
+                                    .z = (1.0 + width) / 16.0,
+                                },
                             },
-                        },
-                        .north => .{
-                            .min = .{
-                                .x = (8.0 - width / 2.0) / 16.0,
-                                .y = (12.0 - height) / 16.0,
-                                .z = 0.0625,
+                            .west => .{
+                                .min = .{
+                                    .x = 0.0625,
+                                    .y = (12.0 - height) / 16.0,
+                                    .z = (8.0 - width / 2.0) / 16.0,
+                                },
+                                .max = .{
+                                    .x = (1.0 + width) / 16.0,
+                                    .y = 0.75,
+                                    .z = (8.0 + width / 2.0) / 16.0,
+                                },
                             },
-                            .max = .{
-                                .x = (8.0 + width / 2.0) / 16.0,
-                                .y = 0.75,
-                                .z = (1.0 + width) / 16.0,
+                            .east => .{
+                                .min = .{
+                                    .x = (15.0 - width) / 16.0,
+                                    .y = (12.0 - height) / 16.0,
+                                    .z = (8.0 - width / 2.0) / 16.0,
+                                },
+                                .max = .{
+                                    .x = 0.9375,
+                                    .y = 0.75,
+                                    .z = (8.0 + width / 2.0) / 16.0,
+                                },
                             },
-                        },
-                        .west => .{
-                            .min = .{
-                                .x = 0.0625,
-                                .y = (12.0 - height) / 16.0,
-                                .z = (8.0 - width / 2.0) / 16.0,
-                            },
-                            .max = .{
-                                .x = (1.0 + width) / 16.0,
-                                .y = 0.75,
-                                .z = (8.0 + width / 2.0) / 16.0,
-                            },
-                        },
-                        .east => .{
-                            .min = .{
-                                .x = (15.0 - width) / 16.0,
-                                .y = (12.0 - height) / 16.0,
-                                .z = (8.0 - width / 2.0) / 16.0,
-                            },
-                            .max = .{
-                                .x = 0.9375,
-                                .y = 0.75,
-                                .z = (8.0 + width / 2.0) / 16.0,
-                            },
-                        },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .sandstone_stairs => FULL, // TODO
             .emerald_ore => FULL,
@@ -2621,46 +2743,52 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
                 EMPTY,
             },
-            .tripwire_hook => |tripwire_hook| .{
-                switch (tripwire_hook.stored.facing) {
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.2, .z = 0.3125 },
-                        .max = .{ .x = 0.375, .y = 0.8, .z = 0.6875 },
+            .tripwire_hook => {
+                const tripwire_hook = self.payload(.tripwire_hook);
+                return .{
+                    switch (tripwire_hook.stored.facing) {
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.3125 },
+                            .max = .{ .x = 0.375, .y = 0.8, .z = 0.6875 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.625, .y = 0.2, .z = 0.3125 },
+                            .max = .{ .x = 1.0, .y = 0.8, .z = 0.6875 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.3125, .y = 0.2, .z = 0.0 },
+                            .max = .{ .x = 0.6875, .y = 0.8, .z = 0.375 },
+                        },
+                        .north => .{
+                            .min = .{ .x = 0.3125, .y = 0.2, .z = 0.625 },
+                            .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
+                        },
                     },
-                    .west => .{
-                        .min = .{ .x = 0.625, .y = 0.2, .z = 0.3125 },
-                        .max = .{ .x = 1.0, .y = 0.8, .z = 0.6875 },
-                    },
-                    .south => .{
-                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.0 },
-                        .max = .{ .x = 0.6875, .y = 0.8, .z = 0.375 },
-                    },
-                    .north => .{
-                        .min = .{ .x = 0.3125, .y = 0.2, .z = 0.625 },
-                        .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .tripwire => |tripwire| .{
-                if (!tripwire.stored.suspended)
-                    .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.09375, .z = 1.0 },
-                    }
-                else if (!tripwire.stored.attached)
-                    .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.5, .z = 1.0 },
-                    }
-                else
-                    .{
-                        .min = .{ .x = 0.0, .y = 0.0625, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.15625, .z = 1.0 },
-                    },
-                EMPTY,
-                EMPTY,
+            .tripwire => {
+                const tripwire = self.payload(.tripwire);
+                return .{
+                    if (!tripwire.stored.suspended)
+                        .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.09375, .z = 1.0 },
+                        }
+                    else if (!tripwire.stored.attached)
+                        .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.5, .z = 1.0 },
+                        }
+                    else
+                        .{
+                            .min = .{ .x = 0.0, .y = 0.0625, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.15625, .z = 1.0 },
+                        },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .emerald_block => FULL,
             .spruce_stairs => FULL, // TODO
@@ -2693,120 +2821,138 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
                 EMPTY,
             },
-            .wooden_button => |wooden_button| .{
-                blk: {
-                    const button_depth = @as(f32, @floatFromInt(@intFromBool(wooden_button.stored.powered))) / 16.0;
-                    break :blk switch (wooden_button.stored.facing) {
-                        .east => .{
-                            .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
-                            .max = .{ .x = button_depth, .y = 0.625, .z = 0.6875 },
-                        },
-                        .west => .{
-                            .min = .{ .x = 1.0 - button_depth, .y = 0.375, .z = 0.3125 },
-                            .max = .{ .x = 1.0, .y = 0.625, .z = 0.6875 },
+            .wooden_button => {
+                const wooden_button = self.payload(.wooden_button);
+                return .{
+                    blk: {
+                        const button_depth = @as(f32, @floatFromInt(@intFromBool(wooden_button.stored.powered))) / 16.0;
+                        break :blk switch (wooden_button.stored.facing) {
+                            .east => .{
+                                .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
+                                .max = .{ .x = button_depth, .y = 0.625, .z = 0.6875 },
+                            },
+                            .west => .{
+                                .min = .{ .x = 1.0 - button_depth, .y = 0.375, .z = 0.3125 },
+                                .max = .{ .x = 1.0, .y = 0.625, .z = 0.6875 },
+                            },
+                            .south => .{
+                                .min = .{ .x = 0.3125, .y = 0.375, .z = 0.0 },
+                                .max = .{ .x = 0.6875, .y = 0.625, .z = button_depth },
+                            },
+                            .north => .{
+                                .min = .{ .x = 0.3125, .y = 0.375, .z = 1.0 - button_depth },
+                                .max = .{ .x = 0.6875, .y = 0.625, .z = 1.0 },
+                            },
+                            .up => .{
+                                .min = .{ .x = 0.3125, .y = 0.0, .z = 0.375 },
+                                .max = .{ .x = 0.6875, .y = button_depth, .z = 0.625 },
+                            },
+                            .down => .{
+                                .min = .{ .x = 0.3125, .y = 1.0 - button_depth, .z = 0.375 },
+                                .max = .{ .x = 0.6875, .y = 1.0, .z = 0.625 },
+                            },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .skull => {
+                const skull = self.payload(.skull);
+                return .{
+                    switch (skull.stored.facing) {
+                        .north => .{
+                            .min = .{ .x = 0.25, .y = 0.25, .z = 0.5 },
+                            .max = .{ .x = 0.75, .y = 0.75, .z = 1.0 },
                         },
                         .south => .{
-                            .min = .{ .x = 0.3125, .y = 0.375, .z = 0.0 },
-                            .max = .{ .x = 0.6875, .y = 0.625, .z = button_depth },
+                            .min = .{ .x = 0.25, .y = 0.25, .z = 0.0 },
+                            .max = .{ .x = 0.75, .y = 0.75, .z = 0.5 },
                         },
+                        .west => .{
+                            .min = .{ .x = 0.5, .y = 0.25, .z = 0.25 },
+                            .max = .{ .x = 1.0, .y = 0.75, .z = 0.75 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.25, .z = 0.25 },
+                            .max = .{ .x = 0.5, .y = 0.75, .z = 0.75 },
+                        },
+                        else => .{
+                            .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
+                            .max = .{ .x = 0.5, .y = 0.5, .z = 0.75 },
+                        },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .anvil => {
+                const anvil = self.payload(.anvil);
+                return .{
+                    switch (anvil.stored.facing) {
+                        .west, .east => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.125 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.875 },
+                        },
+                        .north, .south => .{
+                            .min = .{ .x = 0.125, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.875, .y = 1.0, .z = 1.0 },
+                        },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .trapped_chest => {
+                const trapped_chest = self.payload(.trapped_chest);
+                return .{
+                    switch (trapped_chest.virtual.connection) {
                         .north => .{
-                            .min = .{ .x = 0.3125, .y = 0.375, .z = 1.0 - button_depth },
-                            .max = .{ .x = 0.6875, .y = 0.625, .z = 1.0 },
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
                         },
-                        .up => .{
-                            .min = .{ .x = 0.3125, .y = 0.0, .z = 0.375 },
-                            .max = .{ .x = 0.6875, .y = button_depth, .z = 0.625 },
+                        .south => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 1.0 },
                         },
-                        .down => .{
-                            .min = .{ .x = 0.3125, .y = 1.0 - button_depth, .z = 0.375 },
-                            .max = .{ .x = 0.6875, .y = 1.0, .z = 0.625 },
+                        .west => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
                         },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+                        .east => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 1.0, .y = 0.875, .z = 0.9375 },
+                        },
+                        .none => .{
+                            .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                            .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
+                        },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .skull => |skull| .{
-                switch (skull.stored.facing) {
-                    .north => .{
-                        .min = .{ .x = 0.25, .y = 0.25, .z = 0.5 },
-                        .max = .{ .x = 0.75, .y = 0.75, .z = 1.0 },
-                    },
-                    .south => .{
-                        .min = .{ .x = 0.25, .y = 0.25, .z = 0.0 },
-                        .max = .{ .x = 0.75, .y = 0.75, .z = 0.5 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.5, .y = 0.25, .z = 0.25 },
-                        .max = .{ .x = 1.0, .y = 0.75, .z = 0.75 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.25, .z = 0.25 },
-                        .max = .{ .x = 0.5, .y = 0.75, .z = 0.75 },
-                    },
-                    else => .{
-                        .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
-                        .max = .{ .x = 0.5, .y = 0.5, .z = 0.75 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .anvil => |anvil| .{
-                switch (anvil.stored.facing) {
-                    .west, .east => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.125 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.875 },
-                    },
-                    .north, .south => .{
-                        .min = .{ .x = 0.125, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.875, .y = 1.0, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .trapped_chest => |trapped_chest| .{
-                switch (trapped_chest.virtual.connection) {
-                    .north => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
-                    },
-                    .south => .{
+            .light_weighted_pressure_plate => {
+                const light_weighted_pressure_plate = self.payload(.light_weighted_pressure_plate);
+                return .{
+                    .{
                         .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 1.0 },
+                        .max = .{ .x = 0.9375, .y = if (light_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
                     },
-                    .west => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 1.0, .y = 0.875, .z = 0.9375 },
-                    },
-                    .none => .{
-                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                        .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .light_weighted_pressure_plate => |light_weighted_pressure_plate| .{
-                .{
-                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                    .max = .{ .x = 0.9375, .y = if (light_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .heavy_weighted_pressure_plate => |heavy_weighted_pressure_plate| .{
-                .{
-                    .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
-                    .max = .{ .x = 0.9375, .y = if (heavy_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
-                },
-                EMPTY,
-                EMPTY,
+            .heavy_weighted_pressure_plate => {
+                const heavy_weighted_pressure_plate = self.payload(.heavy_weighted_pressure_plate);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
+                        .max = .{ .x = 0.9375, .y = if (heavy_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .unpowered_comparator => .{
                 .{
@@ -2837,26 +2983,32 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
             .hopper => FULL,
             .quartz_block => FULL,
             .quartz_stairs => FULL, // TODO
-            .activator_rail => |activator_rail| .{
-                .{
-                    .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                    .max = .{ .x = 1.0, .y = if (activator_rail.stored.shape == .ascending_east or activator_rail.stored.shape == .ascending_north or activator_rail.stored.shape == .ascending_south or activator_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
-                },
-                EMPTY,
-                EMPTY,
+            .activator_rail => {
+                const activator_rail = self.payload(.activator_rail);
+                return .{
+                    .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = if (activator_rail.stored.shape == .ascending_east or activator_rail.stored.shape == .ascending_north or activator_rail.stored.shape == .ascending_south or activator_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .dropper => FULL,
             .stained_hardened_clay => FULL,
-            .stained_glass_pane => |stained_glass_pane| .{
-                blk: {
-                    const any = stained_glass_pane.virtual.north or stained_glass_pane.virtual.south or stained_glass_pane.virtual.west or stained_glass_pane.virtual.east;
-                    break :blk if (!any) CUBE else .{
-                        .min = .{ .x = if (stained_glass_pane.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (stained_glass_pane.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
-                        .max = .{ .x = if (stained_glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (stained_glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
-                    };
-                },
-                EMPTY,
-                EMPTY,
+            .stained_glass_pane => {
+                const stained_glass_pane = self.payload(.stained_glass_pane);
+                return .{
+                    blk: {
+                        const any = stained_glass_pane.virtual.north or stained_glass_pane.virtual.south or stained_glass_pane.virtual.west or stained_glass_pane.virtual.east;
+                        break :blk if (!any) CUBE else .{
+                            .min = .{ .x = if (stained_glass_pane.virtual.west) @as(f32, 0.0) else @as(f32, 0.4375), .y = 0.0, .z = if (stained_glass_pane.virtual.north) @as(f32, 0.0) else @as(f32, 0.4375) },
+                            .max = .{ .x = if (stained_glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (stained_glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
+                        };
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .leaves2 => FULL,
             .log2 => FULL,
@@ -2888,27 +3040,30 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
                 EMPTY,
                 EMPTY,
             },
-            .wall_banner => |wall_banner| .{
-                switch (wall_banner.stored.facing) {
-                    .north => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.875 },
-                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+            .wall_banner => {
+                const wall_banner = self.payload(.wall_banner);
+                return .{
+                    switch (wall_banner.stored.facing) {
+                        .north => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.875 },
+                            .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                        },
+                        .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
+                        },
+                        .west => .{
+                            .min = .{ .x = 0.875, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
+                        },
+                        .east => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
+                        },
                     },
-                    .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.78125, .z = 0.125 },
-                    },
-                    .west => .{
-                        .min = .{ .x = 0.875, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = 0.78125, .z = 1.0 },
-                    },
-                    .east => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .daylight_detector_inverted => .{
                 .{
@@ -2921,123 +3076,156 @@ pub const ConcreteBlockState = union(ConcreteBlock) {
             .red_sandstone => FULL,
             .red_sandstone_stairs => FULL, // TODO
             .double_stone_slab2 => FULL,
-            .stone_slab2 => |stone_slab2| .{
-                .{
-                    .min = .{ .x = 0, .y = if (stone_slab2.stored.half == .top) 0.5 else 0.0, .z = 0 },
-                    .max = .{ .x = 1, .y = if (stone_slab2.stored.half == .top) 1.0 else 0.5, .z = 1 },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .spruce_fence_gate => |spruce_fence_gate| .{
-                switch (spruce_fence_gate.stored.facing) {
-                    .north, .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .stone_slab2 => {
+                const stone_slab2 = self.payload(.stone_slab2);
+                return .{
+                    .{
+                        .min = .{ .x = 0, .y = if (stone_slab2.stored.half == .top) 0.5 else 0.0, .z = 0 },
+                        .max = .{ .x = 1, .y = if (stone_slab2.stored.half == .top) 1.0 else 0.5, .z = 1 },
                     },
-                    .west, .east => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
-                    },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .birch_fence_gate => |birch_fence_gate| .{
-                switch (birch_fence_gate.stored.facing) {
-                    .north, .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .spruce_fence_gate => {
+                const spruce_fence_gate = self.payload(.spruce_fence_gate);
+                return .{
+                    switch (spruce_fence_gate.stored.facing) {
+                        .north, .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .west, .east => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                    .west, .east => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .birch_fence_gate => {
+                const birch_fence_gate = self.payload(.birch_fence_gate);
+                return .{
+                    switch (birch_fence_gate.stored.facing) {
+                        .north, .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .west, .east => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .jungle_fence_gate => |jungle_fence_gate| .{
-                switch (jungle_fence_gate.stored.facing) {
-                    .north, .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .jungle_fence_gate => {
+                const jungle_fence_gate = self.payload(.jungle_fence_gate);
+                return .{
+                    switch (jungle_fence_gate.stored.facing) {
+                        .north, .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .west, .east => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                    .west, .east => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .dark_oak_fence_gate => {
+                const dark_oak_fence_gate = self.payload(.dark_oak_fence_gate);
+                return .{
+                    switch (dark_oak_fence_gate.stored.facing) {
+                        .north, .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .west, .east => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .dark_oak_fence_gate => |dark_oak_fence_gate| .{
-                switch (dark_oak_fence_gate.stored.facing) {
-                    .north, .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .acacia_fence_gate => {
+                const acacia_fence_gate = self.payload(.acacia_fence_gate);
+                return .{
+                    switch (acacia_fence_gate.stored.facing) {
+                        .north, .south => .{
+                            .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
+                            .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+                        },
+                        .west, .east => .{
+                            .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
+                            .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                        },
                     },
-                    .west, .east => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .spruce_fence => {
+                const spruce_fence = self.payload(.spruce_fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (spruce_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (spruce_fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (spruce_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (spruce_fence.virtual.south) 0.0 else 0.625 },
                     },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .acacia_fence_gate => |acacia_fence_gate| .{
-                switch (acacia_fence_gate.stored.facing) {
-                    .north, .south => .{
-                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
-                        .max = .{ .x = 1.0, .y = 1.0, .z = 0.625 },
+            .birch_fence => {
+                const birch_fence = self.payload(.birch_fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (birch_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (birch_fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (birch_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (birch_fence.virtual.south) 0.0 else 0.625 },
                     },
-                    .west, .east => .{
-                        .min = .{ .x = 0.375, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
+                    EMPTY,
+                    EMPTY,
+                };
+            },
+            .jungle_fence => {
+                const jungle_fence = self.payload(.jungle_fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (jungle_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (jungle_fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (jungle_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (jungle_fence.virtual.south) 0.0 else 0.625 },
                     },
-                },
-                EMPTY,
-                EMPTY,
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .spruce_fence => |spruce_fence| .{
-                .{
-                    .min = .{ .x = if (spruce_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (spruce_fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (spruce_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (spruce_fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
+            .dark_oak_fence => {
+                const dark_oak_fence = self.payload(.dark_oak_fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (dark_oak_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (dark_oak_fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (dark_oak_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (dark_oak_fence.virtual.south) 0.0 else 0.625 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
-            .birch_fence => |birch_fence| .{
-                .{
-                    .min = .{ .x = if (birch_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (birch_fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (birch_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (birch_fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .jungle_fence => |jungle_fence| .{
-                .{
-                    .min = .{ .x = if (jungle_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (jungle_fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (jungle_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (jungle_fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .dark_oak_fence => |dark_oak_fence| .{
-                .{
-                    .min = .{ .x = if (dark_oak_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (dark_oak_fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (dark_oak_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (dark_oak_fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
-            },
-            .acacia_fence => |acacia_fence| .{
-                .{
-                    .min = .{ .x = if (acacia_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (acacia_fence.virtual.north) 0.0 else 0.375 },
-                    .max = .{ .x = if (acacia_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (acacia_fence.virtual.south) 0.0 else 0.625 },
-                },
-                EMPTY,
-                EMPTY,
+            .acacia_fence => {
+                const acacia_fence = self.payload(.acacia_fence);
+                return .{
+                    .{
+                        .min = .{ .x = if (acacia_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (acacia_fence.virtual.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (acacia_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (acacia_fence.virtual.south) 0.0 else 0.625 },
+                    },
+                    EMPTY,
+                    EMPTY,
+                };
             },
             .spruce_door => FULL, // TODO
             .birch_door => FULL, // TODO
