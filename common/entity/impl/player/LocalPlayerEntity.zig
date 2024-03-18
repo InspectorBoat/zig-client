@@ -312,7 +312,7 @@ pub fn moveWithSteerInLava(self: *@This(), steer: Vector2(f32), game: *const Gam
 pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const Game.IngameState) !void {
     const friction = self.getFrictionNonLiquid(game);
     const traction = try self.getTractionNonLiquid(friction);
-    const acceleration = self.getAccelerationFromSteer(steer, traction);
+    const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
     self.base.velocity = self.base.velocity.add(.{
         .x = @floatCast(acceleration.x),
         .y = 0,
@@ -371,10 +371,10 @@ pub fn getTractionNonLiquid(self: *const @This(), friction: f32) !f32 {
     }
 }
 
-pub fn getAccelerationFromSteer(self: *const @This(), steer: Vector2(f32), traction: f32) Vector2(f32) {
+pub fn getAccelerationFromSteer(steer: Vector2(f32), traction: f32, yaw: f32) Vector2(f32) {
     if (steer.magnitude_squared() < 0.0001) return .{ .x = 0, .z = 0 };
 
-    const yaw_radians = self.base.rotation.yaw * (@as(f32, @floatCast(std.math.pi)) / 180.0);
+    const yaw_radians = yaw * (@as(f32, @floatCast(std.math.pi)) / 180.0);
 
     const sin = @sin(yaw_radians);
     const cos = @cos(yaw_radians);
