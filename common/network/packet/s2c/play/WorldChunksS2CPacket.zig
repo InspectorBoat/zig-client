@@ -46,9 +46,8 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     switch (game.*) {
         .Ingame => |*ingame| {
             for (self.chunk_positions, self.chunk_datas) |chunk_pos, *chunk_data| {
-                const chunk = try ingame.world.loadChunk(chunk_pos);
-                @import("log").update_chunk(.{chunk_pos});
-                try WorldChunkS2CPacket.updateChunk(chunk_pos, chunk, chunk_data, true, true, allocator);
+                _ = try ingame.world.loadChunk(chunk_pos);
+                try ingame.world.updateChunk(chunk_pos, chunk_data, true, true, allocator);
             }
         },
         else => unreachable,

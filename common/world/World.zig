@@ -2,6 +2,7 @@ const std = @import("std");
 const Vector2 = @import("../math/vector.zig").Vector2;
 const Vector3 = @import("../math/vector.zig").Vector3;
 const Chunk = @import("../world/Chunk.zig");
+const Section = @import("./Section.zig");
 const Game = @import("../game.zig").Game;
 const TickTimer = @import("../world/TickTimer.zig");
 const Difficulty = @import("../world/difficulty.zig").Difficulty;
@@ -19,6 +20,7 @@ const ConcreteBlock = @import("../block/block.zig").ConcreteBlock;
 const RawBlockState = @import("../block/block.zig").RawBlockState;
 const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
+const WorldChunkS2CPacket = @import("../network/packet/s2c/play/WorldChunkS2CPacket.zig");
 
 chunks: std.AutoHashMap(Vector2(i32), Chunk),
 player: LocalPlayerEntity,
@@ -214,6 +216,64 @@ pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: Concr
     } else {
         @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
     }
+}
+
+pub fn updateChunk(
+    self: *@This(),
+    chunk_pos: Vector2(i32),
+    chunk_data: *WorldChunkS2CPacket.ChunkData,
+    full: bool,
+    has_sky_light: bool,
+    allocator: std.mem.Allocator,
+) !void {
+    @import("log").update_chunk(.{chunk_pos});
+
+    const start = try std.time.Instant.now();
+    const chunk = self.chunks.getPtr(chunk_pos).?;
+    // copy block state data
+    for (0..16) |section_y| {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
+            if (chunk.sections[section_y] == null) {
+                chunk.sections[section_y] = try allocator.create(Section);
+            }
+            const section = chunk.sections[section_y].?;
+
+            const raw_block_states = @as(*align(1) const [4096]RawBlockState, @ptrCast(try chunk_data.buffer.readArrayNonAllocating(4096 * 2)));
+            for (raw_block_states, &section.block_states) |raw_block_state, *concrete_block_state| {
+                concrete_block_state.* = raw_block_state.toFiltered().toConcrete();
+            }
+        } else {
+            if (full) {
+                if (chunk.sections[section_y]) |section| {
+                    allocator.destroy(section);
+                    chunk.sections[section_y] = null;
+                }
+            }
+        }
+    }
+    // copy block light data
+    for (0..16) |section_y| {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
+            const section = chunk.sections[section_y].?;
+            @memcpy(&section.block_light.bytes, try chunk_data.buffer.readArrayNonAllocating(2048));
+        }
+    }
+    // copy sky light data
+    if (has_sky_light) {
+        for (0..16) |section_y| {
+            if (chunk_data.sections.isSet(@intCast(section_y))) {
+                const section = chunk.sections[section_y].?;
+                @memcpy(&section.sky_light.bytes, try chunk_data.buffer.readBytesNonAllocating(2048));
+            }
+        }
+    }
+    // copy biome data
+    if (full) {
+        @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
+    }
+
+    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
+    try @import("render").onChunkUpdate(chunk_pos, chunk);
 }
 
 /// returns intersecting hitboxes originating from blocks
