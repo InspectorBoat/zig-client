@@ -14,18 +14,17 @@ full: bool,
 comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
-    const this = @This(){
+    return @This(){
         .chunk_pos = Vector2(i32){
             .x = try buffer.read(i32),
             .z = try buffer.read(i32),
         },
         .full = try buffer.read(bool),
         .chunk_data = ChunkData{
-            .sections = try buffer.readPacked(SectionBitfield),
+            .sections = .{ .mask = try buffer.read(u16) },
             .buffer = ReadPacketBuffer.fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
         },
     };
-    return this;
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
@@ -51,11 +50,18 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     }
 }
 
-pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, full: bool, has_sky_light: bool, allocator: std.mem.Allocator) !void {
+pub fn updateChunk(
+    pos: Vector2(i32),
+    chunk: *Chunk,
+    chunk_data: *ChunkData,
+    full: bool,
+    has_sky_light: bool,
+    allocator: std.mem.Allocator,
+) !void {
     const start = try std.time.Instant.now();
     // copy block state data
     for (0..16) |section_y| {
-        if (chunk_data.sections.has(@intCast(section_y))) {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
             if (chunk.sections[section_y] == null) {
                 chunk.sections[section_y] = try allocator.create(Section);
             }
@@ -76,7 +82,7 @@ pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, ful
     }
     // copy block light data
     for (0..16) |section_y| {
-        if (chunk_data.sections.has(@intCast(section_y))) {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
             const section = chunk.sections[section_y].?;
             @memcpy(&section.block_light.bytes, try chunk_data.buffer.readArrayNonAllocating(2048));
         }
@@ -84,7 +90,7 @@ pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, ful
     // copy sky light data
     if (has_sky_light) {
         for (0..16) |section_y| {
-            if (chunk_data.sections.has(@intCast(section_y))) {
+            if (chunk_data.sections.isSet(@intCast(section_y))) {
                 const section = chunk.sections[section_y].?;
                 @memcpy(&section.sky_light.bytes, try chunk_data.buffer.readBytesNonAllocating(2048));
             }
@@ -101,16 +107,5 @@ pub fn updateChunk(pos: Vector2(i32), chunk: *Chunk, chunk_data: *ChunkData, ful
 
 pub const ChunkData = struct {
     buffer: ReadPacketBuffer,
-    sections: SectionBitfield,
-};
-
-pub const SectionBitfield = packed struct {
-    backer: u16,
-
-    pub fn has(self: @This(), section_y: u4) bool {
-        return self.backer & (@as(u16, 1) << section_y) != 0;
-    }
-    pub inline fn count(self: @This()) u5 {
-        return @popCount(self.backer);
-    }
+    sections: std.bit_set.IntegerBitSet(16),
 };

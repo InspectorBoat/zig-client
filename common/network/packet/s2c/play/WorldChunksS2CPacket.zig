@@ -2,7 +2,6 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const Vector2 = @import("../../../../math/vector.zig").Vector2;
-const foo = @import("builtin");
 const WorldChunkS2CPacket = @import("../../../../network/packet/s2c/play/WorldChunkS2CPacket.zig");
 
 chunk_positions: []const Vector2(i32),
@@ -24,7 +23,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
             .x = try buffer.read(i32),
             .z = try buffer.read(i32),
         };
-        const section_bitfield = try buffer.readPacked(SectionBitfield);
+        const section_bitfield: std.bit_set.IntegerBitSet(16) = .{ .mask = try buffer.read(u16) };
         chunk_data.* = ChunkData{
             .sections = section_bitfield,
             .buffer = try ReadPacketBuffer.initCapacity(allocator, findBufferSize(section_bitfield, has_sky_light)),
@@ -56,14 +55,13 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     }
 }
 
-pub fn findBufferSize(sections: SectionBitfield, has_sky_light: bool) usize {
-    const section_pop_count = @as(i32, @intCast(@popCount(sections.backer)));
-    const block_states = section_pop_count * 2 * 4096;
-    const block_light = section_pop_count * @divExact(4096, 2);
+pub fn findBufferSize(sections: std.bit_set.IntegerBitSet(16), has_sky_light: bool) usize {
+    const section_count = @as(i32, @intCast(sections.count()));
+    const block_states = section_count * 2 * 4096;
+    const block_light = section_count * @divExact(4096, 2);
     const sky_light = if (has_sky_light) block_light else 0;
     const biomes = 256;
     return @intCast(block_states + block_light + sky_light + biomes);
 }
 
 pub const ChunkData = WorldChunkS2CPacket.ChunkData;
-pub const SectionBitfield = WorldChunkS2CPacket.SectionBitfield;
