@@ -884,7 +884,7 @@ pub const ConcreteBlock = enum(u8) {
 
 // FilteredBlockState, but with virtual properties resolved
 pub const ConcreteBlockState = packed struct(u16) {
-    pub const AIR: ConcreteBlockState = .{
+    pub var AIR: ConcreteBlockState = .{
         .block = .air,
         .properties = .{ .air = .{ .stored = .{} } },
     };
@@ -1758,58 +1758,58 @@ pub const ConcreteBlockState = packed struct(u16) {
     block: ConcreteBlock,
     properties: BlockProperties,
 
-    pub fn update(self: @This()) @This() {
+    pub fn update(self: *@This(), world: World, block_pos: Vector3(i32)) void {
         switch (self.block) {
-            .grass => ConcreteBlockState.AIR,
-            .dirt => ConcreteBlockState.AIR,
-            .piston_head => ConcreteBlockState.AIR,
-            .fire => ConcreteBlockState.AIR,
-            .oak_stairs => ConcreteBlockState.AIR,
-            .chest => ConcreteBlockState.AIR,
-            .redstone_wire => ConcreteBlockState.AIR,
-            .stone_stairs => ConcreteBlockState.AIR,
-            .fence => ConcreteBlockState.AIR,
-            .unpowered_repeater => ConcreteBlockState.AIR,
-            .powered_repeater => ConcreteBlockState.AIR,
-            .iron_bars => ConcreteBlockState.AIR,
-            .glass_pane => ConcreteBlockState.AIR,
-            .pumpkin_stem => ConcreteBlockState.AIR,
-            .melon_stem => ConcreteBlockState.AIR,
-            .vine => ConcreteBlockState.AIR,
-            .fence_gate => ConcreteBlockState.AIR,
-            .brick_stairs => ConcreteBlockState.AIR,
-            .stone_brick_stairs => ConcreteBlockState.AIR,
-            .mycelium => ConcreteBlockState.AIR,
-            .nether_brick_fence => ConcreteBlockState.AIR,
-            .nether_brick_stairs => ConcreteBlockState.AIR,
-            .sandstone_stairs => ConcreteBlockState.AIR,
-            .tripwire_hook => ConcreteBlockState.AIR,
-            .tripwire => ConcreteBlockState.AIR,
-            .spruce_stairs => ConcreteBlockState.AIR,
-            .birch_stairs => ConcreteBlockState.AIR,
-            .jungle_stairs => ConcreteBlockState.AIR,
-            .cobblestone_wall => ConcreteBlockState.AIR,
-            .flower_pot => ConcreteBlockState.AIR,
-            .trapped_chest => ConcreteBlockState.AIR,
-            .quartz_stairs => ConcreteBlockState.AIR,
-            .stained_glass_pane => ConcreteBlockState.AIR,
-            .acacia_stairs => ConcreteBlockState.AIR,
-            .dark_oak_stairs => ConcreteBlockState.AIR,
-            .red_sandstone_stairs => ConcreteBlockState.AIR,
-            .spruce_fence_gate => ConcreteBlockState.AIR,
-            .birch_fence_gate => ConcreteBlockState.AIR,
-            .jungle_fence_gate => ConcreteBlockState.AIR,
-            .dark_oak_fence_gate => ConcreteBlockState.AIR,
-            .acacia_fence_gate => ConcreteBlockState.AIR,
-            .spruce_fence => ConcreteBlockState.AIR,
-            .birch_fence => ConcreteBlockState.AIR,
-            .jungle_fence => ConcreteBlockState.AIR,
-            .dark_oak_fence => ConcreteBlockState.AIR,
-            .acacia_fence => ConcreteBlockState.AIR,
-
-            else => {
-                return self;
+            .grass => {
+                self.payloadPtr(.grass).virtual.snowy = world.getBlock(block_pos.up()) == .snow or world.getBlock(block_pos.up()) == .snow_layer;
             },
+            .dirt => {},
+            .piston_head => {},
+            .fire => {},
+            .oak_stairs => {},
+            .chest => {},
+            .redstone_wire => {},
+            .stone_stairs => {},
+            .fence => {},
+            .unpowered_repeater => {},
+            .powered_repeater => {},
+            .iron_bars => {},
+            .glass_pane => {},
+            .pumpkin_stem => {},
+            .melon_stem => {},
+            .vine => {},
+            .fence_gate => {},
+            .brick_stairs => {},
+            .stone_brick_stairs => {},
+            .mycelium => {},
+            .nether_brick_fence => {},
+            .nether_brick_stairs => {},
+            .sandstone_stairs => {},
+            .tripwire_hook => {},
+            .tripwire => {},
+            .spruce_stairs => {},
+            .birch_stairs => {},
+            .jungle_stairs => {},
+            .cobblestone_wall => {},
+            .flower_pot => {},
+            .trapped_chest => {},
+            .quartz_stairs => {},
+            .stained_glass_pane => {},
+            .acacia_stairs => {},
+            .dark_oak_stairs => {},
+            .red_sandstone_stairs => {},
+            .spruce_fence_gate => {},
+            .birch_fence_gate => {},
+            .jungle_fence_gate => {},
+            .dark_oak_fence_gate => {},
+            .acacia_fence_gate => {},
+            .spruce_fence => {},
+            .birch_fence => {},
+            .jungle_fence => {},
+            .dark_oak_fence => {},
+            .acacia_fence => {},
+
+            else => {},
         }
     }
 
@@ -1819,6 +1819,10 @@ pub const ConcreteBlockState = packed struct(u16) {
     }
     pub fn payloadUnchecked(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
         return @field(self.properties, @tagName(block));
+    }
+    pub fn payloadPtr(self: *@This(), comptime block: ConcreteBlock) *@TypeOf(@field(self.properties, @tagName(block))) {
+        std.debug.assert(self.block == block);
+        return &@field(self.properties, @tagName(block));
     }
 
     pub fn getRaytraceHitbox(self: @This()) [3]Box(f64) {

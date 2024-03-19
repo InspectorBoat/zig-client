@@ -47,7 +47,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
         .Ingame => |*ingame| {
             for (self.chunk_positions, self.chunk_datas) |chunk_pos, *chunk_data| {
                 _ = try ingame.world.loadChunk(chunk_pos);
-                try ingame.world.updateChunk(chunk_pos, chunk_data, true, true, allocator);
+                try ingame.world.receiveChunk(chunk_pos, chunk_data, true, true, allocator);
             }
         },
         else => unreachable,

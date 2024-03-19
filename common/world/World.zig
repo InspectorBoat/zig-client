@@ -87,6 +87,172 @@ pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bo
     });
 }
 
+pub fn isValidBlockPos(block_pos: Vector3(i32)) bool {
+    return block_pos.x >= -30000000 and block_pos.z >= -30000000 and block_pos.x < 30000000 and block_pos.z < 30000000 and block_pos.y >= 0 and block_pos.y < 256;
+}
+
+pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlockState {
+    if (block_pos.y < 0 or block_pos.y > 255) return ConcreteBlockState.AIR;
+
+    if (self.chunks.get(.{
+        .x = @divFloor(block_pos.x, 16),
+        .z = @divFloor(block_pos.z, 16),
+    })) |chunk| {
+        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
+            const section_block_pos = .{
+                .x = @mod(block_pos.x, 16),
+                .y = @mod(block_pos.y, 16),
+                .z = @mod(block_pos.z, 16),
+            };
+            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
+        }
+    }
+    return ConcreteBlockState.AIR;
+}
+
+pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*ConcreteBlockState {
+    if (block_pos.y < 0 or block_pos.y > 255) return null;
+
+    if (self.chunks.get(.{
+        .x = @divFloor(block_pos.x, 16),
+        .z = @divFloor(block_pos.z, 16),
+    })) |chunk| {
+        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
+            const section_block_pos = .{
+                .x = @mod(block_pos.x, 16),
+                .y = @mod(block_pos.y, 16),
+                .z = @mod(block_pos.z, 16),
+            };
+            return &section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
+        }
+    }
+    return null;
+}
+
+pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
+    if (self.chunks.get(.{
+        .x = @divFloor(block_pos.x, 16),
+        .z = @divFloor(block_pos.z, 16),
+    })) |chunk| {
+        if (block_pos.y < 0 or block_pos.y > 255) return .air;
+        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
+            const section_block_pos = .{
+                .x = @mod(block_pos.x, 16),
+                .y = @mod(block_pos.y, 16),
+                .z = @mod(block_pos.z, 16),
+            };
+            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
+        }
+    }
+    return .air;
+}
+
+pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState) void {
+    if (self.chunks.getPtr(.{
+        .x = @divFloor(block_pos.x, 16),
+        .z = @divFloor(block_pos.z, 16),
+    })) |chunk| {
+        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
+            const section_block_pos = .{
+                .x = @mod(block_pos.x, 16),
+                .y = @mod(block_pos.y, 16),
+                .z = @mod(block_pos.z, 16),
+            };
+            section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
+        } else {
+            // std.log.warn("TODO!", .{});
+        }
+    } else {
+        @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
+    }
+}
+
+pub fn receiveChunk(
+    self: *@This(),
+    chunk_pos: Vector2(i32),
+    chunk_data: *WorldChunkS2CPacket.ChunkData,
+    full: bool,
+    has_sky_light: bool,
+    allocator: std.mem.Allocator,
+) !void {
+    @import("log").update_chunk(.{chunk_pos});
+
+    const start = try std.time.Instant.now();
+    const chunk = self.chunks.getPtr(chunk_pos).?;
+    // copy block state data
+    for (0..16) |section_y| {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
+            if (chunk.sections[section_y] == null) {
+                chunk.sections[section_y] = try allocator.create(Section);
+            }
+            const section = chunk.sections[section_y].?;
+
+            const raw_block_states = @as(*align(1) const [4096]RawBlockState, @ptrCast(try chunk_data.buffer.readArrayNonAllocating(4096 * 2)));
+            for (raw_block_states, &section.block_states) |raw_block_state, *concrete_block_state| {
+                concrete_block_state.* = raw_block_state.toFiltered().toConcrete();
+            }
+        } else {
+            if (full) {
+                if (chunk.sections[section_y]) |section| {
+                    allocator.destroy(section);
+                    chunk.sections[section_y] = null;
+                }
+            }
+        }
+    }
+    // copy block light data
+    for (0..16) |section_y| {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
+            const section = chunk.sections[section_y].?;
+            @memcpy(&section.block_light.bytes, try chunk_data.buffer.readArrayNonAllocating(2048));
+        }
+    }
+    // copy sky light data
+    if (has_sky_light) {
+        for (0..16) |section_y| {
+            if (chunk_data.sections.isSet(@intCast(section_y))) {
+                const section = chunk.sections[section_y].?;
+                @memcpy(&section.sky_light.bytes, try chunk_data.buffer.readBytesNonAllocating(2048));
+            }
+        }
+    }
+    // copy biome data
+    if (full) {
+        @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
+    }
+
+    self.updateRegion(.{
+        .min = .{
+            .x = chunk_pos.x * 16 - 1,
+            .y = 0,
+            .z = chunk_pos.z * 16 - 1,
+        },
+        .max = .{
+            .x = chunk_pos.x * 16 + 16 + 1,
+            .y = 255,
+            .z = chunk_pos.z * 16 + 16 + 1,
+        },
+    });
+
+    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
+    try @import("render").onChunkUpdate(chunk_pos, chunk);
+}
+
+// Recomputes virtual properties for all blockstates within region
+pub fn updateRegion(self: *@This(), region: Box(i32)) void {
+    var x = region.min.x;
+    while (x <= region.max.x) : (x += 1) {
+        var y = region.min.y;
+        while (y <= region.max.y) : (y += 1) {
+            var z = region.min.z;
+            while (z <= region.max.z) : (z += 1) {
+                const block_pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
+                (self.getBlockStatePtr(block_pos) orelse return).update(self.*, block_pos);
+            }
+        }
+    }
+}
+
 pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
     var collisions_count: usize = 0;
     const min_pos: Vector3(i32) = .{
@@ -153,129 +319,6 @@ pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.
     return try collisions.toOwnedSlice();
 }
 
-pub fn isValidBlockPos(block_pos: Vector3(i32)) bool {
-    return block_pos.x >= -30000000 and block_pos.z >= -30000000 and block_pos.x < 30000000 and block_pos.z < 30000000 and block_pos.y >= 0 and block_pos.y < 256;
-}
-
-pub fn addEntity(self: *@This(), entity: Entity) !void {
-    try self.entities.append(entity);
-}
-
-pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlockState {
-    if (block_pos.y < 0 or block_pos.y > 255) return ConcreteBlockState.AIR;
-
-    if (self.chunks.get(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
-        }
-    }
-    return ConcreteBlockState.AIR;
-}
-
-pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
-    if (self.chunks.get(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (block_pos.y < 0 or block_pos.y > 255) return .air;
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
-        }
-    }
-    return .air;
-}
-
-pub fn setBlockState(self: *const @This(), block_pos: Vector3(i32), state: ConcreteBlockState) void {
-    if (self.chunks.get(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
-        } else {
-            std.log.warn("TODO!", .{});
-        }
-    } else {
-        @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
-    }
-}
-
-pub fn updateChunk(
-    self: *@This(),
-    chunk_pos: Vector2(i32),
-    chunk_data: *WorldChunkS2CPacket.ChunkData,
-    full: bool,
-    has_sky_light: bool,
-    allocator: std.mem.Allocator,
-) !void {
-    @import("log").update_chunk(.{chunk_pos});
-
-    const start = try std.time.Instant.now();
-    const chunk = self.chunks.getPtr(chunk_pos).?;
-    // copy block state data
-    for (0..16) |section_y| {
-        if (chunk_data.sections.isSet(@intCast(section_y))) {
-            if (chunk.sections[section_y] == null) {
-                chunk.sections[section_y] = try allocator.create(Section);
-            }
-            const section = chunk.sections[section_y].?;
-
-            const raw_block_states = @as(*align(1) const [4096]RawBlockState, @ptrCast(try chunk_data.buffer.readArrayNonAllocating(4096 * 2)));
-            for (raw_block_states, &section.block_states) |raw_block_state, *concrete_block_state| {
-                concrete_block_state.* = raw_block_state.toFiltered().toConcrete();
-            }
-        } else {
-            if (full) {
-                if (chunk.sections[section_y]) |section| {
-                    allocator.destroy(section);
-                    chunk.sections[section_y] = null;
-                }
-            }
-        }
-    }
-    // copy block light data
-    for (0..16) |section_y| {
-        if (chunk_data.sections.isSet(@intCast(section_y))) {
-            const section = chunk.sections[section_y].?;
-            @memcpy(&section.block_light.bytes, try chunk_data.buffer.readArrayNonAllocating(2048));
-        }
-    }
-    // copy sky light data
-    if (has_sky_light) {
-        for (0..16) |section_y| {
-            if (chunk_data.sections.isSet(@intCast(section_y))) {
-                const section = chunk.sections[section_y].?;
-                @memcpy(&section.sky_light.bytes, try chunk_data.buffer.readBytesNonAllocating(2048));
-            }
-        }
-    }
-    // copy biome data
-    if (full) {
-        @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
-    }
-
-    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
-    try @import("render").onChunkUpdate(chunk_pos, chunk);
-}
-
 /// returns intersecting hitboxes originating from blocks
 pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator: std.mem.Allocator) []const Box(f64) {
     const min_pos = Vector3(i32){
@@ -292,6 +335,10 @@ pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator:
     _ = min_pos; // autofix
     _ = allocator; // autofix
     _ = self; // autofix
+}
+
+pub fn addEntity(self: *@This(), entity: Entity) !void {
+    try self.entities.append(entity);
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {

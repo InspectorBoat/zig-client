@@ -41,7 +41,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                     _ = try ingame.world.loadChunk(self.chunk_pos);
                 }
             }
-            try ingame.world.updateChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);
+            try ingame.world.receiveChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);
         },
         else => unreachable,
     }
