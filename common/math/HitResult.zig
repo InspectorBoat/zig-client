@@ -111,51 +111,53 @@ pub const HitResult = union(HitType) {
             };
 
             const block = world.getBlock(from_block_pos);
-            for (world.getBlockState(from_block_pos).getRaytraceHitbox()) |hitbox| {
-                if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
+            for (world.getBlockState(from_block_pos).getRaytraceHitbox()) |maybe_hitbox| {
+                if (maybe_hitbox) |hitbox| {
+                    if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
 
-                if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
-                if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
+                    if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
+                    if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
 
-                const hit_result = rayTraceHitbox(
-                    hitbox,
-                    from.sub(.{
-                        .x = @floatFromInt(from_block_pos.x),
-                        .y = @floatFromInt(from_block_pos.y),
-                        .z = @floatFromInt(from_block_pos.z),
-                    }),
-                    to.sub(.{
-                        .x = @floatFromInt(from_block_pos.x),
-                        .y = @floatFromInt(from_block_pos.y),
-                        .z = @floatFromInt(from_block_pos.z),
-                    }),
-                );
-                if (hit_result == .block) {
-                    const pos: Vector3(i32) = from_block_pos.add(
-                        switch (hit_result.block.dir) {
-                            .East => .{ .x = 1, .y = 0, .z = 0 },
-                            .West => .{ .x = -1, .y = 0, .z = 0 },
-                            .North => .{ .x = 0, .y = 0, .z = -1 },
-                            .South => .{ .x = 0, .y = 0, .z = 1 },
-                            .Up => .{ .x = 0, .y = 1, .z = 0 },
-                            .Down => .{ .x = 0, .y = -1, .z = 0 },
-                        },
+                    const hit_result = rayTraceHitbox(
+                        hitbox,
+                        from.sub(.{
+                            .x = @floatFromInt(from_block_pos.x),
+                            .y = @floatFromInt(from_block_pos.y),
+                            .z = @floatFromInt(from_block_pos.z),
+                        }),
+                        to.sub(.{
+                            .x = @floatFromInt(from_block_pos.x),
+                            .y = @floatFromInt(from_block_pos.y),
+                            .z = @floatFromInt(from_block_pos.z),
+                        }),
                     );
+                    if (hit_result == .block) {
+                        const pos: Vector3(i32) = from_block_pos.add(
+                            switch (hit_result.block.dir) {
+                                .East => .{ .x = 1, .y = 0, .z = 0 },
+                                .West => .{ .x = -1, .y = 0, .z = 0 },
+                                .North => .{ .x = 0, .y = 0, .z = -1 },
+                                .South => .{ .x = 0, .y = 0, .z = 1 },
+                                .Up => .{ .x = 0, .y = 1, .z = 0 },
+                                .Down => .{ .x = 0, .y = -1, .z = 0 },
+                            },
+                        );
 
-                    @import("render").renderer.renderBox(.{
-                        .min = .{
-                            .x = @floatFromInt(pos.x),
-                            .y = @floatFromInt(pos.y),
-                            .z = @floatFromInt(pos.z),
-                        },
-                        .max = .{
-                            .x = @floatFromInt(pos.x + 1),
-                            .y = @floatFromInt(pos.y + 1),
-                            .z = @floatFromInt(pos.z + 1),
-                        },
-                    });
-                    return hit_result;
-                }
+                        @import("render").renderer.renderBox(.{
+                            .min = .{
+                                .x = @floatFromInt(pos.x),
+                                .y = @floatFromInt(pos.y),
+                                .z = @floatFromInt(pos.z),
+                            },
+                            .max = .{
+                                .x = @floatFromInt(pos.x + 1),
+                                .y = @floatFromInt(pos.y + 1),
+                                .z = @floatFromInt(pos.z + 1),
+                            },
+                        });
+                        return hit_result;
+                    }
+                } else break;
             }
         }
 

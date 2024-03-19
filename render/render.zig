@@ -6,6 +6,7 @@ const Game = @import("common").Game;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
+const Vector3 = @import("common").Vector3;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 const glfw_helper = @import("./glfw_helper.zig");
 const WindowInput = @import("./WindowInput.zig");
@@ -161,9 +162,15 @@ pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void
                 for (0..16) |y| {
                     for (0..16) |z| {
                         const pos = (y << 8) | (z << 4) | (x << 0);
-                        if (section.block_states[pos].block != .air) {
-                            staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
+                        for (section.block_states[pos].getRaytraceHitbox()) |maybe_box| {
+                            if (maybe_box) |box| {
+                                const pos_vec: Vector3(f64) = .{ .x = @floatFromInt(x), .y = @floatFromInt(y), .z = @floatFromInt(z) };
+                                staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
+                            }
                         }
+                        // if (section.block_states[pos].block != .air) {
+                        // staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
+                        // }
                     }
                 }
             }

@@ -185,6 +185,46 @@ pub fn Vector3(comptime Element: type) type {
             };
         }
 
+        pub fn floatCast(self: @This(), comptime Target: type) Vector3(Target) {
+            if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
+            if (@typeInfo(Element) != .Float) @compileLog("Must floatCast from float!");
+            return .{
+                .x = @floatCast(self.x),
+                .y = @floatCast(self.y),
+                .z = @floatCast(self.z),
+            };
+        }
+
+        pub fn intCast(self: @This(), comptime Target: type) Vector3(Target) {
+            if (@typeInfo(Target) != .Int) @compileLog("Must intCast to int!");
+            if (@typeInfo(Element) != .Int) @compileLog("Must intCast from int!");
+            return .{
+                .x = @intCast(self.x),
+                .y = @intCast(self.y),
+                .z = @intCast(self.z),
+            };
+        }
+
+        pub fn floatToInt(self: @This(), comptime Target: type) Vector3(Target) {
+            if (@typeInfo(Target) != .Float) @compileLog("Start type must be float!");
+            if (@typeInfo(Element) != .Int) @compileLog("Target type from int!");
+            return .{
+                .x = @intFromFloat(self.x),
+                .y = @intFromFloat(self.y),
+                .z = @intFromFloat(self.z),
+            };
+        }
+
+        pub fn intToFloat(self: @This(), comptime Target: type) Vector3(Target) {
+            if (@typeInfo(Target) != .Int) @compileLog("Start type must be int!");
+            if (@typeInfo(Element) != .Float) @compileLog("Target type from float!");
+            return .{
+                .x = @floatFromInt(self.x),
+                .y = @floatFromInt(self.y),
+                .z = @floatFromInt(self.z),
+            };
+        }
+
         pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
             _ = fmt;
             _ = options;

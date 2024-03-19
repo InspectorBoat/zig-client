@@ -247,7 +247,7 @@ pub fn updateRegion(self: *@This(), region: Box(i32)) void {
             var z = region.min.z;
             while (z <= region.max.z) : (z += 1) {
                 const block_pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
-                (self.getBlockStatePtr(block_pos) orelse return).update(self.*, block_pos);
+                (self.getBlockStatePtr(block_pos) orelse continue).update(self.*, block_pos);
             }
         }
     }

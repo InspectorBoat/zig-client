@@ -30,6 +30,7 @@ pub fn build(b: *std.Build) void {
         .target = b.standardTargetOptions(.{}),
         .optimize = b.standardOptimizeOption(.{}),
     });
+    exe.want_lto = false;
 
     exe.root_module.addImport("common", common);
     exe.root_module.addImport("network", network);

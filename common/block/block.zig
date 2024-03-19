@@ -873,6 +873,226 @@ pub const ConcreteBlock = enum(u8) {
 
     flower_pot_2,
 
+    pub const full_cube_table = EnumBoolArray(@This()).init(.{
+        .air = true,
+        .stone = true,
+        .grass = true,
+        .dirt = true,
+        .cobblestone = true,
+        .planks = true,
+        .sapling = false,
+        .bedrock = true,
+        .flowing_water = false,
+        .water = false,
+        .flowing_lava = false,
+        .lava = false,
+        .sand = true,
+        .gravel = true,
+        .gold_ore = true,
+        .iron_ore = true,
+        .coal_ore = true,
+        .log = true,
+        .leaves = true,
+        .sponge = true,
+        .glass = false,
+        .lapis_ore = true,
+        .lapis_block = true,
+        .dispenser = true,
+        .sandstone = true,
+        .noteblock = true,
+        .bed = false,
+        .golden_rail = false,
+        .detector_rail = false,
+        .sticky_piston = false,
+        .web = false,
+        .tallgrass = false,
+        .deadbush = false,
+        .piston = false,
+        .piston_head = false,
+        .wool = true,
+        .piston_extension = false,
+        .yellow_flower = false,
+        .red_flower = false,
+        .brown_mushroom = false,
+        .red_mushroom = false,
+        .gold_block = true,
+        .iron_block = true,
+        .double_stone_slab = true,
+        .stone_slab = false,
+        .brick_block = true,
+        .tnt = true,
+        .bookshelf = true,
+        .mossy_cobblestone = true,
+        .obsidian = true,
+        .torch = false,
+        .fire = false,
+        .mob_spawner = true,
+        .oak_stairs = false,
+        .chest = false,
+        .redstone_wire = false,
+        .diamond_ore = true,
+        .diamond_block = true,
+        .crafting_table = true,
+        .wheat = false,
+        .farmland = false,
+        .furnace = true,
+        .lit_furnace = true,
+        .standing_sign = false,
+        .wooden_door = false,
+        .ladder = false,
+        .rail = false,
+        .stone_stairs = false,
+        .wall_sign = false,
+        .lever = false,
+        .stone_pressure_plate = false,
+        .iron_door = false,
+        .wooden_pressure_plate = false,
+        .redstone_ore = true,
+        .lit_redstone_ore = true,
+        .unlit_redstone_torch = false,
+        .redstone_torch = false,
+        .stone_button = false,
+        .snow_layer = false,
+        .ice = true,
+        .snow = true,
+        .cactus = false,
+        .clay = true,
+        .reeds = false,
+        .jukebox = true,
+        .fence = false,
+        .pumpkin = true,
+        .netherrack = true,
+        .soul_sand = true,
+        .glowstone = true,
+        .portal = false,
+        .lit_pumpkin = true,
+        .cake = false,
+        .unpowered_repeater = false,
+        .powered_repeater = false,
+        .stained_glass = false,
+        .trapdoor = false,
+        .monster_egg = true,
+        .stonebrick = true,
+        .brown_mushroom_block = true,
+        .red_mushroom_block = true,
+        .iron_bars = false,
+        .glass_pane = false,
+        .melon_block = true,
+        .pumpkin_stem = false,
+        .melon_stem = false,
+        .vine = false,
+        .fence_gate = false,
+        .brick_stairs = false,
+        .stone_brick_stairs = false,
+        .mycelium = true,
+        .waterlily = false,
+        .nether_brick = true,
+        .nether_brick_fence = false,
+        .nether_brick_stairs = false,
+        .nether_wart = false,
+        .enchanting_table = false,
+        .brewing_stand = false,
+        .cauldron = false,
+        .end_portal = false,
+        .end_portal_frame = true,
+        .end_stone = true,
+        .dragon_egg = false,
+        .redstone_lamp = true,
+        .lit_redstone_lamp = true,
+        .double_wooden_slab = true,
+        .wooden_slab = false,
+        .cocoa = false,
+        .sandstone_stairs = false,
+        .emerald_ore = true,
+        .ender_chest = false,
+        .tripwire_hook = false,
+        .tripwire = false,
+        .emerald_block = true,
+        .spruce_stairs = false,
+        .birch_stairs = false,
+        .jungle_stairs = false,
+        .command_block = true,
+        .beacon = false,
+        .cobblestone_wall = false,
+        .flower_pot = false,
+        .carrots = false,
+        .potatoes = false,
+        .wooden_button = false,
+        .skull = false,
+        .anvil = false,
+        .trapped_chest = false,
+        .light_weighted_pressure_plate = false,
+        .heavy_weighted_pressure_plate = false,
+        .unpowered_comparator = false,
+        .powered_comparator = false,
+        .daylight_detector = false,
+        .redstone_block = true,
+        .quartz_ore = true,
+        .hopper = false,
+        .quartz_block = true,
+        .quartz_stairs = false,
+        .activator_rail = false,
+        .dropper = true,
+        .stained_hardened_clay = true,
+        .stained_glass_pane = false,
+        .leaves2 = true,
+        .log2 = true,
+        .acacia_stairs = false,
+        .dark_oak_stairs = false,
+        .slime = true,
+        .barrier = true,
+        .iron_trapdoor = false,
+        .prismarine = true,
+        .sea_lantern = true,
+        .hay_block = true,
+        .carpet = false,
+        .hardened_clay = true,
+        .coal_block = true,
+        .packed_ice = true,
+        .double_plant = false,
+        .standing_banner = false,
+        .wall_banner = false,
+        .daylight_detector_inverted = false,
+        .red_sandstone = true,
+        .red_sandstone_stairs = false,
+        .double_stone_slab2 = true,
+        .stone_slab2 = false,
+        .spruce_fence_gate = false,
+        .birch_fence_gate = false,
+        .jungle_fence_gate = false,
+        .dark_oak_fence_gate = false,
+        .acacia_fence_gate = false,
+        .spruce_fence = false,
+        .birch_fence = false,
+        .jungle_fence = false,
+        .dark_oak_fence = false,
+        .acacia_fence = false,
+        .spruce_door = false,
+        .birch_door = false,
+        .jungle_door = false,
+        .acacia_door = false,
+        .dark_oak_door = false,
+
+        .fire_upper = false,
+
+        .redstone_wire_none_flat = false,
+        .redstone_wire_none_upper = false,
+        .redstone_wire_flat_none = false,
+        .redstone_wire_flat_flat = false,
+        .redstone_wire_flat_upper = false,
+        .redstone_wire_upper_none = false,
+        .redstone_wire_upper_flat = false,
+        .redstone_wire_upper_upper = false,
+
+        .cobblestone_wall_upper = false,
+
+        .flower_pot_2 = false,
+    });
+
+    pub fn isFullCube(self: @This()) bool {
+        return full_cube_table.get(self);
+    }
+
     pub fn getFriction(self: @This()) f32 {
         return switch (self) {
             .slime => 0.8,
@@ -880,6 +1100,44 @@ pub const ConcreteBlock = enum(u8) {
             else => 0.6,
         };
     }
+};
+
+pub const Material = enum {
+    air,
+    grass,
+    dirt,
+    wood,
+    stone,
+    iron,
+    anvil,
+    water,
+    lava,
+    leaves,
+    plant,
+    replaceable_plant,
+    sponge,
+    wool,
+    fire,
+    sand,
+    decoration,
+    carpet,
+    glass,
+    redstone_lamp,
+    tnt,
+    coral,
+    ice,
+    packed_ice,
+    snow_layer,
+    snow,
+    cactus,
+    clay,
+    pumpkin,
+    egg,
+    portal,
+    cake,
+    cobweb,
+    piston,
+    barrier,
 };
 
 // FilteredBlockState, but with virtual properties resolved
@@ -891,6 +1149,7 @@ pub const ConcreteBlockState = packed struct(u16) {
 
     const BlockProperties = packed union {
         const StoredBlockProperties = FilteredBlockState.BlockProperties;
+
         raw_bits: packed struct(u8) {
             virtual: u4,
             stored: u4,
@@ -1249,6 +1508,10 @@ pub const ConcreteBlockState = packed struct(u16) {
         fence: packed struct(u8) {
             virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
             stored: StoredBlockProperties.fence,
+
+            pub fn shouldConnectTo(_: @This(), block: ConcreteBlock) bool {
+                return EnumBoolArray(ConcreteBlock).init(@import("./wood_fence_connections.zig").@"export").get(block);
+            }
         },
         pumpkin: packed struct(u8) {
             virtual: packed struct(u4) { _: u4 = 0 } = .{},
@@ -1361,6 +1624,10 @@ pub const ConcreteBlockState = packed struct(u16) {
         nether_brick_fence: packed struct(u8) {
             virtual: packed struct(u4) { west: bool, south: bool, north: bool, east: bool },
             stored: StoredBlockProperties.nether_brick_fence,
+
+            pub fn shouldConnectTo(_: @This(), block: ConcreteBlock) bool {
+                return EnumBoolArray(ConcreteBlock).init(@import("./nether_brick_fence_connections.zig").@"export").get(block);
+            }
         },
         nether_brick_stairs: packed struct(u8) {
             virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
@@ -1761,16 +2028,27 @@ pub const ConcreteBlockState = packed struct(u16) {
     pub fn update(self: *@This(), world: World, block_pos: Vector3(i32)) void {
         switch (self.block) {
             .grass => {
-                self.payloadPtr(.grass).virtual.snowy = world.getBlock(block_pos.up()) == .snow or world.getBlock(block_pos.up()) == .snow_layer;
+                const up = world.getBlock(block_pos.up());
+                self.payloadPtr(.grass).virtual.snowy = up == .snow or up == .snow_layer;
             },
-            .dirt => {},
+            .dirt => {
+                // const up = world.getBlock(block_pos.up());
+                // self.payloadPtr(.dirt).virtual.snowy = up == .snow or up == .snow_layer;
+            },
             .piston_head => {},
             .fire => {},
             .oak_stairs => {},
             .chest => {},
             .redstone_wire => {},
             .stone_stairs => {},
-            .fence => {},
+            .fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => {
+                self.properties.fence.virtual = .{
+                    .west = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.west())),
+                    .south = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.south())),
+                    .north = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.north())),
+                    .east = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.east())),
+                };
+            },
             .unpowered_repeater => {},
             .powered_repeater => {},
             .iron_bars => {},
@@ -1782,7 +2060,14 @@ pub const ConcreteBlockState = packed struct(u16) {
             .brick_stairs => {},
             .stone_brick_stairs => {},
             .mycelium => {},
-            .nether_brick_fence => {},
+            .nether_brick_fence => {
+                self.payloadPtr(.nether_brick_fence).virtual = .{
+                    .west = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.west())),
+                    .south = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.south())),
+                    .north = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.north())),
+                    .east = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.east())),
+                };
+            },
             .nether_brick_stairs => {},
             .sandstone_stairs => {},
             .tripwire_hook => {},
@@ -1803,11 +2088,12 @@ pub const ConcreteBlockState = packed struct(u16) {
             .jungle_fence_gate => {},
             .dark_oak_fence_gate => {},
             .acacia_fence_gate => {},
-            .spruce_fence => {},
-            .birch_fence => {},
-            .jungle_fence => {},
-            .dark_oak_fence => {},
-            .acacia_fence => {},
+
+            // .spruce_fence => {},
+            // .birch_fence => {},
+            // .jungle_fence => {},
+            // .dark_oak_fence => {},
+            // .acacia_fence => {},
 
             else => {},
         }
@@ -1817,25 +2103,18 @@ pub const ConcreteBlockState = packed struct(u16) {
         std.debug.assert(self.block == block);
         return @field(self.properties, @tagName(block));
     }
-    pub fn payloadUnchecked(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
-        return @field(self.properties, @tagName(block));
-    }
     pub fn payloadPtr(self: *@This(), comptime block: ConcreteBlock) *@TypeOf(@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);
         return &@field(self.properties, @tagName(block));
     }
 
-    pub fn getRaytraceHitbox(self: @This()) [3]Box(f64) {
-        const EMPTY: Box(f64) = .{
-            .min = .{ .x = 0, .y = 0, .z = 0 },
-            .max = .{ .x = 0, .y = 0, .z = 0 },
-        };
+    pub fn getRaytraceHitbox(self: @This()) [3]?Box(f64) {
         const CUBE: Box(f64) = .{
             .min = .{ .x = 0, .y = 0, .z = 0 },
             .max = .{ .x = 1, .y = 1, .z = 1 },
         };
-        const NONE: [3]Box(f64) = .{ EMPTY, EMPTY, EMPTY };
-        const FULL: [3]Box(f64) = .{ CUBE, EMPTY, EMPTY };
+        const NONE: [3]?Box(f64) = .{ null, null, null };
+        const FULL: [3]?Box(f64) = .{ CUBE, null, null };
         return switch (self.block) {
             .air => NONE,
             .stone => FULL,
@@ -1848,8 +2127,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.1, .y = 0.1, .z = 0.1 },
                     .max = .{ .x = 0.9, .y = 0.8, .z = 0.9 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .bedrock => FULL,
             .flowing_water => FULL, // TODO
@@ -1875,8 +2154,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.5625, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .golden_rail => {
                 const golden_rail = self.payload(.golden_rail);
@@ -1885,8 +2164,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                         .max = .{ .x = 1.0, .y = if (golden_rail.stored.shape == .ascending_east or golden_rail.stored.shape == .ascending_north or golden_rail.stored.shape == .ascending_south or golden_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .detector_rail => {
@@ -1896,8 +2175,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                         .max = .{ .x = 1.0, .y = if (detector_rail.stored.shape == .ascending_east or detector_rail.stored.shape == .ascending_north or detector_rail.stored.shape == .ascending_south or detector_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .sticky_piston => {
@@ -1929,8 +2208,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
                         },
                     } else CUBE,
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .web => FULL,
@@ -1939,16 +2218,16 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.1, .y = 0.1, .z = 0.1 },
                     .max = .{ .x = 0.9, .y = 0.8, .z = 0.9 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .deadbush => .{
                 .{
                     .min = .{ .x = 0.1, .y = 0.1, .z = 0.1 },
                     .max = .{ .x = 0.9, .y = 0.8, .z = 0.9 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .piston => {
                 const piston = self.payload(.piston);
@@ -1979,8 +2258,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.75, .y = 1.0, .z = 1.0 },
                         },
                     } else CUBE,
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .piston_head => {
@@ -2012,8 +2291,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .wool => FULL,
@@ -2023,32 +2302,32 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
                     .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .red_flower => .{
                 .{
                     .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
                     .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .brown_mushroom => .{
                 .{
                     .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
                     .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .red_mushroom => .{
                 .{
                     .min = .{ .x = 0.3, .y = 0.0, .z = 0.3 },
                     .max = .{ .x = 0.7, .y = 0.6, .z = 0.7 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .gold_block => FULL,
             .iron_block => FULL,
@@ -2060,8 +2339,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0, .y = if (stone_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
                         .max = .{ .x = 1, .y = if (stone_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .brick_block => FULL,
@@ -2098,8 +2377,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
 
@@ -2132,8 +2411,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
 
@@ -2142,8 +2421,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.0625, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
 
             .diamond_ore => FULL,
@@ -2154,16 +2433,16 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .farmland => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.9375, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .furnace => FULL,
             .lit_furnace => FULL,
@@ -2172,8 +2451,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
                     .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .wooden_door => FULL, // TODO
             .ladder => {
@@ -2197,8 +2476,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .rail => {
@@ -2208,8 +2487,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                         .max = .{ .x = 1.0, .y = if (rail.stored.shape == .ascending_east or rail.stored.shape == .ascending_north or rail.stored.shape == .ascending_south or rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .stone_stairs => FULL, // TODO
@@ -2234,8 +2513,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .lever => {
@@ -2267,8 +2546,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .stone_pressure_plate => {
@@ -2278,8 +2557,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
                         .max = .{ .x = 0.9375, .y = if (stone_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .iron_door => FULL, // TODO
@@ -2290,8 +2569,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
                         .max = .{ .x = 0.9375, .y = if (wooden_pressure_plate.stored.powered) 0.03125 else 0.0625, .z = 0.9375 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .redstone_ore => FULL,
@@ -2325,8 +2604,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .redstone_torch => {
@@ -2358,8 +2637,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .stone_button => {
@@ -2394,8 +2673,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .snow_layer => {
@@ -2405,8 +2684,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                         .max = .{ .x = 1.0, .y = @as(f32, @floatFromInt(snow_layer.stored.layers + 1)) / 8.0, .z = 1.0 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .ice => FULL,
@@ -2418,19 +2697,19 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.125, .y = 0.0, .z = 0.125 },
                     .max = .{ .x = 0.875, .y = 1.0, .z = 0.875 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .jukebox => FULL,
-            .fence => {
-                const fence = self.payload(.fence);
+            .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => {
+                const fence = self.properties.fence.virtual;
                 return .{
                     .{
-                        .min = .{ .x = if (fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (fence.virtual.south) 0.0 else 0.625 },
+                        .min = .{ .x = if (fence.west) 0.0 else 0.375, .y = 0.0, .z = if (fence.north) 0.0 else 0.375 },
+                        .max = .{ .x = if (fence.east) 1.0 else 0.625, .y = 1.0, .z = if (fence.south) 1.0 else 0.625 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .pumpkin => FULL,
@@ -2450,8 +2729,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .lit_pumpkin => FULL,
@@ -2462,8 +2741,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = @as(f32, @floatFromInt(cake.stored.bites * 2 + 1)) / 16.0, .y = 0.0, .z = 0.0625 },
                         .max = .{ .x = 0.9375, .y = 1.0, .z = 0.9375 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .unpowered_repeater => .{
@@ -2471,16 +2750,16 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .powered_repeater => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .stained_glass => FULL,
             .trapdoor => FULL, // TODO
@@ -2498,8 +2777,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = if (iron_bars.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (iron_bars.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .glass_pane => {
@@ -2512,8 +2791,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = if (glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .melon_block => FULL,
@@ -2524,8 +2803,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
                         .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(pumpkin_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .melon_stem => {
@@ -2535,8 +2814,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.375, .y = 0.0, .z = 0.375 },
                         .max = .{ .x = 0.625, .y = @as(f32, @floatFromInt(melon_stem.stored.age * 2 + 2)) / 16.0, .z = 0.625 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .vine => FULL, // TODO
@@ -2553,8 +2832,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .brick_stairs => FULL, // TODO
@@ -2565,45 +2844,35 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
                     .max = .{ .x = 1.0, .y = 0.015625, .z = 0.625 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .nether_brick => FULL,
-            .nether_brick_fence => {
-                const nether_brick_fence = self.payload(.nether_brick_fence);
-                return .{
-                    .{
-                        .min = .{ .x = if (nether_brick_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (nether_brick_fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (nether_brick_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (nether_brick_fence.virtual.south) 0.0 else 0.625 },
-                    },
-                    EMPTY,
-                    EMPTY,
-                };
-            },
+            // .nether_brick_fence,
             .nether_brick_stairs => FULL, // TODO
             .nether_wart => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
                     .max = .{ .x = 1.0, .y = 0.25, .z = 0.625 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .enchanting_table => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
                     .max = .{ .x = 1.0, .y = 0.75, .z = 0.625 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .brewing_stand => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.375 },
                     .max = .{ .x = 1.0, .y = 0.125, .z = 0.625 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .cauldron => FULL,
             .end_portal => .{
@@ -2611,16 +2880,16 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.0625, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .end_portal_frame => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.8125, .z = 0.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .end_stone => FULL,
             .dragon_egg => .{
@@ -2628,8 +2897,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
                     .max = .{ .x = 0.9375, .y = 1.0, .z = 0.9375 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .redstone_lamp => FULL,
             .lit_redstone_lamp => FULL,
@@ -2641,8 +2910,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0, .y = if (wooden_slab.stored.half == .top) 0.5 else 0.0, .z = 0 },
                         .max = .{ .x = 1, .y = if (wooden_slab.stored.half == .top) 1.0 else 0.5, .z = 1 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .cocoa => {
@@ -2702,8 +2971,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .sandstone_stairs => FULL, // TODO
@@ -2713,8 +2982,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
                     .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .tripwire_hook => {
                 const tripwire_hook = self.payload(.tripwire_hook);
@@ -2737,8 +3006,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.6875, .y = 0.8, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .tripwire => {
@@ -2759,8 +3028,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .min = .{ .x = 0.0, .y = 0.0625, .z = 0.0 },
                             .max = .{ .x = 1.0, .y = 0.15625, .z = 1.0 },
                         },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .emerald_block => FULL,
@@ -2775,24 +3044,24 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.3125, .y = 0.0, .z = 0.3125 },
                     .max = .{ .x = 0.6875, .y = 0.375, .z = 0.6875 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .carrots => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .potatoes => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.25, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .wooden_button => {
                 const wooden_button = self.payload(.wooden_button);
@@ -2826,8 +3095,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .skull => {
@@ -2855,8 +3124,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.5, .y = 0.5, .z = 0.75 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .anvil => {
@@ -2872,8 +3141,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.875, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .trapped_chest => {
@@ -2901,8 +3170,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.9375, .y = 0.875, .z = 0.9375 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .light_weighted_pressure_plate => {
@@ -2912,8 +3181,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
                         .max = .{ .x = 0.9375, .y = if (light_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .heavy_weighted_pressure_plate => {
@@ -2923,8 +3192,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0625, .y = 0.0, .z = 0.0625 },
                         .max = .{ .x = 0.9375, .y = if (heavy_weighted_pressure_plate.stored.power > 0) 0.03125 else 0.0625, .z = 0.9375 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .unpowered_comparator => .{
@@ -2932,24 +3201,24 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .powered_comparator => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.125, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .daylight_detector => .{
                 .{
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.375, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .redstone_block => FULL,
             .quartz_ore => FULL,
@@ -2963,8 +3232,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                         .max = .{ .x = 1.0, .y = if (activator_rail.stored.shape == .ascending_east or activator_rail.stored.shape == .ascending_north or activator_rail.stored.shape == .ascending_south or activator_rail.stored.shape == .ascending_west) 0.625 else 0.125, .z = 1.0 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .dropper => FULL,
@@ -2979,8 +3248,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = if (stained_glass_pane.virtual.east) @as(f32, 1.0) else @as(f32, 0.5625), .y = 1.0, .z = if (stained_glass_pane.virtual.south) @as(f32, 1.0) else @as(f32, 0.5625) },
                         };
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .leaves2 => FULL,
@@ -2998,8 +3267,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
                     .max = .{ .x = 1.0, .y = 0.0625, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .hardened_clay => FULL,
             .coal_block => FULL,
@@ -3010,8 +3279,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.25, .y = 0.0, .z = 0.25 },
                     .max = .{ .x = 0.75, .y = 1.0, .z = 0.75 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .wall_banner => {
                 const wall_banner = self.payload(.wall_banner);
@@ -3034,8 +3303,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.125, .y = 0.78125, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .daylight_detector_inverted => .{
@@ -3043,8 +3312,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .min = .{ .x = 0.0, .y = 0.0, .z = 0.1 },
                     .max = .{ .x = 1.0, .y = 0.375, .z = 1.0 },
                 },
-                EMPTY,
-                EMPTY,
+                null,
+                null,
             },
             .red_sandstone => FULL,
             .red_sandstone_stairs => FULL, // TODO
@@ -3056,8 +3325,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                         .min = .{ .x = 0, .y = if (stone_slab2.stored.half == .top) 0.5 else 0.0, .z = 0 },
                         .max = .{ .x = 1, .y = if (stone_slab2.stored.half == .top) 1.0 else 0.5, .z = 1 },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .spruce_fence_gate => {
@@ -3073,8 +3342,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .birch_fence_gate => {
@@ -3090,8 +3359,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .jungle_fence_gate => {
@@ -3107,8 +3376,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .dark_oak_fence_gate => {
@@ -3124,8 +3393,8 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
             .acacia_fence_gate => {
@@ -3141,65 +3410,15 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .max = .{ .x = 0.625, .y = 1.0, .z = 1.0 },
                         },
                     },
-                    EMPTY,
-                    EMPTY,
+                    null,
+                    null,
                 };
             },
-            .spruce_fence => {
-                const spruce_fence = self.payload(.spruce_fence);
-                return .{
-                    .{
-                        .min = .{ .x = if (spruce_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (spruce_fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (spruce_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (spruce_fence.virtual.south) 0.0 else 0.625 },
-                    },
-                    EMPTY,
-                    EMPTY,
-                };
-            },
-            .birch_fence => {
-                const birch_fence = self.payload(.birch_fence);
-                return .{
-                    .{
-                        .min = .{ .x = if (birch_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (birch_fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (birch_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (birch_fence.virtual.south) 0.0 else 0.625 },
-                    },
-                    EMPTY,
-                    EMPTY,
-                };
-            },
-            .jungle_fence => {
-                const jungle_fence = self.payload(.jungle_fence);
-                return .{
-                    .{
-                        .min = .{ .x = if (jungle_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (jungle_fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (jungle_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (jungle_fence.virtual.south) 0.0 else 0.625 },
-                    },
-                    EMPTY,
-                    EMPTY,
-                };
-            },
-            .dark_oak_fence => {
-                const dark_oak_fence = self.payload(.dark_oak_fence);
-                return .{
-                    .{
-                        .min = .{ .x = if (dark_oak_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (dark_oak_fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (dark_oak_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (dark_oak_fence.virtual.south) 0.0 else 0.625 },
-                    },
-                    EMPTY,
-                    EMPTY,
-                };
-            },
-            .acacia_fence => {
-                const acacia_fence = self.payload(.acacia_fence);
-                return .{
-                    .{
-                        .min = .{ .x = if (acacia_fence.virtual.west) 0.0 else 0.375, .y = 0.0, .z = if (acacia_fence.virtual.north) 0.0 else 0.375 },
-                        .max = .{ .x = if (acacia_fence.virtual.east) 0.0 else 0.625, .y = 1.0, .z = if (acacia_fence.virtual.south) 0.0 else 0.625 },
-                    },
-                    EMPTY,
-                    EMPTY,
-                };
-            },
+            // .spruce_fence,
+            // .birch_fence,
+            // .jungle_fence,
+            // .dark_oak_fence,
+            // .acacia_fence,
             .spruce_door => FULL, // TODO
             .birch_door => FULL, // TODO
             .jungle_door => FULL, // TODO
@@ -3429,7 +3648,7 @@ const valid_metadata_table = blk: {
     break :blk table;
 };
 
-/// converts metadata -> packed struct through lookup table
+/// A table of metadata(u4) -> packed struct(u4) conversions
 const metadata_conversion_table = blk: {
     const bitCastArrayElements = struct {
         /// Casts an array of packed structs into an array of that packed struct's backing int
@@ -3647,6 +3866,27 @@ const metadata_conversion_table = blk: {
     break :blk table;
 };
 
-test ConcreteBlockState {
-    std.debug.print("\n------------------\n", .{});
+pub fn EnumBoolArray(comptime Enum: type) type {
+    return struct {
+        set: std.EnumSet(Enum),
+
+        pub fn get(self: @This(), key: Enum) bool {
+            return self.set.contains(key);
+        }
+
+        pub fn init(entries: std.enums.EnumFieldStruct(Enum, bool, null)) @This() {
+            @setEvalBranchQuota(100000);
+            var set = std.EnumSet(Enum).initEmpty();
+            inline for (@typeInfo(@TypeOf(entries)).Struct.fields) |struct_field| {
+                if (@field(entries, struct_field.name)) {
+                    inline for (@typeInfo(Enum).Enum.fields) |enum_field| {
+                        if (comptime std.mem.eql(u8, enum_field.name, struct_field.name)) {
+                            set.insert(@enumFromInt(enum_field.value));
+                        }
+                    }
+                }
+            }
+            return .{ .set = set };
+        }
+    };
 }
