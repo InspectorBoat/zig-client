@@ -132,29 +132,29 @@ pub const HitResult = union(HitType) {
                         }),
                     );
                     if (hit_result == .block) {
-                        const pos: Vector3(i32) = from_block_pos.add(
-                            switch (hit_result.block.dir) {
-                                .East => .{ .x = 1, .y = 0, .z = 0 },
-                                .West => .{ .x = -1, .y = 0, .z = 0 },
-                                .North => .{ .x = 0, .y = 0, .z = -1 },
-                                .South => .{ .x = 0, .y = 0, .z = 1 },
-                                .Up => .{ .x = 0, .y = 1, .z = 0 },
-                                .Down => .{ .x = 0, .y = -1, .z = 0 },
-                            },
-                        );
+                        // const pos: Vector3(i32) = from_block_pos.add(
+                        //     switch (hit_result.block.dir) {
+                        //         .East => .{ .x = 1, .y = 0, .z = 0 },
+                        //         .West => .{ .x = -1, .y = 0, .z = 0 },
+                        //         .North => .{ .x = 0, .y = 0, .z = -1 },
+                        //         .South => .{ .x = 0, .y = 0, .z = 1 },
+                        //         .Up => .{ .x = 0, .y = 1, .z = 0 },
+                        //         .Down => .{ .x = 0, .y = -1, .z = 0 },
+                        //     },
+                        // );
 
-                        @import("render").renderer.renderBox(.{
-                            .min = .{
-                                .x = @floatFromInt(pos.x),
-                                .y = @floatFromInt(pos.y),
-                                .z = @floatFromInt(pos.z),
-                            },
-                            .max = .{
-                                .x = @floatFromInt(pos.x + 1),
-                                .y = @floatFromInt(pos.y + 1),
-                                .z = @floatFromInt(pos.z + 1),
-                            },
-                        });
+                        // @import("render").renderer.renderBox(.{
+                        //     .min = .{
+                        //         .x = @floatFromInt(pos.x),
+                        //         .y = @floatFromInt(pos.y),
+                        //         .z = @floatFromInt(pos.z),
+                        //     },
+                        //     .max = .{
+                        //         .x = @floatFromInt(pos.x + 1),
+                        //         .y = @floatFromInt(pos.y + 1),
+                        //         .z = @floatFromInt(pos.z + 1),
+                        //     },
+                        // });
                         return hit_result;
                     }
                 } else break;

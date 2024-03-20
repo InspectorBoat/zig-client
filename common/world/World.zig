@@ -21,8 +21,11 @@ const RawBlockState = @import("../block/block.zig").RawBlockState;
 const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
 const WorldChunkS2CPacket = @import("../network/packet/s2c/play/WorldChunkS2CPacket.zig");
+const ChunkMap = @import("./ChunkMap.zig");
 
-chunks: std.AutoHashMap(Vector2(i32), Chunk),
+const USE_HASH_MAP = true;
+
+chunks: if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk) else ChunkMap,
 player: LocalPlayerEntity,
 entities: std.ArrayList(Entity),
 tick_timer: TickTimer,
@@ -37,7 +40,7 @@ pub fn init(info: struct {
     hardcore: bool,
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
-        .chunks = std.AutoHashMap(Vector2(i32), Chunk).init(allocator),
+        .chunks = if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk).init(allocator) else .{},
         .entities = std.ArrayList(Entity).init(allocator),
         .tick_timer = try TickTimer.init(),
         .last_tick = try std.time.Instant.now(),
@@ -60,23 +63,23 @@ pub fn tick(self: *@This(), game: *Game.IngameState, allocator: std.mem.Allocato
 pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
     @import("log").load_new_chunk(.{chunk_pos});
 
-    const maybe_chunk = try self.chunks.getOrPut(chunk_pos);
-    std.debug.assert(!maybe_chunk.found_existing);
-
-    const chunk = maybe_chunk.value_ptr;
-    chunk.* = Chunk{
+    const chunk: Chunk = .{
         .sections = .{null} ** 16,
         .biomes = .{0} ** 256,
+        .chunk_pos = chunk_pos,
     };
-    return chunk;
+
+    try self.chunks.put(chunk_pos, chunk);
+
+    return self.chunks.getPtr(chunk_pos).?;
 }
 
-pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) void {
-    if (self.chunks.fetchRemove(chunk_pos)) |entry| {
-        var chunk = entry.value;
+pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
+    if (USE_HASH_MAP) {
+        var chunk = (self.chunks.fetchRemove(chunk_pos) orelse return error.MissingChunk).value;
         chunk.deinit(allocator);
     } else {
-        unreachable;
+        (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
     }
 }
 
@@ -113,20 +116,14 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) ConcreteBloc
 pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*ConcreteBlockState {
     if (block_pos.y < 0 or block_pos.y > 255) return null;
 
-    if (self.chunks.get(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return &section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
-        }
-    }
-    return null;
+    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return null;
+    const section_block_pos = .{
+        .x = @mod(block_pos.x, 16),
+        .y = @mod(block_pos.y, 16),
+        .z = @mod(block_pos.z, 16),
+    };
+    return &section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
 }
 
 pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
@@ -247,7 +244,8 @@ pub fn updateRegion(self: *@This(), region: Box(i32)) void {
             var z = region.min.z;
             while (z <= region.max.z) : (z += 1) {
                 const block_pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
-                (self.getBlockStatePtr(block_pos) orelse continue).update(self.*, block_pos);
+                const block_state = self.getBlockStatePtr(block_pos) orelse continue;
+                block_state.update(self.*, block_pos);
             }
         }
     }
@@ -343,14 +341,21 @@ pub fn addEntity(self: *@This(), entity: Entity) !void {
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     // free chunks
-    {
+    if (USE_HASH_MAP) {
         var entries = self.chunks.iterator();
         while (entries.next()) |entry| {
-            @import("log").free_chunk(.{entry.key_ptr.*});
+            @import("log").free_chunk(.{entry.value_ptr.chunk_pos});
             entry.value_ptr.deinit(allocator);
         }
+        self.chunks.deinit();
+    } else {
+        var chunks = self.chunks.iterator();
+        while (chunks.next()) |chunk| {
+            @import("log").free_chunk(.{chunk.chunk_pos});
+            chunk.deinit(allocator);
+        }
     }
-    self.chunks.deinit();
+
     const milliseconds_elapsed = @as(f64, @floatFromInt(self.tick_timer.timer.read())) / std.time.ns_per_ms;
     @import("log").display_average_tick_ms(.{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
 }

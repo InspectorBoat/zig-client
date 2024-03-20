@@ -1371,8 +1371,292 @@ pub const ConcreteBlockState = packed struct(u16) {
             stored: StoredBlockProperties.mob_spawner,
         },
         oak_stairs: packed struct(u8) {
-            virtual: packed struct(u4) { shape: enum(u3) { straight, inner_left, inner_right, outer_left, outer_right }, _: u1 = 0 },
+            const Shape = enum(u3) { straight, inner_left, inner_right, outer_left, outer_right };
+
+            virtual: packed struct(u4) { shape: Shape, _: u1 = 0 },
             stored: StoredBlockProperties.oak_stairs,
+
+            pub fn secondHitbox(self: @This()) Box(f64) {
+                const min_y: f64 = if (self.stored.half == .top) 0.0 else 0.5;
+                const max_y: f64 = if (self.stored.half == .top) 0.5 else 1.0;
+                return switch (self.stored.facing) {
+                    .east => switch (self.virtual.shape) {
+                        .straight, .inner_left, .inner_right => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 1.0 },
+                        },
+                        .outer_left => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 0.5 },
+                        },
+                        .outer_right => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 1.0 },
+                        },
+                    },
+                    .west => switch (self.virtual.shape) {
+                        .straight, .inner_left, .inner_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 1.0 },
+                        },
+                        .outer_left => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 1.0 },
+                        },
+                        .outer_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 0.5 },
+                        },
+                    },
+                    .south => switch (self.virtual.shape) {
+                        .straight, .inner_left, .inner_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 1.0 },
+                        },
+                        .outer_left => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 1.0 },
+                        },
+                        .outer_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 1.0 },
+                        },
+                    },
+                    .north => switch (self.virtual.shape) {
+                        .straight, .inner_left, .inner_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 0.5 },
+                        },
+                        .outer_left => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 0.5 },
+                        },
+                        .outer_right => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 0.5 },
+                        },
+                    },
+                };
+            }
+
+            pub fn innerHitbox(self: @This()) ?Box(f64) {
+                const min_y: f64 = if (self.stored.half == .top) 0.0 else 0.5;
+                const max_y: f64 = if (self.stored.half == .top) 0.5 else 1.0;
+                return switch (self.stored.facing) {
+                    .east => switch (self.virtual.shape) {
+                        .inner_left => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 0.5 },
+                        },
+                        .inner_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 1.0 },
+                        },
+                        else => null,
+                    },
+                    .west => switch (self.virtual.shape) {
+                        .inner_left => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 1.0 },
+                        },
+                        .inner_right => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 0.5 },
+                        },
+                        else => null,
+                    },
+                    .south => switch (self.virtual.shape) {
+                        .inner_left => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 0.5 },
+                        },
+                        .inner_right => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.0 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 0.5 },
+                        },
+                        else => null,
+                    },
+                    .north => switch (self.virtual.shape) {
+                        .inner_left => .{
+                            .min = .{ .x = 0.0, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 0.5, .y = max_y, .z = 1.0 },
+                        },
+                        .inner_right => .{
+                            .min = .{ .x = 0.5, .y = min_y, .z = 0.5 },
+                            .max = .{ .x = 1.0, .y = max_y, .z = 1.0 },
+                        },
+                        else => null,
+                    },
+                };
+            }
+
+            pub fn isInner(self: @This(), world: World, block_pos: Vector3(i32)) bool {
+                switch (self.stored.facing) {
+                    .east => {
+                        if (getStairState(world, block_pos.east())) |east| {
+                            if (self.stored.half == east.stored.half) {
+                                return (east.stored.facing != .north or self.alignedStair(world, block_pos.south())) and
+                                    (east.stored.facing != .south or self.alignedStair(world, block_pos.north()));
+                            }
+                        }
+                    },
+                    .west => {
+                        if (getStairState(world, block_pos.west())) |west| {
+                            if (self.stored.half == west.stored.half) {
+                                return (west.stored.facing != .north or self.alignedStair(world, block_pos.south())) and
+                                    (west.stored.facing != .south or self.alignedStair(world, block_pos.north()));
+                            }
+                        }
+                    },
+                    .south => {
+                        if (getStairState(world, block_pos.south())) |south| {
+                            if (self.stored.half == south.stored.half) {
+                                return (south.stored.facing != .west or self.alignedStair(world, block_pos.east())) and
+                                    (south.stored.facing != .east or self.alignedStair(world, block_pos.west()));
+                            }
+                        }
+                    },
+                    .north => {
+                        if (getStairState(world, block_pos.north())) |north| {
+                            if (self.stored.half == north.stored.half) {
+                                return (north.stored.facing != .west or self.alignedStair(world, block_pos.east())) and
+                                    (north.stored.facing != .east or self.alignedStair(world, block_pos.west()));
+                            }
+                        }
+                    },
+                }
+                return true;
+            }
+
+            pub fn getInnerStairShape(self: @This(), world: World, block_pos: Vector3(i32)) Shape {
+                const top_half = self.stored.half == .top;
+                switch (self.stored.facing) {
+                    .east => {
+                        if (getStairState(world, block_pos.west())) |west| {
+                            if (west.stored.half == self.stored.half) {
+                                if (west.stored.facing == .north and !self.alignedStair(world, block_pos.north())) {
+                                    return if (top_half) .inner_right else .inner_left;
+                                } else if (west.stored.facing == .south and !self.alignedStair(world, block_pos.south())) {
+                                    return if (top_half) .inner_left else .inner_right;
+                                }
+                            }
+                        }
+                    },
+                    .west => {
+                        if (getStairState(world, block_pos.east())) |east| {
+                            if (east.stored.half == self.stored.half) {
+                                if (east.stored.facing == .north and !self.alignedStair(world, block_pos.north())) {
+                                    return if (top_half) .inner_left else .inner_right;
+                                } else if (east.stored.facing == .south and !self.alignedStair(world, block_pos.south())) {
+                                    return if (top_half) .inner_right else .inner_left;
+                                }
+                            }
+                        }
+                    },
+                    .south => {
+                        if (getStairState(world, block_pos.north())) |north| {
+                            if (north.stored.half == self.stored.half) {
+                                if (north.stored.facing == .west and !self.alignedStair(world, block_pos.west())) {
+                                    return if (top_half) .inner_left else .inner_right;
+                                } else if (north.stored.facing == .east and !self.alignedStair(world, block_pos.east())) {
+                                    return if (top_half) .inner_right else .inner_left;
+                                }
+                            }
+                        }
+                    },
+                    .north => {
+                        if (getStairState(world, block_pos.south())) |south| {
+                            if (south.stored.half == self.stored.half) {
+                                if (south.stored.facing == .west and !self.alignedStair(world, block_pos.west())) {
+                                    return if (top_half) .inner_right else .inner_left;
+                                } else if (south.stored.facing == .east and !self.alignedStair(world, block_pos.east())) {
+                                    return if (top_half) .inner_left else .inner_right;
+                                }
+                            }
+                        }
+                    },
+                }
+                return .straight;
+            }
+
+            pub fn getOuterStairShape(self: @This(), world: World, block_pos: Vector3(i32)) Shape {
+                const top_half = self.stored.half == .top;
+
+                switch (self.stored.facing) {
+                    .east => {
+                        if (getStairState(world, block_pos.east())) |east| {
+                            if (east.stored.half == self.stored.half) {
+                                if (east.stored.facing == .north and !self.alignedStair(world, block_pos.south())) {
+                                    return if (top_half) .outer_right else .outer_left;
+                                } else if (east.stored.facing == .south and !self.alignedStair(world, block_pos.north())) {
+                                    return if (top_half) .outer_left else .outer_right;
+                                }
+                            }
+                        }
+                    },
+                    .west => {
+                        if (getStairState(world, block_pos.west())) |west| {
+                            if (west.stored.half == self.stored.half) {
+                                if (west.stored.facing == .north and !self.alignedStair(world, block_pos.south())) {
+                                    return if (top_half) .outer_left else .outer_right;
+                                } else if (west.stored.facing == .south and !self.alignedStair(world, block_pos.north())) {
+                                    return if (top_half) .outer_right else .outer_left;
+                                }
+                            }
+                        }
+                    },
+                    .south => {
+                        if (getStairState(world, block_pos.south())) |south| {
+                            if (south.stored.half == self.stored.half) {
+                                if (south.stored.facing == .west and !self.alignedStair(world, block_pos.east())) {
+                                    return if (top_half) .outer_left else .outer_right;
+                                } else if (south.stored.facing == .east and !self.alignedStair(world, block_pos.west())) {
+                                    return if (top_half) .outer_right else .outer_left;
+                                }
+                            }
+                        }
+                    },
+                    .north => {
+                        if (getStairState(world, block_pos.north())) |north| {
+                            if (north.stored.half == self.stored.half) {
+                                if (north.stored.facing == .west and !self.alignedStair(world, block_pos.east())) {
+                                    return if (top_half) .outer_right else .outer_left;
+                                } else if (north.stored.facing == .east and !self.alignedStair(world, block_pos.north())) {
+                                    return if (top_half) .outer_left else .outer_right;
+                                }
+                            }
+                        }
+                    },
+                }
+                return .straight;
+            }
+
+            pub fn getStairState(world: World, block_pos: Vector3(i32)) ?@This() {
+                const state = world.getBlockState(block_pos);
+                if (isStair(state.block)) return state.properties.oak_stairs;
+                return null;
+            }
+
+            pub fn alignedStair(self: @This(), world: World, block_pos: Vector3(i32)) bool {
+                const other = getStairState(world, block_pos) orelse return false;
+                return self.stored.facing == other.stored.facing and self.stored.half == other.stored.half;
+            }
+
+            pub fn isStair(block: ConcreteBlock) bool {
+                return block == .oak_stairs or
+                    block == .stone_stairs or
+                    block == .brick_stairs or
+                    block == .stone_brick_stairs or
+                    block == .nether_brick_stairs or
+                    block == .sandstone_stairs or
+                    block == .spruce_stairs or
+                    block == .birch_stairs or
+                    block == .jungle_stairs or
+                    block == .quartz_stairs or
+                    block == .acacia_stairs or
+                    block == .dark_oak_stairs or
+                    block == .red_sandstone_stairs;
+            }
         },
         chest: packed struct(u8) {
             virtual: packed struct(u4) { connection: enum(u3) { north, south, west, east, none }, _: u1 = 0 },
@@ -2027,21 +2311,54 @@ pub const ConcreteBlockState = packed struct(u16) {
 
     pub fn update(self: *@This(), world: World, block_pos: Vector3(i32)) void {
         switch (self.block) {
-            .grass => {
+            .grass,
+            .dirt,
+            => {
                 const up = world.getBlock(block_pos.up());
-                self.payloadPtr(.grass).virtual.snowy = up == .snow or up == .snow_layer;
+                self.properties.grass.virtual.snowy = up == .snow or up == .snow_layer;
             },
-            .dirt => {
-                // const up = world.getBlock(block_pos.up());
-                // self.payloadPtr(.dirt).virtual.snowy = up == .snow or up == .snow_layer;
-            },
+            // .dirt,
             .piston_head => {},
             .fire => {},
-            .oak_stairs => {},
+            .oak_stairs,
+            .stone_stairs,
+            .brick_stairs,
+            .stone_brick_stairs,
+            .nether_brick_stairs,
+            .sandstone_stairs,
+            .spruce_stairs,
+            .birch_stairs,
+            .jungle_stairs,
+            .quartz_stairs,
+            .acacia_stairs,
+            .dark_oak_stairs,
+            .red_sandstone_stairs,
+            => {
+                const stairs = &self.properties.oak_stairs;
+                if (stairs.isInner(world, block_pos)) {
+                    if (block_pos.equals(.{ .x = 112, .y = 84, .z = 191 })) {
+                        std.debug.print("inner\n", .{});
+                    }
+
+                    stairs.virtual.shape = stairs.getInnerStairShape(world, block_pos);
+                } else {
+                    if (block_pos.equals(.{ .x = 112, .y = 84, .z = 191 })) {
+                        std.debug.print("outer\n", .{});
+                    }
+
+                    stairs.virtual.shape = stairs.getOuterStairShape(world, block_pos);
+                }
+            },
             .chest => {},
             .redstone_wire => {},
-            .stone_stairs => {},
-            .fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => {
+            // .stone_stairs,
+            .fence,
+            .spruce_fence,
+            .birch_fence,
+            .jungle_fence,
+            .dark_oak_fence,
+            .acacia_fence,
+            => {
                 self.properties.fence.virtual = .{
                     .west = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.west())),
                     .south = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.south())),
@@ -2057,8 +2374,8 @@ pub const ConcreteBlockState = packed struct(u16) {
             .melon_stem => {},
             .vine => {},
             .fence_gate => {},
-            .brick_stairs => {},
-            .stone_brick_stairs => {},
+            // .brick_stairs,
+            // .stone_brick_stairs,
             .mycelium => {},
             .nether_brick_fence => {
                 self.payloadPtr(.nether_brick_fence).virtual = .{
@@ -2068,21 +2385,21 @@ pub const ConcreteBlockState = packed struct(u16) {
                     .east = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.east())),
                 };
             },
-            .nether_brick_stairs => {},
-            .sandstone_stairs => {},
+            // .nether_brick_stairs,
+            // .sandstone_stairs,
             .tripwire_hook => {},
             .tripwire => {},
-            .spruce_stairs => {},
-            .birch_stairs => {},
-            .jungle_stairs => {},
+            // .spruce_stairs,
+            // .birch_stairs,
+            // .jungle_stairs,
             .cobblestone_wall => {},
             .flower_pot => {},
             .trapped_chest => {},
-            .quartz_stairs => {},
+            // .quartz_stairs,
             .stained_glass_pane => {},
-            .acacia_stairs => {},
-            .dark_oak_stairs => {},
-            .red_sandstone_stairs => {},
+            // .acacia_stairs,
+            // .dark_oak_stairs,
+            // .red_sandstone_stairs,
             .spruce_fence_gate => {},
             .birch_fence_gate => {},
             .jungle_fence_gate => {},
@@ -2385,7 +2702,20 @@ pub const ConcreteBlockState = packed struct(u16) {
             .fire => NONE,
 
             .mob_spawner => FULL,
-            .oak_stairs => FULL, // TODO
+            .oak_stairs => {
+                const stair = self.properties.oak_stairs;
+                return .{
+                    if (stair.stored.half == .top) .{
+                        .min = .{ .x = 0.0, .y = 0.5, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+                    } else .{
+                        .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+                        .max = .{ .x = 1.0, .y = 0.5, .z = 1.0 },
+                    },
+                    stair.secondHitbox(),
+                    stair.innerHitbox(),
+                };
+            }, // TODO
             .chest => {
                 const chest = self.payload(.chest);
                 return .{
