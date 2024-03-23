@@ -1,6 +1,16 @@
+pub const Vector2 = @import("./math/vector.zig").Vector2;
+pub const Vector3 = @import("./math/vector.zig").Vector3;
+pub const Chunk = @import("./world/Chunk.zig");
+pub const Direction = @import("./math/direction.zig").Direction;
+pub const Rotation2 = @import("./math/rotation.zig").Rotation2;
+pub const Rotation3 = @import("./math/rotation.zig").Rotation3;
+pub const Uuid = @import("./entity/Uuid.zig");
+pub const Game = @import("./game.zig").Game;
+pub const LocalPlayerEntity = @import("./entity/impl/player/LocalPlayerEntity.zig");
+pub const Box = @import("./math/box.zig").Box;
+
 const std = @import("std");
 const network = @import("network");
-const Game = @import("common").Game;
 const render = @import("render");
 
 pub const opengl_error_handling = .log;

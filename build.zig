@@ -6,24 +6,6 @@ pub fn build(b: *std.Build) void {
     const zgl = b.dependency("zgl", .{}).module("zgl");
     const zalgebra = b.dependency("zalgebra", .{}).module("zalgebra");
 
-    const common = b.addModule("common", .{
-        .root_source_file = .{ .path = "common/common.zig" },
-    });
-    const render = b.addModule("render", .{
-        .root_source_file = .{ .path = "render/render.zig" },
-    });
-    const logging = b.addModule("log", .{
-        .root_source_file = .{ .path = "logging/logging.zig" },
-    });
-    common.addImport("network", network);
-    common.addImport("log", logging);
-    common.addImport("render", render);
-
-    render.addImport("common", common);
-    render.addImport("zgl", zgl);
-    render.addImport("mach-glfw", mach_glfw);
-    render.addImport("zalgebra", zalgebra);
-
     const exe = b.addExecutable(.{
         .name = "zig-client",
         .root_source_file = .{ .path = "main/main.zig" },
@@ -32,10 +14,22 @@ pub fn build(b: *std.Build) void {
     });
     exe.want_lto = false;
 
-    exe.root_module.addImport("common", common);
-    exe.root_module.addImport("network", network);
-    exe.root_module.addImport("log", logging);
-    exe.root_module.addImport("render", render);
+    const root = &exe.root_module;
+    const render = b.addModule("render", .{
+        .root_source_file = .{ .path = "render/render.zig" },
+    });
+    const logging = b.addModule("log", .{
+        .root_source_file = .{ .path = "logging/logging.zig" },
+    });
+
+    root.addImport("network", network);
+    root.addImport("log", logging);
+    root.addImport("render", render);
+
+    render.addImport("main", root);
+    render.addImport("zgl", zgl);
+    render.addImport("mach-glfw", mach_glfw);
+    render.addImport("zalgebra", zalgebra);
 
     const install = b.addInstallArtifact(exe, .{});
     b.getInstallStep().dependOn(&install.step);

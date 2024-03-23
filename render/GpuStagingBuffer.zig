@@ -1,4 +1,4 @@
-const Vector3 = @import("common").Vector3;
+const Vector3 = @import("main").Vector3;
 
 buffer: [1024 * 1024 * 2]u8 = undefined,
 write_index: usize = 0,

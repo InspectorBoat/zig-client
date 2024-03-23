@@ -1,5 +1,5 @@
 const std = @import("std");
-const Vector2 = @import("common").Vector2;
+const Vector2 = @import("main").Vector2;
 const glfw = @import("mach-glfw");
 
 window: glfw.Window,

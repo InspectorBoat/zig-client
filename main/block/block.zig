@@ -13,7 +13,7 @@ const Box = @import("../math/box.zig").Box;
 // To accomplish this, we split off the blocks that have too many virtual blockstates into multiple blocks
 
 // To look up the raytrace/collision hitboxes, we use a hashmap
-// To look up the toughness/friction/tool/solidity, we directly use the block bits
+// To look up the toughness/friction/tool/solidity, we use only the block bits and index into an enum array
 
 // The types of each block
 pub const Block = enum(u8) {

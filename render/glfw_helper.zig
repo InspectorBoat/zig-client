@@ -1,5 +1,5 @@
 const std = @import("std");
-const Vector2 = @import("common").Vector3;
+const Vector2 = @import("main").Vector3;
 const glfw = @import("mach-glfw");
 const gl = @import("zgl");
 pub fn initGlfw() error{GlfwInitFailed}!void {

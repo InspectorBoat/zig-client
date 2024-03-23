@@ -1,17 +1,17 @@
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const common = @import("common");
-const Game = @import("common").Game;
+const common = @import("main");
+const Game = @import("main").Game;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
-const Vector3 = @import("common").Vector3;
+const Vector3 = @import("main").Vector3;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 const glfw_helper = @import("./glfw_helper.zig");
 const WindowInput = @import("./WindowInput.zig");
 const Renderer = @import("./Renderer.zig");
-const LocalPlayerEntity = @import("common").LocalPlayerEntity;
+const LocalPlayerEntity = @import("main").LocalPlayerEntity;
 
 pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
 pub var window_input: WindowInput = undefined;
