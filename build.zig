@@ -26,7 +26,6 @@ pub fn build(b: *std.Build) void {
     root.addImport("log", logging);
     root.addImport("render", render);
 
-    render.addImport("main", root);
     render.addImport("zgl", zgl);
     render.addImport("mach-glfw", mach_glfw);
     render.addImport("zalgebra", zalgebra);

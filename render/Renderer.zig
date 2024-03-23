@@ -1,8 +1,8 @@
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const Vector3 = @import("main").Vector3;
-const Box = @import("main").Box;
+const Vector3 = @import("root").Vector3;
+const Box = @import("root").Box;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 
 vao: gl.VertexArray,

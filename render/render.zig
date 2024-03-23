@@ -1,17 +1,17 @@
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const common = @import("main");
-const Game = @import("main").Game;
+const root = @import("root");
+const Game = @import("root").Game;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
-const Vector3 = @import("main").Vector3;
+const Vector3 = @import("root").Vector3;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 const glfw_helper = @import("./glfw_helper.zig");
 const WindowInput = @import("./WindowInput.zig");
 const Renderer = @import("./Renderer.zig");
-const LocalPlayerEntity = @import("main").LocalPlayerEntity;
+const LocalPlayerEntity = @import("root").LocalPlayerEntity;
 
 pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
 pub var window_input: WindowInput = undefined;
@@ -150,7 +150,7 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
     };
 }
 
-pub fn onChunkUpdate(chunk_pos: common.Vector2(i32), chunk: *common.Chunk) !void {
+pub fn onChunkUpdate(chunk_pos: root.Vector2(i32), chunk: *root.Chunk) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
         if (section_y < 4) continue;
         if (maybe_section) |section| {
