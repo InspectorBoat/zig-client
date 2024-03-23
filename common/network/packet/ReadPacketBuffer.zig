@@ -62,7 +62,7 @@ pub fn remainingBytes(self: @This()) usize {
 pub fn readPacked(self: *@This(), comptime T: type) !T {
     if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeInfo(T) ++ ") must have a bit size divisible by 8");
     if (@typeInfo(T) != .Struct) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be a struct");
-    if (@typeInfo(T).Struct.layout != .Packed) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be packed");
+    if (@typeInfo(T).Struct.layout != .@"packed") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be packed");
     return @bitCast(try self.read(std.meta.Int(.unsigned, @bitSizeOf(T))));
 }
 
