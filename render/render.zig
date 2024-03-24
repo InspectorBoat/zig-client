@@ -7,17 +7,22 @@ const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
 const Vector3 = @import("root").Vector3;
+const Vector2 = @import("root").Vector2;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 const glfw_helper = @import("./glfw_helper.zig");
 const WindowInput = @import("./WindowInput.zig");
 const Renderer = @import("./Renderer.zig");
 const LocalPlayerEntity = @import("root").LocalPlayerEntity;
+const EventHandler = @import("root").EventHandler;
+const Events = @import("root").EventHandler.Events;
 
 pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 
-pub fn onStartup() !void {
+pub const event_listeners = .{ onStartup, onFrame, onChunkUpdate };
+
+pub fn onStartup(_: Events.Startup) !void {
     const gpa = gpa_impl.allocator();
 
     // innitialize glfw
@@ -40,8 +45,12 @@ pub fn onStartup() !void {
     renderer = try Renderer.init(gpa);
 }
 
-pub fn onFrame(game: *Game) !bool {
-    if (window_input.window.shouldClose()) return true;
+pub fn onFrame(frame: Events.Frame) !void {
+    if (window_input.window.shouldClose()) {
+        try EventHandler.dispatch(.Exit, .{});
+        return;
+    }
+    const game = frame.game;
     glfw.pollEvents();
 
     gl.clearColor(
@@ -85,7 +94,46 @@ pub fn onFrame(game: *Game) !bool {
         else => {},
     }
     window_input.window.swapBuffers();
-    return false;
+    // return false;
+}
+
+pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
+    const chunk_pos: Vector2(i32) = chunk_update.chunk_pos;
+    const chunk: *root.Chunk = chunk_update.chunk;
+    for (chunk.sections, 0..) |maybe_section, section_y| {
+        if (section_y < 4) continue;
+        if (maybe_section) |section| {
+            var staging = GpuStagingBuffer{};
+
+            const buffer = gl.Buffer.create();
+            // place blocks in chunk
+            for (0..16) |x| {
+                for (0..16) |y| {
+                    for (0..16) |z| {
+                        const pos = (y << 8) | (z << 4) | (x << 0);
+                        for (section.block_states[pos].getRaytraceHitbox()) |maybe_box| {
+                            if (maybe_box) |box| {
+                                const pos_vec: Vector3(f64) = .{ .x = @floatFromInt(x), .y = @floatFromInt(y), .z = @floatFromInt(z) };
+                                staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
+                            }
+                        }
+                        // if (section.block_states[pos].block != .air) {
+                        // staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
+                        // }
+                    }
+                }
+            }
+            buffer.storage(u8, staging.write_index, @ptrCast(staging.getSlice()), .{});
+
+            try renderer.sections.put(
+                .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
+                .{
+                    .buffer = buffer,
+                    .vertices = staging.write_index / @sizeOf(f32) / 3,
+                },
+            );
+        }
+    }
 }
 
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
@@ -148,41 +196,4 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
             .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.w))) - @as(i8, @intFromBool(window_input.keys.get(.s)))),
         },
     };
-}
-
-pub fn onChunkUpdate(chunk_pos: root.Vector2(i32), chunk: *root.Chunk) !void {
-    for (chunk.sections, 0..) |maybe_section, section_y| {
-        if (section_y < 4) continue;
-        if (maybe_section) |section| {
-            var staging = GpuStagingBuffer{};
-
-            const buffer = gl.Buffer.create();
-            // place blocks in chunk
-            for (0..16) |x| {
-                for (0..16) |y| {
-                    for (0..16) |z| {
-                        const pos = (y << 8) | (z << 4) | (x << 0);
-                        for (section.block_states[pos].getRaytraceHitbox()) |maybe_box| {
-                            if (maybe_box) |box| {
-                                const pos_vec: Vector3(f64) = .{ .x = @floatFromInt(x), .y = @floatFromInt(y), .z = @floatFromInt(z) };
-                                staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
-                            }
-                        }
-                        // if (section.block_states[pos].block != .air) {
-                        // staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
-                        // }
-                    }
-                }
-            }
-            buffer.storage(u8, staging.write_index, @ptrCast(staging.getSlice()), .{});
-
-            try renderer.sections.put(
-                .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
-                .{
-                    .buffer = buffer,
-                    .vertices = staging.write_index / @sizeOf(f32) / 3,
-                },
-            );
-        }
-    }
 }

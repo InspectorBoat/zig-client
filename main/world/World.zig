@@ -22,6 +22,7 @@ const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
 const WorldChunkS2CPacket = @import("../network/packet/s2c/play/WorldChunkS2CPacket.zig");
 const ChunkMap = @import("./ChunkMap.zig");
+const EventHandler = @import("root").EventHandler;
 
 const USE_HASH_MAP = true;
 
@@ -232,7 +233,7 @@ pub fn receiveChunk(
     });
 
     @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
-    try @import("render").onChunkUpdate(chunk_pos, chunk);
+    try EventHandler.dispatch(.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
 }
 
 // Recomputes virtual properties for all blockstates within region

@@ -17,7 +17,7 @@ pub const opengl_error_handling = .log;
 
 pub fn main() !void {
     std.debug.print("\n---------------------\n", .{});
-    try render.onStartup();
+    try EventHandler.dispatch(.Startup, .{});
 
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = gpa_impl.allocator();
@@ -40,11 +40,28 @@ pub fn main() !void {
         if (game == .Ingame) try game.tickWorld();
         if (game == .Ingame or game == .Connecting) game.checkConnection();
 
-        const should_close = try render.onFrame(&game);
-        if (should_close) break;
+        try EventHandler.dispatch(.Frame, .{ .game = &game });
+        if (done) break;
     }
     if (game == .Ingame or game == .Connecting) {
         game.disconnect();
     }
     std.debug.print("leaks: {}\n", .{gpa_impl.detectLeaks()});
 }
+
+var done = false;
+pub fn exit(_: EventHandler.Events.Exit) void {
+    done = true;
+}
+
+pub const EventHandler = @import("events").make(struct {
+    pub const Startup = struct {};
+    pub const ChunkUpdate = struct { chunk_pos: Vector2(i32), chunk: *Chunk };
+    pub const Frame = struct { game: *Game };
+    pub const Exit = struct {};
+}, &.{
+    struct {
+        pub const event_listeners = &.{exit};
+    },
+    @import("render"),
+});

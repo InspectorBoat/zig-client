@@ -21,10 +21,13 @@ pub fn build(b: *std.Build) void {
     const logging = b.addModule("log", .{
         .root_source_file = .{ .path = "logging/logging.zig" },
     });
-
+    const events = b.addModule("events", .{
+        .root_source_file = .{ .path = "events/events.zig" },
+    });
     root.addImport("network", network);
     root.addImport("log", logging);
     root.addImport("render", render);
+    root.addImport("events", events);
 
     render.addImport("zgl", zgl);
     render.addImport("mach-glfw", mach_glfw);
