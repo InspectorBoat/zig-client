@@ -89,7 +89,7 @@ test "performance" {
     const rand = rand_impl.random();
     const HashMap = std.AutoHashMap(Vector2(i32), Chunk);
     var hash_map_world: DummyWorld(HashMap) = .{ .chunks = HashMap.init(gpa) };
-    for (0..1) |x| for (0..1) |z| {
+    for (0..8) |x| for (0..8) |z| {
         try hash_map_world.makeChunk(.{ .x = @intCast(x), .z = @intCast(z) }, rand, gpa);
     };
     {
@@ -101,12 +101,12 @@ test "performance" {
 
         hash_map_world.updateRegion(.{
             .min = .{ .x = 0, .y = 0, .z = 0 },
-            .max = .{ .x = 16, .y = 255, .z = 16 },
+            .max = .{ .x = 8 * 16, .y = 255, .z = 8 * 16 },
         });
     }
 
     var chunk_map_world: DummyWorld(@This()) = .{ .chunks = .{} };
-    for (0..1) |x| for (0..1) |z| {
+    for (0..8) |x| for (0..8) |z| {
         try chunk_map_world.makeChunk(.{ .x = @intCast(x), .z = @intCast(z) }, rand, gpa);
     };
     {
@@ -117,7 +117,7 @@ test "performance" {
         }
         chunk_map_world.updateRegion(.{
             .min = .{ .x = 0, .y = 0, .z = 0 },
-            .max = .{ .x = 16, .y = 255, .z = 16 },
+            .max = .{ .x = 8 * 16, .y = 255, .z = 8 * 16 },
         });
     }
 }
