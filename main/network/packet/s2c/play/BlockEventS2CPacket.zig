@@ -2,7 +2,7 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const Vector3 = @import("../../../../math/vector.zig").Vector3;
-const Block = @import("../../../../block/Block.zig");
+const Block = @import("../../../../block/block.zig");
 
 block_pos: Vector3(i32),
 type: i32,
