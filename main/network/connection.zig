@@ -178,13 +178,13 @@ pub const Connection = struct {
         } else {
             const F_SETFL = 4;
 
-            const flags = try std.os.fcntl(socket.internal, F_SETFL, 0);
+            const flags = try std.posix.fcntl(socket.internal, F_SETFL, 0);
 
             if (flags == -1) return error.FailedOperation;
-            if (try std.os.fcntl(
+            if (try std.posix.fcntl(
                 socket.internal,
                 F_SETFL,
-                flags | std.os.SOCK.NONBLOCK,
+                flags | std.posix.SOCK.NONBLOCK,
             ) != 0)
                 return error.FailedOperation;
         }
