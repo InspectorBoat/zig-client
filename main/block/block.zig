@@ -1490,7 +1490,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 };
             }
 
-            pub fn isInner(self: @This(), world: World, block_pos: Vector3(i32)) bool {
+            pub fn isInner(self: @This(), world: anytype, block_pos: Vector3(i32)) bool {
                 switch (self.stored.facing) {
                     .east => {
                         if (getStairState(world, block_pos.east())) |east| {
@@ -1528,7 +1528,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return true;
             }
 
-            pub fn getInnerStairShape(self: @This(), world: World, block_pos: Vector3(i32)) Shape {
+            pub fn getInnerStairShape(self: @This(), world: anytype, block_pos: Vector3(i32)) Shape {
                 const top_half = self.stored.half == .top;
                 switch (self.stored.facing) {
                     .east => {
@@ -1579,7 +1579,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return .straight;
             }
 
-            pub fn getOuterStairShape(self: @This(), world: World, block_pos: Vector3(i32)) Shape {
+            pub fn getOuterStairShape(self: @This(), world: anytype, block_pos: Vector3(i32)) Shape {
                 const top_half = self.stored.half == .top;
 
                 switch (self.stored.facing) {
@@ -1631,13 +1631,13 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return .straight;
             }
 
-            pub fn getStairState(world: World, block_pos: Vector3(i32)) ?@This() {
+            pub fn getStairState(world: anytype, block_pos: Vector3(i32)) ?@This() {
                 const state = world.getBlockState(block_pos);
                 if (isStair(state.block)) return state.properties.oak_stairs;
                 return null;
             }
 
-            pub fn alignedStair(self: @This(), world: World, block_pos: Vector3(i32)) bool {
+            pub fn alignedStair(self: @This(), world: anytype, block_pos: Vector3(i32)) bool {
                 const other = getStairState(world, block_pos) orelse return false;
                 return self.stored.facing == other.stored.facing and self.stored.half == other.stored.half;
             }
@@ -2309,7 +2309,7 @@ pub const ConcreteBlockState = packed struct(u16) {
     block: ConcreteBlock,
     properties: BlockProperties,
 
-    pub fn update(self: *@This(), world: World, block_pos: Vector3(i32)) void {
+    pub fn update(self: *@This(), world: *const World, block_pos: Vector3(i32)) void {
         switch (self.block) {
             .grass,
             .dirt,
@@ -2408,6 +2408,104 @@ pub const ConcreteBlockState = packed struct(u16) {
         }
     }
 
+    pub fn updateDummy(self: *@This(), world: anytype, block_pos: Vector3(i32)) void {
+        switch (self.block) {
+            .grass,
+            .dirt,
+            => {
+                const up = world.getBlock(block_pos.up());
+                self.properties.grass.virtual.snowy = up == .snow or up == .snow_layer;
+            },
+            // .dirt,
+            .piston_head => {},
+            .fire => {},
+            .oak_stairs,
+            .stone_stairs,
+            .brick_stairs,
+            .stone_brick_stairs,
+            .nether_brick_stairs,
+            .sandstone_stairs,
+            .spruce_stairs,
+            .birch_stairs,
+            .jungle_stairs,
+            .quartz_stairs,
+            .acacia_stairs,
+            .dark_oak_stairs,
+            .red_sandstone_stairs,
+            => {
+                // const stairs = &self.properties.oak_stairs;
+                // if (stairs.isInner(world, block_pos)) {
+                //     stairs.virtual.shape = stairs.getInnerStairShape(world, block_pos);
+                // } else {
+                //     stairs.virtual.shape = stairs.getOuterStairShape(world, block_pos);
+                // }
+            },
+            .chest => {},
+            .redstone_wire => {},
+            // .stone_stairs,
+            .fence,
+            .spruce_fence,
+            .birch_fence,
+            .jungle_fence,
+            .dark_oak_fence,
+            .acacia_fence,
+            => {
+                self.properties.fence.virtual = .{
+                    .west = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.west())),
+                    .south = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.south())),
+                    .north = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.north())),
+                    .east = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.east())),
+                };
+            },
+            .unpowered_repeater => {},
+            .powered_repeater => {},
+            .iron_bars => {},
+            .glass_pane => {},
+            .pumpkin_stem => {},
+            .melon_stem => {},
+            .vine => {},
+            .fence_gate => {},
+            // .brick_stairs,
+            // .stone_brick_stairs,
+            .mycelium => {},
+            .nether_brick_fence => {
+                // self.payloadPtr(.nether_brick_fence).virtual = .{
+                //     .west = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.west())),
+                //     .south = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.south())),
+                //     .north = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.north())),
+                //     .east = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.east())),
+                // };
+            },
+            // .nether_brick_stairs,
+            // .sandstone_stairs,
+            .tripwire_hook => {},
+            .tripwire => {},
+            // .spruce_stairs,
+            // .birch_stairs,
+            // .jungle_stairs,
+            .cobblestone_wall => {},
+            .flower_pot => {},
+            .trapped_chest => {},
+            // .quartz_stairs,
+            .stained_glass_pane => {},
+            // .acacia_stairs,
+            // .dark_oak_stairs,
+            // .red_sandstone_stairs,
+            .spruce_fence_gate => {},
+            .birch_fence_gate => {},
+            .jungle_fence_gate => {},
+            .dark_oak_fence_gate => {},
+            .acacia_fence_gate => {},
+
+            // .spruce_fence => {},
+            // .birch_fence => {},
+            // .jungle_fence => {},
+            // .dark_oak_fence => {},
+            // .acacia_fence => {},
+
+            else => {},
+        }
+    }
     pub fn payload(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);
         return @field(self.properties, @tagName(block));

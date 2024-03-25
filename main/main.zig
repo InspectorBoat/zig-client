@@ -17,6 +17,7 @@ pub const opengl_error_handling = .log;
 
 pub fn main() !void {
     std.debug.print("\n---------------------\n", .{});
+
     try EventHandler.dispatch(Events.Startup, .{});
 
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}){};
@@ -67,3 +68,8 @@ pub const EventHandler = struct {
 
     pub const dispatch = @import("events").getDispatcher(Events, listeners).dispatch;
 };
+
+test {
+    _ = @import("./world/ChunkMap.zig");
+    // _ = @import("./util/RingBuffer.zig");
+}

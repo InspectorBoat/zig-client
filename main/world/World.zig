@@ -255,7 +255,7 @@ pub fn updateChunk(self: *@This(), chunk: *Chunk) void {
                             .y = @intCast(section_y * 16 + y),
                             .z = chunk.chunk_pos.z * 16 + @as(i32, @intCast(z)),
                         };
-                        blockstate.update(self.*, block_pos);
+                        blockstate.update(self, block_pos);
                     }
                 }
             }

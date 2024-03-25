@@ -42,11 +42,13 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_exe.step);
 
-    const test_ring_alloc = b.addTest(.{
-        .root_source_file = .{ .path = "src/util/RingBuffer.zig" },
+    const test_main = b.addTest(.{
+        .root_source_file = .{ .path = "main/main.zig" },
     });
-    test_ring_alloc.root_module.addImport("log", logging);
+    test_main.root_module.addImport("log", logging);
+
+    const run_test = b.addRunArtifact(test_main);
 
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&test_ring_alloc.step);
+    test_step.dependOn(&run_test.step);
 }
