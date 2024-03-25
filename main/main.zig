@@ -17,7 +17,7 @@ pub const opengl_error_handling = .log;
 
 pub fn main() !void {
     std.debug.print("\n---------------------\n", .{});
-    try EventHandler.dispatch(.Startup, .{});
+    try EventHandler.dispatch(Events.Startup, .{});
 
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = gpa_impl.allocator();
@@ -40,9 +40,10 @@ pub fn main() !void {
         if (game == .Ingame) try game.tickWorld();
         if (game == .Ingame or game == .Connecting) game.checkConnection();
 
-        try EventHandler.dispatch(.Frame, .{ .game = &game });
+        try EventHandler.dispatch(Events.Frame, .{ .game = &game });
         if (done) break;
     }
+
     if (game == .Ingame or game == .Connecting) {
         game.disconnect();
     }
@@ -50,18 +51,19 @@ pub fn main() !void {
 }
 
 var done = false;
-pub fn exit(_: EventHandler.Events.Exit) void {
+pub fn exit(_: Events.Exit) void {
     done = true;
 }
 
-pub const EventHandler = @import("events").make(struct {
+pub const Events = struct {
     pub const Startup = struct {};
     pub const ChunkUpdate = struct { chunk_pos: Vector2(i32), chunk: *Chunk };
     pub const Frame = struct { game: *Game };
     pub const Exit = struct {};
-}, &.{
-    struct {
-        pub const event_listeners = &.{exit};
-    },
-    @import("render"),
-});
+};
+
+pub const EventHandler = struct {
+    pub const listeners = .{exit} ++ @import("render").event_listeners;
+
+    pub const dispatch = @import("events").getDispatcher(Events, listeners).dispatch;
+};

@@ -23,8 +23,9 @@ const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
 const WorldChunkS2CPacket = @import("../network/packet/s2c/play/WorldChunkS2CPacket.zig");
 const ChunkMap = @import("./ChunkMap.zig");
 const EventHandler = @import("root").EventHandler;
+const Events = @import("root").Events;
 
-const USE_HASH_MAP = true;
+const USE_HASH_MAP = false;
 
 chunks: if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk) else ChunkMap,
 player: LocalPlayerEntity,
@@ -139,6 +140,8 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
                 .y = @mod(block_pos.y, 16),
                 .z = @mod(block_pos.z, 16),
             };
+            // const ptr: [*]ConcreteBlockState = @ptrCast(section);
+            // return ptr[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
             return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
         }
     }
@@ -219,25 +222,69 @@ pub fn receiveChunk(
         @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
     }
 
-    self.updateRegion(.{
-        .min = .{
-            .x = chunk_pos.x * 16 - 1,
-            .y = 0,
-            .z = chunk_pos.z * 16 - 1,
-        },
-        .max = .{
-            .x = chunk_pos.x * 16 + 16 + 1,
-            .y = 255,
-            .z = chunk_pos.z * 16 + 16 + 1,
-        },
-    });
+    self.updateChunk(chunk);
+    // self.updateRegion(.{
+    //     .min = .{
+    //         .x = chunk_pos.x * 16 - 1,
+    //         .y = 0,
+    //         .z = chunk_pos.z * 16 - 1,
+    //     },
+    //     .max = .{
+    //         .x = chunk_pos.x * 16 + 16 + 1,
+    //         .y = 255,
+    //         .z = chunk_pos.z * 16 + 16 + 1,
+    //     },
+    // });
 
     @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
-    try EventHandler.dispatch(.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
+    try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
 }
 
+pub fn updateChunk(self: *@This(), chunk: *Chunk) void {
+    for (chunk.sections, 0..16) |maybe_section, section_y| {
+        if (maybe_section) |section| {
+            for (0..16) |y| {
+                for (0..16) |z| {
+                    for (0..16) |x| {
+                        const blockstate = &section.block_states[(y << 8 | z << 4 | x << 0)];
+                        const block_pos: Vector3(i32) = .{
+                            .x = chunk.chunk_pos.x * 16 + @as(i32, @intCast(x)),
+                            .y = @intCast(section_y * 16 + y),
+                            .z = chunk.chunk_pos.z * 16 + @as(i32, @intCast(z)),
+                        };
+                        blockstate.update(self.*, block_pos);
+                    }
+                }
+            }
+        }
+    }
+}
 // Recomputes virtual properties for all blockstates within region
 pub fn updateRegion(self: *@This(), region: Box(i32)) void {
+    // const min_chunk: Vector2(i32) = .{ .x = @divFloor(region.min.x, 16), .z = @divFloor(region.min.z, 16) };
+    // const max_chunk: Vector2(i32) = .{ .x = @divFloor(region.max.x, 16), .z = @divFloor(region.max.z, 16) };
+
+    // var chunk_x = min_chunk.x;
+    // while (chunk_x <= max_chunk.x) : (chunk_x += 1) {
+    //     var chunk_z = min_chunk.z;
+    //     while (chunk_z <= max_chunk.z) : (chunk_z += 1) {
+    //         const chunk_pos: Vector2(i32) = .{ .x = chunk_x, .z = chunk_z };
+    //         const chunk = self.chunks.get(chunk_pos) orelse continue;
+    //         const min_section_y = @divFloor(region.min.y, 16);
+    //         const max_section_y = @divFloor(region.max.y, 16);
+    //         var section_y = min_section_y;
+
+    //         const min_local_pos: Vector2(i32) = .{
+    //             .x = @max(chunk_pos.x * 16, region.min.x),
+    //             .z = @max(chunk_pos.z * 16, region.min.z),
+    //         };
+    //         const max_local_pos: Vector2(i32) = .{
+    //             .x = @min(chunk_pos.x * 16, region.max.x),
+    //             .z = @min(chunk_pos.z * 16, region.max.z),
+    //         };
+    //         while (section_y <= max_section_y) : (section_y += 1) {}
+    //     }
+    // }
     var x = region.min.x;
     while (x <= region.max.x) : (x += 1) {
         var y = region.min.y;

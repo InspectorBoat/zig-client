@@ -2336,16 +2336,8 @@ pub const ConcreteBlockState = packed struct(u16) {
             => {
                 const stairs = &self.properties.oak_stairs;
                 if (stairs.isInner(world, block_pos)) {
-                    if (block_pos.equals(.{ .x = 112, .y = 84, .z = 191 })) {
-                        std.debug.print("inner\n", .{});
-                    }
-
                     stairs.virtual.shape = stairs.getInnerStairShape(world, block_pos);
                 } else {
-                    if (block_pos.equals(.{ .x = 112, .y = 84, .z = 191 })) {
-                        std.debug.print("outer\n", .{});
-                    }
-
                     stairs.virtual.shape = stairs.getOuterStairShape(world, block_pos);
                 }
             },

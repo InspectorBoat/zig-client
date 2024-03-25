@@ -14,7 +14,7 @@ const WindowInput = @import("./WindowInput.zig");
 const Renderer = @import("./Renderer.zig");
 const LocalPlayerEntity = @import("root").LocalPlayerEntity;
 const EventHandler = @import("root").EventHandler;
-const Events = @import("root").EventHandler.Events;
+const Events = @import("root").Events;
 
 pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
 pub var window_input: WindowInput = undefined;
@@ -47,7 +47,7 @@ pub fn onStartup(_: Events.Startup) !void {
 
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
-        try EventHandler.dispatch(.Exit, .{});
+        try EventHandler.dispatch(Events.Exit, .{});
         return;
     }
     const game = frame.game;

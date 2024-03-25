@@ -9,28 +9,28 @@ pub inline fn contains(self: *const @This(), pos: Vector2(i32)) bool {
     return self.metadata.isSet(toIndex(pos));
 }
 
-pub inline fn get(self: *const @This(), pos: Vector2(i32)) ?Chunk {
+pub noinline fn get(self: *const @This(), pos: Vector2(i32)) ?Chunk {
     if (!self.contains(pos)) return null;
     return self.items[toIndex(pos)];
 }
 
-pub inline fn getPtr(self: *@This(), pos: Vector2(i32)) ?*Chunk {
+pub noinline fn getPtr(self: *@This(), pos: Vector2(i32)) ?*Chunk {
     if (!self.contains(pos)) return null;
     return &self.items[toIndex(pos)];
 }
 
-pub inline fn put(self: *@This(), pos: Vector2(i32), chunk: Chunk) !void {
+pub noinline fn put(self: *@This(), pos: Vector2(i32), chunk: Chunk) !void {
     if (self.contains(pos)) return error.ChunkAlreadyPresent;
     self.metadata.set(toIndex(pos));
     self.items[toIndex(pos)] = chunk;
 }
 
-pub inline fn remove(self: *@This(), pos: Vector2(i32)) !void {
+pub noinline fn remove(self: *@This(), pos: Vector2(i32)) !void {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
 }
 
-pub inline fn fetchRemove(self: *@This(), pos: Vector2(i32)) !*Chunk {
+pub noinline fn fetchRemove(self: *@This(), pos: Vector2(i32)) !*Chunk {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
     return &self.items[toIndex(pos)];
