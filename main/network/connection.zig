@@ -105,6 +105,7 @@ pub const Connection = struct {
 
     pub fn freeS2CPackets(self: *@This()) !void {
         self.s2c_packet_queue.lock();
+        errdefer self.s2c_packet_queue.unlock();
         while (self.s2c_packet_queue.free()) |s2c_packet_wrapper| {
             // only free if packet actually allocated any memory
             if (s2c_packet_wrapper.alloc_index) |alloc_index| {
@@ -116,6 +117,7 @@ pub const Connection = struct {
 
     pub fn sendC2SPackets(self: *@This()) !void {
         self.c2s_packet_queue.lock();
+        errdefer self.c2s_packet_queue.unlock();
         while (self.c2s_packet_queue.read()) |packet| {
             try self.sendPacket(packet);
         }
@@ -142,6 +144,7 @@ pub const Connection = struct {
                             else
                                 null;
                             self.s2c_packet_queue.lock();
+                            errdefer self.s2c_packet_queue.unlock();
                             try self.s2c_packet_queue.write(.{ .packet = packet, .alloc_index = alloc_index });
                             self.s2c_packet_queue.unlock();
                         }
@@ -156,9 +159,9 @@ pub const Connection = struct {
         var fba_impl = std.heap.FixedBufferAllocator.init(&buffer);
 
         const socket = try network.connectToHost(fba_impl.allocator(), name, port, .tcp);
-        try makeSocketNonBlocking(socket);
-
         errdefer socket.close();
+
+        try makeSocketNonBlocking(socket);
 
         return socket;
     }
@@ -454,6 +457,7 @@ pub const ConnectionHandle = struct {
 
     pub fn sendPacket(self: *@This(), packet: C2SPacket) !void {
         self.c2s_packet_queue.lock();
+        errdefer self.c2s_packet_queue.unlock();
         try self.c2s_packet_queue.write(packet);
         self.c2s_packet_queue.unlock();
     }
