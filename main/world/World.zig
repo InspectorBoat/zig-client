@@ -25,7 +25,7 @@ const ChunkMap = @import("./ChunkMap.zig");
 const EventHandler = @import("root").EventHandler;
 const Events = @import("root").Events;
 
-const USE_HASH_MAP = true;
+const USE_HASH_MAP = false;
 
 chunks: if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk) else ChunkMap,
 player: LocalPlayerEntity,
@@ -206,20 +206,23 @@ pub fn receiveChunk(
         @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
     }
 
-    // self.updateChunk(chunk);
-    self.updateRegion(.{
-        .min = .{
-            .x = chunk_pos.x * 16 - 1,
-            .y = 0,
-            .z = chunk_pos.z * 16 - 1,
-        },
-        .max = .{
-            .x = chunk_pos.x * 16 + 16 + 1,
-            .y = 255,
-            .z = chunk_pos.z * 16 + 16 + 1,
-        },
-    });
-
+    {
+        const timer = @import("../util/Timer.zig").init();
+        defer std.debug.print("chunk updated in {d} ms\n", .{timer.ms()});
+        // self.updateChunk(chunk);
+        self.updateRegion(.{
+            .min = .{
+                .x = chunk_pos.x * 16 - 1,
+                .y = 0,
+                .z = chunk_pos.z * 16 - 1,
+            },
+            .max = .{
+                .x = chunk_pos.x * 16 + 16 + 1,
+                .y = 255,
+                .z = chunk_pos.z * 16 + 16 + 1,
+            },
+        });
+    }
     @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
 }

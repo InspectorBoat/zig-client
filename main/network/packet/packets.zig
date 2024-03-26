@@ -3,7 +3,6 @@ const ReadPacketBuffer = @import("../../network/packet/ReadPacketBuffer.zig");
 const WritePacketBuffer = @import("../../network/packet/WritePacketBuffer.zig");
 const Game = @import("../../game.zig").Game;
 const Connection = @import("../../network/connection.zig");
-const recursisvelyFree = @import("../../util/recursivelyfree.zig").recursivelyFree;
 
 pub const S2CPlayPacket = union(enum) {
     /// decodes a packet buffer into a type-erased packet
