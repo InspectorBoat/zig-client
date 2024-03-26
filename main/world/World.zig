@@ -25,9 +25,7 @@ const ChunkMap = @import("./ChunkMap.zig");
 const EventHandler = @import("root").EventHandler;
 const Events = @import("root").Events;
 
-const USE_HASH_MAP = false;
-
-chunks: if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk) else ChunkMap,
+chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
 entities: std.ArrayList(Entity),
 tick_timer: TickTimer,
@@ -45,7 +43,6 @@ pub fn init(info: struct {
     hardcore: bool,
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
-        .chunks = if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk).init(allocator) else .{},
         .entities = std.ArrayList(Entity).init(allocator),
         .tick_timer = try TickTimer.init(),
         .last_tick = try std.time.Instant.now(),
@@ -80,12 +77,7 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
 }
 
 pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
-    if (USE_HASH_MAP) {
-        var chunk = (self.chunks.fetchRemove(chunk_pos) orelse return error.MissingChunk).value;
-        chunk.deinit(allocator);
-    } else {
-        (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
-    }
+    (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
 }
 
 pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bool {
@@ -209,19 +201,19 @@ pub fn receiveChunk(
     {
         const timer = @import("../util/Timer.zig").init();
         defer std.debug.print("chunk updated in {d} ms\n", .{timer.ms()});
-        // self.updateChunk(chunk);
-        self.updateRegion(.{
-            .min = .{
-                .x = chunk_pos.x * 16 - 1,
-                .y = 0,
-                .z = chunk_pos.z * 16 - 1,
-            },
-            .max = .{
-                .x = chunk_pos.x * 16 + 16 + 1,
-                .y = 255,
-                .z = chunk_pos.z * 16 + 16 + 1,
-            },
-        });
+        self.updateChunk(chunk);
+        // self.updateRegion(.{
+        //     .min = .{
+        //         .x = chunk_pos.x * 16 - 1,
+        //         .y = 0,
+        //         .z = chunk_pos.z * 16 - 1,
+        //     },
+        //     .max = .{
+        //         .x = chunk_pos.x * 16 + 16 + 1,
+        //         .y = 255,
+        //         .z = chunk_pos.z * 16 + 16 + 1,
+        //     },
+        // });
     }
     @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
@@ -376,19 +368,10 @@ pub fn addEntity(self: *@This(), entity: Entity) !void {
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     // free chunks
-    if (USE_HASH_MAP) {
-        var entries = self.chunks.iterator();
-        while (entries.next()) |entry| {
-            @import("log").free_chunk(.{entry.value_ptr.chunk_pos});
-            entry.value_ptr.deinit(allocator);
-        }
-        self.chunks.deinit();
-    } else {
-        var chunks = self.chunks.iterator();
-        while (chunks.next()) |chunk| {
-            @import("log").free_chunk(.{chunk.chunk_pos});
-            chunk.deinit(allocator);
-        }
+    var chunks = self.chunks.iterator();
+    while (chunks.next()) |chunk| {
+        @import("log").free_chunk(.{chunk.chunk_pos});
+        chunk.deinit(allocator);
     }
 
     const milliseconds_elapsed = @as(f64, @floatFromInt(self.tick_timer.timer.read())) / std.time.ns_per_ms;

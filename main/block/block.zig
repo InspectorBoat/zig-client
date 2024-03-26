@@ -231,7 +231,7 @@ pub const RawBlockState = packed struct(u16) {
     block: u12,
 
     pub fn toFiltered(self: @This()) FilteredBlockState {
-        const block: Block = std.meta.intToEnum(Block, self.block) catch return FilteredBlockState.AIR;
+        const block: Block = if (self.block <= 197) @enumFromInt(self.block) else return FilteredBlockState.AIR;
         if (!@import("./valid_metadata_table.zig").@"export".get(block).isSet(self.metadata)) return FilteredBlockState.AIR;
         return .{
             .block = block,

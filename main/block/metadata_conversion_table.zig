@@ -2,7 +2,33 @@ const std = @import("std");
 const Block = @import("./block.zig").Block;
 const FilteredBlockState = @import("./block.zig").FilteredBlockState;
 
-const Packed = std.PackedIntArray(u4, 16);
+// const Packed = std.PackedIntArray(u4, 16);
+const Packed = struct {
+    raw: u64,
+    pub fn get(self: @This(), index: u4) u4 {
+        return @truncate(self.raw >> (@as(u6, index) * 4));
+    }
+    pub fn init(ints: [16]u4) @This() {
+        var raw: u64 = 0;
+        for (ints, 0..) |int, index| {
+            raw |= @as(u64, int) << @intCast(index * 4);
+        }
+        return .{ .raw = raw };
+    }
+};
+
+test Packed {
+    var rand_impl = std.Random.DefaultPrng.init(155215);
+    const rand = rand_impl.random();
+    var ints: [16]u4 = undefined;
+    for (&ints) |*int| {
+        int.* = rand.int(u4);
+    }
+    const @"packed" = Packed.init(ints);
+    for (ints, 0..16) |expected, i| {
+        try std.testing.expectEqual(expected, @"packed".get(@intCast(i)));
+    }
+}
 
 /// A table of metadata(u4) -> packed struct(u4) conversions
 pub const @"export" = std.EnumArray(Block, Packed).init(.{

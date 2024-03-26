@@ -71,5 +71,6 @@ pub const EventHandler = struct {
 
 test {
     _ = @import("./world/ChunkMap.zig");
-    // _ = @import("./util/RingBuffer.zig");
+    _ = @import("./util/RingBuffer.zig");
+    _ = @import("./block/metadata_conversion_table.zig");
 }

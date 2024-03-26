@@ -348,7 +348,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const 
 }
 
 pub fn getGravityNonLiquid(y_velocity: f64) f64 {
-    return (y_velocity - 0.02) * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
+    return (y_velocity - 0.08) * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
 }
 pub fn getFrictionNonLiquid(self: *const @This(), game: *const Game.IngameState) f32 {
     if (self.base.colliding.on_ground) {
