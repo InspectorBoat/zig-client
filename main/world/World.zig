@@ -25,7 +25,7 @@ const ChunkMap = @import("./ChunkMap.zig");
 const EventHandler = @import("root").EventHandler;
 const Events = @import("root").Events;
 
-const USE_HASH_MAP = false;
+const USE_HASH_MAP = true;
 
 chunks: if (USE_HASH_MAP) std.AutoHashMap(Vector2(i32), Chunk) else ChunkMap,
 player: LocalPlayerEntity,
@@ -102,28 +102,22 @@ pub fn isValidBlockPos(block_pos: Vector3(i32)) bool {
 pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlockState {
     if (block_pos.y < 0 or block_pos.y > 255) return ConcreteBlockState.AIR;
 
-    if (self.chunks.get(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
-        }
-    }
-    return ConcreteBlockState.AIR;
+    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return ConcreteBlockState.AIR;
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return ConcreteBlockState.AIR;
+    const section_block_pos = .{
+        .x = @mod(block_pos.x, 16),
+        .y = @mod(block_pos.y, 16),
+        .z = @mod(block_pos.z, 16),
+    };
+    return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
 }
 
 pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*ConcreteBlockState {
     if (block_pos.y < 0 or block_pos.y > 255) return null;
 
-    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;
+    const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return null;
-    const section_block_pos = .{
+    const section_block_pos: Vector3(i32) = .{
         .x = @mod(block_pos.x, 16),
         .y = @mod(block_pos.y, 16),
         .z = @mod(block_pos.z, 16),
@@ -132,43 +126,30 @@ pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*ConcreteBlock
 }
 
 pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
-    if (self.chunks.get(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (block_pos.y < 0 or block_pos.y > 255) return .air;
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            // const ptr: [*]ConcreteBlockState = @ptrCast(section);
-            // return ptr[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
-        }
-    }
-    return .air;
+    if (block_pos.y < 0 or block_pos.y > 255) return .air;
+
+    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air;
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return .air;
+    const section_block_pos: Vector3(i32) = .{
+        .x = @mod(block_pos.x, 16),
+        .y = @mod(block_pos.y, 16),
+        .z = @mod(block_pos.z, 16),
+    };
+    return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
 }
 
 pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState) void {
-    if (self.chunks.getPtr(.{
-        .x = @divFloor(block_pos.x, 16),
-        .z = @divFloor(block_pos.z, 16),
-    })) |chunk| {
-        if (chunk.sections[@intCast(@divFloor(block_pos.y, 16))]) |section| {
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
-        } else {
-            // std.log.warn("TODO!", .{});
-        }
-    } else {
+    const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
         @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
-    }
+        return;
+    };
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return; // TODO
+    const section_block_pos: Vector3(i32) = .{
+        .x = @mod(block_pos.x, 16),
+        .y = @mod(block_pos.y, 16),
+        .z = @mod(block_pos.z, 16),
+    };
+    section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
 }
 
 pub fn receiveChunk(
@@ -225,19 +206,19 @@ pub fn receiveChunk(
         @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
     }
 
-    self.updateChunk(chunk);
-    // self.updateRegion(.{
-    //     .min = .{
-    //         .x = chunk_pos.x * 16 - 1,
-    //         .y = 0,
-    //         .z = chunk_pos.z * 16 - 1,
-    //     },
-    //     .max = .{
-    //         .x = chunk_pos.x * 16 + 16 + 1,
-    //         .y = 255,
-    //         .z = chunk_pos.z * 16 + 16 + 1,
-    //     },
-    // });
+    // self.updateChunk(chunk);
+    self.updateRegion(.{
+        .min = .{
+            .x = chunk_pos.x * 16 - 1,
+            .y = 0,
+            .z = chunk_pos.z * 16 - 1,
+        },
+        .max = .{
+            .x = chunk_pos.x * 16 + 16 + 1,
+            .y = 255,
+            .z = chunk_pos.z * 16 + 16 + 1,
+        },
+    });
 
     @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
@@ -296,7 +277,7 @@ pub fn updateRegion(self: *@This(), region: Box(i32)) void {
             while (z <= region.max.z) : (z += 1) {
                 const block_pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
                 const block_state = self.getBlockStatePtr(block_pos) orelse continue;
-                block_state.update(self.*, block_pos);
+                block_state.update(self, block_pos);
             }
         }
     }

@@ -72,6 +72,12 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                     .rotation = player.base.rotation,
                 } },
             );
+            // Temporary hack for respawning
+            try ingame.connection_handle.sendPlayPacket(
+                .{ .ClientStatus = .{
+                    .status = .PerformRespawn,
+                } },
+            );
         },
         else => unreachable,
     }

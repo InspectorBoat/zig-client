@@ -9,9 +9,9 @@ pub inline fn contains(self: *const @This(), pos: Vector2(i32)) bool {
     return self.metadata.isSet(toIndex(pos));
 }
 
-pub inline fn get(self: *const @This(), pos: Vector2(i32)) ?Chunk {
+pub inline fn get(self: *const @This(), pos: Vector2(i32)) ?*const Chunk {
     if (!self.contains(pos)) return null;
-    return self.items[toIndex(pos)];
+    return &self.items[toIndex(pos)];
 }
 
 pub inline fn getPtr(self: *@This(), pos: Vector2(i32)) ?*Chunk {

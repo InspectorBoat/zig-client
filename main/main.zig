@@ -32,7 +32,7 @@ pub fn main() !void {
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
     try game.initConnection("127.0.0.1", 25565, gpa, c2s_packet_alloc);
-    try game.initLoginSequence("foobarqux");
+    try game.initLoginSequence("baz");
 
     while (true) {
         if (game == .Ingame) try game.advanceTimer();

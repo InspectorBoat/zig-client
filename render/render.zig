@@ -101,7 +101,7 @@ pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
     const chunk_pos: Vector2(i32) = chunk_update.chunk_pos;
     const chunk: *root.Chunk = chunk_update.chunk;
     for (chunk.sections, 0..) |maybe_section, section_y| {
-        if (section_y < 4) continue;
+        if (section_y < 3) continue;
         if (maybe_section) |section| {
             var staging = GpuStagingBuffer{};
 

@@ -136,6 +136,7 @@ pub const Game = union(GameState) {
         switch (self.*) {
             inline .Connecting, .Ingame => |game_state| {
                 if (game_state.connection_handle.disconnected.*) {
+                    std.debug.print("main thread disconnecting\n", .{});
                     self.disconnect();
                 }
             },

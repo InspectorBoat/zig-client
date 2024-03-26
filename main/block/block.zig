@@ -1490,7 +1490,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 };
             }
 
-            pub fn isInner(self: @This(), world: *const World, block_pos: Vector3(i32)) bool {
+            pub fn isInner(self: @This(), world: anytype, block_pos: Vector3(i32)) bool {
                 switch (self.stored.facing) {
                     .east => {
                         if (getStairState(world, block_pos.east())) |east| {
@@ -1528,7 +1528,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return true;
             }
 
-            pub fn getInnerStairShape(self: @This(), world: *const World, block_pos: Vector3(i32)) Shape {
+            pub fn getInnerStairShape(self: @This(), world: anytype, block_pos: Vector3(i32)) Shape {
                 const top_half = self.stored.half == .top;
                 switch (self.stored.facing) {
                     .east => {
@@ -1579,7 +1579,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return .straight;
             }
 
-            pub fn getOuterStairShape(self: @This(), world: *const World, block_pos: Vector3(i32)) Shape {
+            pub fn getOuterStairShape(self: @This(), world: anytype, block_pos: Vector3(i32)) Shape {
                 const top_half = self.stored.half == .top;
 
                 switch (self.stored.facing) {
@@ -1631,13 +1631,13 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return .straight;
             }
 
-            pub fn getStairState(world: *const World, block_pos: Vector3(i32)) ?@This() {
+            pub fn getStairState(world: anytype, block_pos: Vector3(i32)) ?@This() {
                 const state = world.getBlockState(block_pos);
                 if (isStair(state.block)) return state.properties.oak_stairs;
                 return null;
             }
 
-            pub fn alignedStair(self: @This(), world: *const World, block_pos: Vector3(i32)) bool {
+            pub fn alignedStair(self: @This(), world: anytype, block_pos: Vector3(i32)) bool {
                 const other = getStairState(world, block_pos) orelse return false;
                 return self.stored.facing == other.stored.facing and self.stored.half == other.stored.half;
             }
@@ -2408,7 +2408,7 @@ pub const ConcreteBlockState = packed struct(u16) {
         }
     }
 
-    pub fn updateDummy(self: *@This(), world: *const World, block_pos: Vector3(i32)) void {
+    pub fn updateDummy(self: *@This(), world: anytype, block_pos: Vector3(i32)) void {
         switch (self.block) {
             .grass,
             .dirt,
@@ -2506,6 +2506,7 @@ pub const ConcreteBlockState = packed struct(u16) {
             else => {},
         }
     }
+
     pub fn payload(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);
         return @field(self.properties, @tagName(block));
