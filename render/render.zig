@@ -20,7 +20,7 @@ pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 
-pub const event_listeners = .{ onStartup, onFrame, onChunkUpdate };
+pub const event_listeners = .{ onStartup, onFrame, onChunkUpdate, onUnloadChunk };
 
 pub fn onStartup(_: Events.Startup) !void {
     const gpa = gpa_impl.allocator();
@@ -133,6 +133,14 @@ pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
                 },
             );
         }
+    }
+}
+
+pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
+    const chunk_pos = unload_chunk.chunk_pos;
+    for (0..16) |section_y| {
+        const entry = renderer.sections.fetchRemove(.{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z }) orelse continue;
+        entry.value.buffer.delete();
     }
 }
 

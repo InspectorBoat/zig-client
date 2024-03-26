@@ -59,6 +59,7 @@ pub fn exit(_: Events.Exit) void {
 pub const Events = struct {
     pub const Startup = struct {};
     pub const ChunkUpdate = struct { chunk_pos: Vector2(i32), chunk: *Chunk };
+    pub const UnloadChunk = struct { chunk_pos: Vector2(i32) };
     pub const Frame = struct { game: *Game };
     pub const Exit = struct {};
 };

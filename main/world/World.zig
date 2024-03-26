@@ -78,6 +78,7 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
 
 pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
     (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
+    try EventHandler.dispatch(Events.UnloadChunk, .{ .chunk_pos = chunk_pos });
 }
 
 pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bool {
