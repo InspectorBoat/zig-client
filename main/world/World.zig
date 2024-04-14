@@ -201,7 +201,7 @@ pub fn receiveChunk(
 
     {
         const timer = @import("../util/Timer.zig").init();
-        defer std.debug.print("chunk updated in {d} ms\n", .{timer.ms()});
+        defer @import("log").devirtualize_chunk(.{timer.ms()});
         self.updateChunk(chunk);
         // self.updateRegion(.{
         //     .min = .{

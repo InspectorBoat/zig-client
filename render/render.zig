@@ -45,6 +45,8 @@ pub fn onStartup(_: Events.Startup) !void {
     renderer = try Renderer.init(gpa);
 }
 
+var i: usize = 1;
+
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
         try EventHandler.dispatch(Events.Exit, .{});
@@ -69,6 +71,8 @@ pub fn onFrame(frame: Events.Frame) !void {
             const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
             gl.uniformMatrix4fv(0, true, @as([*]const [4][4]f32, @ptrCast(mvp.getData()))[0..1]);
 
+            renderer.vao.vertexBuffer(0, renderer.gpu_memory_allocator.backing_buffer, 0, 3 * @sizeOf(f32));
+
             var entries = renderer.sections.iterator();
             while (entries.next()) |entry| {
                 // pos uniform
@@ -76,8 +80,9 @@ pub fn onFrame(frame: Events.Frame) !void {
                 renderer.program.uniform3f(1, @floatFromInt(pos.x), @floatFromInt(pos.y), @floatFromInt(pos.z));
 
                 // bind buffer
-                renderer.vao.vertexBuffer(0, entry.value_ptr.buffer, 0, 3 * @sizeOf(f32));
-
+                renderer.vao.vertexBuffer(0, renderer.gpu_memory_allocator.backing_buffer, entry.value_ptr.segment.offset, 3 * @sizeOf(f32));
+                // std.debug.assert(entry.value_ptr.segment.offset % 6 == 0);
+                // std.debug.assert(entry.value_ptr.segment.length / 6 == entry.value_ptr.vertices);
                 gl.drawArrays(.triangles, 0, entry.value_ptr.vertices);
             }
 
@@ -98,50 +103,12 @@ pub fn onFrame(frame: Events.Frame) !void {
 }
 
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
-    const chunk_pos: Vector2(i32) = chunk_update.chunk_pos;
-    const chunk: *root.Chunk = chunk_update.chunk;
-    for (chunk.sections, 0..) |maybe_section, section_y| {
-        if (section_y < 3) continue;
-        if (maybe_section) |section| {
-            var staging = GpuStagingBuffer{};
-
-            const buffer = gl.Buffer.create();
-            // place blocks in chunk
-            for (0..16) |x| {
-                for (0..16) |y| {
-                    for (0..16) |z| {
-                        const pos = (y << 8) | (z << 4) | (x << 0);
-                        for (section.block_states[pos].getRaytraceHitbox()) |maybe_box| {
-                            if (maybe_box) |box| {
-                                const pos_vec: Vector3(f64) = .{ .x = @floatFromInt(x), .y = @floatFromInt(y), .z = @floatFromInt(z) };
-                                staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
-                            }
-                        }
-                        // if (section.block_states[pos].block != .air) {
-                        // staging.writeCube(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
-                        // }
-                    }
-                }
-            }
-            buffer.storage(u8, staging.write_index, @ptrCast(staging.getSlice()), .{});
-
-            try renderer.sections.put(
-                .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
-                .{
-                    .buffer = buffer,
-                    .vertices = staging.write_index / @sizeOf(f32) / 3,
-                },
-            );
-        }
-    }
+    try renderer.compileChunk(chunk_update.chunk_pos, chunk_update.chunk, gpa_impl.allocator());
 }
 
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
     const chunk_pos = unload_chunk.chunk_pos;
-    for (0..16) |section_y| {
-        const entry = renderer.sections.fetchRemove(.{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z }) orelse continue;
-        entry.value.buffer.delete();
-    }
+    try renderer.unloadChunk(chunk_pos, gpa_impl.allocator());
 }
 
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
@@ -173,10 +140,14 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
         switch (event) {
             .Key => |key| {
                 switch (key.key) {
-                    .tab => {
-                        if (key.action == .press) {
-                            if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
-                        }
+                    .i => if (key.action == .press) {
+                        i += 1;
+                    },
+                    .j => if (key.action == .press) {
+                        i -= 1;
+                    },
+                    .tab => if (key.action == .press) {
+                        if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
                     else => {},
                 }
@@ -204,4 +175,8 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
             .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.w))) - @as(i8, @intFromBool(window_input.keys.get(.s)))),
         },
     };
+}
+
+test {
+    _ = @import("./GpuMemoryAllocator.zig");
 }

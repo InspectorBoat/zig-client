@@ -23,6 +23,7 @@ pub const transaction = LogType(false, "transaction - {}");
 pub const free_section = LogType(false, "freeing section");
 pub const free_chunk = LogType(false, "freeing chunk at {}");
 pub const update_chunk = LogType(false, "updating chunk at {}");
+pub const devirtualize_chunk = LogType(false, "chunk devirtualized in {} ms");
 pub const lag_spike = LogType(false, "lag spike - ticking {} times at once");
 pub const delayed_tick = LogType(false, "late tick - {d} ms behind");
 pub const tick_on_time = LogType(false, "ticked on time");
@@ -37,4 +38,4 @@ pub const player_stop_sprint = LogType(false, "stop sprinting");
 pub const set_block_in_missing_chunk = LogType(false, "attempted to set block in missing chunk {}!");
 
 pub const recieved_chunk = LogType(false, "decoded recieved chunk in {d} ms");
-pub const load_new_chunk = LogType(true, "loaded new chunk at {}");
+pub const load_new_chunk = LogType(false, "loaded new chunk at {}");

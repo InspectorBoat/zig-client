@@ -5,6 +5,11 @@ const Chunk = @import("./Chunk.zig");
 metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = std.bit_set.ArrayBitSet(usize, 32 * 32).initEmpty(),
 items: [32 * 32]Chunk = undefined,
 
+pub inline fn toIndex(pos: Vector2(i32)) usize {
+    const pos_cast = pos.bitCast(u32);
+    return @intCast(((pos_cast.x & 31) << 5) | ((pos_cast.z & 31) << 0));
+}
+
 pub inline fn contains(self: *const @This(), pos: Vector2(i32)) bool {
     return self.metadata.isSet(toIndex(pos));
 }
@@ -34,11 +39,6 @@ pub inline fn fetchRemove(self: *@This(), pos: Vector2(i32)) !*Chunk {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
     return &self.items[toIndex(pos)];
-}
-
-pub inline fn toIndex(pos: Vector2(i32)) usize {
-    const pos_cast = pos.bitCast(u32);
-    return @intCast(((pos_cast.x & 31) << 5) | ((pos_cast.z & 31) << 0));
 }
 
 const Self = @This();
