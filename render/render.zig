@@ -96,7 +96,8 @@ pub fn onFrame(frame: Events.Frame) !void {
                 renderer.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3,
             );
         },
-        else => {},
+        .Connecting => |*connecting_game| handleInputConnecting(connecting_game),
+        .Idle => |*idle_game| handleInputIdle(idle_game),
     }
     window_input.window.swapBuffers();
     // return false;
@@ -135,6 +136,34 @@ pub fn lerp(start: f64, end: f64, progress: f64) f64 {
     return (end - start) * progress + start;
 }
 
+pub fn handleInputIdle(_: *Game.IdleGame) void {
+    while (window_input.events.readItem()) |event| {
+        switch (event) {
+            .Key => |key| {
+                switch (key.key) {
+                    .escape => window_input.window.setShouldClose(true),
+                    else => {},
+                }
+            },
+            else => {},
+        }
+    }
+}
+
+pub fn handleInputConnecting(_: *Game.ConnectingGame) void {
+    while (window_input.events.readItem()) |event| {
+        switch (event) {
+            .Key => |key| {
+                switch (key.key) {
+                    .escape => window_input.window.setShouldClose(true),
+                    else => {},
+                }
+            },
+            else => {},
+        }
+    }
+}
+
 pub fn handleInputIngame(ingame: *Game.IngameState) void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
@@ -149,6 +178,7 @@ pub fn handleInputIngame(ingame: *Game.IngameState) void {
                     .tab => if (key.action == .press) {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
+                    .escape => window_input.window.setShouldClose(true),
                     else => {},
                 }
             },
