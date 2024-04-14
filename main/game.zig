@@ -19,7 +19,7 @@ pub const Game = union(GameState) {
         gpa: std.mem.Allocator,
         connection_handle: ConnectionHandle,
     };
-    pub const IngameState = struct {
+    pub const IngameGame = struct {
         gpa: std.mem.Allocator,
         connection_handle: ConnectionHandle,
         world: World,
@@ -30,7 +30,7 @@ pub const Game = union(GameState) {
 
     Idle: IdleGame,
     Connecting: ConnectingGame,
-    Ingame: IngameState,
+    Ingame: IngameGame,
 
     pub fn initConnection(self: *@This(), name: []const u8, port: u16, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
         switch (self.*) {

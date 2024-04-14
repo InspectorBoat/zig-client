@@ -164,7 +164,7 @@ pub fn handleInputConnecting(_: *Game.ConnectingGame) void {
     }
 }
 
-pub fn handleInputIngame(ingame: *Game.IngameState) void {
+pub fn handleInputIngame(ingame: *Game.IngameGame) void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {

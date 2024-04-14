@@ -49,7 +49,7 @@ pub fn teleport(self: *@This(), new_pos: Vector3(f64), new_rotation: Rotation2(f
     self.setRotation(self.rotation);
 }
 
-pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *const Game.IngameState) !void {
+pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *const Game.IngameGame) !void {
     // TODO: handle noclip
     const start_pos = self.pos;
     _ = start_pos;

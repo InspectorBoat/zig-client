@@ -10,7 +10,7 @@ hunger: struct {
 } = .{},
 sleeping: bool = false,
 
-pub fn isSpectator(self: *const @This(), game: *const Game.IngameState) bool {
+pub fn isSpectator(self: *const @This(), game: *const Game.IngameGame) bool {
     _ = self;
     _ = game;
     return false;

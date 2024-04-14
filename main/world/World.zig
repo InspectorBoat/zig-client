@@ -53,7 +53,7 @@ pub fn init(info: struct {
     };
 }
 
-pub fn tick(self: *@This(), game: *Game.IngameState, allocator: std.mem.Allocator) !void {
+pub fn tick(self: *@This(), game: *Game.IngameGame, allocator: std.mem.Allocator) !void {
     _ = allocator; // autofix
     const now = try std.time.Instant.now();
 
