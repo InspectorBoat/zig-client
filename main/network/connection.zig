@@ -49,7 +49,7 @@ pub const Connection = struct {
         s2c_packet_queue: *WriteReadFreeQueue(S2CPacketWrapper),
     ) !void {
         var ring_alloc_buffer: [1024 * 1024 * 8]u8 = undefined;
-        var connection = Connection{
+        var connection: Connection = .{
             .name = name,
             .port = port,
 
