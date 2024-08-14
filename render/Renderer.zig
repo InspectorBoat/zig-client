@@ -61,7 +61,7 @@ pub fn renderBox(self: *@This(), box: Box(f64)) void {
     );
 }
 
-pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *Chunk, allocator: std.mem.Allocator) !void {
+pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk, allocator: std.mem.Allocator) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
         if (section_y < 3) continue;
         if (maybe_section) |section| {

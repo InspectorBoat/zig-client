@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) void {
     // Create main executable
     const client = b.addExecutable(.{
         .name = "zig-client",
-        .root_source_file = .{ .path = "main/main.zig" },
+        .root_source_file = b.path("main/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -22,9 +22,9 @@ pub fn build(b: *std.Build) void {
 
     // Declare used modules
     const root = &client.root_module;
-    const render = b.addModule("render", .{ .root_source_file = .{ .path = "render/render.zig" } });
-    const logging = b.addModule("log", .{ .root_source_file = .{ .path = "logging/logging.zig" } });
-    const events = b.addModule("events", .{ .root_source_file = .{ .path = "events/events.zig" } });
+    const render = b.addModule("render", .{ .root_source_file = b.path("render/render.zig") });
+    const logging = b.addModule("log", .{ .root_source_file = b.path("logging/logging.zig") });
+    const events = b.addModule("events", .{ .root_source_file = b.path("events/events.zig") });
 
     // Add imports to main executable module
     root.addImport("network", network);
@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) void {
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     const check_client = b.addExecutable(.{
         .name = "zig-client",
-        .root_source_file = .{ .path = "main/main.zig" },
+        .root_source_file = b.path("main/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -68,11 +68,11 @@ pub fn build(b: *std.Build) void {
 
     // Run unit tests
     // Unit tests for main module
-    const test_main = b.addTest(.{ .root_source_file = .{ .path = "main/main.zig" } });
+    const test_main = b.addTest(.{ .root_source_file = b.path("main/main.zig") });
     test_main.root_module.addImport("log", logging);
 
     // Unit tests for render module
-    const test_render = b.addTest(.{ .root_source_file = .{ .path = "render/render.zig" } });
+    const test_render = b.addTest(.{ .root_source_file = b.path("render/render.zig") });
     test_render.root_module.addImport("log", logging);
 
     const run_test_main = b.addRunArtifact(test_main);

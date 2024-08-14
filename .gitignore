@@ -1,4 +1,5 @@
 zig-out
+.zig-cache
 zig-cache
 libs/zgl/zig-cache
 libs/mach-glfw/zig-cache

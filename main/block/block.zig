@@ -232,7 +232,10 @@ pub const RawBlockState = packed struct(u16) {
 
     pub fn toFiltered(self: @This()) FilteredBlockState {
         const block: Block = if (self.block <= 197) @enumFromInt(self.block) else return FilteredBlockState.AIR;
-        if (!@import("./valid_metadata_table.zig").@"export".get(block).isSet(self.metadata)) return FilteredBlockState.AIR;
+        if (!@import("./valid_metadata_table.zig").@"export".get(block).isSet(self.metadata)) {
+            std.debug.panic("Invalid metadata {} for block {s}", .{ self.metadata, @tagName(block) });
+            // return FilteredBlockState.AIR; // Vanilla behavior
+        }
         return .{
             .block = block,
             .properties = .{ .raw_bits = @import("./metadata_conversion_table.zig").@"export".get(block).get(self.metadata) },
@@ -243,409 +246,211 @@ pub const RawBlockState = packed struct(u16) {
 // RawBlockState, but stipped of invalid states and converted into a sane format
 pub const FilteredBlockState = packed struct(u12) {
     block: Block,
-    properties: BlockProperties,
-
-    pub const AIR: @This() = .{ .block = .air, .properties = .{ .raw_bits = 0 } };
-
-    pub const BlockProperties = packed union {
-        pub const air = packed struct(u4) { _: u4 = 0 };
-        pub const stone = packed struct(u4) { variant: enum(u3) { stone, granite, smooth_granite, diorite, smooth_diorite, andesite, smooth_andesite }, _: u1 = 0 };
-        pub const grass = packed struct(u4) { _: u4 = 0 };
-        pub const dirt = packed struct(u4) { variant: enum(u2) { dirt, coarse_dirt, podzol }, _: u2 = 0 };
-        pub const cobblestone = packed struct(u4) { _: u4 = 0 };
-        pub const planks = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, _: u1 = 0 };
-        pub const sapling = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, stage: u1 };
-        pub const bedrock = packed struct(u4) { _: u4 = 0 };
-        pub const flowing_water = packed struct(u4) { level: u4 };
-        pub const water = packed struct(u4) { level: u4 };
-        pub const flowing_lava = packed struct(u4) { level: u4 };
-        pub const lava = packed struct(u4) { level: u4 };
-        pub const sand = packed struct(u4) { variant: enum(u1) { sand, red_sand }, _: u3 = 0 };
-        pub const gravel = packed struct(u4) { _: u4 = 0 };
-        pub const gold_ore = packed struct(u4) { _: u4 = 0 };
-        pub const iron_ore = packed struct(u4) { _: u4 = 0 };
-        pub const coal_ore = packed struct(u4) { _: u4 = 0 };
-        pub const log = packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u2) { oak, spruce, birch, jungle } };
-        pub const leaves = packed struct(u4) { variant: enum(u2) { oak, spruce, birch, jungle }, check_decay: bool, decayable: bool };
-        pub const sponge = packed struct(u4) { wet: bool, _: u3 = 0 };
-        pub const glass = packed struct(u4) { _: u4 = 0 };
-        pub const lapis_ore = packed struct(u4) { _: u4 = 0 };
-        pub const lapis_block = packed struct(u4) { _: u4 = 0 };
-        pub const dispenser = packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const sandstone = packed struct(u4) { variant: enum(u2) { sandstone, chiseled_sandstone, smooth_sandstone }, _: u2 = 0 };
-        pub const noteblock = packed struct(u4) { _: u4 = 0 };
-        pub const bed = packed struct(u4) { occupied: bool, facing: enum(u2) { north, south, west, east }, part: enum(u1) { head, foot } };
-        pub const golden_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
-        pub const detector_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
-        pub const sticky_piston = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool };
-        pub const web = packed struct(u4) { _: u4 = 0 };
-        pub const tallgrass = packed struct(u4) { variant: enum(u2) { dead_bush, tall_grass, fern }, _: u2 = 0 };
-        pub const deadbush = packed struct(u4) { _: u4 = 0 };
-        pub const piston = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool };
-        pub const piston_head = packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const wool = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
-        pub const piston_extension = packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const yellow_flower = packed struct(u4) { _: u4 = 0 };
-        pub const red_flower = packed struct(u4) { variant: enum(u4) { poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy } };
-        pub const brown_mushroom = packed struct(u4) { _: u4 = 0 };
-        pub const red_mushroom = packed struct(u4) { _: u4 = 0 };
-        pub const gold_block = packed struct(u4) { _: u4 = 0 };
-        pub const iron_block = packed struct(u4) { _: u4 = 0 };
-        pub const double_stone_slab = packed struct(u4) { seamless: bool, variant: enum(u3) { stone, sandstone, wood_old, cobblestone, brick, stone_brick, nether_brick, quartz } };
-        pub const stone_slab = packed struct(u4) { variant: enum(u3) { stone, sandstone, wood_old, cobblestone, brick, stone_brick, nether_brick, quartz }, half: enum(u1) { top, bottom } };
-        pub const brick_block = packed struct(u4) { _: u4 = 0 };
-        pub const tnt = packed struct(u4) { explode: bool, _: u3 = 0 };
-        pub const bookshelf = packed struct(u4) { _: u4 = 0 };
-        pub const mossy_cobblestone = packed struct(u4) { _: u4 = 0 };
-        pub const obsidian = packed struct(u4) { _: u4 = 0 };
-        pub const torch = packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 };
-        pub const fire = packed struct(u4) { age: u4 };
-        pub const mob_spawner = packed struct(u4) { _: u4 = 0 };
-        pub const oak_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const chest = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const redstone_wire = packed struct(u4) { power: u4 };
-        pub const diamond_ore = packed struct(u4) { _: u4 = 0 };
-        pub const diamond_block = packed struct(u4) { _: u4 = 0 };
-        pub const crafting_table = packed struct(u4) { _: u4 = 0 };
-        pub const wheat = packed struct(u4) { age: u3, _: u1 = 0 };
-        pub const farmland = packed struct(u4) { moisture: u3, _: u1 = 0 };
-        pub const furnace = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const lit_furnace = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const standing_sign = packed struct(u4) { rotation: u4 };
-        pub const wooden_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-        pub const ladder = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const rail = packed struct(u4) { shape: enum(u4) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south, south_east, south_west, north_west, north_east } };
-        pub const stone_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const wall_sign = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const lever = packed struct(u4) { powered: bool, facing: enum(u3) { down_x, east, west, south, north, up_z, up_x, down_z } };
-        pub const stone_pressure_plate = packed struct(u4) { powered: bool, _: u3 = 0 };
-        pub const iron_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-        pub const wooden_pressure_plate = packed struct(u4) { powered: bool, _: u3 = 0 };
-        pub const redstone_ore = packed struct(u4) { _: u4 = 0 };
-        pub const lit_redstone_ore = packed struct(u4) { _: u4 = 0 };
-        pub const unlit_redstone_torch = packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 };
-        pub const redstone_torch = packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 };
-        pub const stone_button = packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const snow_layer = packed struct(u4) { layers: u3, _: u1 = 0 };
-        pub const ice = packed struct(u4) { _: u4 = 0 };
-        pub const snow = packed struct(u4) { _: u4 = 0 };
-        pub const cactus = packed struct(u4) { age: u4 };
-        pub const clay = packed struct(u4) { _: u4 = 0 };
-        pub const reeds = packed struct(u4) { age: u4 };
-        pub const jukebox = packed struct(u4) { has_record: bool, _: u3 = 0 };
-        pub const fence = packed struct(u4) { _: u4 = 0 };
-        pub const pumpkin = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const netherrack = packed struct(u4) { _: u4 = 0 };
-        pub const soul_sand = packed struct(u4) { _: u4 = 0 };
-        pub const glowstone = packed struct(u4) { _: u4 = 0 };
-        pub const portal = packed struct(u4) { axis: enum(u1) { x, z }, _: u3 = 0 };
-        pub const lit_pumpkin = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const cake = packed struct(u4) { bites: u3, _: u1 = 0 };
-        pub const unpowered_repeater = packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } };
-        pub const powered_repeater = packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } };
-        pub const stained_glass = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
-        pub const trapdoor = packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } };
-        pub const monster_egg = packed struct(u4) { variant: enum(u3) { stone, cobblestone, stone_brick, mossy_brick, cracked_brick, chiseled_brick }, _: u1 = 0 };
-        pub const stonebrick = packed struct(u4) { variant: enum(u2) { stonebrick, mossy_stonebrick, cracked_stonebrick, chiseled_stonebrick }, _: u2 = 0 };
-        pub const brown_mushroom_block = packed struct(u4) { variant: enum(u4) { north_west, north, north_east, west, center, east, south_west, south, south_east, stem, all_inside, all_outside, all_stem } };
-        pub const red_mushroom_block = packed struct(u4) { variant: enum(u4) { north_west, north, north_east, west, center, east, south_west, south, south_east, stem, all_inside, all_outside, all_stem } };
-        pub const iron_bars = packed struct(u4) { _: u4 = 0 };
-        pub const glass_pane = packed struct(u4) { _: u4 = 0 };
-        pub const melon_block = packed struct(u4) { _: u4 = 0 };
-        pub const pumpkin_stem = packed struct(u4) { age: u3, _: u1 = 0 };
-        pub const melon_stem = packed struct(u4) { age: u3, _: u1 = 0 };
-        pub const vine = packed struct(u4) { west: bool, south: bool, north: bool, east: bool };
-        pub const fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
-        pub const brick_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const stone_brick_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const mycelium = packed struct(u4) { _: u4 = 0 };
-        pub const waterlily = packed struct(u4) { _: u4 = 0 };
-        pub const nether_brick = packed struct(u4) { _: u4 = 0 };
-        pub const nether_brick_fence = packed struct(u4) { _: u4 = 0 };
-        pub const nether_brick_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const nether_wart = packed struct(u4) { age: u2, _: u2 = 0 };
-        pub const enchanting_table = packed struct(u4) { _: u4 = 0 };
-        pub const brewing_stand = packed struct(u4) { has_bottle_2: bool, has_bottle_0: bool, has_bottle_1: bool, _: u1 = 0 };
-        pub const cauldron = packed struct(u4) { level: u2, _: u2 = 0 };
-        pub const end_portal = packed struct(u4) { _: u4 = 0 };
-        pub const end_portal_frame = packed struct(u4) { eye: bool, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const end_stone = packed struct(u4) { _: u4 = 0 };
-        pub const dragon_egg = packed struct(u4) { _: u4 = 0 };
-        pub const redstone_lamp = packed struct(u4) { _: u4 = 0 };
-        pub const lit_redstone_lamp = packed struct(u4) { _: u4 = 0 };
-        pub const double_wooden_slab = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, _: u1 = 0 };
-        pub const wooden_slab = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, half: enum(u1) { top, bottom } };
-        pub const cocoa = packed struct(u4) { age: u2, facing: enum(u2) { north, south, west, east } };
-        pub const sandstone_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const emerald_ore = packed struct(u4) { _: u4 = 0 };
-        pub const ender_chest = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const tripwire_hook = packed struct(u4) { powered: bool, facing: enum(u2) { north, south, west, east }, attached: bool };
-        pub const tripwire = packed struct(u4) { powered: bool, disarmed: bool, attached: bool, suspended: bool };
-        pub const emerald_block = packed struct(u4) { _: u4 = 0 };
-        pub const spruce_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const birch_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const jungle_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const command_block = packed struct(u4) { triggered: bool, _: u3 = 0 };
-        pub const beacon = packed struct(u4) { _: u4 = 0 };
-        pub const cobblestone_wall = packed struct(u4) { variant: enum(u1) { cobblestone, mossy_cobblestone }, _: u3 = 0 };
-        pub const flower_pot = packed struct(u4) { _: u4 = 0 };
-        pub const carrots = packed struct(u4) { age: u3, _: u1 = 0 };
-        pub const potatoes = packed struct(u4) { age: u3, _: u1 = 0 };
-        pub const wooden_button = packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const skull = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, nodrop: bool };
-        pub const anvil = packed struct(u4) { damage: u2, facing: enum(u2) { north, south, west, east } };
-        pub const trapped_chest = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const light_weighted_pressure_plate = packed struct(u4) { power: u4 };
-        pub const heavy_weighted_pressure_plate = packed struct(u4) { power: u4 };
-        pub const unpowered_comparator = packed struct(u4) { powered: bool, mode: enum(u1) { compare, subtract }, facing: enum(u2) { north, south, west, east } };
-        pub const powered_comparator = packed struct(u4) { powered: bool, mode: enum(u1) { compare, subtract }, facing: enum(u2) { north, south, west, east } };
-        pub const daylight_detector = packed struct(u4) { power: u4 };
-        pub const redstone_block = packed struct(u4) { _: u4 = 0 };
-        pub const quartz_ore = packed struct(u4) { _: u4 = 0 };
-        pub const hopper = packed struct(u4) { facing: enum(u3) { down, north, south, west, east }, enabled: bool };
-        pub const quartz_block = packed struct(u4) { variant: enum(u3) { default, chiseled, lines_x, lines_y, lines_z }, _: u1 = 0 };
-        pub const quartz_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const activator_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
-        pub const dropper = packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } };
-        pub const stained_hardened_clay = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
-        pub const stained_glass_pane = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
-        pub const leaves2 = packed struct(u4) { variant: enum(u1) { acacia, dark_oak }, check_decay: bool, decayable: bool, _: u1 = 0 };
-        pub const log2 = packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u1) { acacia, dark_oak }, _: u1 = 0 };
-        pub const acacia_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const dark_oak_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const slime = packed struct(u4) { _: u4 = 0 };
-        pub const barrier = packed struct(u4) { _: u4 = 0 };
-        pub const iron_trapdoor = packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } };
-        pub const prismarine = packed struct(u4) { variant: enum(u2) { prismarine, prismarine_bricks, dark_prismarine }, _: u2 = 0 };
-        pub const sea_lantern = packed struct(u4) { _: u4 = 0 };
-        pub const hay_block = packed struct(u4) { axis: enum(u2) { x, y, z }, _: u2 = 0 };
-        pub const carpet = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
-        pub const hardened_clay = packed struct(u4) { _: u4 = 0 };
-        pub const coal_block = packed struct(u4) { _: u4 = 0 };
-        pub const packed_ice = packed struct(u4) { _: u4 = 0 };
-        pub const double_plant = packed struct(u4) { variant: enum(u3) { sunflower, syringa, double_grass, double_fern, double_rose, paeonia }, half: enum(u1) { upper, lower } };
-        pub const standing_banner = packed struct(u4) { rotation: u4 };
-        pub const wall_banner = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
-        pub const daylight_detector_inverted = packed struct(u4) { power: u4 };
-        pub const red_sandstone = packed struct(u4) { variant: enum(u2) { red_sandstone, chiseled_red_sandstone, smooth_red_sandstone }, _: u2 = 0 };
-        pub const red_sandstone_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
-        pub const double_stone_slab2 = packed struct(u4) { seamless: bool, _: u3 = 0 };
-        pub const stone_slab2 = packed struct(u4) { half: enum(u1) { top, bottom }, _: u3 = 0 };
-        pub const spruce_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
-        pub const birch_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
-        pub const jungle_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
-        pub const dark_oak_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
-        pub const acacia_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
-        pub const spruce_fence = packed struct(u4) { _: u4 = 0 };
-        pub const birch_fence = packed struct(u4) { _: u4 = 0 };
-        pub const jungle_fence = packed struct(u4) { _: u4 = 0 };
-        pub const dark_oak_fence = packed struct(u4) { _: u4 = 0 };
-        pub const acacia_fence = packed struct(u4) { _: u4 = 0 };
-        pub const spruce_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-        pub const birch_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-        pub const jungle_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-        pub const acacia_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-        pub const dark_oak_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
-
+    properties: packed union {
         raw_bits: u4,
-        air: air,
-        stone: stone,
-        grass: grass,
-        dirt: dirt,
-        cobblestone: cobblestone,
-        planks: planks,
-        sapling: sapling,
-        bedrock: bedrock,
-        flowing_water: flowing_water,
-        water: water,
-        flowing_lava: flowing_lava,
-        lava: lava,
-        sand: sand,
-        gravel: gravel,
-        gold_ore: gold_ore,
-        iron_ore: iron_ore,
-        coal_ore: coal_ore,
-        log: log,
-        leaves: leaves,
-        sponge: sponge,
-        glass: glass,
-        lapis_ore: lapis_ore,
-        lapis_block: lapis_block,
-        dispenser: dispenser,
-        sandstone: sandstone,
-        noteblock: noteblock,
-        bed: bed,
-        golden_rail: golden_rail,
-        detector_rail: detector_rail,
-        sticky_piston: sticky_piston,
-        web: web,
-        tallgrass: tallgrass,
-        deadbush: deadbush,
-        piston: piston,
-        piston_head: piston_head,
-        wool: wool,
-        piston_extension: piston_extension,
-        yellow_flower: yellow_flower,
-        red_flower: red_flower,
-        brown_mushroom: brown_mushroom,
-        red_mushroom: red_mushroom,
-        gold_block: gold_block,
-        iron_block: iron_block,
-        double_stone_slab: double_stone_slab,
-        stone_slab: stone_slab,
-        brick_block: brick_block,
-        tnt: tnt,
-        bookshelf: bookshelf,
-        mossy_cobblestone: mossy_cobblestone,
-        obsidian: obsidian,
-        torch: torch,
-        fire: fire,
-        mob_spawner: mob_spawner,
-        oak_stairs: oak_stairs,
-        chest: chest,
-        redstone_wire: redstone_wire,
-        diamond_ore: diamond_ore,
-        diamond_block: diamond_block,
-        crafting_table: crafting_table,
-        wheat: wheat,
-        farmland: farmland,
-        furnace: furnace,
-        lit_furnace: lit_furnace,
-        standing_sign: standing_sign,
-        wooden_door: wooden_door,
-        ladder: ladder,
-        rail: rail,
-        stone_stairs: stone_stairs,
-        wall_sign: wall_sign,
-        lever: lever,
-        stone_pressure_plate: stone_pressure_plate,
-        iron_door: iron_door,
-        wooden_pressure_plate: wooden_pressure_plate,
-        redstone_ore: redstone_ore,
-        lit_redstone_ore: lit_redstone_ore,
-        unlit_redstone_torch: unlit_redstone_torch,
-        redstone_torch: redstone_torch,
-        stone_button: stone_button,
-        snow_layer: snow_layer,
-        ice: ice,
-        snow: snow,
-        cactus: cactus,
-        clay: clay,
-        reeds: reeds,
-        jukebox: jukebox,
-        fence: fence,
-        pumpkin: pumpkin,
-        netherrack: netherrack,
-        soul_sand: soul_sand,
-        glowstone: glowstone,
-        portal: portal,
-        lit_pumpkin: lit_pumpkin,
-        cake: cake,
-        unpowered_repeater: unpowered_repeater,
-        powered_repeater: powered_repeater,
-        stained_glass: stained_glass,
-        trapdoor: trapdoor,
-        monster_egg: monster_egg,
-        stonebrick: stonebrick,
-        brown_mushroom_block: brown_mushroom_block,
-        red_mushroom_block: red_mushroom_block,
-        iron_bars: iron_bars,
-        glass_pane: glass_pane,
-        melon_block: melon_block,
-        pumpkin_stem: pumpkin_stem,
-        melon_stem: melon_stem,
-        vine: vine,
-        fence_gate: fence_gate,
-        brick_stairs: brick_stairs,
-        stone_brick_stairs: stone_brick_stairs,
-        mycelium: mycelium,
-        waterlily: waterlily,
-        nether_brick: nether_brick,
-        nether_brick_fence: nether_brick_fence,
-        nether_brick_stairs: nether_brick_stairs,
-        nether_wart: nether_wart,
-        enchanting_table: enchanting_table,
-        brewing_stand: brewing_stand,
-        cauldron: cauldron,
-        end_portal: end_portal,
-        end_portal_frame: end_portal_frame,
-        end_stone: end_stone,
-        dragon_egg: dragon_egg,
-        redstone_lamp: redstone_lamp,
-        lit_redstone_lamp: lit_redstone_lamp,
-        double_wooden_slab: double_wooden_slab,
-        wooden_slab: wooden_slab,
-        cocoa: cocoa,
-        sandstone_stairs: sandstone_stairs,
-        emerald_ore: emerald_ore,
-        ender_chest: ender_chest,
-        tripwire_hook: tripwire_hook,
-        tripwire: tripwire,
-        emerald_block: emerald_block,
-        spruce_stairs: spruce_stairs,
-        birch_stairs: birch_stairs,
-        jungle_stairs: jungle_stairs,
-        command_block: command_block,
-        beacon: beacon,
-        cobblestone_wall: cobblestone_wall,
-        flower_pot: flower_pot,
-        carrots: carrots,
-        potatoes: potatoes,
-        wooden_button: wooden_button,
-        skull: skull,
-        anvil: anvil,
-        trapped_chest: trapped_chest,
-        light_weighted_pressure_plate: light_weighted_pressure_plate,
-        heavy_weighted_pressure_plate: heavy_weighted_pressure_plate,
-        unpowered_comparator: unpowered_comparator,
-        powered_comparator: powered_comparator,
-        daylight_detector: daylight_detector,
-        redstone_block: redstone_block,
-        quartz_ore: quartz_ore,
-        hopper: hopper,
-        quartz_block: quartz_block,
-        quartz_stairs: quartz_stairs,
-        activator_rail: activator_rail,
-        dropper: dropper,
-        stained_hardened_clay: stained_hardened_clay,
-        stained_glass_pane: stained_glass_pane,
-        leaves2: leaves2,
-        log2: log2,
-        acacia_stairs: acacia_stairs,
-        dark_oak_stairs: dark_oak_stairs,
-        slime: slime,
-        barrier: barrier,
-        iron_trapdoor: iron_trapdoor,
-        prismarine: prismarine,
-        sea_lantern: sea_lantern,
-        hay_block: hay_block,
-        carpet: carpet,
-        hardened_clay: hardened_clay,
-        coal_block: coal_block,
-        packed_ice: packed_ice,
-        double_plant: double_plant,
-        standing_banner: standing_banner,
-        wall_banner: wall_banner,
-        daylight_detector_inverted: daylight_detector_inverted,
-        red_sandstone: red_sandstone,
-        red_sandstone_stairs: red_sandstone_stairs,
-        double_stone_slab2: double_stone_slab2,
-        stone_slab2: stone_slab2,
-        spruce_fence_gate: spruce_fence_gate,
-        birch_fence_gate: birch_fence_gate,
-        jungle_fence_gate: jungle_fence_gate,
-        dark_oak_fence_gate: dark_oak_fence_gate,
-        acacia_fence_gate: acacia_fence_gate,
-        spruce_fence: spruce_fence,
-        birch_fence: birch_fence,
-        jungle_fence: jungle_fence,
-        dark_oak_fence: dark_oak_fence,
-        acacia_fence: acacia_fence,
-        spruce_door: spruce_door,
-        birch_door: birch_door,
-        jungle_door: jungle_door,
-        acacia_door: acacia_door,
-        dark_oak_door: dark_oak_door,
+        air: StoredBlockProperties.air,
+        stone: StoredBlockProperties.stone,
+        grass: StoredBlockProperties.grass,
+        dirt: StoredBlockProperties.dirt,
+        cobblestone: StoredBlockProperties.cobblestone,
+        planks: StoredBlockProperties.planks,
+        sapling: StoredBlockProperties.sapling,
+        bedrock: StoredBlockProperties.bedrock,
+        flowing_water: StoredBlockProperties.flowing_water,
+        water: StoredBlockProperties.water,
+        flowing_lava: StoredBlockProperties.flowing_lava,
+        lava: StoredBlockProperties.lava,
+        sand: StoredBlockProperties.sand,
+        gravel: StoredBlockProperties.gravel,
+        gold_ore: StoredBlockProperties.gold_ore,
+        iron_ore: StoredBlockProperties.iron_ore,
+        coal_ore: StoredBlockProperties.coal_ore,
+        log: StoredBlockProperties.log,
+        leaves: StoredBlockProperties.leaves,
+        sponge: StoredBlockProperties.sponge,
+        glass: StoredBlockProperties.glass,
+        lapis_ore: StoredBlockProperties.lapis_ore,
+        lapis_block: StoredBlockProperties.lapis_block,
+        dispenser: StoredBlockProperties.dispenser,
+        sandstone: StoredBlockProperties.sandstone,
+        noteblock: StoredBlockProperties.noteblock,
+        bed: StoredBlockProperties.bed,
+        golden_rail: StoredBlockProperties.golden_rail,
+        detector_rail: StoredBlockProperties.detector_rail,
+        sticky_piston: StoredBlockProperties.sticky_piston,
+        web: StoredBlockProperties.web,
+        tallgrass: StoredBlockProperties.tallgrass,
+        deadbush: StoredBlockProperties.deadbush,
+        piston: StoredBlockProperties.piston,
+        piston_head: StoredBlockProperties.piston_head,
+        wool: StoredBlockProperties.wool,
+        piston_extension: StoredBlockProperties.piston_extension,
+        yellow_flower: StoredBlockProperties.yellow_flower,
+        red_flower: StoredBlockProperties.red_flower,
+        brown_mushroom: StoredBlockProperties.brown_mushroom,
+        red_mushroom: StoredBlockProperties.red_mushroom,
+        gold_block: StoredBlockProperties.gold_block,
+        iron_block: StoredBlockProperties.iron_block,
+        double_stone_slab: StoredBlockProperties.double_stone_slab,
+        stone_slab: StoredBlockProperties.stone_slab,
+        brick_block: StoredBlockProperties.brick_block,
+        tnt: StoredBlockProperties.tnt,
+        bookshelf: StoredBlockProperties.bookshelf,
+        mossy_cobblestone: StoredBlockProperties.mossy_cobblestone,
+        obsidian: StoredBlockProperties.obsidian,
+        torch: StoredBlockProperties.torch,
+        fire: StoredBlockProperties.fire,
+        mob_spawner: StoredBlockProperties.mob_spawner,
+        oak_stairs: StoredBlockProperties.oak_stairs,
+        chest: StoredBlockProperties.chest,
+        redstone_wire: StoredBlockProperties.redstone_wire,
+        diamond_ore: StoredBlockProperties.diamond_ore,
+        diamond_block: StoredBlockProperties.diamond_block,
+        crafting_table: StoredBlockProperties.crafting_table,
+        wheat: StoredBlockProperties.wheat,
+        farmland: StoredBlockProperties.farmland,
+        furnace: StoredBlockProperties.furnace,
+        lit_furnace: StoredBlockProperties.lit_furnace,
+        standing_sign: StoredBlockProperties.standing_sign,
+        wooden_door: StoredBlockProperties.wooden_door,
+        ladder: StoredBlockProperties.ladder,
+        rail: StoredBlockProperties.rail,
+        stone_stairs: StoredBlockProperties.stone_stairs,
+        wall_sign: StoredBlockProperties.wall_sign,
+        lever: StoredBlockProperties.lever,
+        stone_pressure_plate: StoredBlockProperties.stone_pressure_plate,
+        iron_door: StoredBlockProperties.iron_door,
+        wooden_pressure_plate: StoredBlockProperties.wooden_pressure_plate,
+        redstone_ore: StoredBlockProperties.redstone_ore,
+        lit_redstone_ore: StoredBlockProperties.lit_redstone_ore,
+        unlit_redstone_torch: StoredBlockProperties.unlit_redstone_torch,
+        redstone_torch: StoredBlockProperties.redstone_torch,
+        stone_button: StoredBlockProperties.stone_button,
+        snow_layer: StoredBlockProperties.snow_layer,
+        ice: StoredBlockProperties.ice,
+        snow: StoredBlockProperties.snow,
+        cactus: StoredBlockProperties.cactus,
+        clay: StoredBlockProperties.clay,
+        reeds: StoredBlockProperties.reeds,
+        jukebox: StoredBlockProperties.jukebox,
+        fence: StoredBlockProperties.fence,
+        pumpkin: StoredBlockProperties.pumpkin,
+        netherrack: StoredBlockProperties.netherrack,
+        soul_sand: StoredBlockProperties.soul_sand,
+        glowstone: StoredBlockProperties.glowstone,
+        portal: StoredBlockProperties.portal,
+        lit_pumpkin: StoredBlockProperties.lit_pumpkin,
+        cake: StoredBlockProperties.cake,
+        unpowered_repeater: StoredBlockProperties.unpowered_repeater,
+        powered_repeater: StoredBlockProperties.powered_repeater,
+        stained_glass: StoredBlockProperties.stained_glass,
+        trapdoor: StoredBlockProperties.trapdoor,
+        monster_egg: StoredBlockProperties.monster_egg,
+        stonebrick: StoredBlockProperties.stonebrick,
+        brown_mushroom_block: StoredBlockProperties.brown_mushroom_block,
+        red_mushroom_block: StoredBlockProperties.red_mushroom_block,
+        iron_bars: StoredBlockProperties.iron_bars,
+        glass_pane: StoredBlockProperties.glass_pane,
+        melon_block: StoredBlockProperties.melon_block,
+        pumpkin_stem: StoredBlockProperties.pumpkin_stem,
+        melon_stem: StoredBlockProperties.melon_stem,
+        vine: StoredBlockProperties.vine,
+        fence_gate: StoredBlockProperties.fence_gate,
+        brick_stairs: StoredBlockProperties.brick_stairs,
+        stone_brick_stairs: StoredBlockProperties.stone_brick_stairs,
+        mycelium: StoredBlockProperties.mycelium,
+        waterlily: StoredBlockProperties.waterlily,
+        nether_brick: StoredBlockProperties.nether_brick,
+        nether_brick_fence: StoredBlockProperties.nether_brick_fence,
+        nether_brick_stairs: StoredBlockProperties.nether_brick_stairs,
+        nether_wart: StoredBlockProperties.nether_wart,
+        enchanting_table: StoredBlockProperties.enchanting_table,
+        brewing_stand: StoredBlockProperties.brewing_stand,
+        cauldron: StoredBlockProperties.cauldron,
+        end_portal: StoredBlockProperties.end_portal,
+        end_portal_frame: StoredBlockProperties.end_portal_frame,
+        end_stone: StoredBlockProperties.end_stone,
+        dragon_egg: StoredBlockProperties.dragon_egg,
+        redstone_lamp: StoredBlockProperties.redstone_lamp,
+        lit_redstone_lamp: StoredBlockProperties.lit_redstone_lamp,
+        double_wooden_slab: StoredBlockProperties.double_wooden_slab,
+        wooden_slab: StoredBlockProperties.wooden_slab,
+        cocoa: StoredBlockProperties.cocoa,
+        sandstone_stairs: StoredBlockProperties.sandstone_stairs,
+        emerald_ore: StoredBlockProperties.emerald_ore,
+        ender_chest: StoredBlockProperties.ender_chest,
+        tripwire_hook: StoredBlockProperties.tripwire_hook,
+        tripwire: StoredBlockProperties.tripwire,
+        emerald_block: StoredBlockProperties.emerald_block,
+        spruce_stairs: StoredBlockProperties.spruce_stairs,
+        birch_stairs: StoredBlockProperties.birch_stairs,
+        jungle_stairs: StoredBlockProperties.jungle_stairs,
+        command_block: StoredBlockProperties.command_block,
+        beacon: StoredBlockProperties.beacon,
+        cobblestone_wall: StoredBlockProperties.cobblestone_wall,
+        flower_pot: StoredBlockProperties.flower_pot,
+        carrots: StoredBlockProperties.carrots,
+        potatoes: StoredBlockProperties.potatoes,
+        wooden_button: StoredBlockProperties.wooden_button,
+        skull: StoredBlockProperties.skull,
+        anvil: StoredBlockProperties.anvil,
+        trapped_chest: StoredBlockProperties.trapped_chest,
+        light_weighted_pressure_plate: StoredBlockProperties.light_weighted_pressure_plate,
+        heavy_weighted_pressure_plate: StoredBlockProperties.heavy_weighted_pressure_plate,
+        unpowered_comparator: StoredBlockProperties.unpowered_comparator,
+        powered_comparator: StoredBlockProperties.powered_comparator,
+        daylight_detector: StoredBlockProperties.daylight_detector,
+        redstone_block: StoredBlockProperties.redstone_block,
+        quartz_ore: StoredBlockProperties.quartz_ore,
+        hopper: StoredBlockProperties.hopper,
+        quartz_block: StoredBlockProperties.quartz_block,
+        quartz_stairs: StoredBlockProperties.quartz_stairs,
+        activator_rail: StoredBlockProperties.activator_rail,
+        dropper: StoredBlockProperties.dropper,
+        stained_hardened_clay: StoredBlockProperties.stained_hardened_clay,
+        stained_glass_pane: StoredBlockProperties.stained_glass_pane,
+        leaves2: StoredBlockProperties.leaves2,
+        log2: StoredBlockProperties.log2,
+        acacia_stairs: StoredBlockProperties.acacia_stairs,
+        dark_oak_stairs: StoredBlockProperties.dark_oak_stairs,
+        slime: StoredBlockProperties.slime,
+        barrier: StoredBlockProperties.barrier,
+        iron_trapdoor: StoredBlockProperties.iron_trapdoor,
+        prismarine: StoredBlockProperties.prismarine,
+        sea_lantern: StoredBlockProperties.sea_lantern,
+        hay_block: StoredBlockProperties.hay_block,
+        carpet: StoredBlockProperties.carpet,
+        hardened_clay: StoredBlockProperties.hardened_clay,
+        coal_block: StoredBlockProperties.coal_block,
+        packed_ice: StoredBlockProperties.packed_ice,
+        double_plant: StoredBlockProperties.double_plant,
+        standing_banner: StoredBlockProperties.standing_banner,
+        wall_banner: StoredBlockProperties.wall_banner,
+        daylight_detector_inverted: StoredBlockProperties.daylight_detector_inverted,
+        red_sandstone: StoredBlockProperties.red_sandstone,
+        red_sandstone_stairs: StoredBlockProperties.red_sandstone_stairs,
+        double_stone_slab2: StoredBlockProperties.double_stone_slab2,
+        stone_slab2: StoredBlockProperties.stone_slab2,
+        spruce_fence_gate: StoredBlockProperties.spruce_fence_gate,
+        birch_fence_gate: StoredBlockProperties.birch_fence_gate,
+        jungle_fence_gate: StoredBlockProperties.jungle_fence_gate,
+        dark_oak_fence_gate: StoredBlockProperties.dark_oak_fence_gate,
+        acacia_fence_gate: StoredBlockProperties.acacia_fence_gate,
+        spruce_fence: StoredBlockProperties.spruce_fence,
+        birch_fence: StoredBlockProperties.birch_fence,
+        jungle_fence: StoredBlockProperties.jungle_fence,
+        dark_oak_fence: StoredBlockProperties.dark_oak_fence,
+        acacia_fence: StoredBlockProperties.acacia_fence,
+        spruce_door: StoredBlockProperties.spruce_door,
+        birch_door: StoredBlockProperties.birch_door,
+        jungle_door: StoredBlockProperties.jungle_door,
+        acacia_door: StoredBlockProperties.acacia_door,
+        dark_oak_door: StoredBlockProperties.dark_oak_door,
+    },
+
+    pub const AIR: @This() = .{
+        .block = .air,
+        .properties = .{ .raw_bits = 0 },
     };
 
     /// Casts to a concrete block state - DOES NOT resolve virtual states
@@ -1142,14 +947,10 @@ pub const Material = enum {
 
 // FilteredBlockState, but with virtual properties resolved
 pub const ConcreteBlockState = packed struct(u16) {
-    pub var AIR: ConcreteBlockState = .{
-        .block = .air,
-        .properties = .{ .air = .{ .stored = .{} } },
-    };
+    block: ConcreteBlock,
+    properties: BlockProperties,
 
     const BlockProperties = packed union {
-        const StoredBlockProperties = FilteredBlockState.BlockProperties;
-
         raw_bits: packed struct(u8) {
             virtual: u4,
             stored: u4,
@@ -1669,7 +1470,7 @@ pub const ConcreteBlockState = packed struct(u16) {
         /// redstone_wire_flat_none,  redstone_wire_flat_flat,  redstone_wire_flat_upper,
         /// redstone_wire_upper_none, redstone_wire_upper_flat, redstone_wire_upper_upper
         redstone_wire: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
 
@@ -2024,7 +1825,7 @@ pub const ConcreteBlockState = packed struct(u16) {
         /// This block is split due to virtual blockstates not fitting into 4 bits.
         /// See flower_pot_2
         flower_pot: packed struct(u8) {
-            virtual: packed struct(u4) { contents: enum { empty, poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy, dandelion, oak_sapling, spruce_sapling, birch_sapling, jungle_sapling, acacia_sapling } },
+            virtual: packed struct(u4) { contents: enum(u4) { empty, poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy, dandelion, oak_sapling, spruce_sapling, birch_sapling, jungle_sapling, acacia_sapling } },
             stored: StoredBlockProperties.flower_pot,
         },
 
@@ -2263,35 +2064,35 @@ pub const ConcreteBlockState = packed struct(u16) {
         },
 
         redstone_wire_none_flat: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_none_upper: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_flat_none: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_flat_flat: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_flat_upper: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_upper_none: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_upper_flat: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
         redstone_wire_upper_upper: packed struct(u8) {
-            virtual: packed struct(u4) { north: enum { none, flat, upper }, east: enum { none, flat, upper } },
+            virtual: packed struct(u4) { north: enum(u2) { none, flat, upper }, east: enum(u2) { none, flat, upper } },
             stored: StoredBlockProperties.redstone_wire,
         },
 
@@ -2301,13 +2102,15 @@ pub const ConcreteBlockState = packed struct(u16) {
         },
 
         flower_pot_2: packed struct(u8) {
-            virtual: packed struct(u4) { contents: enum { dark_oak_sapling, mushroom_red, mushroom_brown, dead_bush, fern, cactus }, _: u1 = 0 },
+            virtual: packed struct(u4) { contents: enum(u3) { dark_oak_sapling, mushroom_red, mushroom_brown, dead_bush, fern, cactus }, _: u1 = 0 },
             stored: StoredBlockProperties.flower_pot,
         },
     };
 
-    block: ConcreteBlock,
-    properties: BlockProperties,
+    pub const AIR: @This() = .{
+        .block = .air,
+        .properties = .{ .air = .{ .stored = .{} } },
+    };
 
     pub fn update(self: *@This(), world: *const World, block_pos: Vector3(i32)) void {
         switch (self.block) {
@@ -2523,6 +2326,7 @@ pub const ConcreteBlockState = packed struct(u16) {
         };
         const NONE: [3]?Box(f64) = .{ null, null, null };
         const FULL: [3]?Box(f64) = .{ CUBE, null, null };
+        if (self.block != .air) return FULL;
         return switch (self.block) {
             .air => NONE,
             .stone => FULL,
@@ -2762,6 +2566,10 @@ pub const ConcreteBlockState = packed struct(u16) {
                     blk: {
                         const wall_width: f32 = 0.15;
                         const floor_width: f32 = 0.1;
+                        if (true) break :blk .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                        };
                         break :blk switch (torch.stored.facing) {
                             .east => .{
                                 .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
@@ -3002,6 +2810,10 @@ pub const ConcreteBlockState = packed struct(u16) {
                     blk: {
                         const wall_width: f32 = 0.15;
                         const floor_width: f32 = 0.1;
+                        if (true) break :blk .{
+                            .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
+                            .max = .{ .x = wall_width * 2.0, .y = 0.8, .z = 0.5 + wall_width },
+                        };
                         break :blk switch (unlit_redstone_torch.stored.facing) {
                             .east => .{
                                 .min = .{ .x = 0.0, .y = 0.2, .z = 0.5 - wall_width },
@@ -3488,6 +3300,10 @@ pub const ConcreteBlockState = packed struct(u16) {
                 const wooden_button = self.payload(.wooden_button);
                 return .{
                     blk: {
+                        if (true) break :blk .{
+                            .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
+                            .max = .{ .x = 1.0 / 16.0, .y = 0.625, .z = 0.6875 },
+                        };
                         const button_depth = @as(f32, @floatFromInt(@intFromBool(wooden_button.stored.powered))) / 16.0;
                         break :blk switch (wooden_button.stored.facing) {
                             .east => .{
@@ -3861,6 +3677,207 @@ pub const ConcreteBlockState = packed struct(u16) {
             .flower_pot_2 => FULL, // TODO
         };
     }
+};
+
+pub const StoredBlockProperties = opaque {
+    pub const air = packed struct(u4) { _: u4 = 0 };
+    pub const stone = packed struct(u4) { variant: enum(u3) { stone, granite, smooth_granite, diorite, smooth_diorite, andesite, smooth_andesite }, _: u1 = 0 };
+    pub const grass = packed struct(u4) { _: u4 = 0 };
+    pub const dirt = packed struct(u4) { variant: enum(u2) { dirt, coarse_dirt, podzol }, _: u2 = 0 };
+    pub const cobblestone = packed struct(u4) { _: u4 = 0 };
+    pub const planks = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, _: u1 = 0 };
+    pub const sapling = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, stage: u1 };
+    pub const bedrock = packed struct(u4) { _: u4 = 0 };
+    pub const flowing_water = packed struct(u4) { level: u4 };
+    pub const water = packed struct(u4) { level: u4 };
+    pub const flowing_lava = packed struct(u4) { level: u4 };
+    pub const lava = packed struct(u4) { level: u4 };
+    pub const sand = packed struct(u4) { variant: enum(u1) { sand, red_sand }, _: u3 = 0 };
+    pub const gravel = packed struct(u4) { _: u4 = 0 };
+    pub const gold_ore = packed struct(u4) { _: u4 = 0 };
+    pub const iron_ore = packed struct(u4) { _: u4 = 0 };
+    pub const coal_ore = packed struct(u4) { _: u4 = 0 };
+    pub const log = packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u2) { oak, spruce, birch, jungle } };
+    pub const leaves = packed struct(u4) { variant: enum(u2) { oak, spruce, birch, jungle }, check_decay: bool, decayable: bool };
+    pub const sponge = packed struct(u4) { wet: bool, _: u3 = 0 };
+    pub const glass = packed struct(u4) { _: u4 = 0 };
+    pub const lapis_ore = packed struct(u4) { _: u4 = 0 };
+    pub const lapis_block = packed struct(u4) { _: u4 = 0 };
+    pub const dispenser = packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } };
+    pub const sandstone = packed struct(u4) { variant: enum(u2) { sandstone, chiseled_sandstone, smooth_sandstone }, _: u2 = 0 };
+    pub const noteblock = packed struct(u4) { _: u4 = 0 };
+    pub const bed = packed struct(u4) { occupied: bool, facing: enum(u2) { north, south, west, east }, part: enum(u1) { head, foot } };
+    pub const golden_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
+    pub const detector_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
+    pub const sticky_piston = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool };
+    pub const web = packed struct(u4) { _: u4 = 0 };
+    pub const tallgrass = packed struct(u4) { variant: enum(u2) { dead_bush, tall_grass, fern }, _: u2 = 0 };
+    pub const deadbush = packed struct(u4) { _: u4 = 0 };
+    pub const piston = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, extended: bool };
+    pub const piston_head = packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } };
+    pub const wool = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+    pub const piston_extension = packed struct(u4) { variant: enum(u1) { normal, sticky }, facing: enum(u3) { down, up, north, south, west, east } };
+    pub const yellow_flower = packed struct(u4) { _: u4 = 0 };
+    pub const red_flower = packed struct(u4) { variant: enum(u4) { poppy, blue_orchid, allium, houstonia, red_tulip, orange_tulip, white_tulip, pink_tulip, oxeye_daisy } };
+    pub const brown_mushroom = packed struct(u4) { _: u4 = 0 };
+    pub const red_mushroom = packed struct(u4) { _: u4 = 0 };
+    pub const gold_block = packed struct(u4) { _: u4 = 0 };
+    pub const iron_block = packed struct(u4) { _: u4 = 0 };
+    pub const double_stone_slab = packed struct(u4) { seamless: bool, variant: enum(u3) { stone, sandstone, wood_old, cobblestone, brick, stone_brick, nether_brick, quartz } };
+    pub const stone_slab = packed struct(u4) { variant: enum(u3) { stone, sandstone, wood_old, cobblestone, brick, stone_brick, nether_brick, quartz }, half: enum(u1) { top, bottom } };
+    pub const brick_block = packed struct(u4) { _: u4 = 0 };
+    pub const tnt = packed struct(u4) { explode: bool, _: u3 = 0 };
+    pub const bookshelf = packed struct(u4) { _: u4 = 0 };
+    pub const mossy_cobblestone = packed struct(u4) { _: u4 = 0 };
+    pub const obsidian = packed struct(u4) { _: u4 = 0 };
+    pub const torch = packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 };
+    pub const fire = packed struct(u4) { age: u4 };
+    pub const mob_spawner = packed struct(u4) { _: u4 = 0 };
+    pub const oak_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const chest = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const redstone_wire = packed struct(u4) { power: u4 };
+    pub const diamond_ore = packed struct(u4) { _: u4 = 0 };
+    pub const diamond_block = packed struct(u4) { _: u4 = 0 };
+    pub const crafting_table = packed struct(u4) { _: u4 = 0 };
+    pub const wheat = packed struct(u4) { age: u3, _: u1 = 0 };
+    pub const farmland = packed struct(u4) { moisture: u3, _: u1 = 0 };
+    pub const furnace = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const lit_furnace = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const standing_sign = packed struct(u4) { rotation: u4 };
+    pub const wooden_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
+    pub const ladder = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const rail = packed struct(u4) { shape: enum(u4) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south, south_east, south_west, north_west, north_east } };
+    pub const stone_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const wall_sign = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const lever = packed struct(u4) { powered: bool, facing: enum(u3) { down_x, east, west, south, north, up_z, up_x, down_z } };
+    pub const stone_pressure_plate = packed struct(u4) { powered: bool, _: u3 = 0 };
+    pub const iron_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
+    pub const wooden_pressure_plate = packed struct(u4) { powered: bool, _: u3 = 0 };
+    pub const redstone_ore = packed struct(u4) { _: u4 = 0 };
+    pub const lit_redstone_ore = packed struct(u4) { _: u4 = 0 };
+    pub const unlit_redstone_torch = packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 };
+    pub const redstone_torch = packed struct(u4) { facing: enum(u3) { up, north, south, west, east }, _: u1 = 0 };
+    pub const stone_button = packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } };
+    pub const snow_layer = packed struct(u4) { layers: u3, _: u1 = 0 };
+    pub const ice = packed struct(u4) { _: u4 = 0 };
+    pub const snow = packed struct(u4) { _: u4 = 0 };
+    pub const cactus = packed struct(u4) { age: u4 };
+    pub const clay = packed struct(u4) { _: u4 = 0 };
+    pub const reeds = packed struct(u4) { age: u4 };
+    pub const jukebox = packed struct(u4) { has_record: bool, _: u3 = 0 };
+    pub const fence = packed struct(u4) { _: u4 = 0 };
+    pub const pumpkin = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const netherrack = packed struct(u4) { _: u4 = 0 };
+    pub const soul_sand = packed struct(u4) { _: u4 = 0 };
+    pub const glowstone = packed struct(u4) { _: u4 = 0 };
+    pub const portal = packed struct(u4) { axis: enum(u1) { x, z }, _: u3 = 0 };
+    pub const lit_pumpkin = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const cake = packed struct(u4) { bites: u3, _: u1 = 0 };
+    pub const unpowered_repeater = packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } };
+    pub const powered_repeater = packed struct(u4) { delay: u2, facing: enum(u2) { north, south, west, east } };
+    pub const stained_glass = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+    pub const trapdoor = packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } };
+    pub const monster_egg = packed struct(u4) { variant: enum(u3) { stone, cobblestone, stone_brick, mossy_brick, cracked_brick, chiseled_brick }, _: u1 = 0 };
+    pub const stonebrick = packed struct(u4) { variant: enum(u2) { stonebrick, mossy_stonebrick, cracked_stonebrick, chiseled_stonebrick }, _: u2 = 0 };
+    pub const brown_mushroom_block = packed struct(u4) { variant: enum(u4) { north_west, north, north_east, west, center, east, south_west, south, south_east, stem, all_inside, all_outside, all_stem } };
+    pub const red_mushroom_block = packed struct(u4) { variant: enum(u4) { north_west, north, north_east, west, center, east, south_west, south, south_east, stem, all_inside, all_outside, all_stem } };
+    pub const iron_bars = packed struct(u4) { _: u4 = 0 };
+    pub const glass_pane = packed struct(u4) { _: u4 = 0 };
+    pub const melon_block = packed struct(u4) { _: u4 = 0 };
+    pub const pumpkin_stem = packed struct(u4) { age: u3, _: u1 = 0 };
+    pub const melon_stem = packed struct(u4) { age: u3, _: u1 = 0 };
+    pub const vine = packed struct(u4) { west: bool, south: bool, north: bool, east: bool };
+    pub const fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
+    pub const brick_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const stone_brick_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const mycelium = packed struct(u4) { _: u4 = 0 };
+    pub const waterlily = packed struct(u4) { _: u4 = 0 };
+    pub const nether_brick = packed struct(u4) { _: u4 = 0 };
+    pub const nether_brick_fence = packed struct(u4) { _: u4 = 0 };
+    pub const nether_brick_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const nether_wart = packed struct(u4) { age: u2, _: u2 = 0 };
+    pub const enchanting_table = packed struct(u4) { _: u4 = 0 };
+    pub const brewing_stand = packed struct(u4) { has_bottle_2: bool, has_bottle_0: bool, has_bottle_1: bool, _: u1 = 0 };
+    pub const cauldron = packed struct(u4) { level: u2, _: u2 = 0 };
+    pub const end_portal = packed struct(u4) { _: u4 = 0 };
+    pub const end_portal_frame = packed struct(u4) { eye: bool, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const end_stone = packed struct(u4) { _: u4 = 0 };
+    pub const dragon_egg = packed struct(u4) { _: u4 = 0 };
+    pub const redstone_lamp = packed struct(u4) { _: u4 = 0 };
+    pub const lit_redstone_lamp = packed struct(u4) { _: u4 = 0 };
+    pub const double_wooden_slab = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, _: u1 = 0 };
+    pub const wooden_slab = packed struct(u4) { variant: enum(u3) { oak, spruce, birch, jungle, acacia, dark_oak }, half: enum(u1) { top, bottom } };
+    pub const cocoa = packed struct(u4) { age: u2, facing: enum(u2) { north, south, west, east } };
+    pub const sandstone_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const emerald_ore = packed struct(u4) { _: u4 = 0 };
+    pub const ender_chest = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const tripwire_hook = packed struct(u4) { powered: bool, facing: enum(u2) { north, south, west, east }, attached: bool };
+    pub const tripwire = packed struct(u4) { powered: bool, disarmed: bool, attached: bool, suspended: bool };
+    pub const emerald_block = packed struct(u4) { _: u4 = 0 };
+    pub const spruce_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const birch_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const jungle_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const command_block = packed struct(u4) { triggered: bool, _: u3 = 0 };
+    pub const beacon = packed struct(u4) { _: u4 = 0 };
+    pub const cobblestone_wall = packed struct(u4) { variant: enum(u1) { cobblestone, mossy_cobblestone }, _: u3 = 0 };
+    pub const flower_pot = packed struct(u4) { _: u4 = 0 };
+    pub const carrots = packed struct(u4) { age: u3, _: u1 = 0 };
+    pub const potatoes = packed struct(u4) { age: u3, _: u1 = 0 };
+    pub const wooden_button = packed struct(u4) { powered: bool, facing: enum(u3) { down, up, north, south, west, east } };
+    pub const skull = packed struct(u4) { facing: enum(u3) { down, up, north, south, west, east }, nodrop: bool };
+    pub const anvil = packed struct(u4) { damage: u2, facing: enum(u2) { north, south, west, east } };
+    pub const trapped_chest = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const light_weighted_pressure_plate = packed struct(u4) { power: u4 };
+    pub const heavy_weighted_pressure_plate = packed struct(u4) { power: u4 };
+    pub const unpowered_comparator = packed struct(u4) { powered: bool, mode: enum(u1) { compare, subtract }, facing: enum(u2) { north, south, west, east } };
+    pub const powered_comparator = packed struct(u4) { powered: bool, mode: enum(u1) { compare, subtract }, facing: enum(u2) { north, south, west, east } };
+    pub const daylight_detector = packed struct(u4) { power: u4 };
+    pub const redstone_block = packed struct(u4) { _: u4 = 0 };
+    pub const quartz_ore = packed struct(u4) { _: u4 = 0 };
+    pub const hopper = packed struct(u4) { facing: enum(u3) { down, north, south, west, east }, enabled: bool };
+    pub const quartz_block = packed struct(u4) { variant: enum(u3) { default, chiseled, lines_x, lines_y, lines_z }, _: u1 = 0 };
+    pub const quartz_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const activator_rail = packed struct(u4) { powered: bool, shape: enum(u3) { north_south, east_west, ascending_east, ascending_west, ascending_north, ascending_south } };
+    pub const dropper = packed struct(u4) { triggered: bool, facing: enum(u3) { down, up, north, south, west, east } };
+    pub const stained_hardened_clay = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+    pub const stained_glass_pane = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+    pub const leaves2 = packed struct(u4) { variant: enum(u1) { acacia, dark_oak }, check_decay: bool, decayable: bool, _: u1 = 0 };
+    pub const log2 = packed struct(u4) { axis: enum(u2) { x, y, z, none }, variant: enum(u1) { acacia, dark_oak }, _: u1 = 0 };
+    pub const acacia_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const dark_oak_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const slime = packed struct(u4) { _: u4 = 0 };
+    pub const barrier = packed struct(u4) { _: u4 = 0 };
+    pub const iron_trapdoor = packed struct(u4) { open: bool, half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east } };
+    pub const prismarine = packed struct(u4) { variant: enum(u2) { prismarine, prismarine_bricks, dark_prismarine }, _: u2 = 0 };
+    pub const sea_lantern = packed struct(u4) { _: u4 = 0 };
+    pub const hay_block = packed struct(u4) { axis: enum(u2) { x, y, z }, _: u2 = 0 };
+    pub const carpet = packed struct(u4) { color: enum(u4) { white, orange, magenta, light_blue, yellow, lime, pink, gray, silver, cyan, purple, blue, brown, green, red, black } };
+    pub const hardened_clay = packed struct(u4) { _: u4 = 0 };
+    pub const coal_block = packed struct(u4) { _: u4 = 0 };
+    pub const packed_ice = packed struct(u4) { _: u4 = 0 };
+    pub const double_plant = packed struct(u4) { variant: enum(u3) { sunflower, syringa, double_grass, double_fern, double_rose, paeonia }, half: enum(u1) { upper, lower } };
+    pub const standing_banner = packed struct(u4) { rotation: u4 };
+    pub const wall_banner = packed struct(u4) { facing: enum(u2) { north, south, west, east }, _: u2 = 0 };
+    pub const daylight_detector_inverted = packed struct(u4) { power: u4 };
+    pub const red_sandstone = packed struct(u4) { variant: enum(u2) { red_sandstone, chiseled_red_sandstone, smooth_red_sandstone }, _: u2 = 0 };
+    pub const red_sandstone_stairs = packed struct(u4) { half: enum(u1) { top, bottom }, facing: enum(u2) { north, south, west, east }, _: u1 = 0 };
+    pub const double_stone_slab2 = packed struct(u4) { seamless: bool, _: u3 = 0 };
+    pub const stone_slab2 = packed struct(u4) { half: enum(u1) { top, bottom }, _: u3 = 0 };
+    pub const spruce_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
+    pub const birch_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
+    pub const jungle_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
+    pub const dark_oak_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
+    pub const acacia_fence_gate = packed struct(u4) { open: bool, powered: bool, facing: enum(u2) { north, south, west, east } };
+    pub const spruce_fence = packed struct(u4) { _: u4 = 0 };
+    pub const birch_fence = packed struct(u4) { _: u4 = 0 };
+    pub const jungle_fence = packed struct(u4) { _: u4 = 0 };
+    pub const dark_oak_fence = packed struct(u4) { _: u4 = 0 };
+    pub const acacia_fence = packed struct(u4) { _: u4 = 0 };
+    pub const spruce_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
+    pub const birch_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
+    pub const jungle_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
+    pub const acacia_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
+    pub const dark_oak_door = packed struct(u4) { half: enum(u1) { upper, lower }, other: packed union { when_upper: packed struct(u3) { hinge: enum(u1) { left, right }, powered: bool, _: u1 = 0 }, when_lower: packed struct(u3) { facing: enum(u2) { north, south, west, east }, open: bool } } };
 };
 
 pub fn EnumBoolArray(comptime Enum: type) type {

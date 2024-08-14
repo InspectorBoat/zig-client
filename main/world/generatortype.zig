@@ -9,7 +9,7 @@ pub const GeneratorType = enum {
     DebugAllBlockStates,
     Default_1_1,
 
-    pub const keys = std.ComptimeStringMap(@This(), .{
+    pub const keys = std.StaticStringMap(@This()).initComptime(.{
         .{ "default", .Default },
         .{ "flat", .Flat },
         .{ "largeBiomes", .LargeBiomes },
