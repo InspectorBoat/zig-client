@@ -233,8 +233,7 @@ pub const RawBlockState = packed struct(u16) {
     pub fn toFiltered(self: @This()) FilteredBlockState {
         const block: Block = if (self.block <= 197) @enumFromInt(self.block) else return FilteredBlockState.AIR;
         if (!@import("./valid_metadata_table.zig").@"export".get(block).isSet(self.metadata)) {
-            std.debug.panic("Invalid metadata {} for block {s}", .{ self.metadata, @tagName(block) });
-            // return FilteredBlockState.AIR; // Vanilla behavior
+            return FilteredBlockState.AIR; // Vanilla behavior
         }
         return .{
             .block = block,
@@ -2326,7 +2325,6 @@ pub const ConcreteBlockState = packed struct(u16) {
         };
         const NONE: [3]?Box(f64) = .{ null, null, null };
         const FULL: [3]?Box(f64) = .{ CUBE, null, null };
-        if (self.block != .air) return FULL;
         return switch (self.block) {
             .air => NONE,
             .stone => FULL,

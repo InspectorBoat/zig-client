@@ -81,7 +81,7 @@ test "performance" {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{ .safety = false }){};
     const gpa = gpa_impl.allocator();
 
-    var rand_impl = std.rand.DefaultPrng.init(blk: {
+    var rand_impl = std.Random.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));
         break :blk seed;
