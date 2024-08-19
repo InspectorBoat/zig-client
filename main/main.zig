@@ -13,7 +13,7 @@ const std = @import("std");
 const network = @import("network");
 const render = @import("render");
 
-pub const opengl_error_handling = .log;
+pub const opengl_error_handling = .assert;
 
 pub fn main() !void {
     std.debug.print("\n---------------------\n", .{});

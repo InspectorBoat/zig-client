@@ -1,13 +1,10 @@
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const root = @import("root");
 const Game = @import("root").Game;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
-const Vector3 = @import("root").Vector3;
-const Vector2 = @import("root").Vector2;
 const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
 const glfw_helper = @import("./glfw_helper.zig");
 const WindowInput = @import("./WindowInput.zig");
@@ -20,7 +17,12 @@ pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 
-pub const event_listeners = .{ onStartup, onFrame, onChunkUpdate, onUnloadChunk };
+pub const event_listeners = .{
+    onStartup,
+    onFrame,
+    onChunkUpdate,
+    onUnloadChunk,
+};
 
 pub fn onStartup(_: Events.Startup) !void {
     const gpa = gpa_impl.allocator();
@@ -55,6 +57,7 @@ pub fn onFrame(frame: Events.Frame) !void {
     const game = frame.game;
     glfw.pollEvents();
 
+    gl.enable(.cull_face);
     gl.clearColor(
         if (game.* == .Idle) 1 else 0,
         if (game.* == .Connecting) 1 else 0,
@@ -75,21 +78,55 @@ pub fn onFrame(frame: Events.Frame) !void {
 
             var entries = renderer.sections.iterator();
             while (entries.next()) |entry| {
-                // pos uniform
-                const pos = entry.key_ptr.*;
-                renderer.program.uniform3f(1, @floatFromInt(pos.x), @floatFromInt(pos.y), @floatFromInt(pos.z));
+                const chunk_pos = entry.key_ptr.*;
+                // uniform for chunk position
+                renderer.program.uniform3f(
+                    1,
+                    @floatFromInt(chunk_pos.x),
+                    @floatFromInt(chunk_pos.y),
+                    @floatFromInt(chunk_pos.z),
+                );
 
-                // bind buffer
-                renderer.vao.vertexBuffer(0, renderer.gpu_memory_allocator.backing_buffer, entry.value_ptr.segment.offset, 3 * @sizeOf(f32));
-                // std.debug.assert(entry.value_ptr.segment.offset % 6 == 0);
-                // std.debug.assert(entry.value_ptr.segment.length / 6 == entry.value_ptr.vertices);
-                gl.drawArrays(.triangles, 0, entry.value_ptr.vertices);
+                // bind buffer at offset
+                renderer.vao.vertexBuffer(
+                    0,
+                    renderer.gpu_memory_allocator.backing_buffer,
+                    entry.value_ptr.segment.offset,
+                    3 * @sizeOf(f32),
+                );
+
+                // draw chunk
+                gl.drawArrays(
+                    .triangles,
+                    0,
+                    entry.value_ptr.vertices,
+                );
             }
 
-            renderer.debug_cube_buffer.subData(0, u8, @ptrCast(renderer.debug_cube_staging_buffer.getSlice()));
+            // upload debug cube buffer to gpu
+            renderer.debug_cube_buffer.subData(
+                0,
+                u8,
+                @ptrCast(renderer.debug_cube_staging_buffer.getSlice()),
+            );
 
-            renderer.program.uniform3f(1, 0.0, 0.0, 0.0);
-            renderer.vao.vertexBuffer(0, renderer.debug_cube_buffer, 0, 3 * @sizeOf(f32));
+            // set chunk pos uniform for debug cubes (0, 0, 0)
+            renderer.program.uniform3f(
+                1,
+                0.0,
+                0.0,
+                0.0,
+            );
+
+            // bind debug cube buffer
+            renderer.vao.vertexBuffer(
+                0,
+                renderer.debug_cube_buffer,
+                0,
+                3 * @sizeOf(f32),
+            );
+
+            // render debug cubes
             gl.drawArrays(
                 .triangles,
                 0,

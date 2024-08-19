@@ -14,6 +14,7 @@ debug_cube_buffer: gl.Buffer,
 debug_cube_staging_buffer: GpuStagingBuffer = .{},
 sections: std.AutoHashMap(Vector3(i32), SectionRenderInfo),
 gpu_memory_allocator: GpuMemoryAllocator,
+texture: gl.Texture,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     const program = try createProgram(.{@embedFile("./triangle.glsl.vert")}, .{@embedFile("./triangle.glsl.frag")});
@@ -43,10 +44,11 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .debug_cube_buffer = debug_cube_buffer,
         .sections = std.AutoHashMap(Vector3(i32), SectionRenderInfo).init(allocator),
         .gpu_memory_allocator = try GpuMemoryAllocator.init(allocator, 1024 * 1024 * 1024 * 2 - 1),
+        .texture = makeTexture(),
     };
 }
 
-pub fn renderBox(self: *@This(), box: Box(f64)) void {
+pub fn renderDebugBox(self: *@This(), box: Box(f64)) void {
     self.debug_cube_staging_buffer.writeBox(
         .{
             .x = @floatCast(box.min.x),
@@ -72,6 +74,7 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
                 for (0..16) |y| {
                     for (0..16) |z| {
                         const pos = (y << 8) | (z << 4) | (x << 0);
+                        // TODO: Change this
                         for (section.block_states[pos].getRaytraceHitbox()) |maybe_box| {
                             if (maybe_box) |box| {
                                 const pos_vec: Vector3(f64) = .{ .x = @floatFromInt(x), .y = @floatFromInt(y), .z = @floatFromInt(z) };
@@ -111,6 +114,39 @@ pub const SectionRenderInfo = struct {
     segment: GpuMemoryAllocator.Segment,
     vertices: usize,
 };
+
+pub fn makeTexture() gl.Texture {
+    const texture = gl.Texture.create(.@"2d_array");
+    texture.storage3D(1, .rgb8, 16, 16, 256);
+
+    var texture_data: [16 * 16 * 256 * 3]u8 = undefined;
+    var rand_impl = std.Random.DefaultPrng.init(155215);
+    const rand = rand_impl.random();
+    rand.bytes(&texture_data);
+
+    texture.subImage3D(
+        0,
+        0,
+        0,
+        0,
+        16,
+        16,
+        256,
+        .rgb,
+        .unsigned_byte,
+        &texture_data,
+    );
+    texture.bindTo(52);
+    texture.parameter(.wrap_s, .repeat);
+    texture.parameter(.wrap_t, .repeat);
+    texture.parameter(.wrap_r, .repeat);
+
+    texture.parameter(.min_filter, .nearest);
+    texture.parameter(.mag_filter, .nearest);
+
+    gl.uniform1i(3, 52);
+    return texture;
+}
 
 pub fn createProgram(vertex_shader_source: [1][]const u8, frag_shader_source: [1][]const u8) !gl.Program {
     const vertex_shader = gl.Shader.create(.vertex);
