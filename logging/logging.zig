@@ -39,3 +39,4 @@ pub const set_block_in_missing_chunk = LogType(false, "attempted to set block in
 
 pub const recieved_chunk = LogType(false, "decoded recieved chunk in {d} ms");
 pub const load_new_chunk = LogType(false, "loaded new chunk at {}");
+pub const unload_chunk = LogType(false, "unloaded chunk at {}");

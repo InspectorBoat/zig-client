@@ -77,6 +77,8 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
 }
 
 pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
+    @import("log").unload_chunk(.{chunk_pos});
+
     (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
     try EventHandler.dispatch(Events.UnloadChunk, .{ .chunk_pos = chunk_pos });
 }
