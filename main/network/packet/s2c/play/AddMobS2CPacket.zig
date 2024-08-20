@@ -4,7 +4,7 @@ const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zi
 const ScaledVector = @import("../../../../network/type/scaled_vector.zig").ScaledVector;
 const ScaledRotation = @import("../../../../network/type/scaled_rotation.zig").ScaledRotation;
 const DataTracker = @import("../../../../entity/datatracker/DataTracker.zig");
-const EntityDataS2CPacket = @import("./EntityDataS2CPacket.zig");
+const EntityDataS2CPacket = @import("EntityDataS2CPacket.zig");
 
 network_id: i32,
 type: i32,

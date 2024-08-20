@@ -5,10 +5,10 @@ const Game = @import("root").Game;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
-const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
-const glfw_helper = @import("./glfw_helper.zig");
-const WindowInput = @import("./WindowInput.zig");
-const Renderer = @import("./Renderer.zig");
+const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
+const glfw_helper = @import("glfw_helper.zig");
+const WindowInput = @import("WindowInput.zig");
+const Renderer = @import("Renderer.zig");
 const LocalPlayerEntity = @import("root").LocalPlayerEntity;
 const EventHandler = @import("root").EventHandler;
 const Events = @import("root").Events;
@@ -247,5 +247,5 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) void {
 }
 
 test {
-    _ = @import("./GpuMemoryAllocator.zig");
+    _ = @import("GpuMemoryAllocator.zig");
 }

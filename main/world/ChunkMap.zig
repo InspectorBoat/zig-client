@@ -1,6 +1,6 @@
 const std = @import("std");
 const Vector2 = @import("../math/vector.zig").Vector2;
-const Chunk = @import("./Chunk.zig");
+const Chunk = @import("Chunk.zig");
 
 metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = std.bit_set.ArrayBitSet(usize, 32 * 32).initEmpty(),
 items: [32 * 32]Chunk = undefined,
@@ -125,7 +125,7 @@ test "performance" {
 pub fn DummyWorld(comptime MapType: type) type {
     return struct {
         chunks: MapType,
-        const Section = @import("./Section.zig");
+        const Section = @import("Section.zig");
         const ConcreteBlock = @import("../block/block.zig").ConcreteBlock;
         const Block = @import("../block/block.zig").Block;
         const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;

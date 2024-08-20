@@ -1,9 +1,9 @@
 const std = @import("std");
-const connection = @import("./network/connection.zig");
-const Connection = @import("./network/connection.zig").Connection;
-const ConnectionHandle = @import("./network/connection.zig").ConnectionHandle;
-const World = @import("./world/World.zig");
-const Screen = @import("./screen/Screen.zig");
+const connection = @import("network/connection.zig");
+const Connection = @import("network/connection.zig").Connection;
+const ConnectionHandle = @import("network/connection.zig").ConnectionHandle;
+const World = @import("world/World.zig");
+const Screen = @import("screen/Screen.zig");
 
 pub const GameState = enum {
     Idle,

@@ -2,7 +2,7 @@ const std = @import("std");
 const Vector2 = @import("../math/vector.zig").Vector2;
 const Vector3 = @import("../math/vector.zig").Vector3;
 const Chunk = @import("../world/Chunk.zig");
-const Section = @import("./Section.zig");
+const Section = @import("Section.zig");
 const Game = @import("../game.zig").Game;
 const TickTimer = @import("../world/TickTimer.zig");
 const Difficulty = @import("../world/difficulty.zig").Difficulty;
@@ -21,7 +21,7 @@ const RawBlockState = @import("../block/block.zig").RawBlockState;
 const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
 const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
 const WorldChunkS2CPacket = @import("../network/packet/s2c/play/WorldChunkS2CPacket.zig");
-const ChunkMap = @import("./ChunkMap.zig");
+const ChunkMap = @import("ChunkMap.zig");
 const EventHandler = @import("root").EventHandler;
 const Events = @import("root").Events;
 

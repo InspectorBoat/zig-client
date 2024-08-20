@@ -1,5 +1,5 @@
 const std = @import("std");
-const ConcreteBlock = @import("./block.zig").ConcreteBlock;
+const ConcreteBlock = @import("block.zig").ConcreteBlock;
 
 pub const @"export": std.enums.EnumFieldStruct(ConcreteBlock, bool, null) = .{
     .air = false,

@@ -5,8 +5,8 @@ const Vector3 = @import("root").Vector3;
 const Vector2 = @import("root").Vector2;
 const Box = @import("root").Box;
 const Chunk = @import("root").Chunk;
-const GpuStagingBuffer = @import("./GpuStagingBuffer.zig");
-const GpuMemoryAllocator = @import("./GpuMemoryAllocator.zig");
+const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
+const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
 
 vao: gl.VertexArray,
 program: gl.Program,
@@ -17,7 +17,7 @@ gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
-    const program = try createProgram(.{@embedFile("./triangle.glsl.vert")}, .{@embedFile("./triangle.glsl.frag")});
+    const program = try createProgram(.{@embedFile("triangle.glsl.vert")}, .{@embedFile("triangle.glsl.frag")});
     program.use();
 
     const vao = gl.VertexArray.create();

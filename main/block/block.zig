@@ -232,12 +232,12 @@ pub const RawBlockState = packed struct(u16) {
 
     pub fn toFiltered(self: @This()) FilteredBlockState {
         const block: Block = if (self.block <= 197) @enumFromInt(self.block) else return FilteredBlockState.AIR;
-        if (!@import("./valid_metadata_table.zig").@"export".get(block).isSet(self.metadata)) {
+        if (!@import("valid_metadata_table.zig").@"export".get(block).isSet(self.metadata)) {
             return FilteredBlockState.AIR; // Vanilla behavior
         }
         return .{
             .block = block,
-            .properties = .{ .raw_bits = @import("./metadata_conversion_table.zig").@"export".get(block).get(self.metadata) },
+            .properties = .{ .raw_bits = @import("metadata_conversion_table.zig").@"export".get(block).get(self.metadata) },
         };
     }
 };
@@ -1594,7 +1594,7 @@ pub const ConcreteBlockState = packed struct(u16) {
             stored: StoredBlockProperties.fence,
 
             pub fn shouldConnectTo(_: @This(), block: ConcreteBlock) bool {
-                return EnumBoolArray(ConcreteBlock).init(@import("./wood_fence_connections.zig").@"export").get(block);
+                return EnumBoolArray(ConcreteBlock).init(@import("wood_fence_connections.zig").@"export").get(block);
             }
         },
         pumpkin: packed struct(u8) {
@@ -1710,7 +1710,7 @@ pub const ConcreteBlockState = packed struct(u16) {
             stored: StoredBlockProperties.nether_brick_fence,
 
             pub fn shouldConnectTo(_: @This(), block: ConcreteBlock) bool {
-                return EnumBoolArray(ConcreteBlock).init(@import("./nether_brick_fence_connections.zig").@"export").get(block);
+                return EnumBoolArray(ConcreteBlock).init(@import("nether_brick_fence_connections.zig").@"export").get(block);
             }
         },
         nether_brick_stairs: packed struct(u8) {

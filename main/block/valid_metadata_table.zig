@@ -1,5 +1,5 @@
 const std = @import("std");
-const Block = @import("./block.zig").Block;
+const Block = @import("block.zig").Block;
 
 /// A table of valid metadata values for each block
 /// 0 represents an invalid value that will become air and 1 represents a valid value that should be looked up in raw_to_filtered_conversion_table

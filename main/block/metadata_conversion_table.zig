@@ -1,6 +1,6 @@
 const std = @import("std");
-const Block = @import("./block.zig").Block;
-const StoredBlockProperties = @import("./block.zig").StoredBlockProperties;
+const Block = @import("block.zig").Block;
+const StoredBlockProperties = @import("block.zig").StoredBlockProperties;
 
 // const PackedArray = std.PackedIntArray(u4, 16);
 const PackedArray = struct {

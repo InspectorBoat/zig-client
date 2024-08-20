@@ -3,7 +3,7 @@ const Vector3 = @import("../math/vector.zig").Vector3;
 const Rotation2 = @import("../math/rotation.zig").Rotation2;
 const World = @import("../world/World.zig");
 const Direction = @import("../math/direction.zig").Direction;
-const Box = @import("./box.zig").Box;
+const Box = @import("box.zig").Box;
 
 pub const HitType = enum { block, entity, miss };
 

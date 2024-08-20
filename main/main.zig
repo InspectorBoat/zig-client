@@ -1,13 +1,13 @@
-pub const Vector2 = @import("./math/vector.zig").Vector2;
-pub const Vector3 = @import("./math/vector.zig").Vector3;
-pub const Chunk = @import("./world/Chunk.zig");
-pub const Direction = @import("./math/direction.zig").Direction;
-pub const Rotation2 = @import("./math/rotation.zig").Rotation2;
-pub const Rotation3 = @import("./math/rotation.zig").Rotation3;
-pub const Uuid = @import("./entity/Uuid.zig");
-pub const Game = @import("./game.zig").Game;
-pub const LocalPlayerEntity = @import("./entity/impl/player/LocalPlayerEntity.zig");
-pub const Box = @import("./math/box.zig").Box;
+pub const Vector2 = @import("math/vector.zig").Vector2;
+pub const Vector3 = @import("math/vector.zig").Vector3;
+pub const Chunk = @import("world/Chunk.zig");
+pub const Direction = @import("math/direction.zig").Direction;
+pub const Rotation2 = @import("math/rotation.zig").Rotation2;
+pub const Rotation3 = @import("math/rotation.zig").Rotation3;
+pub const Uuid = @import("entity/Uuid.zig");
+pub const Game = @import("game.zig").Game;
+pub const LocalPlayerEntity = @import("entity/impl/player/LocalPlayerEntity.zig");
+pub const Box = @import("math/box.zig").Box;
 
 const std = @import("std");
 const network = @import("network");
@@ -71,7 +71,7 @@ pub const EventHandler = struct {
 };
 
 test {
-    _ = @import("./world/ChunkMap.zig");
-    _ = @import("./util/RingBuffer.zig");
-    _ = @import("./block/metadata_conversion_table.zig");
+    _ = @import("world/ChunkMap.zig");
+    _ = @import("util/RingBuffer.zig");
+    _ = @import("block/metadata_conversion_table.zig");
 }
