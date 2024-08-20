@@ -8,23 +8,17 @@ layout(location = 0) in vec3 vertex_pos;
 out vec2 uv;
 
 void main() {
-    switch (gl_VertexID % 6) {
+    switch (gl_VertexID % 4) {
         case 0:
-            uv = vec2(1, 0);
-            break;
-        case 1:
-            uv = vec2(1, 1);
-            break;
-        case 2:
-            uv = vec2(0, 1);
-            break;
-        case 3:
-            uv = vec2(1, 0);
-            break;
-        case 4:
             uv = vec2(0, 0);
             break;
-        case 5:
+        case 1:
+            uv = vec2(1, 0);
+            break;
+        case 2:
+            uv = vec2(1, 1);
+            break;
+        case 3:
             uv = vec2(0, 1);
             break;
     }

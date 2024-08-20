@@ -6,22 +6,18 @@ buffer: [1024 * 1024 * 2]u8 = undefined,
 write_index: usize = 0,
 
 pub fn writeRect(self: *@This(), facing: Direction, min: Vector3(f32), size: Vector2(f32)) void {
-    const vertex_count = 6;
+    const vertex_count = 4;
     const elements_per_vertex = 3;
     var vertices: [vertex_count * elements_per_vertex]f32 = switch (facing) {
         .Down => .{
             min.x,          min.y, min.z,
-            min.x + size.x, min.y, min.z + size.z,
-            min.x,          min.y, min.z + size.z,
-            min.x,          min.y, min.z,
             min.x + size.x, min.y, min.z,
             min.x + size.x, min.y, min.z + size.z,
+            min.x,          min.y, min.z + size.z,
         },
         .Up => .{
             min.x,          min.y, min.z,
             min.x,          min.y, min.z + size.z,
-            min.x + size.x, min.y, min.z + size.z,
-            min.x,          min.y, min.z,
             min.x + size.x, min.y, min.z + size.z,
             min.x + size.x, min.y, min.z,
         },
@@ -29,31 +25,23 @@ pub fn writeRect(self: *@This(), facing: Direction, min: Vector3(f32), size: Vec
             min.x,          min.y,          min.z,
             min.x,          min.y + size.z, min.z,
             min.x + size.x, min.y + size.z, min.z,
-            min.x,          min.y,          min.z,
-            min.x + size.x, min.y + size.z, min.z,
             min.x + size.x, min.y,          min.z,
         },
         .South => .{
             min.x,          min.y,          min.z,
-            min.x + size.x, min.y + size.z, min.z,
-            min.x,          min.y + size.z, min.z,
-            min.x,          min.y,          min.z,
             min.x + size.x, min.y,          min.z,
             min.x + size.x, min.y + size.z, min.z,
+            min.x,          min.y + size.z, min.z,
         },
         .East => .{
             min.x, min.y,          min.z,
-            min.x, min.y + size.z, min.z + size.x,
-            min.x, min.y + size.z, min.z,
-            min.x, min.y,          min.z,
             min.x, min.y,          min.z + size.x,
             min.x, min.y + size.z, min.z + size.x,
+            min.x, min.y + size.z, min.z,
         },
         .West => .{
             min.x, min.y,          min.z,
             min.x, min.y + size.z, min.z,
-            min.x, min.y + size.z, min.z + size.x,
-            min.x, min.y,          min.z,
             min.x, min.y + size.z, min.z + size.x,
             min.x, min.y,          min.z + size.x,
         },

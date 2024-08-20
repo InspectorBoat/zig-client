@@ -96,10 +96,12 @@ pub fn onFrame(frame: Events.Frame) !void {
                 );
 
                 // draw chunk
-                gl.drawArrays(
-                    .triangles,
+                gl.drawElements(
+                    .triangle_fan,
+                    // count includes primitive restart indices, thus there are actually 5 indices per quad
+                    entry.value_ptr.vertices / 4 * 5,
+                    .unsigned_int,
                     0,
-                    entry.value_ptr.vertices,
                 );
             }
 

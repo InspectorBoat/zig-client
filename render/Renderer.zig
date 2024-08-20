@@ -24,16 +24,36 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     vao.bind();
 
     vao.enableVertexAttribute(0);
-    vao.attribFormat(0, 3, .float, false, 0);
+    vao.attribFormat(
+        0,
+        3,
+        .float,
+        false,
+        0,
+    );
+
     vao.attribBinding(0, 0);
 
-    var indices: [1024 * 1024]u32 = undefined;
-    for (&indices, 0..) |*index, i| {
-        index.* = @intCast(i);
+    const restart_index: u32 = std.math.maxInt(u32);
+
+    const indices = try allocator.create([1024 * 1024 * 8]u32);
+    defer allocator.destroy(indices);
+
+    var index: u32 = 0;
+    for (indices, 1..) |*element, i| {
+        if (i % 5 == 0) {
+            element.* = restart_index;
+        } else {
+            element.* = index;
+            index += 1;
+        }
     }
     const index_buffer = gl.Buffer.create();
-    index_buffer.storage(u32, 1024 * 1024, @ptrCast(&indices), .{});
+    index_buffer.storage(u32, 1024 * 1024 * 8, @ptrCast(indices), .{});
     index_buffer.bind(.element_array_buffer);
+
+    gl.enable(.primitive_restart);
+    gl.primitiveRestartIndex(restart_index);
 
     const debug_cube_buffer = gl.Buffer.create();
     debug_cube_buffer.storage(f32, 36 * 3 * 1024, null, .{ .dynamic_storage = true });
@@ -136,7 +156,7 @@ pub fn makeTexture() gl.Texture {
         .unsigned_byte,
         &texture_data,
     );
-    texture.bindTo(52);
+    texture.bindTo(0);
     texture.parameter(.wrap_s, .repeat);
     texture.parameter(.wrap_t, .repeat);
     texture.parameter(.wrap_r, .repeat);
@@ -144,7 +164,7 @@ pub fn makeTexture() gl.Texture {
     texture.parameter(.min_filter, .nearest);
     texture.parameter(.mag_filter, .nearest);
 
-    gl.uniform1i(3, 52);
+    gl.uniform1i(2, 0);
     return texture;
 }
 
