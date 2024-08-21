@@ -2,10 +2,6 @@ const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
 const Game = @import("root").Game;
-const za = @import("zalgebra");
-const Vec3 = za.Vec3;
-const Mat4 = za.Mat4;
-const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 const glfw_helper = @import("glfw_helper.zig");
 const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
@@ -47,8 +43,6 @@ pub fn onStartup(_: Events.Startup) !void {
     renderer = try Renderer.init(gpa);
 }
 
-var i: usize = 1;
-
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
         try EventHandler.dispatch(Events.Exit, .{});
@@ -57,7 +51,6 @@ pub fn onFrame(frame: Events.Frame) !void {
     const game = frame.game;
     glfw.pollEvents();
 
-    gl.enable(.cull_face);
     gl.clearColor(
         if (game.* == .Idle) 1 else 0,
         if (game.* == .Connecting) 1 else 0,
@@ -69,77 +62,12 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (game.*) {
         .Ingame => |*ingame| {
             handleInputIngame(ingame);
-            gl.enable(.depth_test);
-
-            const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
-            gl.uniformMatrix4fv(0, true, @as([*]const [4][4]f32, @ptrCast(mvp.getData()))[0..1]);
-
-            renderer.vao.vertexBuffer(0, renderer.gpu_memory_allocator.backing_buffer, 0, 3 * @sizeOf(f32));
-
-            var entries = renderer.sections.iterator();
-            while (entries.next()) |entry| {
-                const chunk_pos = entry.key_ptr.*;
-                // uniform for chunk position
-                renderer.program.uniform3f(
-                    1,
-                    @floatFromInt(chunk_pos.x),
-                    @floatFromInt(chunk_pos.y),
-                    @floatFromInt(chunk_pos.z),
-                );
-
-                // bind buffer at offset
-                renderer.vao.vertexBuffer(
-                    0,
-                    renderer.gpu_memory_allocator.backing_buffer,
-                    entry.value_ptr.segment.offset,
-                    3 * @sizeOf(f32),
-                );
-
-                // draw chunk
-                gl.drawElements(
-                    .triangle_fan,
-                    // count includes primitive restart indices, thus there are actually 5 indices per quad
-                    entry.value_ptr.vertices / 4 * 5,
-                    .unsigned_int,
-                    0,
-                );
-            }
-
-            // upload debug cube buffer to gpu
-            renderer.debug_cube_buffer.subData(
-                0,
-                u8,
-                @ptrCast(renderer.debug_cube_staging_buffer.getSlice()),
-            );
-
-            // set chunk pos uniform for debug cubes (0, 0, 0)
-            renderer.program.uniform3f(
-                1,
-                0.0,
-                0.0,
-                0.0,
-            );
-
-            // bind debug cube buffer
-            renderer.vao.vertexBuffer(
-                0,
-                renderer.debug_cube_buffer,
-                0,
-                3 * @sizeOf(f32),
-            );
-
-            // render debug cubes
-            gl.drawArrays(
-                .triangles,
-                0,
-                renderer.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3,
-            );
+            renderer.renderFrame(ingame);
         },
         .Connecting => |*connecting_game| handleInputConnecting(connecting_game),
         .Idle => |*idle_game| handleInputIdle(idle_game),
     }
     window_input.window.swapBuffers();
-    // return false;
 }
 
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
@@ -149,30 +77,6 @@ pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
     const chunk_pos = unload_chunk.chunk_pos;
     try renderer.unloadChunk(chunk_pos, gpa_impl.allocator());
-}
-
-pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
-    const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
-
-    const player_pos_cast = za.Vec3_f64.new(
-        -eye_pos.x,
-        -eye_pos.y,
-        -eye_pos.z,
-    ).cast(f32);
-
-    const projection = za.perspective(90.0, @as(f32, @floatFromInt(window_input.window_size.x)) / @as(f32, @floatFromInt(window_input.window_size.z)), 0.05, 1000.0);
-    const view = Mat4.mul(
-        Mat4.fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
-        Mat4.fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
-    );
-
-    const model = Mat4.fromTranslate(player_pos_cast);
-
-    return projection.mul(view.mul(model));
-}
-
-pub fn lerp(start: f64, end: f64, progress: f64) f64 {
-    return (end - start) * progress + start;
 }
 
 pub fn handleInputIdle(_: *Game.IdleGame) void {
@@ -208,12 +112,6 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) void {
         switch (event) {
             .Key => |key| {
                 switch (key.key) {
-                    .i => if (key.action == .press) {
-                        i += 1;
-                    },
-                    .j => if (key.action == .press) {
-                        i -= 1;
-                    },
                     .tab => if (key.action == .press) {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
