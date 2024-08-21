@@ -1,4 +1,5 @@
 const std = @import("std");
+const Direction = @import("direction.zig").Direction;
 
 pub fn Vector2(comptime Element: type) type {
     return struct {
@@ -231,6 +232,16 @@ pub fn Vector3(comptime Element: type) type {
                 .z = self.z,
             };
         }
+        pub fn dir(self: @This(), direction: Direction) @This() {
+            return switch (direction) {
+                .Down => self.down(),
+                .East => self.east(),
+                .North => self.north(),
+                .South => self.south(),
+                .Up => self.up(),
+                .West => self.west(),
+            };
+        }
 
         pub fn floatCast(self: @This(), comptime Target: type) Vector3(Target) {
             if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
@@ -253,8 +264,8 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn floatToInt(self: @This(), comptime Target: type) Vector3(Target) {
-            if (@typeInfo(Target) != .Float) @compileLog("Start type must be float!");
-            if (@typeInfo(Element) != .Int) @compileLog("Target type from int!");
+            if (@typeInfo(Element) != .Float) @compileLog("Start type must be float!");
+            if (@typeInfo(Target) != .Int) @compileLog("Target type from int!");
             return .{
                 .x = @intFromFloat(self.x),
                 .y = @intFromFloat(self.y),
@@ -263,8 +274,8 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn intToFloat(self: @This(), comptime Target: type) Vector3(Target) {
-            if (@typeInfo(Target) != .Int) @compileLog("Start type must be int!");
-            if (@typeInfo(Element) != .Float) @compileLog("Target type from float!");
+            if (@typeInfo(Element) != .Int) @compileError("Start type must be int!");
+            if (@typeInfo(Target) != .Float) @compileError("Target type from float!");
             return .{
                 .x = @floatFromInt(self.x),
                 .y = @floatFromInt(self.y),
