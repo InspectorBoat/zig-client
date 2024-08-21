@@ -3,9 +3,11 @@
 layout(location = 0) uniform mat4 transform;
 layout(location = 1) uniform vec3 chunk_pos;
 
-layout(location = 0) in vec3 vertex_pos;
-
 out vec2 uv;
+
+layout(std430, binding = 0) restrict readonly buffer geometry {
+    float data[];
+};
 
 void main() {
     switch (gl_VertexID % 4) {
@@ -22,5 +24,6 @@ void main() {
             uv = vec2(0, 1);
             break;
     }
-    gl_Position = vec4(vertex_pos.xyz + chunk_pos * 16, 1) * transform;
+    vec3 vertex_pos = vec3(data[gl_VertexID * 3], data[gl_VertexID * 3 + 1], data[gl_VertexID * 3 + 2]);
+    gl_Position = vec4(vertex_pos + chunk_pos * 16, 1) * transform;
 }

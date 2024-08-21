@@ -77,17 +77,6 @@ pub fn initProgram(vertex_shader_source: [1][]const u8, frag_shader_source: [1][
 pub fn initVao() !gl.VertexArray {
     const vao = gl.VertexArray.create();
     vao.bind();
-
-    vao.enableVertexAttribute(0);
-    vao.attribFormat(
-        0,
-        3,
-        .float,
-        false,
-        0,
-    );
-    vao.attribBinding(0, 0);
-
     return vao;
 }
 
@@ -167,6 +156,7 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) void {
         );
     }
 
+    self.renderCrosshairTarget(ingame);
     self.renderDebug();
 }
 
@@ -179,12 +169,12 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: Section
         @floatFromInt(section_pos.z),
     );
 
-    // bind buffer at offset
-    self.vao.vertexBuffer(
+    // bind buffer as ssbo at offset
+    self.gpu_memory_allocator.backing_buffer.bindRange(
+        .shader_storage_buffer,
         0,
-        self.gpu_memory_allocator.backing_buffer,
-        section.segment.offset,
-        3 * @sizeOf(f32),
+        @intCast(section.segment.offset),
+        @intCast(section.segment.length),
     );
 
     // draw chunk
@@ -228,17 +218,16 @@ pub fn renderDebug(self: *@This()) void {
     );
 
     // bind debug cube buffer
-    self.vao.vertexBuffer(
+    self.debug_cube_buffer.bindBase(
+        .shader_storage_buffer,
         0,
-        self.debug_cube_buffer,
-        0,
-        3 * @sizeOf(f32),
     );
+
     gl.polygonMode(.front_and_back, .line);
     // render debug cubes
     gl.drawElements(
         .triangle_fan,
-        self.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3 * 5,
+        self.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3 / 4 * 5,
         .unsigned_int,
         0,
     );
