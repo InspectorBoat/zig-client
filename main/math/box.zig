@@ -11,6 +11,13 @@ pub fn Box(comptime Element: type) type {
         min: Vector3(Element),
         max: Vector3(Element),
 
+        pub fn cube() @This() {
+            return .{
+                .min = .{ .x = 0, .y = 0, .z = 0 },
+                .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+            };
+        }
+
         pub fn move(self: @This(), delta: Vector3(Element)) @This() {
             return @This(){
                 .min = self.min.add(delta),
@@ -70,6 +77,15 @@ pub fn Box(comptime Element: type) type {
                     .z = @max(self.max.z, other.max.z),
                 },
             };
+        }
+
+        pub fn equals(self: @This(), other: @This()) bool {
+            return self.min.x == other.min.x and
+                self.min.y == other.min.y and
+                self.min.z == other.min.z and
+                self.max.x == other.max.x and
+                self.max.y == other.max.y and
+                self.max.z == other.max.z;
         }
 
         pub fn rayTrace(self: *@This(), from: Vector3(Element), to: Vector3(Element)) ?HitResult {

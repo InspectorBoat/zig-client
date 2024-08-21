@@ -12,6 +12,7 @@ const Game = @import("root").Game;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
+const Direction = @import("root").Direction;
 
 vao: gl.VertexArray,
 program: gl.Program,
@@ -286,7 +287,56 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
                                     .y = @floatFromInt(y),
                                     .z = @floatFromInt(z),
                                 };
-                                staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
+                                if (!box.equals(Box(f64).cube())) {
+                                    staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
+                                    continue;
+                                }
+
+                                var unculled_faces = std.EnumSet(Direction).initFull();
+                                if (x != 0) {
+                                    if (section.block_states[(y << 8) | (z << 4) | ((x - 1) << 0)].getRaytraceHitbox()[0]) |other_box| {
+                                        if (other_box.equals(Box(f64).cube())) {
+                                            unculled_faces.remove(.West);
+                                        }
+                                    }
+                                }
+                                if (x != 15) {
+                                    if (section.block_states[(y << 8) | (z << 4) | ((x + 1) << 0)].getRaytraceHitbox()[0]) |other_box| {
+                                        if (other_box.equals(Box(f64).cube())) {
+                                            unculled_faces.remove(.East);
+                                        }
+                                    }
+                                }
+                                if (y != 0) {
+                                    if (section.block_states[((y - 1) << 8) | (z << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
+                                        if (other_box.equals(Box(f64).cube())) {
+                                            unculled_faces.remove(.Down);
+                                        }
+                                    }
+                                }
+                                if (y != 15) {
+                                    if (section.block_states[((y + 1) << 8) | (z << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
+                                        if (other_box.equals(Box(f64).cube())) {
+                                            unculled_faces.remove(.Up);
+                                        }
+                                    }
+                                }
+                                if (z != 0) {
+                                    if (section.block_states[(y << 8) | ((z - 1) << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
+                                        if (other_box.equals(Box(f64).cube())) {
+                                            unculled_faces.remove(.North);
+                                        }
+                                    }
+                                }
+                                if (z != 15) {
+                                    if (section.block_states[(y << 8) | ((z + 1) << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
+                                        if (other_box.equals(Box(f64).cube())) {
+                                            unculled_faces.remove(.South);
+                                        }
+                                    }
+                                }
+
+                                staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), unculled_faces);
                             }
                         }
                     }

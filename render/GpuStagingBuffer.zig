@@ -1,3 +1,4 @@
+const std = @import("std");
 const Vector3 = @import("root").Vector3;
 const Vector2 = @import("root").Vector2;
 const Direction = @import("root").Direction;
@@ -33,13 +34,13 @@ pub fn writeRect(self: *@This(), facing: Direction, min: Vector3(f32), size: Vec
             min.x + size.x, min.y + size.z, min.z,
             min.x,          min.y + size.z, min.z,
         },
-        .East => .{
+        .West => .{
             min.x, min.y,          min.z,
             min.x, min.y,          min.z + size.x,
             min.x, min.y + size.z, min.z + size.x,
             min.x, min.y + size.z, min.z,
         },
-        .West => .{
+        .East => .{
             min.x, min.y,          min.z,
             min.x, min.y + size.z, min.z,
             min.x, min.y + size.z, min.z + size.x,
@@ -104,7 +105,7 @@ pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32)) void {
         },
     );
     self.writeRect(
-        .East,
+        .West,
         .{
             .x = min.x,
             .y = min.y,
@@ -116,7 +117,7 @@ pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32)) void {
         },
     );
     self.writeRect(
-        .West,
+        .East,
         .{
             .x = max.x,
             .y = min.y,
@@ -127,6 +128,93 @@ pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32)) void {
             .z = max.y - min.y,
         },
     );
+}
+
+pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces: std.EnumSet(Direction)) void {
+    if (faces.contains(.Down)) {
+        self.writeRect(
+            .Down,
+            .{
+                .x = min.x,
+                .y = min.y,
+                .z = min.z,
+            },
+            .{
+                .x = max.x - min.x,
+                .z = max.z - min.z,
+            },
+        );
+    }
+    if (faces.contains(.Up)) {
+        self.writeRect(
+            .Up,
+            .{
+                .x = min.x,
+                .y = max.y,
+                .z = min.z,
+            },
+            .{
+                .x = max.x - min.x,
+                .z = max.z - min.z,
+            },
+        );
+    }
+    if (faces.contains(.North)) {
+        self.writeRect(
+            .North,
+            .{
+                .x = min.x,
+                .y = min.y,
+                .z = min.z,
+            },
+            .{
+                .x = max.x - min.x,
+                .z = max.y - min.y,
+            },
+        );
+    }
+    if (faces.contains(.South)) {
+        self.writeRect(
+            .South,
+            .{
+                .x = min.x,
+                .y = min.y,
+                .z = max.z,
+            },
+            .{
+                .x = max.x - min.x,
+                .z = max.y - min.y,
+            },
+        );
+    }
+    if (faces.contains(.West)) {
+        self.writeRect(
+            .West,
+            .{
+                .x = min.x,
+                .y = min.y,
+                .z = min.z,
+            },
+            .{
+                .x = max.z - min.z,
+                .z = max.y - min.y,
+            },
+        );
+    }
+    if (faces.contains(.East)) {
+        self.writeRect(
+            .East,
+            .{
+                .x = max.x,
+                .y = min.y,
+                .z = min.z,
+            },
+            .{
+                .x = max.z - min.z,
+                .z = max.y - min.y,
+            },
+        );
+    }
 }
 
 pub fn getSlice(self: *const @This()) []const u8 {
