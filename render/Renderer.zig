@@ -156,7 +156,7 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) void {
         );
     }
 
-    self.renderCrosshairTarget(ingame);
+    // self.renderCrosshairTarget(ingame);
     self.renderDebug();
 }
 
@@ -335,12 +335,11 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
 
             const segment = try self.gpu_memory_allocator.alloc(staging.write_index, allocator);
             self.gpu_memory_allocator.subData(segment, staging.getSlice());
-
             try self.sections.put(
                 .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
                 .{
                     .segment = segment,
-                    .vertices = staging.write_index / @sizeOf(f32) / 3,
+                    .vertices = staging.write_index / (@bitSizeOf(GpuStagingBuffer.GpuVertex) / 8),
                 },
             );
         }

@@ -6,128 +6,82 @@ const Direction = @import("root").Direction;
 buffer: [1024 * 1024 * 2]u8 = undefined,
 write_index: usize = 0,
 
-pub fn writeRect(self: *@This(), facing: Direction, min: Vector3(f32), size: Vector2(f32)) void {
-    const vertex_count = 4;
-    const elements_per_vertex = 3;
-    var vertices: [vertex_count * elements_per_vertex]f32 = switch (facing) {
-        .Down => .{
-            min.x,          min.y, min.z,
-            min.x + size.x, min.y, min.z,
-            min.x + size.x, min.y, min.z + size.z,
-            min.x,          min.y, min.z + size.z,
-        },
-        .Up => .{
-            min.x,          min.y, min.z,
-            min.x,          min.y, min.z + size.z,
-            min.x + size.x, min.y, min.z + size.z,
-            min.x + size.x, min.y, min.z,
-        },
-        .North => .{
-            min.x,          min.y,          min.z,
-            min.x,          min.y + size.z, min.z,
-            min.x + size.x, min.y + size.z, min.z,
-            min.x + size.x, min.y,          min.z,
-        },
-        .South => .{
-            min.x,          min.y,          min.z,
-            min.x + size.x, min.y,          min.z,
-            min.x + size.x, min.y + size.z, min.z,
-            min.x,          min.y + size.z, min.z,
-        },
-        .West => .{
-            min.x, min.y,          min.z,
-            min.x, min.y,          min.z + size.x,
-            min.x, min.y + size.z, min.z + size.x,
-            min.x, min.y + size.z, min.z,
-        },
-        .East => .{
-            min.x, min.y,          min.z,
-            min.x, min.y + size.z, min.z,
-            min.x, min.y + size.z, min.z + size.x,
-            min.x, min.y,          min.z + size.x,
-        },
+pub const GpuVertex = packed struct(u64) {
+    x: u16,
+    y: u16,
+    z: u16,
+    u: u4,
+    v: u4,
+    texture: u8,
+};
+
+var rand_impl = std.Random.DefaultPrng.init(155215);
+const rand = rand_impl.random();
+
+pub fn writeVertex(self: *@This(), pos: struct { f32, f32, f32 }, uv: struct { f32, f32 }, texture: u8) void {
+    // {x/y/z} have the interval [0.0, 16.0]
+    var vertex: GpuVertex = .{
+        .x = @intFromFloat(@round(pos[0] * 4095.9375)),
+        .y = @intFromFloat(@round(pos[1] * 4095.9375)),
+        .z = @intFromFloat(@round(pos[2] * 4095.9375)),
+        .u = @intFromFloat(@round(uv[0] * 15.9375)),
+        .v = @intFromFloat(@round(uv[1] * 15.9375)),
+        .texture = texture,
     };
-    const consumed_bytes = @sizeOf(@TypeOf(vertices));
+
+    const consumed_bytes = @bitSizeOf(GpuVertex) / 8;
     @memcpy(
         self.buffer[self.write_index..][0..consumed_bytes],
-        @as([*]u8, @ptrCast((&vertices).ptr)),
+        @as([*]const u8, @ptrCast(&vertex)),
     );
     self.write_index += consumed_bytes;
 }
 
+pub fn writeRect(self: *@This(), comptime facing: Direction, min: Vector3(f32), size: Vector2(f32), texture: u8) void {
+    switch (facing) {
+        // zig fmt: off
+        .Down => {
+            self.writeVertex(.{ min.x,          min.y, min.z          }, .{ 0, 0 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y, min.z          }, .{ 1, 0 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y, min.z + size.z }, .{ 1, 1 }, texture);
+            self.writeVertex(.{ min.x,          min.y, min.z + size.z }, .{ 0, 1 }, texture);
+        },
+        .Up => {
+            self.writeVertex(.{ min.x,          min.y, min.z          }, .{ 0, 0 }, texture);
+            self.writeVertex(.{ min.x,          min.y, min.z + size.z }, .{ 1, 0 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y, min.z + size.z }, .{ 1, 1 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y, min.z          }, .{ 0, 1 }, texture);
+        },
+        .North => {
+            self.writeVertex(.{ min.x,          min.y,          min.z }, .{ 0, 0 }, texture);
+            self.writeVertex(.{ min.x,          min.y + size.z, min.z }, .{ 1, 0 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y + size.z, min.z }, .{ 1, 1 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y,          min.z }, .{ 0, 1 }, texture);
+        },
+        .South => {
+            self.writeVertex(.{ min.x,          min.y,          min.z }, .{ 0, 0 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y,          min.z }, .{ 1, 0 }, texture);
+            self.writeVertex(.{ min.x + size.x, min.y + size.z, min.z }, .{ 1, 1 }, texture);
+            self.writeVertex(.{ min.x,          min.y + size.z, min.z }, .{ 0, 1 }, texture);
+        },
+        .West => {
+            self.writeVertex(.{ min.x, min.y,          min.z          }, .{ 0, 0 }, texture);
+            self.writeVertex(.{ min.x, min.y,          min.z + size.x }, .{ 1, 0 }, texture);
+            self.writeVertex(.{ min.x, min.y + size.z, min.z + size.x }, .{ 1, 1 }, texture);
+            self.writeVertex(.{ min.x, min.y + size.z, min.z          }, .{ 0, 1 }, texture);
+        },
+        .East => {
+            self.writeVertex(.{ min.x, min.y,          min.z,         }, .{ 0, 0 }, texture);
+            self.writeVertex(.{ min.x, min.y + size.z, min.z,         }, .{ 1, 0 }, texture);
+            self.writeVertex(.{ min.x, min.y + size.z, min.z + size.x }, .{ 1, 1 }, texture);
+            self.writeVertex(.{ min.x, min.y,          min.z + size.x }, .{ 0, 1 }, texture);
+        },
+        // zig fmt: on
+    }
+}
+
 pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32)) void {
-    self.writeRect(
-        .Down,
-        .{
-            .x = min.x,
-            .y = min.y,
-            .z = min.z,
-        },
-        .{
-            .x = max.x - min.x,
-            .z = max.z - min.z,
-        },
-    );
-    self.writeRect(
-        .Up,
-        .{
-            .x = min.x,
-            .y = max.y,
-            .z = min.z,
-        },
-        .{
-            .x = max.x - min.x,
-            .z = max.z - min.z,
-        },
-    );
-    self.writeRect(
-        .North,
-        .{
-            .x = min.x,
-            .y = min.y,
-            .z = min.z,
-        },
-        .{
-            .x = max.x - min.x,
-            .z = max.y - min.y,
-        },
-    );
-    self.writeRect(
-        .South,
-        .{
-            .x = min.x,
-            .y = min.y,
-            .z = max.z,
-        },
-        .{
-            .x = max.x - min.x,
-            .z = max.y - min.y,
-        },
-    );
-    self.writeRect(
-        .West,
-        .{
-            .x = min.x,
-            .y = min.y,
-            .z = min.z,
-        },
-        .{
-            .x = max.z - min.z,
-            .z = max.y - min.y,
-        },
-    );
-    self.writeRect(
-        .East,
-        .{
-            .x = max.x,
-            .y = min.y,
-            .z = min.z,
-        },
-        .{
-            .x = max.z - min.z,
-            .z = max.y - min.y,
-        },
-    );
+    self.writeBoxFaces(min, max, std.EnumSet(Direction).initFull());
 }
 
 pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces: std.EnumSet(Direction)) void {
@@ -143,6 +97,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces
                 .x = max.x - min.x,
                 .z = max.z - min.z,
             },
+            rand.int(u8),
         );
     }
     if (faces.contains(.Up)) {
@@ -157,6 +112,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces
                 .x = max.x - min.x,
                 .z = max.z - min.z,
             },
+            rand.int(u8),
         );
     }
     if (faces.contains(.North)) {
@@ -171,6 +127,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces
                 .x = max.x - min.x,
                 .z = max.y - min.y,
             },
+            rand.int(u8),
         );
     }
     if (faces.contains(.South)) {
@@ -185,6 +142,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces
                 .x = max.x - min.x,
                 .z = max.y - min.y,
             },
+            rand.int(u8),
         );
     }
     if (faces.contains(.West)) {
@@ -199,6 +157,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces
                 .x = max.z - min.z,
                 .z = max.y - min.y,
             },
+            rand.int(u8),
         );
     }
     if (faces.contains(.East)) {
@@ -213,6 +172,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), faces
                 .x = max.z - min.z,
                 .z = max.y - min.y,
             },
+            rand.int(u8),
         );
     }
 }
