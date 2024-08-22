@@ -10,6 +10,7 @@ const gl = if (!@import("builtin").is_test) @import("zgl") else struct {
 };
 free_segments: std.SinglyLinkedList(Segment),
 backing_buffer: gl.Buffer,
+min_alignment: c_int,
 used: usize = 0,
 
 pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
@@ -23,20 +24,28 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
         .next = null,
     };
 
+    var shader_storage_buffer_alignment: c_int = 0;
+    gl.binding.getIntegerv(gl.binding.SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &shader_storage_buffer_alignment);
+    std.debug.print("{}\n", .{shader_storage_buffer_alignment});
+
     return .{
         .free_segments = std.SinglyLinkedList(Segment){ .first = first_node },
         .backing_buffer = backing_buffer,
+        .min_alignment = shader_storage_buffer_alignment,
     };
 }
 
 pub fn alloc(self: *@This(), n: usize, allocator: std.mem.Allocator) !Segment {
+    // round n to nearest multiple of self.min_alignment
+    const actual_required_size = roundUp(n, @intCast(self.min_alignment));
+
     var maybe_node = self.free_segments.first;
     while (maybe_node) |node| : (maybe_node = node.next) {
         const segment = &node.data;
-        if (segment.length >= n) {
+        if (segment.length >= actual_required_size) {
             defer {
-                segment.offset += n;
-                segment.length -= n;
+                segment.offset += actual_required_size;
+                segment.length -= actual_required_size;
                 std.debug.assert(segment.length >= 0);
                 if (segment.length == 0) {
                     self.free_segments.remove(node);
@@ -45,9 +54,9 @@ pub fn alloc(self: *@This(), n: usize, allocator: std.mem.Allocator) !Segment {
                 }
             }
 
-            self.used += n;
+            self.used += actual_required_size;
             return .{
-                .length = n,
+                .length = actual_required_size,
                 .offset = segment.offset,
             };
         }
@@ -67,6 +76,11 @@ pub fn free(self: *@This(), free_segment: Segment, allocator: std.mem.Allocator)
 
 pub fn subData(self: @This(), segment: Segment, items: []const u8) void {
     self.backing_buffer.subData(segment.offset, u8, @ptrCast(items));
+}
+
+fn roundUp(n: usize, multiple: usize) usize {
+    if (multiple == 0) return n;
+    return (n + multiple - 1) / multiple * multiple;
 }
 
 pub const Segment = struct {
