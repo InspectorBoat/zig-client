@@ -113,29 +113,33 @@ pub fn initDebugCubeBuffer() gl.Buffer {
 
 pub fn initTexture() gl.Texture {
     const texture = gl.Texture.create(.@"2d_array");
-    texture.storage3D(1, .rgb8, 16, 16, 256);
 
-    var texture_data: [256 * 16 * 16 * 3]u8 = undefined;
+    const texture_size = 4;
+    const color_channels = 4;
+    const texture_count = 256;
+
+    texture.storage3D(1, .rgba8, texture_size, texture_size, texture_count);
+
+    var texture_data: [texture_count * texture_size * texture_size * color_channels]u8 = undefined;
     var rand_impl = std.Random.DefaultPrng.init(155215);
     const rand = rand_impl.random();
-    for (0..256) |i| {
-        const color: [3]u8 = .{ rand.int(u8), rand.int(u8), rand.int(u8) };
-        const block = texture_data[i * 16 * 16 * 3 ..][0 .. 16 * 16 * 3];
-        for (0..16 * 16) |j| {
-            @memcpy(block[j * 3 ..][0..3], &color);
+    for (0..texture_count) |i| {
+        const block = texture_data[i * texture_size * texture_size * color_channels ..][0 .. texture_size * texture_size * color_channels];
+        for (0..texture_size * texture_size) |j| {
+            const color: [color_channels]u8 = .{ rand.int(u8), rand.int(u8), rand.int(u8), if (rand.boolean()) 255 else 0 };
+            @memcpy(block[j * color_channels ..][0..color_channels], &color);
         }
     }
-    rand.bytes(&texture_data);
 
     texture.subImage3D(
         0,
         0,
         0,
         0,
-        16,
-        16,
-        256,
-        .rgb,
+        texture_size,
+        texture_size,
+        texture_count,
+        .rgba,
         .unsigned_byte,
         &texture_data,
     );

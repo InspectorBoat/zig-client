@@ -52,9 +52,9 @@ pub fn onFrame(frame: Events.Frame) !void {
     glfw.pollEvents();
 
     gl.clearColor(
-        if (game.* == .Idle) 1 else 0,
-        if (game.* == .Connecting) 1 else 0,
-        if (game.* == .Ingame) 1 else 0,
+        if (game.* == .Idle) 1.0 else 0.75,
+        if (game.* == .Connecting) 1.0 else 0.75,
+        if (game.* == .Ingame) 1.0 else 0.75,
         1,
     );
     gl.clear(.{ .color = true, .depth = true });
