@@ -115,9 +115,16 @@ pub fn initTexture() gl.Texture {
     const texture = gl.Texture.create(.@"2d_array");
     texture.storage3D(1, .rgb8, 16, 16, 256);
 
-    var texture_data: [16 * 16 * 256 * 3]u8 = undefined;
+    var texture_data: [256 * 16 * 16 * 3]u8 = undefined;
     var rand_impl = std.Random.DefaultPrng.init(155215);
     const rand = rand_impl.random();
+    for (0..256) |i| {
+        const color: [3]u8 = .{ rand.int(u8), rand.int(u8), rand.int(u8) };
+        const block = texture_data[i * 16 * 16 * 3 ..][0 .. 16 * 16 * 3];
+        for (0..16 * 16) |j| {
+            @memcpy(block[j * 3 ..][0..3], &color);
+        }
+    }
     rand.bytes(&texture_data);
 
     texture.subImage3D(
@@ -156,7 +163,7 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) void {
         );
     }
 
-    // self.renderCrosshairTarget(ingame);
+    // self.compileCrosshairTarget(ingame);
     self.renderDebug();
 }
 
@@ -179,7 +186,7 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: Section
 
     // draw chunk
     gl.drawElements(
-        .triangle_fan,
+        .triangle_strip,
         // count includes primitive restart indices, thus there are actually 5 indices per quad
         section.vertices / 4 * 5,
         .unsigned_int,
@@ -187,7 +194,7 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: Section
     );
 }
 
-pub fn renderCrosshairTarget(self: *@This(), ingame: *const Game.IngameGame) void {
+pub fn compileCrosshairTarget(self: *@This(), ingame: *const Game.IngameGame) void {
     switch (ingame.world.player.crosshair) {
         .miss => {},
         .block => |block| {
@@ -226,7 +233,7 @@ pub fn renderDebug(self: *@This()) void {
     gl.polygonMode(.front_and_back, .line);
     // render debug cubes
     gl.drawElements(
-        .triangle_fan,
+        .triangle_strip,
         self.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3 / 4 * 5,
         .unsigned_int,
         0,
@@ -277,7 +284,7 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
                                     .z = @floatFromInt(z),
                                 };
                                 if (!box.equals(Box(f64).cube())) {
-                                    staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32));
+                                    staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(section.block_states[pos].block));
                                     continue;
                                 }
 
@@ -325,7 +332,7 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
                                     }
                                 }
 
-                                staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), unculled_faces);
+                                staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(section.block_states[pos].block), unculled_faces);
                             }
                         }
                     }

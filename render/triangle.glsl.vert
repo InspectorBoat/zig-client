@@ -23,28 +23,20 @@ layout(std430, binding = 0) restrict readonly buffer geometry {
 };
 
 void main() {
-    switch (gl_VertexID % 4) {
-        case 0:
-            uv = vec2(0, 0);
-            break;
-        case 1:
-            uv = vec2(1, 0);
-            break;
-        case 2:
-            uv = vec2(1, 1);
-            break;
-        case 3:
-            uv = vec2(0, 1);
-            break;
-    }
-
     vec3 vertex_pos = vec3(
            uvec3(data[gl_VertexID * 2 + 0], data[gl_VertexID * 2 + 0], data[gl_VertexID * 2 + 1])
         >> uvec3(0, 16, 0)
-        &  uvec3(0xFFFF)
+        &  0xFFFF
     ) / 4095.9375;
     
     gl_Position = vec4(vertex_pos + chunk_pos * 16, 1) * transform;
 
     texture_id = (data[gl_VertexID * 2 + 1] >> 24) & 0xFF;
+
+    uv = vec2(
+           (uvec2(data[gl_VertexID * 2 + 1], data[gl_VertexID * 2 + 1])
+        >> uvec2(16, 20)
+        &  0xF)
+        +  uvec2(gl_VertexID & 1, (gl_VertexID & 2) >> 1)
+    ) / 16;
 }
