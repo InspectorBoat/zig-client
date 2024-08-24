@@ -25,7 +25,7 @@ texture: gl.Texture,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
-    gl.enable(.cull_face);
+    // gl.enable(.cull_face);
 
     const program = try initProgram(.{@embedFile("triangle.glsl.vert")}, .{@embedFile("triangle.glsl.frag")});
 
@@ -126,7 +126,7 @@ pub fn initTexture() gl.Texture {
     for (0..texture_count) |i| {
         const block = texture_data[i * texture_size * texture_size * color_channels ..][0 .. texture_size * texture_size * color_channels];
         for (0..texture_size * texture_size) |j| {
-            const color: [color_channels]u8 = .{ rand.int(u8), rand.int(u8), rand.int(u8), if (rand.boolean()) 255 else 0 };
+            const color: [color_channels]u8 = .{ rand.int(u8), rand.int(u8), rand.int(u8), 255 };
             @memcpy(block[j * color_channels ..][0..color_channels], &color);
         }
     }
@@ -192,7 +192,7 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: Section
     gl.drawElements(
         .triangle_strip,
         // count includes primitive restart indices, thus there are actually 5 indices per quad
-        section.vertices / 4 * 5,
+        section.quads * 5,
         .unsigned_int,
         0,
     );
@@ -268,6 +268,8 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
+pub var last_block: @import("root").ConcreteBlockState = undefined;
+
 pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk, allocator: std.mem.Allocator) !void {
     for (chunk.sections, 0..) |maybe_section, section_y| {
         if (section_y < 3) continue;
@@ -287,6 +289,8 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
                                     .y = @floatFromInt(y),
                                     .z = @floatFromInt(z),
                                 };
+                                last_block = section.block_states[pos];
+
                                 if (!box.equals(Box(f64).cube())) {
                                     staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(section.block_states[pos].block));
                                     continue;
@@ -350,7 +354,7 @@ pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk
                 .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
                 .{
                     .segment = segment,
-                    .vertices = staging.write_index / (@bitSizeOf(GpuStagingBuffer.GpuVertex) / 8),
+                    .quads = staging.write_index / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
                 },
             );
         }
@@ -366,7 +370,7 @@ pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.A
 
 pub const SectionRenderInfo = struct {
     segment: GpuMemoryAllocator.Segment,
-    vertices: usize,
+    quads: usize,
 };
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {

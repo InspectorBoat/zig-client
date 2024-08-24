@@ -8,6 +8,7 @@ pub const Uuid = @import("entity/Uuid.zig");
 pub const Game = @import("game.zig").Game;
 pub const LocalPlayerEntity = @import("entity/impl/player/LocalPlayerEntity.zig");
 pub const Box = @import("math/box.zig").Box;
+pub const ConcreteBlockState = @import("block/block.zig").ConcreteBlockState;
 
 const std = @import("std");
 const network = @import("network");
