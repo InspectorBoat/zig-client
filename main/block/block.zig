@@ -2876,7 +2876,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 const stone_button = self.payload(.stone_button);
                 return .{
                     blk: {
-                        const button_depth = @as(f32, @floatFromInt(@intFromBool(stone_button.stored.powered))) / 16.0;
+                        const button_depth = (if (stone_button.stored.powered) @as(f32, 1.0) else @as(f32, 2.0)) / 16.0;
                         break :blk switch (stone_button.stored.facing) {
                             .east => .{
                                 .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
@@ -3302,7 +3302,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                             .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
                             .max = .{ .x = 1.0 / 16.0, .y = 0.625, .z = 0.6875 },
                         };
-                        const button_depth = @as(f32, @floatFromInt(@intFromBool(wooden_button.stored.powered))) / 16.0;
+                        const button_depth = (if (wooden_button.stored.powered) @as(f32, 1.0) else @as(f32, 2.0)) / 16.0;
                         break :blk switch (wooden_button.stored.facing) {
                             .east => .{
                                 .min = .{ .x = 0.0, .y = 0.375, .z = 0.3125 },
