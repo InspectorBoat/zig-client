@@ -6,6 +6,7 @@ pub const Rotation2 = @import("math/rotation.zig").Rotation2;
 pub const Rotation3 = @import("math/rotation.zig").Rotation3;
 pub const Uuid = @import("entity/Uuid.zig");
 pub const Game = @import("game.zig").Game;
+pub const World = @import("world/World.zig");
 pub const LocalPlayerEntity = @import("entity/impl/player/LocalPlayerEntity.zig");
 pub const Box = @import("math/box.zig").Box;
 pub const ConcreteBlockState = @import("block/block.zig").ConcreteBlockState;
@@ -59,7 +60,7 @@ pub fn exit(_: Events.Exit) void {
 
 pub const Events = struct {
     pub const Startup = struct {};
-    pub const ChunkUpdate = struct { chunk_pos: Vector2(i32), chunk: *Chunk };
+    pub const ChunkUpdate = struct { chunk_pos: Vector2(i32), chunk: *Chunk, world: *World };
     pub const UnloadChunk = struct { chunk_pos: Vector2(i32) };
     pub const Frame = struct { game: *Game };
     pub const Exit = struct {};

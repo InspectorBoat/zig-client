@@ -2,6 +2,8 @@
 
 flat in uint texture_id;
 in vec2 uv;
+flat in uint sky_light;
+flat in uint block_light;
 
 out vec4 color;
 

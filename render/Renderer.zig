@@ -5,7 +5,7 @@ const Vector3 = @import("root").Vector3;
 const Vector2 = @import("root").Vector2;
 const Box = @import("root").Box;
 const Chunk = @import("root").Chunk;
-const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
+const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
 const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
 const LocalPlayerEntity = @import("root").LocalPlayerEntity;
 const Game = @import("root").Game;
@@ -13,27 +13,29 @@ const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
 const Direction = @import("root").Direction;
+const ConcreteBlockState = @import("root").ConcreteBlockState;
+const World = @import("root").World;
+const SectionCompileTask = @import("terrain/SectionCompileTask.zig");
+const CompiledSection = @import("terrain/SectionCompileTask.zig").CompiledSection;
+const CompiledSectionQueue = @import("terrain/CompiledSectionQueue.zig");
 
 vao: gl.VertexArray,
 program: gl.Program,
 index_buffer: gl.Buffer,
-debug_cube_buffer: gl.Buffer,
-debug_cube_staging_buffer: GpuStagingBuffer = .{},
 sections: std.AutoHashMap(Vector3(i32), SectionRenderInfo),
 gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
+compile_thread_pool: *std.Thread.Pool,
+compiled_section_queue: CompiledSectionQueue,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     // gl.enable(.cull_face);
-
-    const program = try initProgram(.{@embedFile("triangle.glsl.vert")}, .{@embedFile("triangle.glsl.frag")});
+    const program = try initProgram(.{@embedFile("shader/triangle.glsl.vert")}, .{@embedFile("shader/triangle.glsl.frag")});
 
     const vao = try initVao();
 
     const index_buffer = try initIndexBuffer(allocator);
-
-    const debug_cube_buffer = initDebugCubeBuffer();
 
     const texture = initTexture();
 
@@ -41,14 +43,19 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const gpu_memory_allocator = try GpuMemoryAllocator.init(allocator, 1024 * 1024 * 1024 * 2 - 1);
 
+    const compile_thread_pool = try initCompileThreadPool(allocator);
+
+    const compiled_section_queue = CompiledSectionQueue.init(allocator);
+
     return .{
         .vao = vao,
         .program = program,
         .index_buffer = index_buffer,
-        .debug_cube_buffer = debug_cube_buffer,
         .sections = sections,
         .gpu_memory_allocator = gpu_memory_allocator,
         .texture = texture,
+        .compile_thread_pool = compile_thread_pool,
+        .compiled_section_queue = compiled_section_queue,
     };
 }
 
@@ -105,12 +112,6 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
     return index_buffer;
 }
 
-pub fn initDebugCubeBuffer() gl.Buffer {
-    const debug_cube_buffer = gl.Buffer.create();
-    debug_cube_buffer.storage(f32, 36 * 3 * 1024, null, .{ .dynamic_storage = true });
-    return debug_cube_buffer;
-}
-
 pub fn initTexture() gl.Texture {
     const texture = gl.Texture.create(.@"2d_array");
 
@@ -155,7 +156,18 @@ pub fn initTexture() gl.Texture {
     return texture;
 }
 
-pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) void {
+pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
+    const pool = try allocator.create(std.Thread.Pool);
+    try pool.init(.{
+        .allocator = allocator,
+        .n_jobs = 2,
+    });
+    return pool;
+}
+
+pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
+    try self.uploadCompiledChunks(@import("render.zig").gpa_impl.allocator());
+
     const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
     gl.uniformMatrix4fv(0, true, &.{mvp.data});
 
@@ -166,9 +178,6 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) void {
             entry.value_ptr.*,
         );
     }
-
-    // self.compileCrosshairTarget(ingame);
-    self.renderDebug();
 }
 
 pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: SectionRenderInfo) void {
@@ -198,56 +207,6 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: Section
     );
 }
 
-pub fn compileCrosshairTarget(self: *@This(), ingame: *const Game.IngameGame) void {
-    switch (ingame.world.player.crosshair) {
-        .miss => {},
-        .block => |block| {
-            const offset_pos = block.block_pos.dir(block.dir).intToFloat(f32);
-            self.debug_cube_staging_buffer.writeBox(
-                offset_pos,
-                offset_pos.add(.{ .x = 1, .y = 1, .z = 1 }),
-            );
-        },
-        .entity => {},
-    }
-}
-
-pub fn renderDebug(self: *@This()) void {
-    // upload debug cube buffer to gpu
-    self.debug_cube_buffer.subData(
-        0,
-        u8,
-        @ptrCast(self.debug_cube_staging_buffer.getSlice()),
-    );
-
-    // set chunk pos uniform for debug cubes (0, 0, 0)
-    self.program.uniform3f(
-        1,
-        0.0,
-        0.0,
-        0.0,
-    );
-
-    // bind debug cube buffer
-    self.debug_cube_buffer.bindBase(
-        .shader_storage_buffer,
-        0,
-    );
-
-    gl.polygonMode(.front_and_back, .line);
-    // render debug cubes
-    gl.drawElements(
-        .triangle_strip,
-        self.debug_cube_staging_buffer.write_index / @sizeOf(f32) / 3 / 4 * 5,
-        .unsigned_int,
-        0,
-    );
-
-    gl.polygonMode(.front_and_back, .fill);
-
-    self.debug_cube_staging_buffer.write_index = 0;
-}
-
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
 
@@ -268,96 +227,31 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
-pub var last_block: @import("root").ConcreteBlockState = undefined;
+pub fn dispatchSectionCompileTask(self: *@This(), section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !void {
+    try self.compile_thread_pool.spawn(
+        SectionCompileTask.compile,
+        .{
+            SectionCompileTask.create(section_pos, world),
+            &self.compiled_section_queue,
+            allocator,
+        },
+    );
+}
 
-pub fn compileChunk(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk, allocator: std.mem.Allocator) !void {
-    for (chunk.sections, 0..) |maybe_section, section_y| {
-        if (section_y < 3) continue;
-        if (maybe_section) |section| {
-            var staging = GpuStagingBuffer{};
+pub fn uploadCompiledChunks(self: *@This(), allocator: std.mem.Allocator) !void {
+    while (self.compiled_section_queue.pop()) |compiled_section| {
+        const buffer = compiled_section.buffer.items;
+        if (buffer.len == 0) continue;
 
-            // place blocks in chunk
-            for (0..16) |x| {
-                for (0..16) |y| {
-                    for (0..16) |z| {
-                        const pos = (y << 8) | (z << 4) | (x << 0);
-                        // TODO: Change this
-                        for (section.block_states[pos].getRaytraceHitbox()) |maybe_box| {
-                            if (maybe_box) |box| {
-                                const pos_vec: Vector3(f64) = .{
-                                    .x = @floatFromInt(x),
-                                    .y = @floatFromInt(y),
-                                    .z = @floatFromInt(z),
-                                };
-                                last_block = section.block_states[pos];
-
-                                if (!box.equals(Box(f64).cube())) {
-                                    staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(section.block_states[pos].block));
-                                    continue;
-                                }
-
-                                var unculled_faces = std.EnumSet(Direction).initFull();
-                                if (x != 0) {
-                                    if (section.block_states[(y << 8) | (z << 4) | ((x - 1) << 0)].getRaytraceHitbox()[0]) |other_box| {
-                                        if (other_box.equals(Box(f64).cube())) {
-                                            unculled_faces.remove(.West);
-                                        }
-                                    }
-                                }
-                                if (x != 15) {
-                                    if (section.block_states[(y << 8) | (z << 4) | ((x + 1) << 0)].getRaytraceHitbox()[0]) |other_box| {
-                                        if (other_box.equals(Box(f64).cube())) {
-                                            unculled_faces.remove(.East);
-                                        }
-                                    }
-                                }
-                                if (y != 0) {
-                                    if (section.block_states[((y - 1) << 8) | (z << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
-                                        if (other_box.equals(Box(f64).cube())) {
-                                            unculled_faces.remove(.Down);
-                                        }
-                                    }
-                                }
-                                if (y != 15) {
-                                    if (section.block_states[((y + 1) << 8) | (z << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
-                                        if (other_box.equals(Box(f64).cube())) {
-                                            unculled_faces.remove(.Up);
-                                        }
-                                    }
-                                }
-                                if (z != 0) {
-                                    if (section.block_states[(y << 8) | ((z - 1) << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
-                                        if (other_box.equals(Box(f64).cube())) {
-                                            unculled_faces.remove(.North);
-                                        }
-                                    }
-                                }
-                                if (z != 15) {
-                                    if (section.block_states[(y << 8) | ((z + 1) << 4) | (x << 0)].getRaytraceHitbox()[0]) |other_box| {
-                                        if (other_box.equals(Box(f64).cube())) {
-                                            unculled_faces.remove(.South);
-                                        }
-                                    }
-                                }
-
-                                staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(section.block_states[pos].block), unculled_faces);
-                            }
-                        }
-                    }
-                }
-            }
-            if (staging.write_index == 0) continue;
-
-            const segment = try self.gpu_memory_allocator.alloc(staging.write_index, allocator);
-            self.gpu_memory_allocator.subData(segment, staging.getSlice());
-            try self.sections.put(
-                .{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z },
-                .{
-                    .segment = segment,
-                    .quads = staging.write_index / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
-                },
-            );
-        }
+        const segment = try self.gpu_memory_allocator.alloc(buffer.len, allocator);
+        self.gpu_memory_allocator.subData(segment, buffer);
+        try self.sections.put(
+            compiled_section.section_pos,
+            .{
+                .segment = segment,
+                .quads = buffer.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
+            },
+        );
     }
 }
 

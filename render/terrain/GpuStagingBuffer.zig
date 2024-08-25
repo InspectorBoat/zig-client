@@ -3,8 +3,7 @@ const Vector3 = @import("root").Vector3;
 const Vector2 = @import("root").Vector2;
 const Direction = @import("root").Direction;
 
-buffer: [1024 * 1024 * 2]u8 = undefined,
-write_index: usize = 0,
+backer: std.ArrayList(u8),
 
 pub const GpuVertex = packed struct(u64) {
     x: u16,
@@ -25,9 +24,6 @@ pub const GpuQuad = packed struct(u128) {
     _: u16 = 0,
 };
 
-var rand_impl = std.Random.DefaultPrng.init(155215);
-const rand = rand_impl.random();
-
 pub fn writeQuad(
     self: *@This(),
     facing: Direction,
@@ -36,7 +32,7 @@ pub fn writeQuad(
     texture: u16,
     // sky_light: u8,
     // block_light: u8,
-) void {
+) !void {
     const quad: GpuQuad = .{
         .pos = .{
             .x = @intFromFloat(@round(min.x * 4095.9375)),
@@ -52,22 +48,16 @@ pub fn writeQuad(
         .sky_light = 0,
         .block_light = 0,
     };
-
-    const consumed_bytes = @bitSizeOf(GpuQuad) / 8;
-    @memcpy(
-        self.buffer[self.write_index..][0..consumed_bytes],
-        @as([*]const u8, @ptrCast(&quad)),
-    );
-    self.write_index += consumed_bytes;
+    try self.backer.appendSlice(std.mem.asBytes(&quad));
 }
 
-pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u8) void {
-    self.writeBoxFaces(min, max, texture, std.EnumSet(Direction).initFull());
+pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u8) !void {
+    try self.writeBoxFaces(min, max, texture, std.EnumSet(Direction).initFull());
 }
 
-pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u8, faces: std.EnumSet(Direction)) void {
+pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u8, faces: std.EnumSet(Direction)) !void {
     if (faces.contains(.Down)) {
-        self.writeQuad(
+        try self.writeQuad(
             .Down,
             .{
                 .x = min.x,
@@ -82,7 +72,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), textu
         );
     }
     if (faces.contains(.Up)) {
-        self.writeQuad(
+        try self.writeQuad(
             .Up,
             .{
                 .x = min.x,
@@ -97,7 +87,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), textu
         );
     }
     if (faces.contains(.North)) {
-        self.writeQuad(
+        try self.writeQuad(
             .North,
             .{
                 .x = min.x,
@@ -112,7 +102,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), textu
         );
     }
     if (faces.contains(.South)) {
-        self.writeQuad(
+        try self.writeQuad(
             .South,
             .{
                 .x = min.x,
@@ -127,7 +117,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), textu
         );
     }
     if (faces.contains(.West)) {
-        self.writeQuad(
+        try self.writeQuad(
             .West,
             .{
                 .x = min.x,
@@ -142,7 +132,7 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), textu
         );
     }
     if (faces.contains(.East)) {
-        self.writeQuad(
+        try self.writeQuad(
             .East,
             .{
                 .x = max.x,
@@ -156,8 +146,4 @@ pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), textu
             texture,
         );
     }
-}
-
-pub fn getSlice(self: *const @This()) []const u8 {
-    return self.buffer[0..self.write_index];
 }

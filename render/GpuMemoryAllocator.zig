@@ -26,7 +26,6 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
 
     var shader_storage_buffer_alignment: c_int = 0;
     gl.binding.getIntegerv(gl.binding.SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &shader_storage_buffer_alignment);
-    std.debug.print("{}\n", .{shader_storage_buffer_alignment});
 
     return .{
         .free_segments = std.SinglyLinkedList(Segment){ .first = first_node },

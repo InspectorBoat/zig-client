@@ -18,6 +18,13 @@ pub fn Box(comptime Element: type) type {
             };
         }
 
+        pub fn none() @This() {
+            return .{
+                .min = .{ .x = 0, .y = 0, .z = 0 },
+                .max = .{ .x = 0, .y = 0, .z = 0 },
+            };
+        }
+
         pub fn move(self: @This(), delta: Vector3(Element)) @This() {
             return @This(){
                 .min = self.min.add(delta),

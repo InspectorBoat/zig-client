@@ -219,7 +219,7 @@ pub fn receiveChunk(
         // });
     }
     @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
-    try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk });
+    try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
 
 pub fn updateChunk(self: *@This(), chunk: *Chunk) void {

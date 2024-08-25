@@ -9,7 +9,7 @@ const LocalPlayerEntity = @import("root").LocalPlayerEntity;
 const EventHandler = @import("root").EventHandler;
 const Events = @import("root").Events;
 
-pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
+pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 
@@ -62,7 +62,7 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (game.*) {
         .Ingame => |*ingame| {
             handleInputIngame(ingame);
-            renderer.renderFrame(ingame);
+            try renderer.renderFrame(ingame);
         },
         .Connecting => |*connecting_game| handleInputConnecting(connecting_game),
         .Idle => |*idle_game| handleInputIdle(idle_game),
@@ -71,7 +71,15 @@ pub fn onFrame(frame: Events.Frame) !void {
 }
 
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
-    try renderer.compileChunk(chunk_update.chunk_pos, chunk_update.chunk, gpa_impl.allocator());
+    for (chunk_update.chunk.sections, 0..) |maybe_section, y| {
+        if (maybe_section) |_| {
+            try renderer.dispatchSectionCompileTask(.{
+                .x = chunk_update.chunk_pos.x,
+                .y = @intCast(y),
+                .z = chunk_update.chunk_pos.z,
+            }, chunk_update.world, gpa_impl.allocator());
+        }
+    }
 }
 
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {

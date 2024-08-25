@@ -45,8 +45,6 @@ pub const HitResult = union(HitType) {
             .z = floor(to.z),
         };
 
-        @import("render").renderer.debug_cube_staging_buffer.write_index = 0;
-
         for (0..10) |_| {
             if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
