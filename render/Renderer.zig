@@ -249,7 +249,7 @@ pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !v
 
     while (self.compilation_result_queue.pop()) |compilation_result| {
         switch (compilation_result.result) {
-            .Complete => |compiled_section| {
+            .Success => |compiled_section| {
                 defer compiled_section.buffer.deinit();
 
                 const mesh_data = compiled_section.buffer.items;

@@ -7,16 +7,17 @@ const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 const CompilationResultQueue = @import("CompilationResultQueue.zig");
 const Box = @import("root").Box;
 const Direction = @import("root").Direction;
+const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 section_pos: Vector3(i32),
 block_states: [18 * 18 * 18]ConcreteBlockState,
-block_light: std.PackedIntArray(u4, 18 * 18 * 18),
-sky_light: std.PackedIntArray(u4, 18 * 18 * 18),
+block_light: PackedNibbleArray(18 * 18 * 18),
+sky_light: PackedNibbleArray(18 * 18 * 18),
 
 pub const CompilationResult = struct {
     section_pos: Vector3(i32),
     result: union(enum) {
-        Complete: CompiledSection,
+        Success: CompiledSection,
         Error: error{OutOfMemory},
     },
 
@@ -49,7 +50,7 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
     result_queue.add(.{
         .section_pos = task.section_pos,
         .result = if (compile(task, allocator)) |compiled_section|
-            .{ .Complete = compiled_section }
+            .{ .Success = compiled_section }
         else |e|
             .{ .Error = e },
     }) catch std.debug.panic("TODO!", .{});
