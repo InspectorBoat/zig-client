@@ -18,6 +18,7 @@ pub const event_listeners = .{
     onFrame,
     onChunkUpdate,
     onUnloadChunk,
+    onBlockUpdate,
     onFrame,
 };
 
@@ -72,20 +73,11 @@ pub fn onFrame(frame: Events.Frame) !void {
 }
 
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
-    for (chunk_update.chunk.sections, 0..) |maybe_section, y| {
-        if (maybe_section) |_| {
-            try renderer.dispatchCompilationTask(.{
-                .x = chunk_update.chunk_pos.x,
-                .y = @intCast(y),
-                .z = chunk_update.chunk_pos.z,
-            }, chunk_update.world, gpa_impl.allocator());
-        }
-    }
+    try renderer.onChunkUpdate(chunk_update.chunk_pos, chunk_update.chunk, chunk_update.world, gpa_impl.allocator());
 }
 
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
-    const chunk_pos = unload_chunk.chunk_pos;
-    try renderer.unloadChunk(chunk_pos, gpa_impl.allocator());
+    try renderer.onUnloadChunk(unload_chunk.chunk_pos, gpa_impl.allocator());
 }
 
 pub fn onExit(_: Events.Exit) !void {

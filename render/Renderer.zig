@@ -227,6 +227,18 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
+pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector3(i32), chunk: *const Chunk, world: *World, allocator: std.mem.Allocator) !void {
+    for (chunk.sections, 0..) |maybe_section, y| {
+        if (maybe_section) |_| {
+            try self.dispatchCompilationTask(
+                .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
+                world,
+                allocator,
+            );
+        }
+    }
+}
+
 pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !void {
     try self.compile_thread_pool.spawn(
         CompilationTask.runTask,
@@ -271,7 +283,7 @@ pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !v
     }
 }
 
-pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
+pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
     for (0..16) |section_y| {
         const entry = self.sections.fetchRemove(.{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z }) orelse continue;
         try self.gpu_memory_allocator.free(entry.value.segment, allocator);
