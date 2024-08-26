@@ -2,7 +2,7 @@ const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
 const Vector3 = @import("root").Vector3;
-const Vector2 = @import("root").Vector2;
+const Vector2xz = @import("root").Vector2xz;
 const Box = @import("root").Box;
 const Chunk = @import("root").Chunk;
 const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
@@ -27,6 +27,11 @@ gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
 compile_thread_pool: *std.Thread.Pool,
 compilation_result_queue: CompilationResultQueue,
+allocator: std.mem.Allocator,
+// chunks that cannot yet be meshed because neighboring chunks are absent
+waiting_chunks: std.AutoHashMap(Vector3(i32), WaitingChunk),
+
+pub const WaitingChunk = struct { north_present: bool, south_present: bool, west_present: bool, east_present: bool };
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -47,6 +52,8 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const compilation_result_queue = CompilationResultQueue.init(allocator);
 
+    const waiting_chunks = std.AutoHashMap(Vector3(i32), WaitingChunk).init(allocator);
+
     return .{
         .vao = vao,
         .program = program,
@@ -56,6 +63,8 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .texture = texture,
         .compile_thread_pool = compile_thread_pool,
         .compilation_result_queue = compilation_result_queue,
+        .allocator = allocator,
+        .waiting_chunks = waiting_chunks,
     };
 }
 
@@ -115,7 +124,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 pub fn initTexture() gl.Texture {
     const texture = gl.Texture.create(.@"2d_array");
 
-    const texture_size = 4;
+    const texture_size = 1;
     const color_channels = 4;
     const texture_count = 256;
 
@@ -216,7 +225,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
         -eye_pos.z,
     ).cast(f32);
 
-    const projection = za.perspective(90.0, @as(f32, @floatFromInt(@import("render.zig").window_input.window_size.x)) / @as(f32, @floatFromInt(@import("render.zig").window_input.window_size.z)), 0.05, 1000.0);
+    const projection = za.perspective(90.0, @as(f32, @floatFromInt(@import("render.zig").window_input.window_size.x)) / @as(f32, @floatFromInt(@import("render.zig").window_input.window_size.y)), 0.05, 1000.0);
     const view = Mat4.mul(
         Mat4.fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
         Mat4.fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
@@ -227,7 +236,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
-pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk, world: *const World, allocator: std.mem.Allocator) !void {
+pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32), chunk: *const Chunk, world: *const World, allocator: std.mem.Allocator) !void {
     for (chunk.sections, 0..) |maybe_section, y| {
         if (maybe_section) |_| {
             try self.dispatchCompilationTask(
@@ -291,7 +300,7 @@ pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !v
     }
 }
 
-pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
+pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), allocator: std.mem.Allocator) !void {
     for (0..16) |section_y| {
         const entry = self.sections.fetchRemove(.{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z }) orelse continue;
         try self.gpu_memory_allocator.free(entry.value.segment, allocator);

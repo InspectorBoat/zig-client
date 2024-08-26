@@ -138,9 +138,9 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) void {
     var player = &ingame.world.player;
 
     player.base.rotation.yaw -= @floatCast(window_input.mouse_delta.x / 5);
-    player.base.rotation.pitch -= @floatCast(window_input.mouse_delta.z / 5);
+    player.base.rotation.pitch -= @floatCast(window_input.mouse_delta.y / 5);
 
-    window_input.mouse_delta = .{ .x = 0, .z = 0 };
+    window_input.mouse_delta = .{ .x = 0, .y = 0 };
     player.base.rotation.pitch = std.math.clamp(player.base.rotation.pitch, -90, 90);
     player.input = .{
         .jump = window_input.keys.get(.space),

@@ -1,4 +1,5 @@
-pub const Vector2 = @import("math/vector.zig").Vector2;
+pub const Vector2xz = @import("math/vector.zig").Vector2xz;
+pub const Vector2xy = @import("math/vector.zig").Vector2xy;
 pub const Vector3 = @import("math/vector.zig").Vector3;
 pub const Chunk = @import("world/Chunk.zig");
 pub const Direction = @import("math/direction.zig").Direction;
@@ -62,9 +63,9 @@ pub fn exit(_: Events.Exit) void {
 
 pub const Events = struct {
     pub const Startup = struct {};
-    pub const ChunkUpdate = struct { chunk_pos: Vector2(i32), chunk: *Chunk, world: *World };
+    pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *Chunk, world: *World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *World };
-    pub const UnloadChunk = struct { chunk_pos: Vector2(i32) };
+    pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
     pub const Frame = struct { game: *Game };
     pub const Exit = struct {};
 };

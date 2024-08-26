@@ -1,10 +1,10 @@
 const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Vector2 = @import("../../../../math/vector.zig").Vector2;
+const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
 const WorldChunkS2CPacket = @import("../../../../network/packet/s2c/play/WorldChunkS2CPacket.zig");
 
-chunk_positions: []const Vector2(i32),
+chunk_positions: []const Vector2xz(i32),
 chunk_datas: []ChunkData,
 has_light: bool,
 
@@ -14,12 +14,12 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
     const has_sky_light = try buffer.read(bool);
     const chunk_count: usize = @intCast(try buffer.readVarInt());
     std.debug.assert(chunk_count >= 0);
-    const chunk_positions = try allocator.alloc(Vector2(i32), chunk_count);
+    const chunk_positions = try allocator.alloc(Vector2xz(i32), chunk_count);
     const chunk_datas = try allocator.alloc(ChunkData, chunk_count);
 
     // add chunk position and allocate chunk data slice
     for (chunk_positions, chunk_datas) |*chunk_pos, *chunk_data| {
-        chunk_pos.* = Vector2(i32){
+        chunk_pos.* = .{
             .x = try buffer.read(i32),
             .z = try buffer.read(i32),
         };

@@ -1,11 +1,11 @@
 const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Vector2 = @import("../../../../math/vector.zig").Vector2;
+const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
 
 type: Type,
 max_size: i32,
-center_pos: Vector2(i32),
+center_pos: Vector2xz(i32),
 size_lerp_target: f64,
 lerp_size: f64,
 lerp_time: i64,

@@ -1,5 +1,5 @@
 const std = @import("std");
-const Vector2 = @import("../math/vector.zig").Vector2;
+const Vector2xz = @import("../math/vector.zig").Vector2xz;
 const Vector3 = @import("../math/vector.zig").Vector3;
 const Chunk = @import("../world/Chunk.zig");
 const Section = @import("Section.zig");
@@ -62,7 +62,7 @@ pub fn tick(self: *@This(), game: *Game.IngameGame, allocator: std.mem.Allocator
     self.last_tick = now;
 }
 
-pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
+pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {
     @import("log").load_new_chunk(.{chunk_pos});
 
     const chunk: Chunk = .{
@@ -76,7 +76,7 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2(i32)) !*Chunk {
     return self.chunks.getPtr(chunk_pos).?;
 }
 
-pub fn unloadChunk(self: *@This(), chunk_pos: Vector2(i32), allocator: std.mem.Allocator) !void {
+pub fn unloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), allocator: std.mem.Allocator) !void {
     @import("log").unload_chunk(.{chunk_pos});
 
     (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
@@ -135,7 +135,7 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
 
 pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState) !void {
     const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
-        @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
+        @import("log").set_block_in_missing_chunk(.{.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
         return;
     };
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return; // TODO
@@ -177,7 +177,7 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
 
 pub fn receiveChunk(
     self: *@This(),
-    chunk_pos: Vector2(i32),
+    chunk_pos: Vector2xz(i32),
     chunk_data: *WorldChunkS2CPacket.ChunkData,
     full: bool,
     has_sky_light: bool,

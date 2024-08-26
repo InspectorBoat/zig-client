@@ -2,18 +2,18 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 
-const Vector2 = @import("../../../../math/vector.zig").Vector2;
+const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
 const Vector3 = @import("../../../../math/vector.zig").Vector3;
 const RawBlockState = @import("../../../../block/block.zig").RawBlockState;
 const FilteredBlockState = @import("../../../../block/block.zig").FilteredBlockState;
 
-chunk_pos: Vector2(i32),
+chunk_pos: Vector2xz(i32),
 updates: []const BlockUpdate,
 
 comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
-    const chunk_pos = Vector2(i32){ .x = try buffer.read(i32), .z = try buffer.read(i32) };
+    const chunk_pos: Vector2xz(i32) = .{ .x = try buffer.read(i32), .z = try buffer.read(i32) };
     const updates = try allocator.alloc(BlockUpdate, @intCast(try buffer.readVarInt()));
     errdefer allocator.free(updates);
 

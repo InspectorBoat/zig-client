@@ -2,13 +2,13 @@ const std = @import("std");
 const Game = @import("../../../../game.zig").Game;
 const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 const MapDecoration = @import("../../../../world/MapDecoration.zig");
-const Vector2 = @import("../../../../math/vector.zig").Vector2;
+const Vector2xy = @import("../../../../math/vector.zig").Vector2xy;
 
 map_id: i32,
 scale: i8,
 decorations: []const MapDecoration,
-dirty_min_pos: Vector2(i32),
-dirty_size: Vector2(i32),
+dirty_min_pos: Vector2xy(i32),
+dirty_size: Vector2xy(i32),
 colors: []const u8,
 
 comptime handle_on_network_thread: bool = false,

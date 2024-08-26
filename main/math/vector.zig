@@ -1,7 +1,117 @@
 const std = @import("std");
 const Direction = @import("direction.zig").Direction;
 
-pub fn Vector2(comptime Element: type) type {
+pub fn Vector2xy(comptime Element: type) type {
+    return struct {
+        x: Element,
+        y: Element,
+
+        pub fn origin() @This() {
+            return @This(){
+                .x = 0,
+                .y = 0,
+            };
+        }
+
+        pub fn add(self: @This(), other: @This()) @This() {
+            return @This(){
+                .x = self.x + other.x,
+                .y = self.y + other.y,
+            };
+        }
+
+        pub fn sub(self: @This(), other: @This()) @This() {
+            return @This(){
+                .x = self.x - other.x,
+                .y = self.y - other.y,
+            };
+        }
+        pub fn scaleUniform(self: @This(), factor: Element) @This() {
+            return @This(){
+                .x = self.x * factor,
+                .y = self.y * factor,
+            };
+        }
+
+        pub fn negate(self: @This()) @This() {
+            return @This(){
+                .x = -self.x,
+                .y = -self.y,
+            };
+        }
+
+        pub fn magnitude_squared(self: @This()) Element {
+            return self.x * self.x + self.y * self.y;
+        }
+
+        pub fn magnitude(self: @This()) Element {
+            return @sqrt(self.x * self.x + self.y * self.y);
+        }
+
+        pub fn distance_squared(self: @This(), other: @This()) Element {
+            const delta = other.sub(self);
+            return delta.x * delta.x + delta.y * delta.y;
+        }
+
+        pub fn equals(self: @This(), other: @This()) bool {
+            return self.x == other.x and self.y == other.y;
+        }
+
+        pub fn floatCast(self: @This(), comptime Target: type) Vector2xy(Target) {
+            if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
+            if (@typeInfo(Element) != .Float) @compileLog("Must floatCast from float!");
+            return .{
+                .x = @floatCast(self.x),
+                .z = @floatCast(self.y),
+            };
+        }
+
+        pub fn intCast(self: @This(), comptime Target: type) Vector2xy(Target) {
+            if (@typeInfo(Target) != .Int) @compileLog("Must intCast to int!");
+            if (@typeInfo(Element) != .Int) @compileLog("Must intCast from int!");
+            return .{
+                .x = @intCast(self.x),
+                .z = @intCast(self.y),
+            };
+        }
+
+        pub fn floatToInt(self: @This(), comptime Target: type) Vector2xy(Target) {
+            if (@typeInfo(Target) != .Float) @compileLog("Start type must be float!");
+            if (@typeInfo(Element) != .Int) @compileLog("Target type from int!");
+            return .{
+                .x = @intFromFloat(self.x),
+                .z = @intFromFloat(self.y),
+            };
+        }
+
+        pub fn intToFloat(self: @This(), comptime Target: type) Vector2xy(Target) {
+            if (@typeInfo(Target) != .Int) @compileLog("Start type must be int!");
+            if (@typeInfo(Element) != .Float) @compileLog("Target type from float!");
+            return .{
+                .x = @floatFromInt(self.x),
+                .z = @floatFromInt(self.y),
+            };
+        }
+
+        pub fn bitCast(self: @This(), comptime Target: type) Vector2xy(Target) {
+            return .{
+                .x = @bitCast(self.x),
+                .z = @bitCast(self.y),
+            };
+        }
+
+        pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+            _ = fmt;
+            _ = options;
+            try writer.print("{{ x: {d} z: {d} }}", .{
+                self.x,
+                self.y,
+            });
+        }
+    };
+}
+
+pub fn Vector2xz(comptime Element: type) type {
     return struct {
         x: Element,
         z: Element,
@@ -57,7 +167,7 @@ pub fn Vector2(comptime Element: type) type {
             return self.x == other.x and self.z == other.z;
         }
 
-        pub fn floatCast(self: @This(), comptime Target: type) Vector2(Target) {
+        pub fn floatCast(self: @This(), comptime Target: type) Vector2xz(Target) {
             if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
             if (@typeInfo(Element) != .Float) @compileLog("Must floatCast from float!");
             return .{
@@ -66,7 +176,7 @@ pub fn Vector2(comptime Element: type) type {
             };
         }
 
-        pub fn intCast(self: @This(), comptime Target: type) Vector2(Target) {
+        pub fn intCast(self: @This(), comptime Target: type) Vector2xz(Target) {
             if (@typeInfo(Target) != .Int) @compileLog("Must intCast to int!");
             if (@typeInfo(Element) != .Int) @compileLog("Must intCast from int!");
             return .{
@@ -75,7 +185,7 @@ pub fn Vector2(comptime Element: type) type {
             };
         }
 
-        pub fn floatToInt(self: @This(), comptime Target: type) Vector2(Target) {
+        pub fn floatToInt(self: @This(), comptime Target: type) Vector2xz(Target) {
             if (@typeInfo(Target) != .Float) @compileLog("Start type must be float!");
             if (@typeInfo(Element) != .Int) @compileLog("Target type from int!");
             return .{
@@ -84,7 +194,7 @@ pub fn Vector2(comptime Element: type) type {
             };
         }
 
-        pub fn intToFloat(self: @This(), comptime Target: type) Vector2(Target) {
+        pub fn intToFloat(self: @This(), comptime Target: type) Vector2xz(Target) {
             if (@typeInfo(Target) != .Int) @compileLog("Start type must be int!");
             if (@typeInfo(Element) != .Float) @compileLog("Target type from float!");
             return .{
@@ -93,7 +203,7 @@ pub fn Vector2(comptime Element: type) type {
             };
         }
 
-        pub fn bitCast(self: @This(), comptime Target: type) Vector2(Target) {
+        pub fn bitCast(self: @This(), comptime Target: type) Vector2xz(Target) {
             return .{
                 .x = @bitCast(self.x),
                 .z = @bitCast(self.z),

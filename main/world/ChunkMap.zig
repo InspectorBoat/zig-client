@@ -1,41 +1,41 @@
 const std = @import("std");
-const Vector2 = @import("../math/vector.zig").Vector2;
+const Vector2xz = @import("../math/vector.zig").Vector2xz;
 const Chunk = @import("Chunk.zig");
 
 metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = std.bit_set.ArrayBitSet(usize, 32 * 32).initEmpty(),
 items: [32 * 32]Chunk = undefined,
 
-pub inline fn toIndex(pos: Vector2(i32)) usize {
+pub inline fn toIndex(pos: Vector2xz(i32)) usize {
     const pos_cast = pos.bitCast(u32);
     return @intCast(((pos_cast.x & 31) << 5) | ((pos_cast.z & 31) << 0));
 }
 
-pub inline fn contains(self: *const @This(), pos: Vector2(i32)) bool {
+pub inline fn contains(self: *const @This(), pos: Vector2xz(i32)) bool {
     return self.metadata.isSet(toIndex(pos));
 }
 
-pub inline fn get(self: *const @This(), pos: Vector2(i32)) ?*const Chunk {
+pub inline fn get(self: *const @This(), pos: Vector2xz(i32)) ?*const Chunk {
     if (!self.contains(pos)) return null;
     return &self.items[toIndex(pos)];
 }
 
-pub inline fn getPtr(self: *@This(), pos: Vector2(i32)) ?*Chunk {
+pub inline fn getPtr(self: *@This(), pos: Vector2xz(i32)) ?*Chunk {
     if (!self.contains(pos)) return null;
     return &self.items[toIndex(pos)];
 }
 
-pub inline fn put(self: *@This(), pos: Vector2(i32), chunk: Chunk) !void {
+pub inline fn put(self: *@This(), pos: Vector2xz(i32), chunk: Chunk) !void {
     if (self.contains(pos)) return error.ChunkAlreadyPresent;
     self.metadata.set(toIndex(pos));
     self.items[toIndex(pos)] = chunk;
 }
 
-pub inline fn remove(self: *@This(), pos: Vector2(i32)) !void {
+pub inline fn remove(self: *@This(), pos: Vector2xz(i32)) !void {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
 }
 
-pub inline fn fetchRemove(self: *@This(), pos: Vector2(i32)) !*Chunk {
+pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*Chunk {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
     return &self.items[toIndex(pos)];
@@ -87,7 +87,7 @@ test "performance" {
         break :blk seed;
     });
     const rand = rand_impl.random();
-    const HashMap = std.AutoHashMap(Vector2(i32), Chunk);
+    const HashMap = std.AutoHashMap(Vector2xz(i32), Chunk);
     var hash_map_world: DummyWorld(HashMap) = .{ .chunks = HashMap.init(gpa) };
     for (0..8) |x| for (0..8) |z| {
         try hash_map_world.makeChunk(.{ .x = @intCast(x), .z = @intCast(z) }, rand, gpa);
@@ -148,7 +148,7 @@ pub fn DummyWorld(comptime MapType: type) type {
                 }
             }
         }
-        pub fn makeChunk(self: *@This(), chunk_pos: Vector2(i32), rand: std.Random, allocator: std.mem.Allocator) !void {
+        pub fn makeChunk(self: *@This(), chunk_pos: Vector2xz(i32), rand: std.Random, allocator: std.mem.Allocator) !void {
             var chunk: Chunk = .{
                 .biomes = undefined,
                 .chunk_pos = chunk_pos,

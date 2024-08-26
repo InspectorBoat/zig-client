@@ -5,7 +5,7 @@ const LivingEntityBase = @import("../living/LivingEntityBase.zig");
 const PlayerEntityBase = @import("PlayerEntityBase.zig");
 const ItemStack = @import("../../../item/ItemStack.zig");
 const Game = @import("../../../game.zig").Game;
-const Vector2 = @import("../../../math/vector.zig").Vector2;
+const Vector2xz = @import("../../../math/vector.zig").Vector2xz;
 const Vector3 = @import("../../../math/vector.zig").Vector3;
 const World = @import("../../../world/World.zig");
 const Rotation2 = @import("../../../math/rotation.zig").Rotation2;
@@ -19,7 +19,7 @@ inventory: PlayerInventory = .{},
 abilities: PlayerAbilities = .{},
 
 input: struct {
-    steer: Vector2(f32) = .{ .x = 0, .z = 0 },
+    steer: Vector2xz(f32) = .{ .x = 0, .z = 0 },
     jump: bool = false,
     sneak: bool = false,
     sprint: bool = false,
@@ -289,7 +289,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameGame) !void {
     }
 }
 
-pub fn moveWithSteer(self: *@This(), steer: Vector2(f32), game: *const Game.IngameGame) !void {
+pub fn moveWithSteer(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) !void {
     if (self.inWater() and !self.abilities.is_flying) {
         self.moveWithSteerInWater(steer, game);
     } else if (self.inLava() and !self.abilities.is_flying) {
@@ -299,17 +299,17 @@ pub fn moveWithSteer(self: *@This(), steer: Vector2(f32), game: *const Game.Inga
     }
 }
 
-pub fn moveWithSteerInWater(self: *@This(), steer: Vector2(f32), game: *const Game.IngameGame) void {
+pub fn moveWithSteerInWater(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) void {
     _ = self;
     _ = steer;
     _ = game;
 }
-pub fn moveWithSteerInLava(self: *@This(), steer: Vector2(f32), game: *const Game.IngameGame) void {
+pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) void {
     _ = self;
     _ = steer;
     _ = game;
 }
-pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2(f32), game: *const Game.IngameGame) !void {
+pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) !void {
     const friction = self.getFrictionNonLiquid(game);
     const traction = try self.getTractionNonLiquid(friction);
     const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
@@ -371,7 +371,7 @@ pub fn getTractionNonLiquid(self: *const @This(), friction: f32) !f32 {
     }
 }
 
-pub fn getAccelerationFromSteer(steer: Vector2(f32), traction: f32, yaw: f32) Vector2(f32) {
+pub fn getAccelerationFromSteer(steer: Vector2xz(f32), traction: f32, yaw: f32) Vector2xz(f32) {
     if (steer.magnitude_squared() < 0.0001) return .{ .x = 0, .z = 0 };
 
     const yaw_radians = yaw * (@as(f32, @floatCast(std.math.pi)) / 180.0);

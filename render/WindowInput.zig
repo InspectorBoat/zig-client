@@ -1,15 +1,15 @@
 const std = @import("std");
-const Vector2 = @import("root").Vector2;
+const Vector2xy = @import("root").Vector2xy;
 const glfw = @import("mach-glfw");
 
 window: glfw.Window,
 
 events: std.fifo.LinearFifo(Event, .Dynamic),
 keys: std.EnumArray(glfw.Key, bool) = std.EnumArray(glfw.Key, bool).initFill(false),
-mouse_delta: Vector2(f64) = .{ .x = 0, .z = 0 },
-mouse_pos: ?Vector2(f64) = null,
+mouse_delta: Vector2xy(f64) = .{ .x = 0, .y = 0 },
+mouse_pos: ?Vector2xy(f64) = null,
 maximized: bool = false,
-window_size: Vector2(i32) = .{ .x = 640, .z = 640 },
+window_size: Vector2xy(i32) = .{ .x = 640, .y = 640 },
 
 pub const Event = union(enum) {
     Pos: struct { xpos: i32, ypos: i32 },
@@ -77,7 +77,7 @@ pub fn sizeCallback(window: glfw.Window, width: i32, height: i32) void {
         .height = height,
         .width = width,
     } }) catch unreachable;
-    window_input.window_size = .{ .x = width, .z = height };
+    window_input.window_size = .{ .x = width, .y = height };
 }
 pub fn closeCallback(window: glfw.Window) void {
     var window_input = window.getUserPointer(@This()) orelse {
@@ -176,7 +176,7 @@ pub fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
     window_input.events.writeItem(.{
         .CursorPos = .{ .xpos = xpos, .ypos = ypos },
     }) catch unreachable;
-    const new_pos = .{ .x = xpos, .z = ypos };
+    const new_pos = .{ .x = xpos, .y = ypos };
     if (window_input.mouse_pos) |prev_mouse_pos| {
         window_input.mouse_delta = window_input.mouse_delta.add(prev_mouse_pos.sub(new_pos));
     }
