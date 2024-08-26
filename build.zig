@@ -37,6 +37,7 @@ pub fn build(b: *std.Build) void {
         render.addImport("zgl", zgl);
         render.addImport("mach-glfw", mach_glfw);
         render.addImport("zalgebra", zalgebra);
+        render.addImport("util", util);
 
         util.addImport("log", logging);
 
@@ -94,6 +95,7 @@ pub fn build(b: *std.Build) void {
         render.addImport("zgl", zgl);
         render.addImport("mach-glfw", mach_glfw);
         render.addImport("zalgebra", zalgebra);
+        render.addImport("util", util);
 
         util.addImport("log", logging);
 
