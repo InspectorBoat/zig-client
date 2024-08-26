@@ -4,7 +4,7 @@ const World = @import("root").World;
 const ConcreteBlockState = @import("root").ConcreteBlockState;
 const ConcreteBlock = @import("root").ConcreteBlock;
 const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
-const CompiledSectionQueue = @import("CompiledSectionQueue.zig");
+const CompilationResultQueue = @import("CompilationResultQueue.zig");
 const Box = @import("root").Box;
 const Direction = @import("root").Direction;
 
@@ -12,6 +12,19 @@ section_pos: Vector3(i32),
 block_states: [18 * 18 * 18]ConcreteBlockState,
 block_light: std.PackedIntArray(u4, 18 * 18 * 18),
 sky_light: std.PackedIntArray(u4, 18 * 18 * 18),
+
+pub const CompilationResult = struct {
+    section_pos: Vector3(i32),
+    result: union(enum) {
+        Complete: CompiledSection,
+        Error: error{OutOfMemory},
+    },
+
+    pub const CompiledSection = struct {
+        quads: usize,
+        buffer: std.ArrayList(u8),
+    };
+};
 
 pub fn create(section_pos: Vector3(i32), world: *World) @This() {
     var compile_task: @This() = .{
@@ -35,7 +48,17 @@ pub fn create(section_pos: Vector3(i32), world: *World) @This() {
     return compile_task;
 }
 
-pub fn compile(task: @This(), compiled_section_queue: *CompiledSectionQueue, allocator: std.mem.Allocator) void {
+pub fn runTask(task: @This(), result_queue: *CompilationResultQueue, allocator: std.mem.Allocator) void {
+    result_queue.add(.{
+        .section_pos = task.section_pos,
+        .result = if (compile(task, allocator)) |compiled_section|
+            .{ .Complete = compiled_section }
+        else |e|
+            .{ .Error = e },
+    }) catch std.debug.panic("TODO!", .{});
+}
+
+pub fn compile(task: @This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
     var staging: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).initCapacity(allocator, 4096) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e}) };
     // place blocks in chunk
     for (1..17) |x| {
@@ -52,7 +75,7 @@ pub fn compile(task: @This(), compiled_section_queue: *CompiledSectionQueue, all
                         };
 
                         if (!box.equals(Box(f64).cube())) {
-                            staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block)) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e});
+                            try staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block));
                             continue;
                         }
 
@@ -77,20 +100,15 @@ pub fn compile(task: @This(), compiled_section_queue: *CompiledSectionQueue, all
                             unculled_faces.remove(.South);
                         }
 
-                        staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block), unculled_faces) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e});
+                        try staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block), unculled_faces);
                     }
                 }
             }
         }
     }
 
-    compiled_section_queue.add(.{
-        .section_pos = task.section_pos,
+    return .{
         .buffer = staging.backer,
-    }) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e});
+        .quads = staging.backer.items.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
+    };
 }
-
-pub const CompiledSection = struct {
-    section_pos: Vector3(i32),
-    buffer: std.ArrayList(u8),
-};

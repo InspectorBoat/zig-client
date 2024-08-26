@@ -16,8 +16,8 @@ const Direction = @import("root").Direction;
 const ConcreteBlockState = @import("root").ConcreteBlockState;
 const World = @import("root").World;
 const SectionCompileTask = @import("terrain/SectionCompileTask.zig");
-const CompiledSection = @import("terrain/SectionCompileTask.zig").CompiledSection;
-const CompiledSectionQueue = @import("terrain/CompiledSectionQueue.zig");
+const CompilationResult = @import("terrain/SectionCompileTask.zig").CompilationResult;
+const CompilationResultQueue = @import("terrain/CompilationResultQueue.zig");
 
 vao: gl.VertexArray,
 program: gl.Program,
@@ -26,7 +26,7 @@ sections: std.AutoHashMap(Vector3(i32), SectionRenderInfo),
 gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
 compile_thread_pool: *std.Thread.Pool,
-compiled_section_queue: CompiledSectionQueue,
+compilation_result_queue: CompilationResultQueue,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -45,7 +45,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const compile_thread_pool = try initCompileThreadPool(allocator);
 
-    const compiled_section_queue = CompiledSectionQueue.init(allocator);
+    const compilation_result_queue = CompilationResultQueue.init(allocator);
 
     return .{
         .vao = vao,
@@ -55,7 +55,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .gpu_memory_allocator = gpu_memory_allocator,
         .texture = texture,
         .compile_thread_pool = compile_thread_pool,
-        .compiled_section_queue = compiled_section_queue,
+        .compilation_result_queue = compilation_result_queue,
     };
 }
 
@@ -160,13 +160,13 @@ pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
     const pool = try allocator.create(std.Thread.Pool);
     try pool.init(.{
         .allocator = allocator,
-        // .n_jobs = 2,
+        .n_jobs = 2,
     });
     return pool;
 }
 
 pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
-    try self.uploadCompiledChunks(@import("render.zig").gpa_impl.allocator());
+    try self.uploadCompilationResults(@import("render.zig").gpa_impl.allocator());
 
     const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
     gl.uniformMatrix4fv(0, true, &.{mvp.data});
@@ -229,38 +229,45 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
 
 pub fn dispatchSectionCompileTask(self: *@This(), section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !void {
     try self.compile_thread_pool.spawn(
-        SectionCompileTask.compile,
+        SectionCompileTask.runTask,
         .{
             SectionCompileTask.create(section_pos, world),
-            &self.compiled_section_queue,
+            &self.compilation_result_queue,
             allocator,
         },
     );
     // const task = SectionCompileTask.create(section_pos, world);
     // SectionCompileTask.compile(
     //     &task,
-    //     &self.compiled_section_queue,
+    //     &self.compilation_result_queue,
     //     allocator,
     // );
 }
 
-pub fn uploadCompiledChunks(self: *@This(), allocator: std.mem.Allocator) !void {
-    if (self.compiled_section_queue.sections.first == null) return;
-    while (self.compiled_section_queue.pop()) |compiled_section| {
-        defer compiled_section.buffer.deinit();
+pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !void {
+    if (self.compilation_result_queue.sections.first == null) return;
 
-        const buffer = compiled_section.buffer.items;
-        if (buffer.len == 0) continue;
+    while (self.compilation_result_queue.pop()) |compilation_result| {
+        switch (compilation_result.result) {
+            .Complete => |compiled_section| {
+                defer compiled_section.buffer.deinit();
 
-        const segment = try self.gpu_memory_allocator.alloc(buffer.len, allocator);
-        self.gpu_memory_allocator.subData(segment, buffer);
-        try self.sections.put(
-            compiled_section.section_pos,
-            .{
-                .segment = segment,
-                .quads = buffer.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
+                const mesh_data = compiled_section.buffer.items;
+                if (mesh_data.len == 0) continue;
+
+                const segment = try self.gpu_memory_allocator.alloc(mesh_data.len, allocator);
+                self.gpu_memory_allocator.subData(segment, mesh_data);
+
+                try self.sections.put(
+                    compilation_result.section_pos,
+                    .{
+                        .quads = compiled_section.quads,
+                        .segment = segment,
+                    },
+                );
             },
-        );
+            .Error => |_| {},
+        }
     }
 }
 
