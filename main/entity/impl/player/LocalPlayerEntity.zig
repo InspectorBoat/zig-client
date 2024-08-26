@@ -414,7 +414,7 @@ pub fn syncAbilities(self: *@This(), game: *const Game.IngameGame) void {
 }
 
 pub fn jump(self: *@This()) !void {
-    self.base.velocity.y = @as(f32, @floatCast(0.42));
+    self.base.velocity.y = @as(f32, @floatCast(0.6));
     // TODO: Implement jump boost
     // self.base.velocity.y += @as(f32, @floatFromInt((self.living.getEffectLevel(.JumpBoost) orelse -1) + 1)) * 0.1;
 

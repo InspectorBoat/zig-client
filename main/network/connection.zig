@@ -14,7 +14,7 @@ const VarIntByte = @import("../network/type/var_int_byte.zig").VarIntByte;
 const Game = @import("../game.zig").Game;
 const HandShakeC2SPacket = @import("../network/packet/c2s/handshake/HandshakeC2SPacket.zig");
 const HelloC2SPacket = @import("../network/packet/c2s/login/HelloC2SPacket.zig");
-const RingBuffer = @import("../util/RingBuffer.zig");
+const RingBuffer = @import("util").RingBuffer;
 
 pub const Connection = struct {
     /// The network thread does not own this memory

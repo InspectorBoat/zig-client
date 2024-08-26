@@ -202,7 +202,7 @@ pub fn receiveChunk(
     }
 
     {
-        const timer = @import("../util/Timer.zig").init();
+        const timer = @import("util").Timer.init();
         defer @import("log").devirtualize_chunk(.{timer.ms()});
         self.updateChunk(chunk);
         // self.updateRegion(.{

@@ -10,6 +10,8 @@ pub const World = @import("world/World.zig");
 pub const LocalPlayerEntity = @import("entity/impl/player/LocalPlayerEntity.zig");
 pub const Box = @import("math/box.zig").Box;
 pub const ConcreteBlockState = @import("block/block.zig").ConcreteBlockState;
+pub const ConcreteBlock = @import("block/block.zig").ConcreteBlock;
+pub const EnumBoolArray = @import("util").EnumBoolArray;
 
 const std = @import("std");
 const network = @import("network");
@@ -69,11 +71,10 @@ pub const Events = struct {
 pub const EventHandler = struct {
     pub const listeners = .{exit} ++ @import("render").event_listeners;
 
-    pub const dispatch = @import("events").getDispatcher(Events, listeners).dispatch;
+    pub const dispatch = @import("util").events.getDispatcher(Events, listeners).dispatch;
 };
 
 test {
     _ = @import("world/ChunkMap.zig");
-    _ = @import("util/RingBuffer.zig");
     _ = @import("block/metadata_conversion_table.zig");
 }

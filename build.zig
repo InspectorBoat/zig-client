@@ -25,18 +25,20 @@ pub fn build(b: *std.Build) void {
         const root = &client.root_module;
         const render = b.addModule("render", .{ .root_source_file = b.path("render/render.zig") });
         const logging = b.addModule("log", .{ .root_source_file = b.path("logging/logging.zig") });
-        const events = b.addModule("events", .{ .root_source_file = b.path("events/events.zig") });
+        const util = b.addModule("util", .{ .root_source_file = b.path("util/util.zig") });
 
         // Add imports to main module
         root.addImport("network", network);
         root.addImport("log", logging);
         root.addImport("render", render);
-        root.addImport("events", events);
+        root.addImport("util", util);
 
         // Add imports to other modules
         render.addImport("zgl", zgl);
         render.addImport("mach-glfw", mach_glfw);
         render.addImport("zalgebra", zalgebra);
+
+        util.addImport("log", logging);
 
         // Install exe
         const install = b.addInstallArtifact(client, .{});
@@ -80,18 +82,20 @@ pub fn build(b: *std.Build) void {
         const root = &client.root_module;
         const render = b.addModule("render", .{ .root_source_file = b.path("render/render.zig") });
         const logging = b.addModule("log", .{ .root_source_file = b.path("logging/logging.zig") });
-        const events = b.addModule("events", .{ .root_source_file = b.path("events/events.zig") });
+        const util = b.addModule("util", .{ .root_source_file = b.path("util/util.zig") });
 
         // Add imports to main module
         root.addImport("network", network);
         root.addImport("log", logging);
         root.addImport("render", render);
-        root.addImport("events", events);
+        root.addImport("util", util);
 
         // Add imports to other modules
         render.addImport("zgl", zgl);
         render.addImport("mach-glfw", mach_glfw);
         render.addImport("zalgebra", zalgebra);
+
+        util.addImport("log", logging);
 
         const check = b.step("check", "Check if client compiles");
         check.dependOn(&client.step);

@@ -2,6 +2,7 @@ const std = @import("std");
 const Vector3 = @import("root").Vector3;
 const World = @import("root").World;
 const ConcreteBlockState = @import("root").ConcreteBlockState;
+const ConcreteBlock = @import("root").ConcreteBlock;
 const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 const CompiledSectionQueue = @import("CompiledSectionQueue.zig");
 const Box = @import("root").Box;
@@ -35,8 +36,7 @@ pub fn create(section_pos: Vector3(i32), world: *World) @This() {
 }
 
 pub fn compile(task: @This(), compiled_section_queue: *CompiledSectionQueue, allocator: std.mem.Allocator) void {
-    const start = std.time.Instant.now() catch unreachable;
-    var staging: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).init(allocator) };
+    var staging: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).initCapacity(allocator, 4096) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e}) };
     // place blocks in chunk
     for (1..17) |x| {
         for (1..17) |y| {
@@ -56,36 +56,25 @@ pub fn compile(task: @This(), compiled_section_queue: *CompiledSectionQueue, all
                             continue;
                         }
 
+                        const culling_blocks = @import("face_culling_blocks.zig").@"export";
                         var unculled_faces = std.EnumSet(Direction).initFull();
-                        if (task.block_states[index - 1].getRaytraceHitbox()[0]) |other_box| {
-                            if (other_box.equals(Box(f64).cube())) {
-                                unculled_faces.remove(.West);
-                            }
+                        if (culling_blocks.get(task.block_states[index - 1].block)) {
+                            unculled_faces.remove(.West);
                         }
-                        if (task.block_states[index + 1].getRaytraceHitbox()[0]) |other_box| {
-                            if (other_box.equals(Box(f64).cube())) {
-                                unculled_faces.remove(.East);
-                            }
+                        if (culling_blocks.get(task.block_states[index + 1].block)) {
+                            unculled_faces.remove(.East);
                         }
-                        if (task.block_states[index - 18 * 18].getRaytraceHitbox()[0]) |other_box| {
-                            if (other_box.equals(Box(f64).cube())) {
-                                unculled_faces.remove(.Down);
-                            }
+                        if (culling_blocks.get(task.block_states[index - 18 * 18].block)) {
+                            unculled_faces.remove(.Down);
                         }
-                        if (task.block_states[index + 18 * 18].getRaytraceHitbox()[0]) |other_box| {
-                            if (other_box.equals(Box(f64).cube())) {
-                                unculled_faces.remove(.Up);
-                            }
+                        if (culling_blocks.get(task.block_states[index + 18 * 18].block)) {
+                            unculled_faces.remove(.Up);
                         }
-                        if (task.block_states[index - 18].getRaytraceHitbox()[0]) |other_box| {
-                            if (other_box.equals(Box(f64).cube())) {
-                                unculled_faces.remove(.North);
-                            }
+                        if (culling_blocks.get(task.block_states[index - 18].block)) {
+                            unculled_faces.remove(.North);
                         }
-                        if (task.block_states[index + 18].getRaytraceHitbox()[0]) |other_box| {
-                            if (other_box.equals(Box(f64).cube())) {
-                                unculled_faces.remove(.South);
-                            }
+                        if (culling_blocks.get(task.block_states[index + 18].block)) {
+                            unculled_faces.remove(.South);
                         }
 
                         staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block), unculled_faces) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e});
@@ -94,8 +83,6 @@ pub fn compile(task: @This(), compiled_section_queue: *CompiledSectionQueue, all
             }
         }
     }
-
-    std.debug.print("compiling section took {} ms\n", .{(std.time.Instant.now() catch unreachable).since(start) / std.time.ns_per_ms});
 
     compiled_section_queue.add(.{
         .section_pos = task.section_pos,

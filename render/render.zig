@@ -18,6 +18,7 @@ pub const event_listeners = .{
     onFrame,
     onChunkUpdate,
     onUnloadChunk,
+    onFrame,
 };
 
 pub fn onStartup(_: Events.Startup) !void {
@@ -85,6 +86,10 @@ pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
     const chunk_pos = unload_chunk.chunk_pos;
     try renderer.unloadChunk(chunk_pos, gpa_impl.allocator());
+}
+
+pub fn onExit(_: Events.Exit) !void {
+    _ = gpa_impl.detectLeaks();
 }
 
 pub fn handleInputIdle(_: *Game.IdleGame) void {

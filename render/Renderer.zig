@@ -160,7 +160,7 @@ pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
     const pool = try allocator.create(std.Thread.Pool);
     try pool.init(.{
         .allocator = allocator,
-        .n_jobs = 2,
+        // .n_jobs = 2,
     });
     return pool;
 }
@@ -236,10 +236,19 @@ pub fn dispatchSectionCompileTask(self: *@This(), section_pos: Vector3(i32), wor
             allocator,
         },
     );
+    // const task = SectionCompileTask.create(section_pos, world);
+    // SectionCompileTask.compile(
+    //     &task,
+    //     &self.compiled_section_queue,
+    //     allocator,
+    // );
 }
 
 pub fn uploadCompiledChunks(self: *@This(), allocator: std.mem.Allocator) !void {
+    if (self.compiled_section_queue.sections.first == null) return;
     while (self.compiled_section_queue.pop()) |compiled_section| {
+        defer compiled_section.buffer.deinit();
+
         const buffer = compiled_section.buffer.items;
         if (buffer.len == 0) continue;
 
