@@ -56,16 +56,19 @@ pub fn build(b: *std.Build) void {
         // Unit tests for main module
         const test_main = b.addTest(.{ .root_source_file = b.path("main/main.zig") });
         test_main.root_module.addImport("log", logging);
+        test_main.root_module.addImport("util", util);
 
         // Unit tests for render module
         const test_render = b.addTest(.{ .root_source_file = b.path("render/render.zig") });
         test_render.root_module.addImport("log", logging);
+        test_render.root_module.addImport("util", util);
 
-        const run_test_render = b.addRunArtifact(test_render);
+        const test_util = b.addTest(.{ .root_source_file = b.path("util/util.zig") });
 
         const test_step = b.step("test", "Run unit tests");
         test_step.dependOn(&b.addRunArtifact(test_main).step);
-        test_step.dependOn(&run_test_render.step);
+        test_step.dependOn(&b.addRunArtifact(test_render).step);
+        test_step.dependOn(&b.addRunArtifact(test_util).step);
     }
 
     // Add check step to see if client compiles without doing any codegen

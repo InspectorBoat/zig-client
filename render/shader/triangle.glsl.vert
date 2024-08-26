@@ -5,21 +5,11 @@ layout(location = 1) uniform vec3 chunk_pos;
 
 out vec2 uv;
 flat out uint texture_id;
+flat out uint sky_light;
+flat out uint block_light;
 
 layout(std430, binding = 0) restrict readonly buffer geometry {
     uint data[];
-    // packed struct(u64) {
-    //     pos: packed struct(u48) {
-    //         x: u16,
-    //         y: u16,
-    //         z: u16,
-    //     },
-    //     uv: packed struct(u8) {
-    //         u: u4,
-    //         v: u4,
-    //     },
-    //     texture: u8,
-    // }
 };
 
 const mat3[] size_transforms = {
@@ -79,4 +69,7 @@ void main() {
     texture_id = (data[base_offset + 2] >> 16) & 0xFFFF;
 
     uv = vec2(gl_VertexID & 1, (gl_VertexID & 2) >> 1);
+
+    sky_light = data[base_offset + 3] & 0xFF;
+    block_light = data[base_offset + 3] >> 8 & 0xFF;
 }
