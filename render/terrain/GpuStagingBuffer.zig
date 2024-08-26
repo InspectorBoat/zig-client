@@ -27,21 +27,21 @@ pub const GpuQuad = packed struct(u128) {
 pub fn writeQuad(
     self: *@This(),
     facing: Direction,
-    min: Vector3(f32),
-    size: Vector2(f32),
+    min: struct { f32, f32, f32 }, // x y z
+    size: struct { f32, f32 }, // width height
     texture: u16,
     // sky_light: u8,
     // block_light: u8,
 ) !void {
     const quad: GpuQuad = .{
         .pos = .{
-            .x = @intFromFloat(@round(min.x * 4095.9375)),
-            .y = @intFromFloat(@round(min.y * 4095.9375)),
-            .z = @intFromFloat(@round(min.z * 4095.9375)),
+            .x = @intFromFloat(@round(min[0] * 4095.9375)),
+            .y = @intFromFloat(@round(min[1] * 4095.9375)),
+            .z = @intFromFloat(@round(min[2] * 4095.9375)),
         },
         .size = .{
-            .width = @intFromFloat(@max(@round(size.x * 256 - 1), 1)),
-            .height = @intFromFloat(@max(@round(size.z * 256 - 1), 1)),
+            .width = @intFromFloat(@max(@round(size[0] * 256 - 1), 1)),
+            .height = @intFromFloat(@max(@round(size[1] * 256 - 1), 1)),
         },
         .texture = texture,
         .normal = @intCast(@intFromEnum(facing)),
@@ -55,94 +55,58 @@ pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u
     try self.writeBoxFaces(min, max, texture, std.EnumSet(Direction).initFull());
 }
 
-pub fn writeBoxFaces(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u8, faces: std.EnumSet(Direction)) !void {
+pub fn writeBoxFaces(
+    self: *@This(),
+    min: Vector3(f32),
+    max: Vector3(f32),
+    texture: u8,
+    faces: std.EnumSet(Direction),
+) !void {
     if (faces.contains(.Down)) {
         try self.writeQuad(
             .Down,
-            .{
-                .x = min.x,
-                .y = min.y,
-                .z = min.z,
-            },
-            .{
-                .x = max.x - min.x,
-                .z = max.z - min.z,
-            },
+            .{ min.x, min.y, min.z },
+            .{ max.x - min.x, max.z - min.z },
             texture,
         );
     }
     if (faces.contains(.Up)) {
         try self.writeQuad(
             .Up,
-            .{
-                .x = min.x,
-                .y = max.y,
-                .z = min.z,
-            },
-            .{
-                .x = max.x - min.x,
-                .z = max.z - min.z,
-            },
+            .{ min.x, max.y, min.z },
+            .{ max.x - min.x, max.z - min.z },
             texture,
         );
     }
     if (faces.contains(.North)) {
         try self.writeQuad(
             .North,
-            .{
-                .x = min.x,
-                .y = min.y,
-                .z = min.z,
-            },
-            .{
-                .x = max.x - min.x,
-                .z = max.y - min.y,
-            },
+            .{ min.x, min.y, min.z },
+            .{ max.x - min.x, max.y - min.y },
             texture,
         );
     }
     if (faces.contains(.South)) {
         try self.writeQuad(
             .South,
-            .{
-                .x = min.x,
-                .y = min.y,
-                .z = max.z,
-            },
-            .{
-                .x = max.x - min.x,
-                .z = max.y - min.y,
-            },
+            .{ min.x, min.y, max.z },
+            .{ max.x - min.x, max.y - min.y },
             texture,
         );
     }
     if (faces.contains(.West)) {
         try self.writeQuad(
             .West,
-            .{
-                .x = min.x,
-                .y = min.y,
-                .z = min.z,
-            },
-            .{
-                .x = max.z - min.z,
-                .z = max.y - min.y,
-            },
+            .{ min.x, min.y, min.z },
+            .{ max.z - min.z, max.y - min.y },
             texture,
         );
     }
     if (faces.contains(.East)) {
         try self.writeQuad(
             .East,
-            .{
-                .x = max.x,
-                .y = min.y,
-                .z = min.z,
-            },
-            .{
-                .x = max.z - min.z,
-                .z = max.y - min.y,
-            },
+            .{ max.x, min.y, min.z },
+            .{ max.z - min.z, max.y - min.y },
             texture,
         );
     }
