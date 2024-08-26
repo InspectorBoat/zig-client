@@ -1,7 +1,8 @@
 const std = @import("std");
 const ConcreteBlock = @import("block.zig").ConcreteBlock;
+const EnumBoolArray = @import("../util/enum_bool_array.zig").EnumBoolArray;
 
-pub const @"export": std.enums.EnumFieldStruct(ConcreteBlock, bool, null) = .{
+pub const @"export" = EnumBoolArray(ConcreteBlock).init(.{
     .air = false,
     .stone = true,
     .grass = true,
@@ -215,4 +216,4 @@ pub const @"export": std.enums.EnumFieldStruct(ConcreteBlock, bool, null) = .{
     .cobblestone_wall_upper = false,
 
     .flower_pot_2 = false,
-};
+});
