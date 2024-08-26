@@ -23,7 +23,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     _ = allocator;
     switch (game.*) {
         .Ingame => |*ingame| {
-            ingame.world.setBlockState(self.block_pos, self.state.toFiltered().toConcrete());
+            try ingame.world.setBlockState(self.block_pos, self.state.toFiltered().toConcrete());
         },
         else => unreachable,
     }

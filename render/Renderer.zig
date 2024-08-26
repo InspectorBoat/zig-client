@@ -227,7 +227,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
-pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector3(i32), chunk: *const Chunk, world: *World, allocator: std.mem.Allocator) !void {
+pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2(i32), chunk: *const Chunk, world: *const World, allocator: std.mem.Allocator) !void {
     for (chunk.sections, 0..) |maybe_section, y| {
         if (maybe_section) |_| {
             try self.dispatchCompilationTask(
@@ -239,7 +239,15 @@ pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector3(i32), chunk: *const Chun
     }
 }
 
-pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !void {
+pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !void {
+    try self.dispatchCompilationTask(
+        .{ .x = @divFloor(block_pos.x, 16), .y = @divFloor(block_pos.y, 16), .z = @divFloor(block_pos.z, 16) },
+        world,
+        allocator,
+    );
+}
+
+pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !void {
     try self.compile_thread_pool.spawn(
         CompilationTask.runTask,
         .{

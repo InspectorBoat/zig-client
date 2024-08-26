@@ -80,6 +80,10 @@ pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
     try renderer.onUnloadChunk(unload_chunk.chunk_pos, gpa_impl.allocator());
 }
 
+pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
+    try renderer.onBlockUpdate(block_update.block_pos, block_update.world, gpa_impl.allocator());
+}
+
 pub fn onExit(_: Events.Exit) !void {
     _ = gpa_impl.detectLeaks();
 }

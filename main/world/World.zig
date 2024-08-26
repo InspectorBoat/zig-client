@@ -133,7 +133,7 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
     return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
 }
 
-pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState) void {
+pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState) !void {
     const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
         @import("log").set_block_in_missing_chunk(.{Vector2(i32){ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
         return;
@@ -145,6 +145,8 @@ pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlo
         .z = @mod(block_pos.z, 16),
     };
     section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
+
+    try EventHandler.dispatch(Events.BlockUpdate, .{ .block_pos = block_pos, .world = self });
 }
 
 pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {

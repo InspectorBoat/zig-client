@@ -27,7 +27,7 @@ pub const CompilationResult = struct {
     };
 };
 
-pub fn create(section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !*@This() {
+pub fn create(section_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !*@This() {
     const task = try allocator.create(@This());
     task.section_pos = section_pos;
     const base_block_pos = section_pos.scaleUniform(16).sub(.{ .x = 1, .y = 1, .z = 1 });

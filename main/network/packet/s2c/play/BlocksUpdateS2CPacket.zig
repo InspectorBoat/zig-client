@@ -33,7 +33,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     switch (game.*) {
         .Ingame => |*ingame| {
             for (self.updates) |update| {
-                ingame.world.setBlockState(
+                try ingame.world.setBlockState(
                     .{
                         .x = self.chunk_pos.x * 16 + update.pos.x,
                         .y = update.pos.y,
