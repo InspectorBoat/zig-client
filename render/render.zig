@@ -74,7 +74,7 @@ pub fn onFrame(frame: Events.Frame) !void {
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
     for (chunk_update.chunk.sections, 0..) |maybe_section, y| {
         if (maybe_section) |_| {
-            try renderer.dispatchSectionCompileTask(.{
+            try renderer.dispatchCompilationTask(.{
                 .x = chunk_update.chunk_pos.x,
                 .y = @intCast(y),
                 .z = chunk_update.chunk_pos.z,

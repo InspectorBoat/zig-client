@@ -15,8 +15,8 @@ const Mat4 = za.Mat4;
 const Direction = @import("root").Direction;
 const ConcreteBlockState = @import("root").ConcreteBlockState;
 const World = @import("root").World;
-const SectionCompileTask = @import("terrain/SectionCompileTask.zig");
-const CompilationResult = @import("terrain/SectionCompileTask.zig").CompilationResult;
+const CompilationTask = @import("terrain/CompilationTask.zig");
+const CompilationResult = @import("terrain/CompilationTask.zig").CompilationResult;
 const CompilationResultQueue = @import("terrain/CompilationResultQueue.zig");
 
 vao: gl.VertexArray,
@@ -227,17 +227,17 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
-pub fn dispatchSectionCompileTask(self: *@This(), section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !void {
+pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !void {
     try self.compile_thread_pool.spawn(
-        SectionCompileTask.runTask,
+        CompilationTask.runTask,
         .{
-            SectionCompileTask.create(section_pos, world),
+            CompilationTask.create(section_pos, world),
             &self.compilation_result_queue,
             allocator,
         },
     );
-    // const task = SectionCompileTask.create(section_pos, world);
-    // SectionCompileTask.compile(
+    // const task = CompilationTask.create(section_pos, world);
+    // CompilationTask.compile(
     //     &task,
     //     &self.compilation_result_queue,
     //     allocator,

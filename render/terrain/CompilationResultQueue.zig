@@ -1,5 +1,5 @@
 const std = @import("std");
-const CompilationResult = @import("SectionCompileTask.zig").CompilationResult;
+const CompilationResult = @import("CompilationTask.zig").CompilationResult;
 
 sections: std.SinglyLinkedList(CompilationResult) = .{},
 mutex: std.Thread.Mutex = .{},
