@@ -5,15 +5,6 @@ const Direction = @import("root").Direction;
 
 backer: std.ArrayList(u8),
 
-pub const GpuVertex = packed struct(u64) {
-    x: u16,
-    y: u16,
-    z: u16,
-    u: u4,
-    v: u4,
-    texture: u8,
-};
-
 pub const GpuQuad = packed struct(u128) {
     pos: packed struct(u48) { x: u16, y: u16, z: u16 },
     size: packed struct(u16) { width: u8, height: u8 },
@@ -30,8 +21,8 @@ pub fn writeQuad(
     min: struct { f32, f32, f32 }, // x y z
     size: struct { f32, f32 }, // width height
     texture: u16,
-    // sky_light: u8,
-    // block_light: u8,
+    sky_light: u8,
+    block_light: u8,
 ) !void {
     const quad: GpuQuad = .{
         .pos = .{
@@ -45,14 +36,28 @@ pub fn writeQuad(
         },
         .texture = texture,
         .normal = @intCast(@intFromEnum(facing)),
-        .sky_light = 0,
-        .block_light = 0,
+        .sky_light = sky_light,
+        .block_light = block_light,
     };
     try self.backer.appendSlice(std.mem.asBytes(&quad));
 }
 
-pub fn writeBox(self: *@This(), min: Vector3(f32), max: Vector3(f32), texture: u8) !void {
-    try self.writeBoxFaces(min, max, texture, std.EnumSet(Direction).initFull());
+pub fn writeBox(
+    self: *@This(),
+    min: Vector3(f32),
+    max: Vector3(f32),
+    texture: u8,
+    sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
+    block_light: std.enums.EnumFieldStruct(Direction, u8, null),
+) !void {
+    try self.writeBoxFaces(
+        min,
+        max,
+        texture,
+        std.EnumSet(Direction).initFull(),
+        sky_light,
+        block_light,
+    );
 }
 
 pub fn writeBoxFaces(
@@ -61,6 +66,8 @@ pub fn writeBoxFaces(
     max: Vector3(f32),
     texture: u8,
     faces: std.EnumSet(Direction),
+    sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
+    block_light: std.enums.EnumFieldStruct(Direction, u8, null),
 ) !void {
     if (faces.contains(.Down)) {
         try self.writeQuad(
@@ -68,6 +75,8 @@ pub fn writeBoxFaces(
             .{ min.x, min.y, min.z },
             .{ max.x - min.x, max.z - min.z },
             texture,
+            sky_light.Down,
+            block_light.Down,
         );
     }
     if (faces.contains(.Up)) {
@@ -76,6 +85,8 @@ pub fn writeBoxFaces(
             .{ min.x, max.y, min.z },
             .{ max.x - min.x, max.z - min.z },
             texture,
+            sky_light.Up,
+            block_light.Up,
         );
     }
     if (faces.contains(.North)) {
@@ -84,6 +95,8 @@ pub fn writeBoxFaces(
             .{ min.x, min.y, min.z },
             .{ max.x - min.x, max.y - min.y },
             texture,
+            sky_light.North,
+            block_light.North,
         );
     }
     if (faces.contains(.South)) {
@@ -92,6 +105,8 @@ pub fn writeBoxFaces(
             .{ min.x, min.y, max.z },
             .{ max.x - min.x, max.y - min.y },
             texture,
+            sky_light.South,
+            block_light.South,
         );
     }
     if (faces.contains(.West)) {
@@ -100,6 +115,8 @@ pub fn writeBoxFaces(
             .{ min.x, min.y, min.z },
             .{ max.z - min.z, max.y - min.y },
             texture,
+            sky_light.West,
+            block_light.West,
         );
     }
     if (faces.contains(.East)) {
@@ -108,6 +125,8 @@ pub fn writeBoxFaces(
             .{ max.x, min.y, min.z },
             .{ max.z - min.z, max.y - min.y },
             texture,
+            sky_light.East,
+            block_light.East,
         );
     }
 }

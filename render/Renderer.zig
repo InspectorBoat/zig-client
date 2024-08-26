@@ -231,14 +231,14 @@ pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world:
     try self.compile_thread_pool.spawn(
         CompilationTask.runTask,
         .{
-            CompilationTask.create(section_pos, world),
+            try CompilationTask.create(section_pos, world, allocator),
             &self.compilation_result_queue,
             allocator,
         },
     );
-    // const task = CompilationTask.create(section_pos, world);
-    // CompilationTask.compile(
-    //     &task,
+    // const task = try CompilationTask.create(section_pos, world, allocator);
+    // CompilationTask.runTask(
+    //     task,
     //     &self.compilation_result_queue,
     //     allocator,
     // );

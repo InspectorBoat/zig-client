@@ -147,6 +147,32 @@ pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlo
     section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
 }
 
+pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
+    if (block_pos.y < 0 or block_pos.y > 255) return 15;
+
+    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return 15;
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return 15;
+    const section_block_pos: Vector3(i32) = .{
+        .x = @mod(block_pos.x, 16),
+        .y = @mod(block_pos.y, 16),
+        .z = @mod(block_pos.z, 16),
+    };
+    return section.block_light.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0));
+}
+
+pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
+    if (block_pos.y < 0 or block_pos.y > 255) return 15;
+
+    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return 15;
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return 15;
+    const section_block_pos: Vector3(i32) = .{
+        .x = @mod(block_pos.x, 16),
+        .y = @mod(block_pos.y, 16),
+        .z = @mod(block_pos.z, 16),
+    };
+    return section.sky_light.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0));
+}
+
 pub fn receiveChunk(
     self: *@This(),
     chunk_pos: Vector2(i32),

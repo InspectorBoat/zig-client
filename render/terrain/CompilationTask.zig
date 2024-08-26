@@ -26,29 +26,26 @@ pub const CompilationResult = struct {
     };
 };
 
-pub fn create(section_pos: Vector3(i32), world: *World) @This() {
-    var compile_task: @This() = .{
-        .section_pos = section_pos,
-        .block_states = undefined,
-        .block_light = undefined,
-        .sky_light = undefined,
-    };
+pub fn create(section_pos: Vector3(i32), world: *World, allocator: std.mem.Allocator) !*@This() {
+    const task = try allocator.create(@This());
+    task.section_pos = section_pos;
     const base_block_pos = section_pos.scaleUniform(16).sub(.{ .x = 1, .y = 1, .z = 1 });
     for (0..18) |y| {
         for (0..18) |z| {
             for (0..18) |x| {
                 const pos = base_block_pos.add(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
                 const index = (y * 18 * 18) + (z * 18) + (x);
-                compile_task.block_states[index] = world.getBlockState(pos);
-                // compile_task.block_light[index] = world.getBlockLight(pos);
-                // compile_task.sky_light[index] = world.getSkyLight(pos);
+                task.block_states[index] = world.getBlockState(pos);
+                task.block_light.set(index, world.getBlockLight(pos));
+                task.sky_light.set(index, world.getSkyLight(pos));
             }
         }
     }
-    return compile_task;
+    return task;
 }
 
-pub fn runTask(task: @This(), result_queue: *CompilationResultQueue, allocator: std.mem.Allocator) void {
+pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator: std.mem.Allocator) void {
+    defer allocator.destroy(task);
     result_queue.add(.{
         .section_pos = task.section_pos,
         .result = if (compile(task, allocator)) |compiled_section|
@@ -58,7 +55,9 @@ pub fn runTask(task: @This(), result_queue: *CompilationResultQueue, allocator: 
     }) catch std.debug.panic("TODO!", .{});
 }
 
-pub fn compile(task: @This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
+pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
+    // const start = @import("util").Timer.init();
+    // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
     var staging: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).initCapacity(allocator, 4096) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e}) };
     // place blocks in chunk
     for (1..17) |x| {
@@ -74,8 +73,31 @@ pub fn compile(task: @This(), allocator: std.mem.Allocator) !CompilationResult.C
                             .z = @floatFromInt(z - 1),
                         };
 
+                        const sky_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
+                            .West = task.sky_light.get(index - 1),
+                            .East = task.sky_light.get(index + 1),
+                            .Down = task.sky_light.get(index - 18 * 18),
+                            .Up = task.sky_light.get(index + 18 * 18),
+                            .North = task.sky_light.get(index - 18),
+                            .South = task.sky_light.get(index + 18),
+                        };
+                        const block_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
+                            .West = task.block_light.get(index - 1),
+                            .East = task.block_light.get(index + 1),
+                            .Down = task.block_light.get(index - 18 * 18),
+                            .Up = task.block_light.get(index + 18 * 18),
+                            .North = task.block_light.get(index - 18),
+                            .South = task.block_light.get(index + 18),
+                        };
+
                         if (!box.equals(Box(f64).cube())) {
-                            try staging.writeBox(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block));
+                            try staging.writeBox(
+                                box.min.add(pos_vec).floatCast(f32),
+                                box.max.add(pos_vec).floatCast(f32),
+                                @intFromEnum(task.block_states[index].block),
+                                sky_light,
+                                block_light,
+                            );
                             continue;
                         }
 
@@ -100,13 +122,20 @@ pub fn compile(task: @This(), allocator: std.mem.Allocator) !CompilationResult.C
                             unculled_faces.remove(.South);
                         }
 
-                        try staging.writeBoxFaces(box.min.add(pos_vec).floatCast(f32), box.max.add(pos_vec).floatCast(f32), @intFromEnum(task.block_states[index].block), unculled_faces);
+                        try staging.writeBoxFaces(
+                            box.min.add(pos_vec).floatCast(f32),
+                            box.max.add(pos_vec).floatCast(f32),
+                            @intFromEnum(task.block_states[index].block),
+                            unculled_faces,
+                            sky_light,
+                            block_light,
+                        );
                     }
                 }
             }
         }
     }
-
+    // std.debug.print("quads: {}\n", .{staging.backer.items.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8)});
     return .{
         .buffer = staging.backer,
         .quads = staging.backer.items.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
