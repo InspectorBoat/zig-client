@@ -300,6 +300,11 @@ pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !v
                 const chunk_compile_info = self.compile_status_tracker.chunks.getPtr(chunk_pos) orelse continue;
                 chunk_compile_info.Rendering[section_y].latest_received_revision = compilation_result.revision;
 
+                // Deallocate existing segment
+                if (self.sections.fetchRemove(compilation_result.section_pos)) |entry| {
+                    try self.gpu_memory_allocator.free(entry.value.segment, allocator);
+                }
+
                 const mesh_data = compiled_section.buffer.items;
                 if (mesh_data.len == 0) continue;
 
