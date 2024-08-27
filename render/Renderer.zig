@@ -18,6 +18,7 @@ const World = @import("root").World;
 const CompilationTask = @import("terrain/CompilationTask.zig");
 const CompilationResult = @import("terrain/CompilationTask.zig").CompilationResult;
 const CompilationResultQueue = @import("terrain/CompilationResultQueue.zig");
+const CompileStatusTracker = @import("terrain/CompileStatusTracker.zig");
 
 vao: gl.VertexArray,
 program: gl.Program,
@@ -28,10 +29,7 @@ texture: gl.Texture,
 compile_thread_pool: *std.Thread.Pool,
 compilation_result_queue: CompilationResultQueue,
 allocator: std.mem.Allocator,
-// chunks that cannot yet be meshed because neighboring chunks are absent
-waiting_chunks: std.AutoHashMap(Vector3(i32), WaitingChunk),
-
-pub const WaitingChunk = struct { north_present: bool, south_present: bool, west_present: bool, east_present: bool };
+compile_status_tracker: CompileStatusTracker,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -52,7 +50,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const compilation_result_queue = CompilationResultQueue.init(allocator);
 
-    const waiting_chunks = std.AutoHashMap(Vector3(i32), WaitingChunk).init(allocator);
+    const compile_status_tracker = CompileStatusTracker.init(allocator);
 
     return .{
         .vao = vao,
@@ -64,7 +62,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .compile_thread_pool = compile_thread_pool,
         .compilation_result_queue = compilation_result_queue,
         .allocator = allocator,
-        .waiting_chunks = waiting_chunks,
+        .compile_status_tracker = compile_status_tracker,
     };
 }
 
@@ -236,31 +234,46 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return projection.mul(view.mul(model));
 }
 
-pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32), chunk: *const Chunk, world: *const World, allocator: std.mem.Allocator) !void {
-    for (chunk.sections, 0..) |maybe_section, y| {
-        if (maybe_section) |_| {
-            try self.dispatchCompilationTask(
-                .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
-                world,
-                allocator,
-            );
+pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
+    try self.compile_status_tracker.markChunkPresent(chunk_pos);
+}
+
+pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
+    try self.compile_status_tracker.markBlockPosDirty(block_pos);
+}
+
+pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, allocator: std.mem.Allocator) !void {
+    var iter = self.compile_status_tracker.chunks.iterator();
+    while (iter.next()) |entry| {
+        const chunk_pos = entry.key_ptr.*;
+        const chunk_info = entry.value_ptr;
+        if (chunk_info.* == .Waiting and chunk_info.Waiting.isReady()) {
+            chunk_info.* = .{ .Rendering = .{.{}} ** 16 };
+        }
+        if (chunk_info.* == .Rendering) {
+            const chunk: *const Chunk = world.chunks.get(chunk_pos).?;
+
+            // Only dispatch task if section actually exists, even if adjacent chunks update
+            for (&chunk_info.Rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
+                if (section_info.needsRecompile() and maybe_section != null) {
+                    try self.dispatchCompilationTask(
+                        .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
+                        world,
+                        section_info.current_revision,
+                        allocator,
+                    );
+                    section_info.latest_sent_revision = section_info.current_revision;
+                }
+            }
         }
     }
 }
 
-pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !void {
-    try self.dispatchCompilationTask(
-        .{ .x = @divFloor(block_pos.x, 16), .y = @divFloor(block_pos.y, 16), .z = @divFloor(block_pos.z, 16) },
-        world,
-        allocator,
-    );
-}
-
-pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !void {
+pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !void {
     try self.compile_thread_pool.spawn(
         CompilationTask.runTask,
         .{
-            try CompilationTask.create(section_pos, world, allocator),
+            try CompilationTask.create(section_pos, world, revision, allocator),
             &self.compilation_result_queue,
             allocator,
         },
@@ -281,12 +294,20 @@ pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !v
             .Success => |compiled_section| {
                 defer compiled_section.buffer.deinit();
 
+                // Notify compile tracker
+                const chunk_pos: Vector2xz(i32) = .{ .x = compilation_result.section_pos.x, .z = compilation_result.section_pos.z };
+                const section_y: usize = @intCast(compilation_result.section_pos.y);
+                const chunk_compile_info = self.compile_status_tracker.chunks.getPtr(chunk_pos) orelse continue;
+                chunk_compile_info.Rendering[section_y].latest_received_revision = compilation_result.revision;
+
                 const mesh_data = compiled_section.buffer.items;
                 if (mesh_data.len == 0) continue;
 
+                // Allocate gpu memory and upload segment
                 const segment = try self.gpu_memory_allocator.alloc(mesh_data.len, allocator);
                 self.gpu_memory_allocator.subData(segment, mesh_data);
 
+                // Store rendering info
                 try self.sections.put(
                     compilation_result.section_pos,
                     .{
@@ -301,6 +322,7 @@ pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !v
 }
 
 pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), allocator: std.mem.Allocator) !void {
+    self.compile_status_tracker.removeChunk(chunk_pos);
     for (0..16) |section_y| {
         const entry = self.sections.fetchRemove(.{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z }) orelse continue;
         try self.gpu_memory_allocator.free(entry.value.segment, allocator);

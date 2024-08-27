@@ -13,9 +13,11 @@ section_pos: Vector3(i32),
 block_states: [18 * 18 * 18]ConcreteBlockState,
 block_light: PackedNibbleArray(18 * 18 * 18),
 sky_light: PackedNibbleArray(18 * 18 * 18),
+revision: u32,
 
 pub const CompilationResult = struct {
     section_pos: Vector3(i32),
+    revision: u32,
     result: union(enum) {
         Success: CompiledSection,
         Error: error{OutOfMemory},
@@ -27,9 +29,10 @@ pub const CompilationResult = struct {
     };
 };
 
-pub fn create(section_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !*@This() {
+pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !*@This() {
     const task = try allocator.create(@This());
     task.section_pos = section_pos;
+    task.revision = revision;
     const base_block_pos = section_pos.scaleUniform(16).sub(.{ .x = 1, .y = 1, .z = 1 });
     for (0..18) |y| {
         for (0..18) |z| {
@@ -49,6 +52,7 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
     defer allocator.destroy(task);
     result_queue.add(.{
         .section_pos = task.section_pos,
+        .revision = task.revision,
         .result = if (compile(task, allocator)) |compiled_section|
             .{ .Success = compiled_section }
         else |e|
