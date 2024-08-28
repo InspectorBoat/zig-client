@@ -39,7 +39,13 @@ pub const SectionCompileStatus = struct {
         self.current_revision += 1;
     }
     pub fn alertCompilationRecieved(self: *@This(), revision: u32) error{ DuplicateRevision, OutdatedRevision }!void {
-        if (self.latest_received_revision == self.latest_sent_revision) return error.DuplicateRevision;
+        if (revision == self.latest_received_revision) {
+            std.debug.print(
+                "current: {} sent: {?}  recieved: {?} new: {}\n",
+                .{ self.current_revision, self.latest_sent_revision, self.latest_received_revision, revision },
+            );
+            return error.DuplicateRevision;
+        }
         if (revision != self.latest_sent_revision) return error.OutdatedRevision;
         self.latest_received_revision = revision;
     }
@@ -48,6 +54,7 @@ pub const SectionCompileStatus = struct {
         return self.current_revision > self.latest_sent_revision.?;
     }
     pub fn alertCompilationDispatch(self: *@This()) void {
+        std.debug.assert(self.latest_sent_revision != self.current_revision);
         self.latest_sent_revision = self.current_revision;
     }
     pub fn replaceRenderInfo(self: *@This(), new_render_info: ?SectionRenderInfo, gpu_memory_allocator: *GpuMemoryAllocator) !void {
