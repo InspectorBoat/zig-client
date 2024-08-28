@@ -126,6 +126,8 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) void {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
                     .escape => window_input.window.setShouldClose(true),
+                    .f => gl.polygonMode(.front_and_back, .line),
+                    .g => gl.polygonMode(.front_and_back, .fill),
                     else => {},
                 }
             },

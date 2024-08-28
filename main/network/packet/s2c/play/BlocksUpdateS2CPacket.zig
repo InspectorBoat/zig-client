@@ -40,12 +40,12 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                         .z = self.chunk_pos.z * 16 + update.pos.z,
                     },
                     update.state.toFiltered().toConcrete(),
+                    allocator,
                 );
             }
         },
         else => unreachable,
     }
-    _ = allocator;
 }
 
 pub const BlockUpdate = struct {

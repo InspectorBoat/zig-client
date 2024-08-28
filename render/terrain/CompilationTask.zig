@@ -63,7 +63,7 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
 pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
     // const start = @import("util").Timer.init();
     // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
-    var staging: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).initCapacity(allocator, 4096) catch |e| std.debug.panic("Compile thread fucked up: {}\n", .{e}) };
+    var staging: GpuStagingBuffer = .{ .backer = try std.ArrayList(u8).initCapacity(allocator, 4096) };
     // place blocks in chunk
     for (1..17) |x| {
         for (1..17) |y| {

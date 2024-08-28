@@ -8,7 +8,7 @@ pub fn LogType(comptime enabled: bool, comptime fmt: []const u8) fn (args: anyty
     }.closure;
 }
 
-pub const ring_buffer_oom_wait = LogType(true, "ring buffer ran out of memory, waiting");
+pub const ring_buffer_oom_wait = LogType(false, "ring buffer ran out of memory, waiting");
 pub const DEBUG_RING_ALLOCATOR = false;
 pub const ring_buffer_allocate = LogType(DEBUG_RING_ALLOCATOR, "allocated {} bytes from ring allocator");
 pub const ring_buffer_free = LogType(DEBUG_RING_ALLOCATOR, "freed {} bytes from ring allocator");

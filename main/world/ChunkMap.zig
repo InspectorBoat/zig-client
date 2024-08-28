@@ -3,7 +3,7 @@ const Vector2xz = @import("../math/vector.zig").Vector2xz;
 const Chunk = @import("Chunk.zig");
 
 metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = std.bit_set.ArrayBitSet(usize, 32 * 32).initEmpty(),
-items: [32 * 32]Chunk = undefined,
+items: [32 * 32]struct { pos: Vector2xz(i32), chunk: Chunk } = undefined,
 
 pub inline fn toIndex(pos: Vector2xz(i32)) usize {
     const pos_cast = pos.bitCast(u32);
@@ -16,18 +16,22 @@ pub inline fn contains(self: *const @This(), pos: Vector2xz(i32)) bool {
 
 pub inline fn get(self: *const @This(), pos: Vector2xz(i32)) ?*const Chunk {
     if (!self.contains(pos)) return null;
-    return &self.items[toIndex(pos)];
+    return &self.items[toIndex(pos)].chunk;
 }
 
 pub inline fn getPtr(self: *@This(), pos: Vector2xz(i32)) ?*Chunk {
     if (!self.contains(pos)) return null;
-    return &self.items[toIndex(pos)];
+    return &self.items[toIndex(pos)].chunk;
 }
 
 pub inline fn put(self: *@This(), pos: Vector2xz(i32), chunk: Chunk) !void {
-    if (self.contains(pos)) return error.ChunkAlreadyPresent;
+    if (self.contains(pos)) {
+        if (!self.items[toIndex(pos)].pos.equals(pos)) std.debug.panic("Chunk collision: stored={} new={}", .{ self.items[toIndex(pos)].pos, pos });
+        return error.ChunkAlreadyPresent;
+    }
+
     self.metadata.set(toIndex(pos));
-    self.items[toIndex(pos)] = chunk;
+    self.items[toIndex(pos)] = .{ .pos = pos, .chunk = chunk };
 }
 
 pub inline fn remove(self: *@This(), pos: Vector2xz(i32)) !void {
@@ -38,7 +42,7 @@ pub inline fn remove(self: *@This(), pos: Vector2xz(i32)) !void {
 pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*Chunk {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
-    return &self.items[toIndex(pos)];
+    return &self.items[toIndex(pos)].chunk;
 }
 
 const Self = @This();
@@ -51,7 +55,7 @@ const Iterator = struct {
 
             if (self.index >= 32 * 32) return null;
             if (self.map.metadata.isSet(self.index)) {
-                return &self.map.items[self.index];
+                return &self.map.items[self.index].chunk;
             }
         }
     }

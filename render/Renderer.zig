@@ -122,7 +122,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 pub fn initTexture() gl.Texture {
     const texture = gl.Texture.create(.@"2d_array");
 
-    const texture_size = 1;
+    const texture_size = 8;
     const color_channels = 4;
     const texture_count = 256;
 
@@ -175,6 +175,25 @@ pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
 pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
     try self.uploadCompilationResults(@import("render.zig").gpa_impl.allocator());
 
+    // const section_pos: Vector3(i32) = .{
+    //     .x = @intFromFloat(ingame.world.player.base.pos.x / 16.0),
+    //     .y = @intFromFloat(ingame.world.player.base.pos.y / 16.0),
+    //     .z = @intFromFloat(ingame.world.player.base.pos.z / 16.0),
+    // };
+    // std.debug.print("section_pos: {}", .{section_pos});
+    // const chunk_info = self.compile_status_tracker.chunks.get(.{ .x = section_pos.x, .z = section_pos.z }) orelse {
+    //     std.debug.print("chunk info missing\n", .{});
+    //     return;
+    // };
+    // const section_info = switch (chunk_info) {
+    //     .Rendering => |sections| sections[@intCast(section_pos.y)],
+    //     .Waiting => {
+    //         std.debug.print("section waiting for neighbors\n", .{});
+    //         return;
+    //     },
+    // };
+    // std.debug.print("{}\n", .{section_info});
+
     const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
     gl.uniformMatrix4fv(0, true, &.{mvp.data});
 
@@ -197,12 +216,7 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: Section
     );
 
     // bind buffer as ssbo at offset
-    self.gpu_memory_allocator.backing_buffer.bindRange(
-        .shader_storage_buffer,
-        0,
-        @intCast(section.segment.offset),
-        @intCast(section.segment.length),
-    );
+    section.buffer.bindBase(.shader_storage_buffer, 0);
 
     // draw chunk
     gl.drawElements(
@@ -262,7 +276,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
                         section_info.current_revision,
                         allocator,
                     );
-                    section_info.latest_sent_revision = section_info.current_revision;
+                    section_info.alertCompilationDispatch();
                 }
             }
         }
@@ -270,72 +284,85 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
 }
 
 pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !void {
-    try self.compile_thread_pool.spawn(
-        CompilationTask.runTask,
-        .{
-            try CompilationTask.create(section_pos, world, revision, allocator),
-            &self.compilation_result_queue,
-            allocator,
-        },
-    );
-    // const task = try CompilationTask.create(section_pos, world, allocator);
-    // CompilationTask.runTask(
-    //     task,
-    //     &self.compilation_result_queue,
-    //     allocator,
+    // try self.compile_thread_pool.spawn(
+    //     CompilationTask.runTask,
+    //     .{
+    //         try CompilationTask.create(section_pos, world, revision, allocator),
+    //         &self.compilation_result_queue,
+    //         allocator,
+    //     },
     // );
+    CompilationTask.runTask(
+        try CompilationTask.create(section_pos, world, revision, allocator),
+        &self.compilation_result_queue,
+        allocator,
+    );
 }
 
-pub fn uploadCompilationResults(self: *@This(), allocator: std.mem.Allocator) !void {
+pub fn uploadCompilationResults(self: *@This(), _: std.mem.Allocator) !void {
     if (self.compilation_result_queue.sections.first == null) return;
 
     while (self.compilation_result_queue.pop()) |compilation_result| {
         switch (compilation_result.result) {
             .Success => |compiled_section| {
                 defer compiled_section.buffer.deinit();
+                const debug = compilation_result.section_pos.equals(.{ .x = 25, .y = 4, .z = 10 });
+
+                if (debug) {
+                    // std.debug.print("recieved backer.items={*}\n", .{compiled_section.buffer.items.ptr});
+                }
+
+                // Deallocate existing segment
+                if (self.sections.fetchRemove(compilation_result.section_pos)) |entry| {
+                    entry.value.buffer.delete();
+                }
 
                 // Notify compile tracker
                 const chunk_pos: Vector2xz(i32) = .{ .x = compilation_result.section_pos.x, .z = compilation_result.section_pos.z };
                 const section_y: usize = @intCast(compilation_result.section_pos.y);
+                // return if chunk is no longer being tracked
                 const chunk_compile_info = self.compile_status_tracker.chunks.getPtr(chunk_pos) orelse continue;
                 chunk_compile_info.Rendering[section_y].latest_received_revision = compilation_result.revision;
 
-                // Deallocate existing segment
-                if (self.sections.fetchRemove(compilation_result.section_pos)) |entry| {
-                    try self.gpu_memory_allocator.free(entry.value.segment, allocator);
+                const mesh_data = compiled_section.buffer.items;
+                if (mesh_data.len == 0) {
+                    continue;
                 }
 
-                const mesh_data = compiled_section.buffer.items;
-                if (mesh_data.len == 0) continue;
-
                 // Allocate gpu memory and upload segment
-                const segment = try self.gpu_memory_allocator.alloc(mesh_data.len, allocator);
-                self.gpu_memory_allocator.subData(segment, mesh_data);
+                // const segment = try self.gpu_memory_allocator.alloc(mesh_data.len, allocator);
+                const buffer = gl.Buffer.create();
+                buffer.storage(u8, mesh_data.len, mesh_data.ptr, .{});
+                // self.gpu_memory_allocator.subData(segment, mesh_data);
 
+                // if (debug) std.debug.print("quads={d}\n", .{compiled_section.quads});
                 // Store rendering info
                 try self.sections.put(
                     compilation_result.section_pos,
                     .{
                         .quads = compiled_section.quads,
-                        .segment = segment,
+                        .segment = undefined,
+                        .buffer = buffer,
                     },
                 );
             },
-            .Error => |_| {},
+            .Error => |e| std.debug.print("Error meshing section at {}: {}", .{ compilation_result.section_pos, e }),
         }
     }
 }
 
-pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), allocator: std.mem.Allocator) !void {
+pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), _: std.mem.Allocator) !void {
     self.compile_status_tracker.removeChunk(chunk_pos);
     for (0..16) |section_y| {
         const entry = self.sections.fetchRemove(.{ .x = chunk_pos.x, .y = @intCast(section_y), .z = chunk_pos.z }) orelse continue;
-        try self.gpu_memory_allocator.free(entry.value.segment, allocator);
+        entry.value.buffer.delete();
+        // try self.gpu_memory_allocator.free(entry.value.segment, allocator);
     }
 }
 
 pub const SectionRenderInfo = struct {
     segment: GpuMemoryAllocator.Segment,
+    buffer: gl.Buffer,
     quads: usize,
 };
 

@@ -20,10 +20,13 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    _ = allocator;
     switch (game.*) {
         .Ingame => |*ingame| {
-            try ingame.world.setBlockState(self.block_pos, self.state.toFiltered().toConcrete());
+            try ingame.world.setBlockState(
+                self.block_pos,
+                self.state.toFiltered().toConcrete(),
+                allocator,
+            );
         },
         else => unreachable,
     }

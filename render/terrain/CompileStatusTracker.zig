@@ -31,10 +31,14 @@ const ChunkCompileStatus = union(enum) {
         latest_received_revision: ?u32 = null,
 
         pub fn needsRecompile(self: @This()) bool {
-            return self.current_revision > self.latest_sent_revision orelse return true;
+            if (self.latest_sent_revision == null) return true;
+            return self.current_revision > self.latest_sent_revision.?;
         }
         pub fn bumpRevision(self: *@This()) void {
             self.current_revision += 1;
+        }
+        pub fn alertCompilationDispatch(self: *@This()) void {
+            self.latest_sent_revision = self.current_revision;
         }
     };
 };
@@ -81,8 +85,13 @@ pub fn markChunkPresent(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
 }
 
 pub fn markBlockPosDirty(self: *@This(), block_pos: Vector3(i32)) !void {
-    _ = self;
-    _ = block_pos;
+    const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return;
+    switch (chunk.*) {
+        .Rendering => |*sections| {
+            sections[@intCast(@divFloor(block_pos.y, 16))].current_revision += 1;
+        },
+        .Waiting => return,
+    }
 }
 
 pub fn removeChunk(self: *@This(), chunk_pos: Vector2xz(i32)) void {

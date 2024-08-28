@@ -133,12 +133,17 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
     return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
 }
 
-pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState) !void {
-    const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
+pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState, allocator: std.mem.Allocator) !void {
+    const chunk: *Chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
         @import("log").set_block_in_missing_chunk(.{.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
         return;
     };
-    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return; // TODO
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse blk: {
+        const section = try allocator.create(Section);
+        section.block_states = .{ConcreteBlockState.AIR} ** 4096;
+        chunk.sections[@intCast(@divFloor(block_pos.y, 16))] = section;
+        break :blk section;
+    }; // TODO: Check if this is accurate compared to vanilla
     const section_block_pos: Vector3(i32) = .{
         .x = @mod(block_pos.x, 16),
         .y = @mod(block_pos.y, 16),
