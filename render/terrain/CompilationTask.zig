@@ -140,7 +140,6 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
             }
         }
     }
-    // std.debug.print("quads: {}\n", .{staging.backer.items.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8)});
     return .{
         .buffer = staging.backer,
         .quads = staging.backer.items.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),

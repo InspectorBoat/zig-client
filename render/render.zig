@@ -65,6 +65,7 @@ pub fn onFrame(frame: Events.Frame) !void {
         .Ingame => |*ingame| {
             handleInputIngame(ingame);
             try renderer.updateAndDispatchDirtySections(&ingame.world, gpa_impl.allocator());
+            try renderer.uploadCompilationResults();
             try renderer.renderFrame(ingame);
         },
         .Connecting => |*connecting_game| handleInputConnecting(connecting_game),
@@ -78,7 +79,7 @@ pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
 }
 
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
-    try renderer.onUnloadChunk(unload_chunk.chunk_pos, gpa_impl.allocator());
+    try renderer.onUnloadChunk(unload_chunk.chunk_pos);
 }
 
 pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {

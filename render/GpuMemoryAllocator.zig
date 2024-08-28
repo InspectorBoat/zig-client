@@ -8,10 +8,12 @@ const gl = if (!@import("builtin").is_test) @import("zgl") else struct {
         pub fn delete(_: @This()) void {}
     };
 };
+
 free_segments: std.SinglyLinkedList(Segment),
 backing_buffer: gl.Buffer,
 min_alignment: c_int,
 used: usize = 0,
+allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
     const backing_buffer = gl.Buffer.create();
@@ -31,10 +33,11 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
         .free_segments = std.SinglyLinkedList(Segment){ .first = first_node },
         .backing_buffer = backing_buffer,
         .min_alignment = shader_storage_buffer_alignment,
+        .allocator = allocator,
     };
 }
 
-pub fn alloc(self: *@This(), n: usize, allocator: std.mem.Allocator) !Segment {
+pub fn alloc(self: *@This(), n: usize) !Segment {
     // round n to nearest multiple of self.min_alignment
     const actual_required_size = roundUp(n, @intCast(self.min_alignment));
 
@@ -49,7 +52,7 @@ pub fn alloc(self: *@This(), n: usize, allocator: std.mem.Allocator) !Segment {
                 if (segment.length == 0) {
                     self.free_segments.remove(node);
 
-                    allocator.destroy(node);
+                    self.allocator.destroy(node);
                 }
             }
 
@@ -63,8 +66,8 @@ pub fn alloc(self: *@This(), n: usize, allocator: std.mem.Allocator) !Segment {
     return error.OutOfMemory;
 }
 
-pub fn free(self: *@This(), free_segment: Segment, allocator: std.mem.Allocator) !void {
-    const node = try allocator.create(std.SinglyLinkedList(Segment).Node);
+pub fn free(self: *@This(), free_segment: Segment) !void {
+    const node = try self.allocator.create(std.SinglyLinkedList(Segment).Node);
     node.* = .{
         .data = free_segment,
         .next = null,
