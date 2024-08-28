@@ -19,7 +19,7 @@ pub const event_listeners = .{
     onChunkUpdate,
     onUnloadChunk,
     onBlockUpdate,
-    onFrame,
+    onExit,
 };
 
 pub fn onStartup(_: Events.Startup) !void {
@@ -87,7 +87,12 @@ pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
 }
 
 pub fn onExit(_: Events.Exit) !void {
+    try renderer.unloadAllChunks();
+    renderer.gpu_memory_allocator.deinit();
+    renderer.compile_thread_pool.deinit();
+    gpa_impl.allocator().destroy(renderer.compile_thread_pool);
     _ = gpa_impl.detectLeaks();
+    std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }
 
 pub fn handleInputIdle(_: *Game.IdleGame) void {

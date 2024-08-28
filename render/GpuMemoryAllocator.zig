@@ -15,6 +15,10 @@ min_alignment: c_int,
 used: usize = 0,
 allocator: std.mem.Allocator,
 
+pub fn detectLeaks(self: @This()) bool {
+    return self.used > 0;
+}
+
 pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
     const backing_buffer = gl.Buffer.create();
     errdefer backing_buffer.delete();
@@ -35,6 +39,12 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
         .min_alignment = shader_storage_buffer_alignment,
         .allocator = allocator,
     };
+}
+
+pub fn deinit(self: *@This()) void {
+    while (self.free_segments.popFirst()) |node| {
+        self.allocator.destroy(node);
+    }
 }
 
 pub fn alloc(self: *@This(), n: usize) !Segment {

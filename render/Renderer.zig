@@ -340,18 +340,32 @@ pub fn uploadCompilationResults(self: *@This()) !void {
 }
 
 pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
-    const chunk = self.chunk_tracker.chunks.get(chunk_pos).?;
-    switch (chunk) {
-        .Rendering => |sections| {
-            for (sections) |section| {
-                if (section.render_info) |render_info| {
-                    try self.gpu_memory_allocator.free(render_info.segment);
-                }
+    const chunk = self.chunk_tracker.chunks.getPtr(chunk_pos).?;
+    switch (chunk.*) {
+        .Rendering => |*sections| {
+            for (sections) |*section| {
+                try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
             }
         },
         .Waiting => {},
     }
     self.chunk_tracker.removeChunk(chunk_pos);
+}
+
+pub fn unloadAllChunks(self: *@This()) !void {
+    var iter = self.chunk_tracker.chunks.iterator();
+    while (iter.next()) |entry| {
+        const chunk = entry.value_ptr;
+        switch (chunk.*) {
+            .Rendering => |*sections| {
+                for (sections) |*section| {
+                    try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
+                }
+            },
+            .Waiting => {},
+        }
+    }
+    self.chunk_tracker.chunks.clearAndFree();
 }
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {
