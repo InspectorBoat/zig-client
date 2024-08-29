@@ -91,6 +91,13 @@ pub const NbtElement = union(NbtElementTag) {
             },
         }
     }
+    pub fn read(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) NbtReadError!NbtElement {
+        // read the byte telling us the tag of the element
+        return switch (try readElementType(buffer)) {
+            .Compound => .{ .Compound = try NbtCompound.read(buffer, allocator) },
+            else => std.debug.panic("Root tag must be a named compound tag\n", .{}),
+        };
+    }
 
     pub fn nameFromTag(comptime element_type: NbtElementTag) []const u8 {
         return @tagName(element_type);
