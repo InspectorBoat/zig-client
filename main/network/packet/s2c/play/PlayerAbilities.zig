@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
-const c2s = root.network.packet.c2s;
+const S2C = root.network.packet.S2C;
+const C2S = root.network.packet.C2S;
 const Game = root.Game;
 
 is_invulnerable: bool,
@@ -13,9 +13,9 @@ walk_speed: f32,
 
 comptime handle_on_network_thread: bool = false,
 
-pub const AbilityFlags = c2s.play.PlayerAbilities.AbilityFlags;
+pub const AbilityFlags = C2S.Play.PlayerAbilities.AbilityFlags;
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     const ability_flags = try buffer.readPacked(AbilityFlags);
     const fly_speed = try buffer.read(f32);

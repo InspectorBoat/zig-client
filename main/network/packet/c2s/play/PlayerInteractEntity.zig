@@ -1,13 +1,13 @@
 const std = @import("std");
 const root = @import("root");
-const c2s = root.network.packet.c2s;
+const C2S = root.network.packet.C2S;
 const Vector3 = root.Vector3;
 
 target_network_id: i32,
 action: Action,
 offset: ?Vector3(f64),
 
-pub fn write(self: @This(), buffer: *c2s.WriteBuffer) !void {
+pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writeVarInt(self.target_network_id);
     try buffer.writeEnum(Action, self.action);
     if (self.action == .InteractAt) {

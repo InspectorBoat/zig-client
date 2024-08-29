@@ -3,48 +3,28 @@ const root = @import("root");
 const Game = root.Game;
 const Connection = root.network.Connection;
 
-pub const c2s = opaque {
+pub const C2S = union(enum) {
     pub const WriteBuffer = @import("c2s/WriteBuffer.zig");
 
-    pub const handshake = opaque {
+    pub const Handshake = union(enum) {
         pub const Handshake = @import("c2s/handshake/Handshake.zig");
 
-        pub const Packet = union(enum) {
-            /// writes a type-erased packet
-            pub fn write(packet: @This(), buffer: *c2s.WriteBuffer) !void {
-                try buffer.writeVarInt(@intFromEnum(packet));
-                switch (packet) {
-                    // specific packet type must be comptime known, thus inline else is necessary
-                    inline else => |specific_packet| {
-                        try specific_packet.write(buffer);
-                    },
-                }
-            }
+        /// writes a type-erased packet
+        pub const write = Mixin(@This()).write;
 
-            Handshake: Handshake,
-        };
+        handshake: @import("c2s/handshake/Handshake.zig"),
     };
-    pub const login = opaque {
+    pub const Login = union(enum) {
         pub const Hello = @import("c2s/login/Hello.zig");
         pub const Key = @import("c2s/login/Key.zig");
 
-        pub const Packet = union(enum) {
-            /// writes a type-erased packet
-            pub fn write(packet: @This(), buffer: *c2s.WriteBuffer) !void {
-                try buffer.writeVarInt(@intFromEnum(packet));
-                switch (packet) {
-                    // specific packet type must be comptime known, thus inline else is necessary
-                    inline else => |specific_packet| {
-                        try specific_packet.write(buffer);
-                    },
-                }
-            }
+        /// writes a type-erased packet
+        pub const write = Mixin(@This()).write;
 
-            Hello: Hello,
-            Key: Key,
-        };
+        hello: Hello,
+        key: Key,
     };
-    pub const play = opaque {
+    pub const Play = union(enum) {
         pub const KeepAlive = @import("c2s/play/KeepAlive.zig");
         pub const ChatMessage = @import("c2s/play/ChatMessage.zig");
         pub const PlayerInteractEntity = @import("c2s/play/PlayerInteractEntity.zig");
@@ -72,9 +52,54 @@ pub const c2s = opaque {
         pub const PlayerSpectate = @import("c2s/play/PlayerSpectate.zig");
         pub const ResourcePack = @import("c2s/play/ResourcePack.zig");
 
-        pub const Packet = union(enum) {
-            /// writes a type-erased packet
-            pub fn write(packet: @This(), buffer: *c2s.WriteBuffer) !void {
+        /// writes a type-erased packet
+        pub const write = Mixin(@This()).write;
+
+        keep_alive: KeepAlive,
+        chat_message: ChatMessage,
+        player_interact_entity: PlayerInteractEntity,
+        player_move: PlayerMove,
+        player_move_position: PlayerMovePosition,
+        player_move_angles: PlayerMoveAngles,
+        player_move_position_and_angles: PlayerMovePositionAndAngles,
+        player_hand_action: PlayerHandAction,
+        player_use: PlayerUse,
+        select_slot: SelectSlot,
+        hand_swing: HandSwing,
+        player_movement_action: PlayerMovementAction,
+        player_input: PlayerInput,
+        close_menu: CloseMenu,
+        menu_click_slot: MenuClickSlot,
+        confirm_menu_action: ConfirmMenuAction,
+        creative_menu_slot: CreativeMenuSlot,
+        menu_click_button: MenuClickButton,
+        sign_update: SignUpdate,
+        player_abilities: PlayerAbilities,
+        command_suggestions: CommandSuggestions,
+        client_settings: ClientSettings,
+        client_status: ClientStatus,
+        custom_payload: CustomPayload,
+        player_spectate: PlayerSpectate,
+        resource_pack: ResourcePack,
+    };
+    pub const Status = union(enum) {
+        pub const Ping = @import("c2s/status/Ping.zig");
+        pub const ServerStatus = @import("c2s/status/ServerStatus.zig");
+
+        /// writes a type-erased packet
+        pub const write = Mixin(@This());
+
+        ping: Ping,
+        server_status: ServerStatus,
+    };
+
+    handshake: Handshake,
+    login: Login,
+    play: Play,
+
+    pub fn Mixin(comptime PacketMixin: type) type {
+        return struct {
+            pub fn write(packet: PacketMixin, buffer: *C2S.WriteBuffer) !void {
                 try buffer.writeVarInt(@intFromEnum(packet));
                 switch (packet) {
                     // specific packet type must be comptime known, thus inline else is necessary
@@ -83,126 +108,31 @@ pub const c2s = opaque {
                     },
                 }
             }
-
-            KeepAlive: KeepAlive,
-            ChatMessage: ChatMessage,
-            PlayerInteractEntity: PlayerInteractEntity,
-            PlayerMove: PlayerMove,
-            PlayerMovePosition: PlayerMovePosition,
-            PlayerMoveAngles: PlayerMoveAngles,
-            PlayerMovePositionAndAngles: PlayerMovePositionAndAngles,
-            PlayerHandAction: PlayerHandAction,
-            PlayerUse: PlayerUse,
-            SelectSlot: SelectSlot,
-            HandSwing: HandSwing,
-            PlayerMovementAction: PlayerMovementAction,
-            PlayerInput: PlayerInput,
-            CloseMenu: CloseMenu,
-            MenuClickSlot: MenuClickSlot,
-            ConfirmMenuAction: ConfirmMenuAction,
-            CreativeMenuSlot: CreativeMenuSlot,
-            MenuClickButton: MenuClickButton,
-            SignUpdate: SignUpdate,
-            PlayerAbilities: PlayerAbilities,
-            CommandSuggestions: CommandSuggestions,
-            ClientSettings: ClientSettings,
-            ClientStatus: ClientStatus,
-            CustomPayload: CustomPayload,
-            PlayerSpectate: PlayerSpectate,
-            ResourcePack: ResourcePack,
         };
-    };
-    pub const status = opaque {
-        pub const Ping = @import("c2s/status/Ping.zig");
-        pub const ServerStatus = @import("c2s/status/ServerStatus.zig");
-    };
-
-    pub const Packet = union(enum) {
-        Handshake: handshake.Packet,
-        Login: login.Packet,
-        Play: play.Packet,
-    };
+    }
 };
 
-pub const s2c = opaque {
+pub const S2C = union(enum) {
     pub const ReadBuffer = @import("s2c/ReadBuffer.zig");
 
-    pub const login = opaque {
+    pub const Login = union(enum) {
         pub const CompressionThreshold = @import("s2c/login/CompressionThreshold.zig");
         pub const Hello = @import("s2c/login/Hello.zig");
         pub const LoginFail = @import("s2c/login/LoginFail.zig");
         pub const LoginSuccess = @import("s2c/login/LoginSuccess.zig");
 
-        pub const Packet = union(enum) {
-            /// decodes a packet buffer into a type-erased packet
-            pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-                // the amount of packet types in this union
-                const PacketTypeCount = @typeInfo(@This()).@"union".fields.len;
+        /// decodes a packet buffer into a type-erased packet
+        pub const decode = Mixin(@This()).decode;
+        /// handles a type-erased packet
+        pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
+        pub const handleOnNetworkThread = Mixin(@This()).handleOnNetworkThread;
 
-                // read the opcode of the packet from the buffer
-                switch (try buffer.readVarInt()) {
-                    // opcode must be comptime known, thus inline is necessary
-                    inline 0...PacketTypeCount - 1 => |opcode| {
-                        // the packet type corresponding to the opcode
-                        const PacketType = typeFromOpcode(opcode);
-                        // the field name of the packet type corresponding to the opcode
-                        const PacketName = comptime nameFromOpcode(opcode);
-                        return @unionInit(
-                            @This(),
-                            PacketName,
-                            // decode packet using decoder
-                            try PacketType.decode(buffer, allocator),
-                        );
-                    },
-                    // error on invalid opcodes
-                    else => |opcode| {
-                        @import("log").invalid_opcode(.{opcode});
-                        return error.InvalidOpcode;
-                    },
-                }
-            }
-
-            /// handles a type-erased packet
-            pub fn handleOnMainThread(packet: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-                switch (packet.*) {
-                    // specific packet type must be comptime known, thus inline else is necessary
-                    inline else => |*specific_packet| {
-                        std.debug.assert(!specific_packet.handle_on_network_thread);
-                        // required to comptime prune other packets to prevent a compile error
-                        if (!specific_packet.handle_on_network_thread) {
-                            try specific_packet.handleOnMainThread(game, allocator);
-                        }
-                    },
-                }
-            }
-            // Of these, only CompressionThreshold, Keepalive, and Disconnect really need to be handled on the network thread
-            // .CompressionThreshold, .TabList, .KeepAlive, .ResourcePack, .Disconnect,
-            pub fn handleOnNetworkThread(packet: *@This(), server_connection: *Connection) !void {
-                switch (packet) {
-                    inline else => |*specific_packet| {
-                        std.debug.assert(specific_packet.handle_on_network_thread);
-                        // required to comptime prune other packets to prevent a compile error
-                        if (specific_packet.handle_on_network_thread) {
-                            specific_packet.handleOnNetworkThread(server_connection);
-                        }
-                    },
-                }
-            }
-
-            pub fn nameFromOpcode(comptime opcode: i32) []const u8 {
-                return @typeInfo(@This()).@"union".fields[opcode].name;
-            }
-            pub fn typeFromOpcode(comptime opcode: i32) type {
-                return @typeInfo(@This()).@"union".fields[opcode].type;
-            }
-
-            LoginFail: LoginFail,
-            Hello: Hello,
-            LoginSuccess: LoginSuccess,
-            CompressionThreshold: CompressionThreshold,
-        };
+        login_fail: LoginFail,
+        hello: Hello,
+        login_success: LoginSuccess,
+        compression_threshold: CompressionThreshold,
     };
-    pub const play = opaque {
+    pub const Play = union(enum) {
         pub const KeepAlive = @import("s2c/play/KeepAlive.zig");
         pub const Login = @import("s2c/play/Login.zig");
         pub const ChatMessage = @import("s2c/play/ChatMessage.zig");
@@ -278,11 +208,119 @@ pub const s2c = opaque {
         pub const ResourcePack = @import("s2c/play/ResourcePack.zig");
         pub const EntitySync = @import("s2c/play/EntitySync.zig");
 
-        pub const Packet = union(enum) {
-            /// decodes a packet buffer into a type-erased packet
-            pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+        /// decodes a packet buffer into a type-erased packet
+        pub const decode = Mixin(@This()).decode;
+        /// handles a type-erased packet
+        pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
+        // Of these, only CompressionThreshold, Keepalive, and Disconnect really need to be handled on the network thread
+        // .CompressionThreshold, .TabList, .KeepAlive, .ResourcePack, .Disconnect,
+        pub const handleOnNetworkThread = Mixin(@This()).handleOnNetworkThread;
+
+        keep_alive: KeepAlive,
+        login: @import("s2c/play/Login.zig"),
+        chat_message: ChatMessage,
+        world_time: WorldTime,
+        entity_equipment: EntityEquipment,
+        spawn_point: SpawnPoint,
+        player_health: PlayerHealth,
+        player_respawn: PlayerRespawn,
+        player_move: PlayerMove,
+        select_slot: SelectSlot,
+        player_sleep: PlayerSleep,
+        entity_animation: EntityAnimation,
+        add_player: AddPlayer,
+        entity_pickup: EntityPickup,
+        add_entity: AddEntity,
+        add_mob: AddMob,
+        add_painting: AddPainting,
+        add_xp_orb: AddXpOrb,
+        entity_velocity: EntityVelocity,
+        remove_entities: RemoveEntities,
+        entity_move: EntityMove,
+        entity_move_position: EntityMovePosition,
+        entity_move_angles: EntityMoveAngles,
+        entity_move_position_angles: EntityMovePositionAndAngles,
+        entity_teleport: EntityTeleport,
+        entity_head_angles: EntityHeadAngles,
+        entity_event: EntityEvent,
+        entity_attach: EntityAttach,
+        entity_data: EntityData,
+        entity_status_effect: EntityStatusEffect,
+        entity_remove_status_effect: EntityRemoveStatusEffect,
+        player_xp: PlayerXp,
+        entity_attributes: EntityAttributes,
+        world_chunk: WorldChunk,
+        blocks_update: BlocksUpdate,
+        block_update: BlockUpdate,
+        block_event: BlockEvent,
+        block_mining_progress: BlockMiningProgress,
+        world_chunks: WorldChunks,
+        explosion: Explosion,
+        world_event: WorldEvent,
+        sound_event: SoundEvent,
+        particle: Particle,
+        game_event: GameEvent,
+        add_global_entity: AddGlobalEntity,
+        open_menu: OpenMenu,
+        close_menu: CloseMenu,
+        menu_slot_update: MenuSlotUpdate,
+        inventory_menu: InventoryMenu,
+        menu_data: MenuData,
+        confirm_menu_action: ConfirmMenuAction,
+        sign_update: SignUpdate,
+        map_data: MapData,
+        block_entity_update: BlockEntityUpdate,
+        open_sign_editor: OpenSignEditor,
+        statistics: Statistics,
+        player_info: PlayerInfo,
+        player_abilities: PlayerAbilities,
+        command_suggestions: CommandSuggestions,
+        scoreboard_objective: ScoreboardObjective,
+        scoreboard_score: ScoreboardScore,
+        scoreboard_display: ScoreboardDisplay,
+        team: Team,
+        custom_payload: CustomPayload,
+        disconnect: Disconnect,
+        difficulty: Difficulty,
+        player_combat: PlayerCombat,
+        camera: Camera,
+        world_border: WorldBorder,
+        titles: Titles,
+        compression_threshold: CompressionThreshold,
+        tab_list: TabList,
+        resource_pack: ResourcePack,
+        entity_sync: EntitySync,
+    };
+    pub const Status = union(enum) {
+        pub const Ping = @import("s2c/status/Ping.zig");
+        pub const ServerStatus = @import("s2c/status/ServerStatus.zig");
+
+        /// decodes a packet buffer into a type-erased packet
+        pub const decode = Mixin(@This()).decode;
+        /// handles a type-erased packet
+        pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
+        pub const handleOnNetworkThread = Mixin(@This()).handleOnNetworkThread;
+
+        ping: Ping,
+        server_status: ServerStatus,
+    };
+
+    // only the client ever sends packets in the handshake protocol
+    Login: Login,
+    Play: Play,
+
+    pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+        switch (self.*) {
+            .Login => |*login_packet| try login_packet.handleOnMainThread(game, allocator),
+            .Play => |*play_packet| try play_packet.handleOnMainThread(game, allocator),
+        }
+    }
+
+    pub fn Mixin(comptime PacketMixin: type) type {
+        return struct {
+            pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !PacketMixin {
                 // the amount of packet types in this union
-                const PacketTypeCount = @typeInfo(@This()).@"union".fields.len;
+                const PacketTypeCount = @typeInfo(PacketMixin).@"union".fields.len;
 
                 // read the opcode of the packet from the buffer
                 switch (try buffer.readVarInt()) {
@@ -293,7 +331,7 @@ pub const s2c = opaque {
                         // the field name of the packet type corresponding to the opcode
                         const PacketName = comptime nameFromOpcode(opcode);
                         return @unionInit(
-                            @This(),
+                            PacketMixin,
                             PacketName,
                             // decode packet using decoder
                             try PacketType.decode(buffer, allocator),
@@ -308,7 +346,7 @@ pub const s2c = opaque {
             }
 
             /// handles a type-erased packet
-            pub fn handleOnMainThread(packet: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+            pub fn handleOnMainThread(packet: *PacketMixin, game: *Game, allocator: std.mem.Allocator) !void {
                 switch (packet.*) {
                     // specific packet type must be comptime known, thus inline else is necessary
                     inline else => |*specific_packet| {
@@ -322,7 +360,7 @@ pub const s2c = opaque {
             }
             // Of these, only CompressionThreshold, Keepalive, and Disconnect really need to be handled on the network thread
             // .CompressionThreshold, .TabList, .KeepAlive, .ResourcePack, .Disconnect,
-            pub fn handleOnNetworkThread(packet: *@This(), server_connection: *Connection) !void {
+            pub fn handleOnNetworkThread(packet: *PacketMixin, server_connection: *Connection) !void {
                 switch (packet) {
                     inline else => |*specific_packet| {
                         std.debug.assert(specific_packet.handle_on_network_thread);
@@ -335,103 +373,11 @@ pub const s2c = opaque {
             }
 
             pub fn nameFromOpcode(comptime opcode: i32) []const u8 {
-                return @typeInfo(@This()).@"union".fields[opcode].name;
+                return @typeInfo(PacketMixin).@"union".fields[opcode].name;
             }
             pub fn typeFromOpcode(comptime opcode: i32) type {
-                return @typeInfo(@This()).@"union".fields[opcode].type;
+                return @typeInfo(PacketMixin).@"union".fields[opcode].type;
             }
-
-            KeepAlive: KeepAlive,
-            Login: Login,
-            ChatMessage: ChatMessage,
-            WorldTime: WorldTime,
-            EntityEquipment: EntityEquipment,
-            SpawnPoint: SpawnPoint,
-            PlayerHealth: PlayerHealth,
-            PlayerRespawn: PlayerRespawn,
-            PlayerMove: PlayerMove,
-            SelectSlot: SelectSlot,
-            PlayerSleep: PlayerSleep,
-            EntityAnimation: EntityAnimation,
-            AddPlayer: AddPlayer,
-            EntityPickup: EntityPickup,
-            AddEntity: AddEntity,
-            AddMob: AddMob,
-            AddPainting: AddPainting,
-            AddXpOrb: AddXpOrb,
-            EntityVelocity: EntityVelocity,
-            RemoveEntities: RemoveEntities,
-            EntityMove: EntityMove,
-            EntityMovePosition: EntityMovePosition,
-            EntityMoveAngles: EntityMoveAngles,
-            EntityMovePositionAngles: EntityMovePositionAndAngles,
-            EntityTeleport: EntityTeleport,
-            EntityHeadAngles: EntityHeadAngles,
-            EntityEvent: EntityEvent,
-            EntityAttach: EntityAttach,
-            EntityData: EntityData,
-            EntityStatusEffect: EntityStatusEffect,
-            EntityRemoveStatusEffect: EntityRemoveStatusEffect,
-            PlayerXp: PlayerXp,
-            EntityAttributes: EntityAttributes,
-            WorldChunk: WorldChunk,
-            BlocksUpdate: BlocksUpdate,
-            BlockUpdate: BlockUpdate,
-            BlockEvent: BlockEvent,
-            BlockMiningProgress: BlockMiningProgress,
-            WorldChunks: WorldChunks,
-            Explosion: Explosion,
-            WorldEvent: WorldEvent,
-            SoundEvent: SoundEvent,
-            Particle: Particle,
-            GameEvent: GameEvent,
-            AddGlobalEntity: AddGlobalEntity,
-            OpenMenu: OpenMenu,
-            CloseMenu: CloseMenu,
-            MenuSlotUpdate: MenuSlotUpdate,
-            InventoryMenu: InventoryMenu,
-            MenuData: MenuData,
-            ConfirmMenuAction: ConfirmMenuAction,
-            SignUpdate: SignUpdate,
-            MapData: MapData,
-            BlockEntityUpdate: BlockEntityUpdate,
-            OpenSignEditor: OpenSignEditor,
-            Statistics: Statistics,
-            PlayerInfo: PlayerInfo,
-            PlayerAbilities: PlayerAbilities,
-            CommandSuggestions: CommandSuggestions,
-            ScoreboardObjective: ScoreboardObjective,
-            ScoreboardScore: ScoreboardScore,
-            ScoreboardDisplay: ScoreboardDisplay,
-            Team: Team,
-            CustomPayload: CustomPayload,
-            Disconnect: Disconnect,
-            Difficulty: Difficulty,
-            PlayerCombat: PlayerCombat,
-            Camera: Camera,
-            WorldBorder: WorldBorder,
-            Titles: Titles,
-            CompressionThreshold: CompressionThreshold,
-            TabList: TabList,
-            ResourcePack: ResourcePack,
-            EntitySync: EntitySync,
         };
-    };
-    pub const status = opaque {
-        pub const Ping = @import("s2c/status/Ping.zig");
-        pub const ServerStatus = @import("s2c/status/ServerStatus.zig");
-    };
-
-    pub const Packet = union(enum) {
-        // only the client ever sends packets in the handshake protocol
-        Login: login.Packet,
-        Play: play.Packet,
-
-        pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-            switch (self.*) {
-                .Login => |*login_packet| try login_packet.handleOnMainThread(game, allocator),
-                .Play => |*play_packet| try play_packet.handleOnMainThread(game, allocator),
-            }
-        }
-    };
+    }
 };

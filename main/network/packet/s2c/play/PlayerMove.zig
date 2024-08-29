@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
@@ -11,7 +11,7 @@ relative_arguments: RelativeArguments,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     return .{
         .pos = Vector3(f64){
@@ -66,7 +66,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                 },
             );
             try ingame.connection_handle.sendPlayPacket(
-                .{ .PlayerMovePositionAndAngles = .{
+                .{ .player_move_position_and_angles = .{
                     .on_ground = false,
                     .pos = player.base.pos,
                     .rotation = player.base.rotation,
@@ -74,7 +74,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
             );
             // Temporary hack for respawning
             try ingame.connection_handle.sendPlayPacket(
-                .{ .ClientStatus = .{
+                .{ .client_status = .{
                     .status = .PerformRespawn,
                 } },
             );

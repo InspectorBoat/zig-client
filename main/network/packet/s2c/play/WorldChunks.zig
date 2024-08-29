@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const Vector2xz = root.Vector2xz;
 
@@ -10,9 +10,9 @@ has_light: bool,
 
 comptime handle_on_network_thread: bool = false,
 
-pub const ChunkData = s2c.play.WorldChunk.ChunkData;
+pub const ChunkData = S2C.Play.WorldChunk.ChunkData;
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const has_sky_light = try buffer.read(bool);
     const chunk_count: usize = @intCast(try buffer.readVarInt());
     std.debug.assert(chunk_count >= 0);
@@ -28,7 +28,7 @@ pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         const section_bitfield: std.bit_set.IntegerBitSet(16) = .{ .mask = try buffer.read(u16) };
         chunk_data.* = ChunkData{
             .sections = section_bitfield,
-            .buffer = try s2c.ReadBuffer.initCapacity(allocator, findBufferSize(section_bitfield, has_sky_light)),
+            .buffer = try S2C.ReadBuffer.initCapacity(allocator, findBufferSize(section_bitfield, has_sky_light)),
         };
     }
 

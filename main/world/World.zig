@@ -3,7 +3,7 @@ const root = @import("root");
 const Vector2xz = root.Vector2xz;
 const Vector3 = root.Vector3;
 const Game = root.Game;
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const LocalPlayerEntity = root.entity.LocalPlayer;
 const AnyEntity = root.entity.Any;
 const Block = root.Block;
@@ -180,7 +180,7 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
 pub fn receiveChunk(
     self: *@This(),
     chunk_pos: Vector2xz(i32),
-    chunk_data: *s2c.play.WorldChunk.ChunkData,
+    chunk_data: *S2C.Play.WorldChunk.ChunkData,
     full: bool,
     has_sky_light: bool,
     allocator: std.mem.Allocator,

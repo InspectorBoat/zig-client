@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ScaledVector = root.network.ScaledVector;
 
@@ -10,7 +10,7 @@ xp: i32,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     _ = buffer;
     return undefined;

@@ -1,11 +1,11 @@
 const std = @import("std");
 const root = @import("root");
-const c2s = root.network.packet.c2s;
+const C2S = root.network.packet.C2S;
 const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
 
 status: Status,
 
-pub fn write(self: @This(), buffer: *c2s.WriteBuffer) !void {
+pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writeEnum(Status, self.status);
 }
 

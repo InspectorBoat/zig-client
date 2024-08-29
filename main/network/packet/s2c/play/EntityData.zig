@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const DataTracker = root.entity.DataTracker;
 
@@ -9,7 +9,7 @@ entries: []const DataTrackerEntry,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const network_id = try buffer.readVarInt();
     return .{
         .network_id = network_id,
@@ -17,7 +17,7 @@ pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn readDataEntries(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) ![]const DataTrackerEntry {
+pub fn readDataEntries(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) ![]const DataTrackerEntry {
     var entries = std.ArrayList(DataTrackerEntry).init(allocator);
     var entry_info = try buffer.readPacked(DataTrackerEntryInfo);
     while (@as(u8, @bitCast(entry_info)) != DataTrackerEntryInfo.Stop) {

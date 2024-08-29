@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const c2s = root.network.packet.c2s;
+const C2S = root.network.packet.C2S;
 const Vector3 = root.Vector3;
 const Direction = root.Direction;
 const ItemStack = root.ItemStack;
@@ -10,7 +10,7 @@ face: Direction,
 stack: ItemStack,
 offset: Vector3(f32),
 
-pub fn write(self: @This(), buffer: *c2s.WriteBuffer) !void {
+pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writeBlockPos(self.block_pos);
     try buffer.write(i8, @intFromEnum(self.face));
     try buffer.writeItemStack(self.stack);

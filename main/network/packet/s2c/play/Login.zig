@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const World = root.World;
 const GameMode = World.GameMode;
@@ -20,7 +20,7 @@ reduced_debug_info: bool,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     const network_id = try buffer.read(i32);
     const i = try buffer.read(u8);
@@ -63,7 +63,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
             errdefer world.deinit(allocator);
 
             // send brand packet
-            try connecting.connection_handle.sendPlayPacket(.{ .CustomPayload = .{
+            try connecting.connection_handle.sendPlayPacket(.{ .custom_payload = .{
                 .channel = "MC|Brand",
                 .data = "vanilla",
             } });

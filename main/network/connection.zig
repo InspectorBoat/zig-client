@@ -2,8 +2,8 @@ const std = @import("std");
 const network_lib = @import("network");
 const root = @import("root");
 const network = root.network;
-const c2s = network.packet.c2s;
-const s2c = network.packet.s2c;
+const C2S = network.packet.C2S;
+const S2C = network.packet.S2C;
 const Protocol = network.Protocol;
 const Game = root.Game;
 const RingBuffer = @import("util").RingBuffer;
@@ -23,10 +23,10 @@ pub const Connection = struct {
 
     /// The main thread submits to this queue, network thread encodes and sends them
     /// The main thread should periodically poll and free already sent packets using c2s_packet_allocator
-    c2s_packet_queue: *WriteReadFreeQueue(c2s.Packet),
+    c2s_packet_queue: *WriteReadFreeQueue(C2S),
     /// The network thread decodes packets and submits them to this queue, main thread reads and handles them
     /// The network thread should periodically poll and free already handled packets using s2c_packet_allocator
-    s2c_packet_queue: *WriteReadFreeQueue(S2CPacketWrapper),
+    s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
 
     /// A buffer of raw bytes read from the socket but not yet decoded
     queued_bytes: std.fifo.LinearFifo(u8, .{ .Static = 1024 * 1024 }),
@@ -37,8 +37,8 @@ pub const Connection = struct {
         name: []const u8,
         port: u16,
         disconnect_ptr: *bool,
-        c2s_packet_queue: *WriteReadFreeQueue(c2s.Packet),
-        s2c_packet_queue: *WriteReadFreeQueue(S2CPacketWrapper),
+        c2s_packet_queue: *WriteReadFreeQueue(C2S),
+        s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
     ) !void {
         var ring_alloc_buffer: [1024 * 1024 * 8]u8 = undefined;
         var connection: Connection = .{
@@ -116,7 +116,7 @@ pub const Connection = struct {
         self.c2s_packet_queue.unlock();
     }
 
-    pub fn dispatchS2CPacket(self: *@This(), packet: s2c.Packet, initial_alloc_index: usize) !void {
+    pub fn dispatchS2CPacket(self: *@This(), packet: S2C, initial_alloc_index: usize) !void {
         var packet_mut = packet;
         switch (packet_mut) {
             inline else => |*specific_protocol| {
@@ -199,8 +199,8 @@ pub const Connection = struct {
 
     pub fn decodeQueuedBytes(
         self: *@This(),
-    ) !?s2c.Packet {
-        var buffer = s2c.ReadBuffer.fromOwnedSlice(self.queued_bytes.readableSlice(0));
+    ) !?S2C {
+        var buffer = S2C.ReadBuffer.fromOwnedSlice(self.queued_bytes.readableSlice(0));
         const packet_body_size, const packet_header_size = buffer.readVarIntExtra(3) catch |err| switch (err) {
             error.VarIntTooBig => return err,
             error.EndOfBuffer => return null,
@@ -236,20 +236,20 @@ pub const Connection = struct {
                 const initial_read_location = buffer.read_location;
                 const initial_alloc_index = self.s2c_packet_ring_alloc.alloc_index;
 
-                const packet: s2c.Packet = switch (self.protocol) {
+                const packet: S2C = switch (self.protocol) {
                     // only the client ever sends packets in the handshake protocol
                     .Handshake => unreachable,
                     // this does not occur in a normal connection
                     .Status => unreachable,
                     .Login => .{
-                        .Login = s2c.login.Packet.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
+                        .Login = S2C.Login.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
                             if (self.disconnected.*) return null;
                             try self.handleOom(&buffer, initial_read_location, initial_alloc_index);
                             continue;
                         },
                     },
                     .Play => .{
-                        .Play = s2c.play.Packet.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
+                        .Play = S2C.Play.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
                             if (self.disconnected.*) return null;
                             try self.handleOom(&buffer, initial_read_location, initial_alloc_index);
                             continue;
@@ -268,7 +268,7 @@ pub const Connection = struct {
 
     pub fn handleOom(
         self: *@This(),
-        buffer: *s2c.ReadBuffer,
+        buffer: *S2C.ReadBuffer,
         initial_read_location: usize,
         initial_alloc_index: usize,
     ) !void {
@@ -287,7 +287,7 @@ pub const Connection = struct {
     /// check if the buffer needs to be decompressed
     /// returns null if the packet does not need to be decompressed,
     /// otherwise returns the size after decompression
-    pub fn getDecompressionInfo(self: *@This(), buffer: *s2c.ReadBuffer) !?i32 {
+    pub fn getDecompressionInfo(self: *@This(), buffer: *S2C.ReadBuffer) !?i32 {
         if (self.compression_threshold < 0) return null;
         const size_after_decompression = try buffer.readVarInt();
         // packet was not compressed
@@ -301,7 +301,7 @@ pub const Connection = struct {
         return size_after_decompression;
     }
 
-    pub fn decompressBuffer(compressed_buffer: *s2c.ReadBuffer, size_after_decompression: i32, decompress_raw_buffer: *[2097152]u8) !s2c.ReadBuffer {
+    pub fn decompressBuffer(compressed_buffer: *S2C.ReadBuffer, size_after_decompression: i32, decompress_raw_buffer: *[2097152]u8) !S2C.ReadBuffer {
         // take slice of unread bytes to be compressed
         const compressed_bytes = compressed_buffer.readRemainingBytesNonAllocating();
 
@@ -311,7 +311,7 @@ pub const Connection = struct {
         const actual_decompressed_size = try decompressor.reader().readAll(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
         std.debug.assert(actual_decompressed_size == size_after_decompression);
 
-        return s2c.ReadBuffer.fromOwnedSlice(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
+        return S2C.ReadBuffer.fromOwnedSlice(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
     }
 
     pub fn setCompressionThreshold(self: *@This(), compression_threshold: i32) void {
@@ -331,14 +331,14 @@ pub const Connection = struct {
     }
 
     /// takes ownership of uncompressed_buffer
-    pub fn compressBuffer(self: *@This(), uncompressed_buffer: *c2s.WriteBuffer, allocator: std.mem.Allocator) !c2s.WriteBuffer {
+    pub fn compressBuffer(self: *@This(), uncompressed_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
         defer uncompressed_buffer.deinit();
 
         var compressed_bytes = std.ArrayList(u8).init(allocator);
         errdefer compressed_bytes.deinit();
 
         if (uncompressed_buffer.backer.items.len < self.compression_threshold) {
-            var compressed_buffer = c2s.WriteBuffer.fromOwnedArrayList(compressed_bytes);
+            var compressed_buffer = C2S.WriteBuffer.fromOwnedArrayList(compressed_bytes);
             try compressed_buffer.writeVarInt(0);
             try compressed_buffer.writeBytes(uncompressed_buffer.backer.items);
             return compressed_buffer;
@@ -348,48 +348,48 @@ pub const Connection = struct {
         try compressor.writer().writeAll(uncompressed_buffer.backer.items);
         try compressor.finish();
 
-        return c2s.WriteBuffer.fromOwnedArrayList(compressed_bytes);
+        return C2S.WriteBuffer.fromOwnedArrayList(compressed_bytes);
     }
 
     /// takes ownership of original_buffer
-    pub fn prependLength(original_buffer: *c2s.WriteBuffer, allocator: std.mem.Allocator) !c2s.WriteBuffer {
+    pub fn prependLength(original_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
         defer original_buffer.deinit();
 
-        var out_buffer = c2s.WriteBuffer.init(allocator);
+        var out_buffer = C2S.WriteBuffer.init(allocator);
         errdefer out_buffer.deinit();
 
         try out_buffer.writeByteSlice(original_buffer.backer.items);
         return out_buffer;
     }
 
-    pub fn sendHandshakePacket(self: *@This(), packet: c2s.handshake.Packet) !void {
-        try self.sendPacket(.{ .Handshake = packet });
+    pub fn sendHandshakePacket(self: *@This(), packet: C2S.Handshake) !void {
+        try self.sendPacket(.{ .handshake = packet });
     }
 
-    pub fn sendLoginPacket(self: *@This(), packet: c2s.login.Packet) !void {
-        try self.sendPacket(.{ .Login = packet });
+    pub fn sendLoginPacket(self: *@This(), packet: C2S.Login) !void {
+        try self.sendPacket(.{ .login = packet });
     }
 
-    pub fn sendPlayPacket(self: *@This(), packet: c2s.play.Packet) !void {
-        try self.sendPacket(.{ .Play = packet });
+    pub fn sendPlayPacket(self: *@This(), packet: C2S.Play) !void {
+        try self.sendPacket(.{ .play = packet });
     }
 
     pub fn sendPacket(
         self: *@This(),
-        packet: c2s.Packet,
+        packet: C2S,
     ) !void {
         var packet_encode_buffer: [1024 * 1024]u8 = undefined;
         var packet_encode_alloc_impl = std.heap.FixedBufferAllocator.init(&packet_encode_buffer);
         const packet_encode_alloc = packet_encode_alloc_impl.allocator();
 
-        var packet_buffer = c2s.WriteBuffer.init(packet_encode_alloc);
+        var packet_buffer = C2S.WriteBuffer.init(packet_encode_alloc);
         defer packet_buffer.deinit();
 
         // write packet
         switch (packet) {
-            .Handshake => |handshake_packet| try handshake_packet.write(&packet_buffer),
-            .Login => |login_packet| try login_packet.write(&packet_buffer),
-            .Play => |play_packet| try play_packet.write(&packet_buffer),
+            .handshake => |handshake_packet| try handshake_packet.write(&packet_buffer),
+            .login => |login_packet| try login_packet.write(&packet_buffer),
+            .play => |play_packet| try play_packet.write(&packet_buffer),
         }
 
         // compress packet
@@ -438,53 +438,53 @@ pub const ConnectionHandle = struct {
     network_thread: std.Thread,
     /// The main thread submits to this queue, network thread encodes and sends them
     /// The main thread should periodically poll and free already sent packets
-    c2s_packet_queue: *WriteReadFreeQueue(c2s.Packet),
+    c2s_packet_queue: *WriteReadFreeQueue(C2S),
     /// The network thread decodes packets and submits them to this queue, main thread reads and handles them
     /// The network thread should periodically poll and free already handled packets using s2c_packet_allocator
-    s2c_packet_queue: *WriteReadFreeQueue(S2CPacketWrapper),
+    s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
     /// This allocator should be used to allocate memory for c2s packets and *nothing else*
     c2s_packet_allocator: std.mem.Allocator,
     /// If either thread sets this flag to true, the network thread will disconnect and halt
     disconnected: *bool,
 
-    pub fn sendPacket(self: *@This(), packet: c2s.Packet) !void {
+    pub fn sendPacket(self: *@This(), packet: C2S) !void {
         self.c2s_packet_queue.lock();
         errdefer self.c2s_packet_queue.unlock();
         try self.c2s_packet_queue.write(packet);
         self.c2s_packet_queue.unlock();
     }
 
-    pub fn getPacket(self: *@This()) ?s2c.Packet {
+    pub fn getPacket(self: *@This()) ?S2C {
         self.s2c_packet_queue.mutex.lock();
         const packet = self.c2s_packet_queue.queue.readItem();
         self.c2s_packet_queue.mutex.unlock();
         return packet;
     }
 
-    pub fn sendHandshakePacket(self: *@This(), packet: c2s.handshake.Packet) !void {
-        try self.sendPacket(.{ .Handshake = packet });
+    pub fn sendHandshakePacket(self: *@This(), packet: C2S.Handshake) !void {
+        try self.sendPacket(.{ .handshake = packet });
     }
 
-    pub fn sendLoginPacket(self: *@This(), packet: c2s.login.Packet) !void {
-        try self.sendPacket(.{ .Login = packet });
+    pub fn sendLoginPacket(self: *@This(), packet: C2S.Login) !void {
+        try self.sendPacket(.{ .login = packet });
     }
 
-    pub fn sendPlayPacket(self: *@This(), packet: c2s.play.Packet) !void {
-        try self.sendPacket(.{ .Play = packet });
+    pub fn sendPlayPacket(self: *@This(), packet: C2S.Play) !void {
+        try self.sendPacket(.{ .play = packet });
     }
 
     pub fn sendLoginSequence(self: *@This(), player_name: []const u8) !void {
-        const handshake_packet: c2s.handshake.Handshake = .{
+        const handshake_packet: C2S.Handshake.Handshake = .{
             .version = 47,
             .address = self.name,
             .port = @intCast(self.port),
             .protocol_id = 2,
         };
-        const hello_packet: c2s.login.Hello = .{
+        const hello_packet: C2S.Login.Hello = .{
             .player_name = player_name,
         };
-        try self.sendHandshakePacket(.{ .Handshake = handshake_packet });
-        try self.sendLoginPacket(.{ .Hello = hello_packet });
+        try self.sendHandshakePacket(.{ .handshake = handshake_packet });
+        try self.sendLoginPacket(.{ .hello = hello_packet });
     }
 
     pub fn disconnect(
@@ -512,8 +512,8 @@ pub fn initConnection(
     /// This allocator will be used to allocate memory for c2s packets and nothing else
     c2s_packet_allocator: std.mem.Allocator,
 ) !ConnectionHandle {
-    const c2s_packet_queue: *WriteReadFreeQueue(c2s.Packet) = try allocator.create(WriteReadFreeQueue(c2s.Packet));
-    const s2c_packet_queue: *WriteReadFreeQueue(S2CPacketWrapper) = try allocator.create(WriteReadFreeQueue(S2CPacketWrapper));
+    const c2s_packet_queue: *WriteReadFreeQueue(C2S) = try allocator.create(WriteReadFreeQueue(C2S));
+    const s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper) = try allocator.create(WriteReadFreeQueue(S2CWrapper));
     const disconnect_ptr = try allocator.create(bool);
     const name_dupe = try allocator.dupe(u8, name);
 
@@ -534,8 +534,8 @@ pub fn initConnection(
     };
 }
 
-pub const S2CPacketWrapper = struct {
-    packet: s2c.Packet,
+pub const S2CWrapper = struct {
+    packet: S2C,
     alloc_index: ?usize,
 };
 

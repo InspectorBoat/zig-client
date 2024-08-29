@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
+const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ItemStack = root.ItemStack;
 
@@ -10,7 +10,7 @@ stack: ?ItemStack,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return .{
         .network_id = try buffer.readVarInt(),
         .equipment_slot = try buffer.read(i16),

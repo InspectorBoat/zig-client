@@ -233,7 +233,7 @@ pub fn updateSprinting(self: *@This()) !void {
 
 pub fn sendMovementPackets(self: *@This(), game: *Game.IngameGame) !void {
     if (try self.base.isSprinting() != self.server_movement_status.sprinting) {
-        try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
+        try game.connection_handle.sendPlayPacket(.{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
@@ -241,7 +241,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameGame) !void {
         self.server_movement_status.sprinting = try self.base.isSprinting();
     }
     if (self.isSneaking() != self.server_movement_status.sprinting) {
-        try game.connection_handle.sendPlayPacket(.{ .PlayerMovementAction = .{
+        try game.connection_handle.sendPlayPacket(.{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
@@ -256,23 +256,23 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameGame) !void {
         self.base.rotation.yaw != self.server_movement_status.rotation.yaw;
 
     if (send_movement and send_rotation) {
-        try game.connection_handle.sendPlayPacket(.{ .PlayerMovePositionAndAngles = .{
+        try game.connection_handle.sendPlayPacket(.{ .player_move_position_and_angles = .{
             .on_ground = self.base.colliding.on_ground,
             .pos = self.base.pos,
             .rotation = self.base.rotation,
         } });
     } else if (send_movement) {
-        try game.connection_handle.sendPlayPacket(.{ .PlayerMovePosition = .{
+        try game.connection_handle.sendPlayPacket(.{ .player_move_position = .{
             .on_ground = self.base.colliding.on_ground,
             .pos = self.base.pos,
         } });
     } else if (send_rotation) {
-        try game.connection_handle.sendPlayPacket(.{ .PlayerMoveAngles = .{
+        try game.connection_handle.sendPlayPacket(.{ .player_move_angles = .{
             .on_ground = self.base.colliding.on_ground,
             .rotation = self.base.rotation,
         } });
     } else {
-        try game.connection_handle.sendPlayPacket(.{ .PlayerMove = .{
+        try game.connection_handle.sendPlayPacket(.{ .player_move = .{
             .on_ground = self.base.colliding.on_ground,
         } });
     }

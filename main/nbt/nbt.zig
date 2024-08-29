@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
-const s2c = root.network.packet.s2c;
-const c2s = root.network.packet.c2s;
+const S2C = root.network.packet.S2C;
+const C2S = root.network.packet.C2S;
 
 pub const NbtElementTag = enum(i8) {
     End = 0,
@@ -45,11 +45,11 @@ pub const NbtElement = union(NbtElementTag) {
     Compound: NbtCompound,
     IntArray: NbtIntArray,
 
-    pub fn writeBlankName(self: *@This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn writeBlankName(self: *@This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         try self.writeWithName(buffer, "");
     }
 
-    pub fn writeWithName(self: *@This(), buffer: *c2s.WriteBuffer, key: []const u8) NbtWriteError!void {
+    pub fn writeWithName(self: *@This(), buffer: *C2S.WriteBuffer, key: []const u8) NbtWriteError!void {
         std.debug.print("writing {s}\n", .{@tagName(self.*)});
         try buffer.write(i8, @intFromEnum(self.*));
         switch (self.*) {
@@ -61,18 +61,18 @@ pub const NbtElement = union(NbtElementTag) {
         }
     }
 
-    pub fn readDiscardName(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn readDiscardName(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         const read_result = try readWithName(buffer, allocator);
         // TODO: this is lazy
         if (read_result.name) |name| allocator.free(name);
         return read_result.element;
     }
 
-    pub fn readElementType(buffer: *s2c.ReadBuffer) !NbtElementTag {
+    pub fn readElementType(buffer: *S2C.ReadBuffer) !NbtElementTag {
         return std.meta.intToEnum(NbtElementTag, try buffer.read(i8)) catch return error.InvalidNbtElementType;
     }
 
-    pub fn readWithName(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!struct { name: ?[]const u8, element: NbtElement } {
+    pub fn readWithName(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!struct { name: ?[]const u8, element: NbtElement } {
         // read the byte telling us the tag of the element
         switch (try readElementType(buffer)) {
             .End => return .{ .name = null, .element = NbtElement{ .End = .{} } },
@@ -92,7 +92,7 @@ pub const NbtElement = union(NbtElementTag) {
             },
         }
     }
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!NbtElement {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!NbtElement {
         // read the byte telling us the tag of the element
         return switch (try readElementType(buffer)) {
             .Compound => .{ .Compound = try NbtCompound.read(buffer, allocator) },
@@ -126,12 +126,12 @@ pub const NbtElement = union(NbtElementTag) {
 };
 
 pub const NbtEnd = struct {
-    pub fn write(self: *const @This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         _ = self;
         _ = buffer;
     }
 
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         _ = allocator;
         _ = buffer;
         return .{};
@@ -152,11 +152,11 @@ pub fn NbtNumber(comptime Value: type) type {
     return struct {
         value: Value,
 
-        pub fn write(self: *const @This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+        pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
             try buffer.write(Value, self.value);
         }
 
-        pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+        pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
             _ = allocator;
             return .{
                 .value = try buffer.read(Value),
@@ -202,14 +202,14 @@ pub const NbtDouble = NbtNumber(f64);
 pub const NbtByteArray = struct {
     values: []const i8,
 
-    pub fn write(self: *const @This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         try buffer.write(i32, @intCast(self.values.len));
         for (self.values) |element| {
             try buffer.write(i32, @intCast(element));
         }
     }
 
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         const element_count: usize = @intCast(try buffer.read(i32));
         const values = try allocator.alloc(i8, element_count);
         const bytes = try buffer.readBytesNonAllocating(element_count * @sizeOf(i8));
@@ -236,11 +236,11 @@ pub const NbtByteArray = struct {
 pub const NbtString = struct {
     value: []const u8,
 
-    pub fn write(self: *const @This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         try buffer.writeJavaUtf(self.value);
     }
 
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         return .{
             .value = try buffer.readJavaUtfAllocating(allocator),
         };
@@ -280,7 +280,7 @@ pub const NbtList = struct {
         };
     }
 
-    pub fn write(self: *@This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn write(self: *@This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         self.element_type = if (self.elements.len == 0) .End else @as(NbtElementTag, self.elements[0]);
 
         try buffer.write(i8, @intFromEnum(self.element_type));
@@ -295,7 +295,7 @@ pub const NbtList = struct {
         }
     }
 
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         const element_type = try NbtElement.readElementType(buffer);
         const element_count: usize = @intCast(try buffer.read(i32));
 
@@ -347,7 +347,7 @@ pub const NbtCompound = struct {
         return compound;
     }
 
-    pub fn write(self: *const @This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         var entries = self.elements.iterator();
         while (entries.next()) |entry| {
             const key = entry.key_ptr.*;
@@ -359,7 +359,7 @@ pub const NbtCompound = struct {
         try end.writeBlankName(buffer);
     }
 
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         var elements = std.StringHashMapUnmanaged(NbtElement){};
 
         var read_result = try NbtElement.readWithName(buffer, allocator);
@@ -407,14 +407,14 @@ pub const NbtIntArray = struct {
         };
     }
 
-    pub fn write(self: *const @This(), buffer: *c2s.WriteBuffer) NbtWriteError!void {
+    pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         try buffer.write(i32, @intCast(self.values.len));
         for (self.values) |element| {
             try buffer.write(i32, element);
         }
     }
 
-    pub fn read(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
+    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         const element_count: usize = @intCast(try buffer.read(i32));
 
         const values = try allocator.alloc(i32, element_count);
@@ -482,7 +482,7 @@ test "NbtCompound" {
     };
     defer nbt.deinit(std.testing.allocator);
 
-    var buffer = c2s.WriteBuffer.init(std.testing.allocator);
+    var buffer = C2S.WriteBuffer.init(std.testing.allocator);
     defer buffer.deinit();
 
     try nbt.writeBlankName(&buffer);
