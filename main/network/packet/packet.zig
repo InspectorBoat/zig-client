@@ -279,7 +279,7 @@ pub const s2c = opaque {
 
         pub const Packet = union(enum) {
             /// decodes a packet buffer into a type-erased packet
-            pub fn decode(buffer: *s2c.ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+            pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
                 // the amount of packet types in this union
                 const PacketTypeCount = @typeInfo(@This()).Union.fields.len;
 

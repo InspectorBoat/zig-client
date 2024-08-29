@@ -1,6 +1,7 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Game = root.Game;
 
 const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
 const Vector3 = @import("../../../../math/vector.zig").Vector3;
@@ -12,7 +13,7 @@ updates: []const BlockUpdate,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const chunk_pos: Vector2xz(i32) = .{ .x = try buffer.read(i32), .z = try buffer.read(i32) };
     const updates = try allocator.alloc(BlockUpdate, @intCast(try buffer.readVarInt()));
     errdefer allocator.free(updates);

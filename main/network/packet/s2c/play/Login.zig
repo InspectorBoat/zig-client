@@ -1,12 +1,12 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const World = @import("../../../../world/World.zig");
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Game = root.Game;
+const World = root.World;
 const GameMode = @import("../../../../world/gamemode.zig").GameMode;
 const Difficulty = @import("../../../../world/difficulty.zig").Difficulty;
 const GeneratorType = @import("../../../../world/generatortype.zig").GeneratorType;
-const CustomPayloadC2SPacket = @import("../../../../network/packet/c2s/play/CustomPayloadC2SPacket.zig");
-const LocalPlayerEntity = @import("../../../../entity/impl/player/LocalPlayerEntity.zig");
+const LocalPlayerEntity = root.LocalPlayerEntity;
 
 /// the network id of the player
 network_id: i32,
@@ -20,7 +20,7 @@ reduced_debug_info: bool,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     const network_id = try buffer.read(i32);
     const i = try buffer.read(u8);

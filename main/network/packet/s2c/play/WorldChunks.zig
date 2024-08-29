@@ -1,8 +1,8 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
-const WorldChunkS2CPacket = @import("../../../../network/packet/s2c/play/WorldChunkS2CPacket.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Game = root.Game;
+const Vector2xz = root.Vector2xz;
 
 chunk_positions: []const Vector2xz(i32),
 chunk_datas: []ChunkData,
@@ -10,7 +10,9 @@ has_light: bool,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub const ChunkData = s2c.play.WorldChunk.ChunkData;
+
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const has_sky_light = try buffer.read(bool);
     const chunk_count: usize = @intCast(try buffer.readVarInt());
     std.debug.assert(chunk_count >= 0);
@@ -26,7 +28,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
         const section_bitfield: std.bit_set.IntegerBitSet(16) = .{ .mask = try buffer.read(u16) };
         chunk_data.* = ChunkData{
             .sections = section_bitfield,
-            .buffer = try ReadPacketBuffer.initCapacity(allocator, findBufferSize(section_bitfield, has_sky_light)),
+            .buffer = try s2c.ReadBuffer.initCapacity(allocator, findBufferSize(section_bitfield, has_sky_light)),
         };
     }
 
@@ -62,5 +64,3 @@ pub fn findBufferSize(sections: std.bit_set.IntegerBitSet(16), has_sky_light: bo
     const biomes = 256;
     return @intCast(block_states + block_light + sky_light + biomes);
 }
-
-pub const ChunkData = WorldChunkS2CPacket.ChunkData;

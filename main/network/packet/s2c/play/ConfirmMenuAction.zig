@@ -1,7 +1,8 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const ConfirmMenuActionC2SPacket = @import("../../../../network/packet/c2s/play/ConfirmMenuActionC2SPacket.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const c2s = root.network.packet.c2s;
+const Game = root.Game;
 
 menu_network_id: u8,
 action_id: i16,
@@ -9,7 +10,7 @@ accepted: bool,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     return .{
         .menu_network_id = try buffer.read(u8),

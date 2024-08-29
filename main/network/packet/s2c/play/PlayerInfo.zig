@@ -1,6 +1,7 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Game = root.Game;
 const GameMode = @import("../../../../world/gamemode.zig").GameMode;
 const GameProfile = @import("../../../../network/GameProfile.zig");
 
@@ -9,7 +10,7 @@ entries: []const Entry,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const action = try buffer.readEnum(Action) orelse return error.InvalidPlayerInfo;
     const entry_count = try buffer.readVarInt();
     var entries = std.ArrayList(Entry).init(allocator);

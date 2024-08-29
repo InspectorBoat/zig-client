@@ -1,14 +1,13 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const KeepAliveC2SPacket = @import("../../../../network/packet/c2s/play/KeepAliveC2SPacket.zig");
-const Connection = @import("../../../../network/connection.zig").Connection;
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Connection = root.network.Connection;
 
 time_millis: i32,
 
 comptime handle_on_network_thread: bool = true,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     return .{
         .time_millis = try buffer.readVarInt(),

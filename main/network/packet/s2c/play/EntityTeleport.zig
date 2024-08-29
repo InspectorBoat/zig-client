@@ -1,6 +1,7 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Game = root.Game;
 const ScaledVector = @import("../../../../network/type/scaled_vector.zig").ScaledVector;
 const ScaledRotation = @import("../../../../network/type/scaled_rotation.zig").ScaledRotation;
 
@@ -10,7 +11,7 @@ rotation: ScaledRotation(i32, 32.0),
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     _ = buffer;
     return undefined;

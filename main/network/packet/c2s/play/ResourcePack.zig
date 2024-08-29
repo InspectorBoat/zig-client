@@ -1,10 +1,11 @@
 const std = @import("std");
-const WritePacketBuffer = @import("../../../../network/packet/WritePacketBuffer.zig");
+const root = @import("root");
+const c2s = root.network.packet.c2s;
 
 hash: []const u8,
 reponse: Response,
 
-pub fn write(self: @This(), buffer: *WritePacketBuffer) !void {
+pub fn write(self: @This(), buffer: *c2s.WriteBuffer) !void {
     try buffer.writeString(self.hash);
     try buffer.writeEnum(Response, self.reponse);
 }

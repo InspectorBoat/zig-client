@@ -1,6 +1,8 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const c2s = root.network.packet.c2s;
+const Game = root.Game;
 
 is_invulnerable: bool,
 is_flying: bool,
@@ -11,7 +13,9 @@ walk_speed: f32,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub const AbilityFlags = c2s.play.PlayerAbilities.AbilityFlags;
+
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     const ability_flags = try buffer.readPacked(AbilityFlags);
     const fly_speed = try buffer.read(f32);
@@ -43,5 +47,3 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
         else => unreachable,
     }
 }
-
-pub const AbilityFlags = @import("../../../../network/packet/c2s/play/PlayerAbilitiesC2SPacket.zig").AbilityFlags;

@@ -3,7 +3,7 @@ const root = @import("root");
 const network = root.network;
 const VarIntByte = network.VarIntByte;
 const Vector3 = root.Vector3;
-const Uuid = root.Uuid;
+const Uuid = @import("util").Uuid;
 const ItemStack = root.ItemStack;
 const NbtElement = root.NbtElement;
 

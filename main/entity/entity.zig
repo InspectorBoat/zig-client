@@ -39,7 +39,7 @@ pub const PrimedTntEntity = @import("impl/misc/PrimedTntEntity.zig");
 pub const XpOrbEntity = @import("impl/misc/XpOrbEntity.zig");
 
 pub const LocalPlayerEntity = @import("impl/player/LocalPlayerEntity.zig");
-pub const RemotePlayerEntity = @import("impl/player/LocalPlayerEntity.zig");
+pub const RemotePlayerEntity = @import("impl/player/RemotePlayerEntity.zig");
 
 pub const ArrowEntity = @import("impl/projectile/ArrowEntity.zig");
 pub const EggEntity = @import("impl/projectile/EggEntity.zig");
@@ -51,8 +51,8 @@ pub const SmallFireballEntity = @import("impl/projectile/SmallFireballEntity.zig
 pub const SnowballEntity = @import("impl/projectile/SnowballEntity.zig");
 pub const WitherSkullEntity = @import("impl/projectile/WitherSkullEntity.zig");
 
-pub const BoatEntity = @import("impl/player/LocalPlayerEntity.zig");
-pub const MinecartEntity = @import("impl/player/LocalPlayerEntity.zig");
+pub const BoatEntity = @import("impl/vehicle/BoatEntity.zig");
+pub const MinecartEntity = @import("impl/vehicle/MinecartEntity.zig");
 
 pub const LightningEntity = @import("impl/weather/LightningEntity.zig");
 

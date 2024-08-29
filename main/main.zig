@@ -95,12 +95,14 @@ pub const NbtList = nbt.NbtList;
 pub const NbtCompound = nbt.NbtCompound;
 pub const NbtIntArray = nbt.NbtIntArray;
 
-pub const Chunk = @import("world/Chunk.zig");
-pub const Uuid = @import("entity/Uuid.zig");
-pub const Game = @import("game.zig").Game;
+pub const network = @import("network/network.zig");
+
 pub const World = @import("world/World.zig");
 
-pub const network = @import("network/network.zig");
+pub const Chunk = World.Chunk;
+pub const Section = World.Section;
+
+pub const Game = @import("game.zig").Game;
 
 const EnumBoolArray = @import("util").EnumBoolArray;
 const std = @import("std");

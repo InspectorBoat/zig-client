@@ -1,6 +1,5 @@
-const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const WritePacketBuffer = @import("../../../../network/packet/WritePacketBuffer.zig");
+const root = @import("root");
+const c2s = root.network.packet.c2s;
 
 comptime id: i32 = 0,
 
@@ -9,7 +8,7 @@ address: []const u8,
 port: i16,
 protocol_id: i32,
 
-pub fn write(self: @This(), buffer: *WritePacketBuffer) !void {
+pub fn write(self: @This(), buffer: *c2s.WriteBuffer) !void {
     try buffer.writeVarInt(self.version);
     try buffer.writeString(self.address);
     try buffer.write(i16, self.port);

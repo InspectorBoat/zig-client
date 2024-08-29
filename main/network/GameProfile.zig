@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Uuid = @import("../entity/Uuid.zig");
+const Uuid = @import("util").Uuid;
 
 uuid: ?Uuid = null,
 name: ?[]const u8 = null,

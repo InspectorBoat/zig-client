@@ -1,6 +1,7 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Game = root.Game;
 const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
 const Chunk = @import("../../../../world/Chunk.zig");
 const Section = @import("../../../../world/Section.zig");
@@ -13,7 +14,7 @@ full: bool,
 
 comptime handle_on_network_thread: bool = false,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return .{
         .chunk_pos = .{
             .x = try buffer.read(i32),
@@ -22,7 +23,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
         .full = try buffer.read(bool),
         .chunk_data = ChunkData{
             .sections = .{ .mask = try buffer.read(u16) },
-            .buffer = ReadPacketBuffer.fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
+            .buffer = s2c.ReadBuffer.fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
         },
     };
 }
@@ -48,6 +49,6 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
 }
 
 pub const ChunkData = struct {
-    buffer: ReadPacketBuffer,
+    buffer: s2c.ReadBuffer,
     sections: std.bit_set.IntegerBitSet(16),
 };

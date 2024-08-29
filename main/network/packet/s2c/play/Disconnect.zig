@@ -1,12 +1,13 @@
 const std = @import("std");
+const root = @import("root");
+const s2c = root.network.packet.s2c;
 const Connection = @import("../../../connection.zig").Connection;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
 
 reason: []const u8,
 
 comptime handle_on_network_thread: bool = true,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     _ = buffer;
     return undefined;

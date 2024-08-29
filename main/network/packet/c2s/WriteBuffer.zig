@@ -5,7 +5,7 @@ const VarIntByte = network.VarIntByte;
 const ReadPacketBuffer = network.packet.s2c.ReadPacketBuffer;
 const Vector3 = root.Vector3;
 const ItemStack = root.ItemStack;
-const Uuid = root.Uuid;
+const Uuid = @import("util").Uuid;
 
 /// A buffer to write packet data (c2s)
 backer: std.ArrayList(u8),

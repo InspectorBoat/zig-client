@@ -1,13 +1,13 @@
 const std = @import("std");
-const Game = @import("../../../../game.zig").Game;
-const ReadPacketBuffer = @import("../../../../network/packet/ReadPacketBuffer.zig");
-const Connection = @import("../../../../network/connection.zig").Connection;
+const root = @import("root");
+const s2c = root.network.packet.s2c;
+const Connection = root.network.Connection;
 
 compression_threshold: i32,
 
 comptime handle_on_network_thread: bool = true,
 
-pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     return .{
         .compression_threshold = try buffer.readVarInt(),

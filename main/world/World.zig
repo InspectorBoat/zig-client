@@ -1,29 +1,26 @@
 const std = @import("std");
-const Vector2xz = @import("../math/vector.zig").Vector2xz;
-const Vector3 = @import("../math/vector.zig").Vector3;
-const Chunk = @import("../world/Chunk.zig");
-const Section = @import("Section.zig");
-const Game = @import("../game.zig").Game;
-const TickTimer = @import("../world/TickTimer.zig");
-const Difficulty = @import("../world/difficulty.zig").Difficulty;
-const LocalPlayerEntity = @import("../entity/impl/player/LocalPlayerEntity.zig");
-const GameMode = @import("../world/gamemode.zig");
-const GeneratorType = @import("../world/generatortype.zig").GeneratorType;
-const ConnectionHandle = @import("../network/connection.zig").ConnectionHandle;
-const Entity = @import("../entity/entity.zig").Entity;
-const PlayerMovePositionAndAngles = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig").PositionAndAngles;
-const PlayerMovePosition = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig").Position;
-const PlayerMove = @import("../network/packet/c2s/play/PlayerMoveC2SPacket.zig");
-const Box = @import("../math/box.zig").Box;
-const Block = @import("../block/block.zig").Block;
-const ConcreteBlock = @import("../block/block.zig").ConcreteBlock;
-const RawBlockState = @import("../block/block.zig").RawBlockState;
-const FilteredBlockState = @import("../block/block.zig").FilteredBlockState;
-const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
-const WorldChunkS2CPacket = @import("../network/packet/s2c/play/WorldChunkS2CPacket.zig");
-const ChunkMap = @import("ChunkMap.zig");
-const EventHandler = @import("root").EventHandler;
-const Events = @import("root").Events;
+const root = @import("root");
+const Vector2xz = root.Vector2xz;
+const Vector3 = root.Vector3;
+const Game = root.Game;
+const s2c = root.network.packet.s2c;
+const LocalPlayerEntity = root.LocalPlayerEntity;
+const Entity = root.Entity;
+const Block = root.Block;
+const ConcreteBlock = root.ConcreteBlock;
+const RawBlockState = root.RawBlockState;
+const FilteredBlockState = root.FilteredBlockState;
+const ConcreteBlockState = root.ConcreteBlockState;
+const Box = root.Box;
+const EventHandler = root.EventHandler;
+const Events = root.Events;
+pub const Chunk = @import("Chunk.zig");
+pub const Section = @import("Section.zig");
+pub const TickTimer = @import("TickTimer.zig");
+pub const Difficulty = @import("difficulty.zig").Difficulty;
+pub const GameMode = @import("../world/gamemode.zig");
+pub const GeneratorType = @import("generatortype.zig").GeneratorType;
+pub const ChunkMap = @import("ChunkMap.zig");
 
 chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
@@ -183,7 +180,7 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
 pub fn receiveChunk(
     self: *@This(),
     chunk_pos: Vector2xz(i32),
-    chunk_data: *WorldChunkS2CPacket.ChunkData,
+    chunk_data: *s2c.play.WorldChunk.ChunkData,
     full: bool,
     has_sky_light: bool,
     allocator: std.mem.Allocator,
