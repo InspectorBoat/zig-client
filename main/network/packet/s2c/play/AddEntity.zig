@@ -49,13 +49,12 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     _ = allocator;
     switch (game.*) {
         .Ingame => |*ingame| {
-            const Entity = @import("../../../../entity/entity.zig").Entity;
+            const AnyEntity = root.entity.Any;
 
             const pos = self.pos.normalize();
+            _ = pos;
 
-            const entity: Entity = switch (self.entity_type) {
-                // 10 => .{ .Minecart = .{} },
-                1 => .{ .Boat = @import("../../../../entity/impl/vehicle/BoatEntity.zig").init(pos) },
+            const entity: AnyEntity = switch (self.entity_type) {
                 else => return,
             };
             try ingame.world.addEntity(entity);

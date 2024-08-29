@@ -1,13 +1,13 @@
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const Game = @import("root").Game;
+const root = @import("root");
+const Game = root.Game;
+const EventHandler = root.EventHandler;
+const Events = root.Events;
 const glfw_helper = @import("glfw_helper.zig");
 const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
-const LocalPlayerEntity = @import("root").LocalPlayerEntity;
-const EventHandler = @import("root").EventHandler;
-const Events = @import("root").Events;
 
 pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .{};
 pub var window_input: WindowInput = undefined;

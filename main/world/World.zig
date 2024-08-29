@@ -4,8 +4,8 @@ const Vector2xz = root.Vector2xz;
 const Vector3 = root.Vector3;
 const Game = root.Game;
 const s2c = root.network.packet.s2c;
-const LocalPlayerEntity = root.LocalPlayerEntity;
-const Entity = root.Entity;
+const LocalPlayerEntity = root.entity.LocalPlayer;
+const AnyEntity = root.entity.Any;
 const Block = root.Block;
 const ConcreteBlock = root.ConcreteBlock;
 const RawBlockState = root.RawBlockState;
@@ -24,7 +24,7 @@ pub const ChunkMap = @import("ChunkMap.zig");
 
 chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
-entities: std.ArrayList(Entity),
+entities: std.ArrayList(AnyEntity),
 tick_timer: TickTimer,
 last_tick: std.time.Instant = switch (@import("builtin").os.tag) {
     .windows, .uefi, .wasi => .{ .timestamp = 0 },
@@ -40,7 +40,7 @@ pub fn init(info: struct {
     hardcore: bool,
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
-        .entities = std.ArrayList(Entity).init(allocator),
+        .entities = std.ArrayList(AnyEntity).init(allocator),
         .tick_timer = try TickTimer.init(),
         .last_tick = try std.time.Instant.now(),
         .difficulty = info.difficulty,
@@ -395,7 +395,7 @@ pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator:
     _ = self; // autofix
 }
 
-pub fn addEntity(self: *@This(), entity: Entity) !void {
+pub fn addEntity(self: *@This(), entity: AnyEntity) !void {
     try self.entities.append(entity);
 }
 
