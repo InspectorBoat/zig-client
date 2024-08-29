@@ -5,7 +5,7 @@ pub fn Rotation2(comptime Element: type) type {
         pitch: Element,
 
         pub fn origin() @This() {
-            return @This(){
+            return .{
                 .yaw = 0,
                 .pitch = 0,
             };
@@ -29,7 +29,7 @@ pub fn Rotation3(comptime Element: type) type {
         roll: Element,
 
         pub fn origin() @This() {
-            return @This(){
+            return .{
                 .yaw = 0,
                 .pitch = 0,
                 .roll = 0,

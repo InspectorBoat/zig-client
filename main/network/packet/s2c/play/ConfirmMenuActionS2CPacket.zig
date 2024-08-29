@@ -11,7 +11,7 @@ comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    return @This(){
+    return .{
         .menu_network_id = try buffer.read(u8),
         .action_id = try buffer.read(i16),
         .accepted = try buffer.read(bool),

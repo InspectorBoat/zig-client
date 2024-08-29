@@ -7,7 +7,7 @@ total_ticks: usize = 0,
 last_nanos: u64 = 0,
 
 pub fn init() !@This() {
-    return @This(){
+    return .{
         .timer = try std.time.Timer.start(),
     };
 }

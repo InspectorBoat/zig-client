@@ -126,7 +126,7 @@ pub const NbtEnd = struct {
     pub fn read(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
         _ = allocator;
         _ = buffer;
-        return @This(){};
+        return .{};
     }
 
     pub fn deepEquals(self: *@This(), other: *NbtElement) bool {
@@ -150,7 +150,7 @@ pub fn NbtNumber(comptime Value: type) type {
 
         pub fn read(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
             _ = allocator;
-            return @This(){
+            return .{
                 .value = try buffer.read(Value),
             };
         }
@@ -207,7 +207,7 @@ pub const NbtByteArray = struct {
         const bytes = try buffer.readBytesNonAllocating(element_count * @sizeOf(i8));
 
         @memcpy(values, @as([]const i8, @ptrCast(bytes)));
-        return @This(){
+        return .{
             .values = values,
         };
     }
@@ -233,7 +233,7 @@ pub const NbtString = struct {
     }
 
     pub fn read(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
-        return @This(){
+        return .{
             .value = try buffer.readJavaUtfAllocating(allocator),
         };
     }
@@ -266,7 +266,7 @@ pub const NbtList = struct {
         for (specific_elements, elements) |specific_element, *element| {
             element.* = @unionInit(NbtElement, @tagName(nbt_element_type), specific_element);
         }
-        return @This(){
+        return .{
             .elements = elements,
             .element_type = nbt_element_type,
         };
@@ -302,7 +302,7 @@ pub const NbtList = struct {
                 }
             },
         }
-        return @This(){
+        return .{
             .elements = elements,
             .element_type = element_type,
         };
@@ -359,7 +359,7 @@ pub const NbtCompound = struct {
             try elements.put(allocator, read_result.name.?, read_result.element);
         }
 
-        return @This(){
+        return .{
             .elements = elements,
         };
     }
@@ -394,7 +394,7 @@ pub const NbtIntArray = struct {
     values: []const i32,
 
     pub fn init(values: []const i32, allocator: std.mem.Allocator) !@This() {
-        return @This(){
+        return .{
             .values = try allocator.dupe(i32, values),
         };
     }
@@ -413,7 +413,7 @@ pub const NbtIntArray = struct {
         for (values) |*value| {
             value.* = try buffer.read(i32);
         }
-        return @This(){
+        return .{
             .values = values,
         };
     }

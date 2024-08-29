@@ -12,7 +12,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
     const remaining_bytes = buffer.remainingBytes();
     if (remaining_bytes > 1048576) return error.CustomPayloadTooLarge;
     const data = try buffer.readRemainingBytesAllocating(allocator);
-    return @This(){
+    return .{
         .channel = channel,
         .data = ReadPacketBuffer.fromOwnedSlice(data),
     };

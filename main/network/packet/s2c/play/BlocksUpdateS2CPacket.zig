@@ -23,7 +23,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
         update.state = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
     }
 
-    return @This(){
+    return .{
         .chunk_pos = chunk_pos,
         .updates = updates,
     };

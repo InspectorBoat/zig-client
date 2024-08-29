@@ -9,7 +9,7 @@ comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    return @This(){
+    return .{
         .time = try buffer.read(i64),
         .time_of_day = try buffer.read(i64),
     };

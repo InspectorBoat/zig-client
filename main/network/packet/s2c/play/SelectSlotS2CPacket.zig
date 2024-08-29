@@ -8,7 +8,7 @@ comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    return @This(){
+    return .{
         .slot = try buffer.read(i8),
     };
 }

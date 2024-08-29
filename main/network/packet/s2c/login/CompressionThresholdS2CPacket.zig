@@ -9,7 +9,7 @@ comptime handle_on_network_thread: bool = true,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    return @This(){
+    return .{
         .compression_threshold = try buffer.readVarInt(),
     };
 }

@@ -35,7 +35,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
         const bytes = try buffer.readBytesNonAllocating(chunk_data.buffer.backer.len);
         @memcpy(@constCast(chunk_data.buffer.backer), bytes);
     }
-    return @This(){
+    return .{
         .chunk_positions = chunk_positions,
         .chunk_datas = chunk_datas,
         .has_light = has_sky_light,

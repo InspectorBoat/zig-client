@@ -13,7 +13,7 @@ comptime handle_on_network_thread: bool = false,
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
 
-    return @This(){
+    return .{
         .block_pos = try buffer.readBlockPos(),
         .state = @bitCast(@as(u16, @intCast(try buffer.readVarInt()))),
     };

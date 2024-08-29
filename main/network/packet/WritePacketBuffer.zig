@@ -9,13 +9,13 @@ const ReadPacketBuffer = @import("ReadPacketBuffer.zig");
 backer: std.ArrayList(u8),
 
 pub fn init(allocator: std.mem.Allocator) @This() {
-    return @This(){
+    return .{
         .backer = std.ArrayList(u8).init(allocator),
     };
 }
 
 pub fn initCapacity(allocator: std.mem.Allocator, bytes: usize) !@This() {
-    return @This(){
+    return .{
         .backer = try std.ArrayListUnmanaged(u8).initCapacity(allocator, bytes),
     };
 }
@@ -139,7 +139,7 @@ pub fn writeVarInt(self: *@This(), i: i32) std.mem.Allocator.Error!void {
 }
 
 pub fn fromOwnedArrayList(array_list: std.ArrayList(u8)) @This() {
-    return @This(){
+    return .{
         .backer = array_list,
     };
 }

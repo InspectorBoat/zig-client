@@ -17,7 +17,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
     const fly_speed = try buffer.read(f32);
     const walk_speed = try buffer.read(f32);
 
-    return @This(){
+    return .{
         .is_invulnerable = ability_flags.is_invulnerable,
         .is_flying = ability_flags.is_flying,
         .allow_flying = ability_flags.allow_flying,

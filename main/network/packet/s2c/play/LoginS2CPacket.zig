@@ -31,7 +31,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
     const max_player_count = try buffer.read(u8);
     const generator_type = GeneratorType.keys.get(try buffer.readStringNonAllocating(16)) orelse .Default;
     const reduced_debug_info = try buffer.read(bool);
-    return @This(){
+    return .{
         .network_id = network_id,
         .hardcore = hardcore,
         .game_mode = game_mode,

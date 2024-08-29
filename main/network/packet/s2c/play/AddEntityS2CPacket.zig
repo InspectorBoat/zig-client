@@ -34,7 +34,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
         .z = try buffer.read(i16),
     } else null;
 
-    return @This(){
+    return .{
         .network_id = network_id,
         .pos = pos,
         .velocity = velocity,

@@ -66,7 +66,7 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
         };
         try entries.append(entry);
     }
-    return @This(){
+    return .{
         .action = action,
         .entries = try entries.toOwnedSlice(),
     };

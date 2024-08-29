@@ -7,34 +7,34 @@ pub fn Vector2xy(comptime Element: type) type {
         y: Element,
 
         pub fn origin() @This() {
-            return @This(){
+            return .{
                 .x = 0,
                 .y = 0,
             };
         }
 
         pub fn add(self: @This(), other: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x + other.x,
                 .y = self.y + other.y,
             };
         }
 
         pub fn sub(self: @This(), other: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,
             };
         }
         pub fn scaleUniform(self: @This(), factor: Element) @This() {
-            return @This(){
+            return .{
                 .x = self.x * factor,
                 .y = self.y * factor,
             };
         }
 
         pub fn negate(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = -self.x,
                 .y = -self.y,
             };
@@ -117,34 +117,34 @@ pub fn Vector2xz(comptime Element: type) type {
         z: Element,
 
         pub fn origin() @This() {
-            return @This(){
+            return .{
                 .x = 0,
                 .z = 0,
             };
         }
 
         pub fn add(self: @This(), other: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x + other.x,
                 .z = self.z + other.z,
             };
         }
 
         pub fn sub(self: @This(), other: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x - other.x,
                 .z = self.z - other.z,
             };
         }
         pub fn scaleUniform(self: @This(), factor: Element) @This() {
-            return @This(){
+            return .{
                 .x = self.x * factor,
                 .z = self.z * factor,
             };
         }
 
         pub fn negate(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = -self.x,
                 .z = -self.z,
             };
@@ -228,7 +228,7 @@ pub fn Vector3(comptime Element: type) type {
         z: Element,
 
         pub fn origin() @This() {
-            return @This(){
+            return .{
                 .x = 0,
                 .y = 0,
                 .z = 0,
@@ -236,7 +236,7 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn add(self: @This(), other: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x + other.x,
                 .y = self.y + other.y,
                 .z = self.z + other.z,
@@ -244,7 +244,7 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn sub(self: @This(), other: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,
                 .z = self.z - other.z,
@@ -252,7 +252,7 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn scaleUniform(self: @This(), factor: Element) @This() {
-            return @This(){
+            return .{
                 .x = self.x * factor,
                 .y = self.y * factor,
                 .z = self.z * factor,
@@ -260,7 +260,7 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn scale(self: @This(), factor: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x * factor.x,
                 .y = self.y * factor.y,
                 .z = self.z * factor.z,
@@ -268,7 +268,7 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn negate(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = -self.x,
                 .y = -self.y,
                 .z = -self.z,
@@ -301,42 +301,42 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn up(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x,
                 .y = self.y + 1,
                 .z = self.z,
             };
         }
         pub fn down(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x,
                 .y = self.y - 1,
                 .z = self.z,
             };
         }
         pub fn north(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x,
                 .y = self.y,
                 .z = self.z - 1,
             };
         }
         pub fn south(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x,
                 .y = self.y,
                 .z = self.z + 1,
             };
         }
         pub fn west(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x - 1,
                 .y = self.y,
                 .z = self.z,
             };
         }
         pub fn east(self: @This()) @This() {
-            return @This(){
+            return .{
                 .x = self.x + 1,
                 .y = self.y,
                 .z = self.z,

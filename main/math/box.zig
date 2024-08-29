@@ -26,7 +26,7 @@ pub fn Box(comptime Element: type) type {
         }
 
         pub fn move(self: @This(), delta: Vector3(Element)) @This() {
-            return @This(){
+            return .{
                 .min = self.min.add(delta),
                 .max = self.max.add(delta),
             };
@@ -37,7 +37,7 @@ pub fn Box(comptime Element: type) type {
         }
 
         pub fn expand(self: @This(), expansion: Vector3(Element)) @This() {
-            return @This(){
+            return .{
                 .min = self.min.sub(expansion),
                 .max = self.max.add(expansion),
             };
@@ -57,7 +57,7 @@ pub fn Box(comptime Element: type) type {
         }
 
         pub fn grow(self: @This(), growth: Vector3(Element)) @This() {
-            return @This(){
+            return .{
                 .min = .{
                     .x = if (growth.x < 0) self.min.x + growth.x else self.min.x,
                     .y = if (growth.y < 0) self.min.y + growth.y else self.min.y,

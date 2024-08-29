@@ -10,7 +10,7 @@ nonce: []const u8,
 comptime handle_on_network_thread: bool = true,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
-    return @This(){
+    return .{
         .key = try buffer.readStringAllocating(20, allocator),
         .public_key = try buffer.readByteSliceAllocating(allocator),
         .nonce = try buffer.readByteSliceAllocating(allocator),

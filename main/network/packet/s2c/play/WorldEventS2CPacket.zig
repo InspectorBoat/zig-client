@@ -13,7 +13,7 @@ comptime handle_on_network_thread: bool = false,
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = buffer; // autofix
     _ = allocator;
-    // return @This(){
+    // return .{
     //     .event = try buffer.read(i32),
     //     .pos = try buffer.readBlockPos(),
     //     .data = try buffer.read(i32),

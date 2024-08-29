@@ -14,7 +14,7 @@ full: bool,
 comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
-    return @This(){
+    return .{
         .chunk_pos = .{
             .x = try buffer.read(i32),
             .z = try buffer.read(i32),

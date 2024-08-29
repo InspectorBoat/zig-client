@@ -10,7 +10,7 @@ name: []const u8,
 comptime handle_on_network_thread: bool = true,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
-    return @This(){
+    return .{
         .uuid = try Uuid.fromAscii(try buffer.readStringNonAllocating(36)),
         .name = try buffer.readStringAllocating(16, allocator),
     };

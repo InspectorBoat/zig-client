@@ -13,7 +13,7 @@ comptime handle_on_network_thread: bool = false,
 
 pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    return @This(){
+    return .{
         .pos = Vector3(f64){
             .x = try buffer.read(f64),
             .y = try buffer.read(f64),

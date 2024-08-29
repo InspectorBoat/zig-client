@@ -9,14 +9,14 @@ backer: []const u8,
 read_location: usize,
 
 pub fn initCapacity(allocator: std.mem.Allocator, bytes: usize) !@This() {
-    return @This(){
+    return .{
         .backer = try allocator.alloc(u8, bytes),
         .read_location = 0,
     };
 }
 
 pub fn fromOwnedSlice(slice: []const u8) @This() {
-    return @This(){
+    return .{
         .backer = slice,
         .read_location = 0,
     };
