@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Connection = root.network.Connection;
-const Game = @import("../../../../game.zig").Game;
+const Game = root.Game;
 const Uuid = @import("util").Uuid;
 
 uuid: Uuid,

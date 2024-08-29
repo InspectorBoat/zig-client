@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const Difficulty = @import("../../../../world/difficulty.zig").Difficulty;
+const Difficulty = root.World.Difficulty;
 
 difficulty: Difficulty,
 

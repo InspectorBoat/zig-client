@@ -1,8 +1,8 @@
 const std = @import("std");
 const root = @import("root");
 const c2s = root.network.packet.c2s;
-const Rotation2 = @import("../../../../math/rotation.zig").Rotation2;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
+const Rotation2 = root.Rotation2;
+const Vector3 = root.Vector3;
 
 on_ground: bool,
 

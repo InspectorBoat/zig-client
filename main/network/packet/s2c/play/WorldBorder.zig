@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
+const Vector2xz = root.Vector2xz;
 
 type: Type,
 max_size: i32,

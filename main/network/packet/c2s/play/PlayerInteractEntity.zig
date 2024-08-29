@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const c2s = root.network.packet.c2s;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
+const Vector3 = root.Vector3;
 
 target_network_id: i32,
 action: Action,

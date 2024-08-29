@@ -2,8 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const ScaledVector = @import("../../../../network/type/scaled_vector.zig").ScaledVector;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
+const ScaledVector = root.network.ScaledVector;
+const Vector3 = root.Vector3;
 
 pos: Vector3(f64),
 power: f32,

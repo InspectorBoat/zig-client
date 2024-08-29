@@ -2,8 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
-const Direction = @import("../../../../math/direction.zig").Direction;
+const Vector3 = root.Vector3;
+const Direction = root.Direction;
 
 network_id: i32,
 block_pos: Vector3(i32),

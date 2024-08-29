@@ -1,7 +1,8 @@
 const std = @import("std");
-const ItemStack = @import("../../item/ItemStack.zig");
-const Vector3 = @import("../../math/vector.zig").Vector3;
-const Rotation3 = @import("../../math/rotation.zig").Rotation3;
+const root = @import("root");
+const ItemStack = root.ItemStack;
+const Vector3 = root.Vector3;
+const Rotation3 = root.Rotation3;
 
 entries: [32]?DataValue = .{.{ .i8 = 0 }} ++ .{null} ** 31,
 

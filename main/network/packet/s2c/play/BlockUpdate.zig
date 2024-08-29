@@ -2,9 +2,9 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
-const RawBlockState = @import("../../../../block/block.zig").RawBlockState;
-const ConcreteBlockState = @import("../../../../block/block.zig").ConcreteBlockState;
+const Vector3 = root.Vector3;
+const RawBlockState = root.RawBlockState;
+const ConcreteBlockState = root.ConcreteBlockState;
 
 block_pos: Vector3(i32),
 state: RawBlockState,

@@ -9,7 +9,7 @@ const glfw_helper = @import("glfw_helper.zig");
 const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
 
-pub var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .{};
+var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 

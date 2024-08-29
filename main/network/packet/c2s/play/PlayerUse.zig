@@ -1,9 +1,9 @@
 const std = @import("std");
 const root = @import("root");
 const c2s = root.network.packet.c2s;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
-const Direction = @import("../../../../math/direction.zig").Direction;
-const ItemStack = @import("../../../../item/ItemStack.zig");
+const Vector3 = root.Vector3;
+const Direction = root.Direction;
+const ItemStack = root.ItemStack;
 
 block_pos: Vector3(i32),
 face: Direction,

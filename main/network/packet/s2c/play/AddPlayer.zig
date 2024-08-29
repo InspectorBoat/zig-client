@@ -2,10 +2,10 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const ScaledVector = @import("../../../../network/type/scaled_vector.zig").ScaledVector;
-const ScaledRotation = @import("../../../../network/type/scaled_rotation.zig").ScaledRotation;
+const ScaledVector = root.network.ScaledVector;
+const ScaledRotation = root.network.ScaledRotation;
+const DataTracker = root.entity.DataTracker;
 const Uuid = @import("util").Uuid;
-const DataTracker = @import("../../../../entity/datatracker/DataTracker.zig");
 
 network_id: i32,
 uuid: Uuid,

@@ -1,9 +1,10 @@
 const std = @import("std");
-const Vector3 = @import("../math/vector.zig").Vector3;
-const Rotation2 = @import("../math/rotation.zig").Rotation2;
-const World = @import("../world/World.zig");
-const Direction = @import("../math/direction.zig").Direction;
-const Box = @import("box.zig").Box;
+const root = @import("root");
+const Vector3 = root.Vector3;
+const Rotation2 = root.Rotation2;
+const World = root.World;
+const Direction = root.Direction;
+const Box = root.Box;
 
 pub const HitType = enum { block, entity, miss };
 

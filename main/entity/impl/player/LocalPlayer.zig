@@ -2,13 +2,13 @@ const std = @import("std");
 const root = @import("root");
 const entity = root.entity;
 const PlayerInventory = @import("../../inventory/PlayerInventory.zig");
-const ItemStack = @import("../../../item/ItemStack.zig");
-const Game = @import("../../../game.zig").Game;
-const Vector2xz = @import("../../../math/vector.zig").Vector2xz;
-const Vector3 = @import("../../../math/vector.zig").Vector3;
-const World = @import("../../../world/World.zig");
-const Rotation2 = @import("../../../math/rotation.zig").Rotation2;
-const HitResult = @import("../../../math/hitresult.zig").HitResult;
+const ItemStack = root.ItemStack;
+const Game = root.Game;
+const Vector2xz = root.Vector2xz;
+const Vector3 = root.Vector3;
+const World = root.World;
+const Rotation2 = root.Rotation2;
+const HitResult = root.HitResult;
 
 base: entity.Base,
 living: entity.LivingBase = .{},

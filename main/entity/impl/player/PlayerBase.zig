@@ -1,5 +1,6 @@
-const GameMode = @import("../../../world/gamemode.zig").GameMode;
-const Game = @import("../../../game.zig").Game;
+const root = @import("root");
+const GameMode = root.World.GameMode;
+const Game = root.Game;
 
 game_mode: GameMode = .NotSet,
 hunger: struct {

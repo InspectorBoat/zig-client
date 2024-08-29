@@ -2,8 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
-const Rotation2 = @import("../../../../math/rotation.zig").Rotation2;
+const Vector3 = root.Vector3;
+const Rotation2 = root.Rotation2;
 
 pos: Vector3(f64),
 rotation: Rotation2(f32),

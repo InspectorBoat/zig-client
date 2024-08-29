@@ -1,4 +1,5 @@
-pub const Vector3 = @import("../math/vector.zig").Vector3;
+const root = @import("root");
+const Vector3 = root.Vector3;
 
 center_pos: Vector3(f64),
 size: f64,

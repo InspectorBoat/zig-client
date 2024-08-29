@@ -2,11 +2,11 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
-const Chunk = @import("../../../../world/Chunk.zig");
-const Section = @import("../../../../world/Section.zig");
-const RawBlockState = @import("../../../../block/block.zig").RawBlockState;
-const FilteredBlockState = @import("../../../../block/block.zig").FilteredBlockState;
+const Vector2xz = root.Vector2xz;
+const Chunk = root.Chunk;
+const Section = root.Section;
+const RawBlockState = root.RawBlockState;
+const FilteredBlockState = root.FilteredBlockState;
 
 chunk_pos: Vector2xz(i32),
 chunk_data: ChunkData,

@@ -1,6 +1,7 @@
 const std = @import("std");
-const Section = @import("../world/Section.zig");
-const Vector2xz = @import("../math/vector.zig").Vector2xz;
+const root = @import("root");
+const Section = root.Section;
+const Vector2xz = root.Vector2xz;
 
 sections: [16]?*Section,
 biomes: [256]u8,

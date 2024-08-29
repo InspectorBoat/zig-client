@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const ItemStack = @import("../../../../item/ItemStack.zig");
+const ItemStack = root.ItemStack;
 
 network_id: i32,
 equipment_slot: i32,

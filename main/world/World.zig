@@ -18,7 +18,7 @@ pub const Chunk = @import("Chunk.zig");
 pub const Section = @import("Section.zig");
 pub const TickTimer = @import("TickTimer.zig");
 pub const Difficulty = @import("difficulty.zig").Difficulty;
-pub const GameMode = @import("../world/gamemode.zig");
+pub const GameMode = @import("gamemode.zig").GameMode;
 pub const GeneratorType = @import("generatortype.zig").GeneratorType;
 pub const ChunkMap = @import("ChunkMap.zig");
 

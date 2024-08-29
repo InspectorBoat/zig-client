@@ -1,7 +1,8 @@
 const std = @import("std");
-const Vector3 = @import("../math/vector.zig").Vector3;
-const HitResult = @import("hitresult.zig").HitResult;
-const Direction = @import("../math/direction.zig").Direction;
+const root = @import("root");
+const Vector3 = root.Vector3;
+const HitResult = root.HitResult;
+const Direction = root.Direction;
 
 min: Vector3(f64),
 max: Vector3(f64),

@@ -62,7 +62,7 @@ pub const PlayerBase = @import("impl/player/PlayerBase.zig");
 pub const DecorationBase = @import("impl/decoration/DecorationBase.zig");
 pub const InterpolatedBase = @import("impl/InterpolatedBase.zig");
 
-pub const Datatracker = @import("datatracker/DataTracker.zig");
+pub const DataTracker = @import("datatracker/DataTracker.zig");
 
 pub const Any = union(enum) {
     EnderDragon: EnderDragon,

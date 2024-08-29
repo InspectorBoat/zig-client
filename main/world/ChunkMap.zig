@@ -1,6 +1,7 @@
 const std = @import("std");
-const Vector2xz = @import("../math/vector.zig").Vector2xz;
-const Chunk = @import("Chunk.zig");
+const root = @import("root");
+const Vector2xz = root.Vector2xz;
+const Chunk = root.Chunk;
 
 metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = std.bit_set.ArrayBitSet(usize, 32 * 32).initEmpty(),
 items: [32 * 32]struct { pos: Vector2xz(i32), chunk: Chunk } = undefined,
@@ -129,13 +130,13 @@ test "performance" {
 pub fn DummyWorld(comptime MapType: type) type {
     return struct {
         chunks: MapType,
-        const Section = @import("Section.zig");
-        const ConcreteBlock = @import("../block/block.zig").ConcreteBlock;
-        const Block = @import("../block/block.zig").Block;
-        const ConcreteBlockState = @import("../block/block.zig").ConcreteBlockState;
-        const RawBlockState = @import("../block/block.zig").RawBlockState;
-        const Box = @import("../math/box.zig").Box;
-        const Vector3 = @import("../math/vector.zig").Vector3;
+        const Section = root.Section;
+        const ConcreteBlock = root.ConcreteBlock;
+        const Block = root.Block;
+        const ConcreteBlockState = root.ConcreteBlockState;
+        const RawBlockState = root.RawBlockState;
+        const Box = root.Box;
+        const Vector3 = root.Vector3;
 
         pub fn updateRegion(self: *@This(), region: Box(i32)) void {
             var x = region.min.x;

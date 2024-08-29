@@ -3,10 +3,10 @@ const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
 
-const Vector2xz = @import("../../../../math/vector.zig").Vector2xz;
-const Vector3 = @import("../../../../math/vector.zig").Vector3;
-const RawBlockState = @import("../../../../block/block.zig").RawBlockState;
-const FilteredBlockState = @import("../../../../block/block.zig").FilteredBlockState;
+const Vector2xz = root.Vector2xz;
+const Vector3 = root.Vector3;
+const RawBlockState = root.RawBlockState;
+const FilteredBlockState = root.FilteredBlockState;
 
 chunk_pos: Vector2xz(i32),
 updates: []const BlockUpdate,

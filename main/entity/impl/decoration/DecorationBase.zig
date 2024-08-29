@@ -1,5 +1,6 @@
-const Vector3 = @import("../../../math/vector.zig").Vector3;
-const Direction = @import("../../../math/direction.zig").Direction;
+const root = @import("root");
+const Vector3 = root.Vector3;
+const Direction = root.Direction;
 
 block_pos: Vector3(i32),
 direction: Direction,

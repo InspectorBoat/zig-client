@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const c2s = root.network.packet.c2s;
-const ItemStack = @import("../../../../item/ItemStack.zig");
+const ItemStack = root.ItemStack;
 
 slot_id: i16,
 item_stack: ItemStack,

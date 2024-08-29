@@ -1,4 +1,6 @@
-const ItemStack = @import("../../item/ItemStack.zig");
+const root = @import("root");
+const ItemStack = root.ItemStack;
+
 hotbar_slot: u8 = 0,
 
 pub fn getHeldStack(self: *@This()) ?*ItemStack {

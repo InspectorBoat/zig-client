@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const DataTracker = @import("../../../../entity/datatracker/DataTracker.zig");
+const DataTracker = root.entity.DataTracker;
 
 network_id: i32,
 entries: []const DataTrackerEntry,

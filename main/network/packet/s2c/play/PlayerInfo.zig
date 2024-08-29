@@ -2,8 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
-const GameMode = @import("../../../../world/gamemode.zig").GameMode;
-const GameProfile = @import("../../../../network/GameProfile.zig");
+const GameMode = root.World.GameMode;
+const GameProfile = root.network.GameProfile;
 
 action: Action,
 entries: []const Entry,

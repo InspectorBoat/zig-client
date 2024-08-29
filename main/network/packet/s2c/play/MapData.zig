@@ -3,7 +3,7 @@ const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
 const MapDecoration = @import("../../../../world/MapDecoration.zig");
-const Vector2xy = @import("../../../../math/vector.zig").Vector2xy;
+const Vector2xy = root.Vector2xy;
 
 map_id: i32,
 scale: i8,

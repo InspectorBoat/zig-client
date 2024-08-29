@@ -3,9 +3,9 @@ const root = @import("root");
 const s2c = root.network.packet.s2c;
 const Game = root.Game;
 const World = root.World;
-const GameMode = @import("../../../../world/gamemode.zig").GameMode;
-const Difficulty = @import("../../../../world/difficulty.zig").Difficulty;
-const GeneratorType = @import("../../../../world/generatortype.zig").GeneratorType;
+const GameMode = World.GameMode;
+const Difficulty = World.Difficulty;
+const GeneratorType = World.GeneratorType;
 const LocalPlayerEntity = root.entity.LocalPlayer;
 
 /// the network id of the player

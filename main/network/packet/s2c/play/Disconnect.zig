@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const s2c = root.network.packet.s2c;
-const Connection = @import("../../../connection.zig").Connection;
+const Connection = root.network.Connection;
 
 reason: []const u8,
 

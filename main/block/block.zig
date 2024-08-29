@@ -1,7 +1,8 @@
 const std = @import("std");
-const World = @import("../world/World.zig");
-const Vector3 = @import("../math/vector.zig").Vector3;
-const Box = @import("../math/box.zig").Box;
+const root = @import("root");
+const World = root.World;
+const Vector3 = root.Vector3;
+const Box = root.Box;
 
 // Requirements of system:
 // Looking up the raytrace hitboxes for a blockstate, which depends on virtual properties, must be fast

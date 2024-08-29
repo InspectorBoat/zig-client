@@ -1,6 +1,7 @@
 const std = @import("std");
-const Game = @import("../../game.zig").Game;
-const Connection = @import("../../network/connection.zig");
+const root = @import("root");
+const Game = root.Game;
+const Connection = root.network.Connection;
 
 pub const c2s = opaque {
     pub const WriteBuffer = @import("c2s/WriteBuffer.zig");

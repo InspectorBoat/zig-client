@@ -1,11 +1,10 @@
 const root = @import("root");
-
 const AnyEntity = root.entity.Any;
-const Game = @import("../../game.zig").Game;
-const Box = @import("../../math/box.zig").Box;
-const Vector3 = @import("../../math/vector.zig").Vector3;
-const Rotation2 = @import("../../math/rotation.zig").Rotation2;
-const DataTracker = @import("../../entity/datatracker/DataTracker.zig");
+const Game = root.Game;
+const Box = root.Box;
+const Vector3 = root.Vector3;
+const Rotation2 = root.Rotation2;
+const DataTracker = root.entity.DataTracker;
 const std = @import("std");
 
 /// This struct supplies fields that every entity needs
