@@ -4,7 +4,7 @@ const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation = root.network.ScaledRotation;
-const DataTracker = root.entity.DataTracker;
+const DataTracker = root.Entity.DataTracker;
 
 network_id: i32,
 type: i32,

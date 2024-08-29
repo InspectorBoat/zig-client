@@ -4,7 +4,7 @@ const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation = root.network.ScaledRotation;
-const DataTracker = root.entity.DataTracker;
+const DataTracker = root.Entity.DataTracker;
 const Uuid = @import("util").Uuid;
 
 network_id: i32,
@@ -41,7 +41,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     switch (game.*) {
         .Ingame => |*ingame| {
             try ingame.world.addEntity(.{
-                .RemotePlayer = .{
+                .remote_player = .{
                     .base = .{
                         .network_id = self.network_id,
                         .pos = self.pos.normalize(),

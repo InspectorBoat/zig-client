@@ -7,7 +7,7 @@ pub const ConcreteBlock = block.ConcreteBlock;
 pub const ConcreteBlockState = block.ConcreteBlockState;
 pub const StoredBlockProperties = block.StoredBlockProperties;
 
-pub const entity = @import("entity/entity.zig");
+pub const Entity = @import("entity/entity.zig").Entity;
 
 pub const item = @import("item/item.zig");
 

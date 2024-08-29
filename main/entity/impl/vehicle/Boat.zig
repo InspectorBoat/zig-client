@@ -1,9 +1,9 @@
 const root = @import("root");
 const Vector3 = root.Vector3;
-const entity = root.entity;
+const Entity = root.Entity;
 
-base: entity.Base,
-interpolator: entity.InterpolatedBase = undefined,
+base: Entity.Base,
+interpolator: Entity.InterpolatedBase = undefined,
 
 pub fn init(pos: Vector3(f64)) @This() {
     return .{ .base = .{

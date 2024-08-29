@@ -1,10 +1,10 @@
 const root = @import("root");
-const AnyEntity = root.entity.Any;
+const Entity = root.Entity;
 const Game = root.Game;
 const Box = root.Box;
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
-const DataTracker = root.entity.DataTracker;
+const DataTracker = root.Entity.DataTracker;
 const std = @import("std");
 
 /// This struct supplies fields that every entity needs
@@ -24,7 +24,7 @@ fall_distance: f32 = 0,
 no_clip: bool = false,
 hitbox: Box(f64) = .{ .min = .{ .x = 0, .y = 0, .z = 0 }, .max = .{ .x = 1, .y = 1, .z = 1 } },
 
-vehicle: ?*AnyEntity = null,
+vehicle: ?*Entity = null,
 
 data_tracker: DataTracker = .{},
 

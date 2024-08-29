@@ -1,6 +1,6 @@
 const root = @import("root");
-const entity = root.entity;
+const Entity = root.Entity;
 
-base: entity.Base,
-living: entity.LivingBase = .{},
-player: entity.PlayerBase = .{},
+base: Entity.Base,
+living: Entity.LivingBase = .{},
+player: Entity.PlayerBase = .{},

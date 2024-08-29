@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const entity = root.entity;
+const Entity = root.Entity;
 const PlayerInventory = @import("../../inventory/PlayerInventory.zig");
 const ItemStack = root.ItemStack;
 const Game = root.Game;
@@ -10,9 +10,9 @@ const World = root.World;
 const Rotation2 = root.Rotation2;
 const HitResult = root.HitResult;
 
-base: entity.Base,
-living: entity.LivingBase = .{},
-player: entity.PlayerBase = .{},
+base: Entity.Base,
+living: Entity.LivingBase = .{},
+player: Entity.PlayerBase = .{},
 
 inventory: PlayerInventory = .{},
 abilities: PlayerAbilities = .{},

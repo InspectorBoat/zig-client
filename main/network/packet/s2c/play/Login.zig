@@ -6,7 +6,7 @@ const World = root.World;
 const GameMode = World.GameMode;
 const Difficulty = World.Difficulty;
 const GeneratorType = World.GeneratorType;
-const LocalPlayerEntity = root.entity.LocalPlayer;
+const LocalPlayerEntity = root.Entity.LocalPlayer;
 
 /// the network id of the player
 network_id: i32,
