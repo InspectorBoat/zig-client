@@ -63,7 +63,7 @@ pub fn onFrame(frame: Events.Frame) !void {
 
     switch (game.*) {
         .Ingame => |*ingame| {
-            handleInputIngame(ingame);
+            try handleInputIngame(ingame);
             try renderer.updateAndDispatchDirtySections(&ingame.world, gpa_impl.allocator());
             try renderer.uploadCompilationResults();
             try renderer.renderFrame(ingame);
@@ -123,7 +123,7 @@ pub fn handleInputConnecting(_: *Game.ConnectingGame) void {
     }
 }
 
-pub fn handleInputIngame(ingame: *Game.IngameGame) void {
+pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -134,6 +134,7 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) void {
                     .escape => window_input.window.setShouldClose(true),
                     .f => gl.polygonMode(.front_and_back, .line),
                     .g => gl.polygonMode(.front_and_back, .fill),
+                    .k => try renderer.restartEverything(),
                     else => {},
                 }
             },

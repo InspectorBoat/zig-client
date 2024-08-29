@@ -45,6 +45,7 @@ pub fn deinit(self: *@This()) void {
     while (self.free_segments.popFirst()) |node| {
         self.allocator.destroy(node);
     }
+    self.backing_buffer.delete();
 }
 
 pub fn alloc(self: *@This(), n: usize) !Segment {

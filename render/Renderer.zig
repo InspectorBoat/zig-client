@@ -118,7 +118,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 pub fn initTexture() gl.Texture {
     const texture = gl.Texture.create(.@"2d_array");
 
-    const texture_size = 8;
+    const texture_size = 1;
     const color_channels = 4;
     const texture_count = 256;
 
@@ -234,7 +234,10 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
 }
 
 pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
-    try self.chunk_tracker.markChunkPresent(chunk_pos);
+    self.chunk_tracker.markChunkPresent(chunk_pos) catch |e| switch (e) {
+        error.ChunkAlreadyExists => {}, // TODO: Figure out why this happens
+        else => return e,
+    };
 }
 
 pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
@@ -278,6 +281,32 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
             }
         }
     }
+}
+
+pub fn restartEverything(self: *@This()) !void {
+    var iter = self.chunk_tracker.chunks.iterator();
+    while (iter.next()) |entry| {
+        const chunk = entry.value_ptr;
+        switch (chunk.*) {
+            .Rendering => |*sections| {
+                for (sections) |*section| {
+                    try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
+                    chunk.* = .{
+                        .Waiting = .{
+                            .north_present = true,
+                            .south_present = true,
+                            .east_present = true,
+                            .west_present = true,
+                        },
+                    };
+                }
+            },
+            .Waiting => {},
+        }
+    }
+    // std.debug.assert(self.gpu_memory_allocator.detectLeaks() == false);
+    self.gpu_memory_allocator.deinit();
+    self.gpu_memory_allocator = try GpuMemoryAllocator.init(self.allocator, 1024 * 1024 * 1024 * 2 - 1);
 }
 
 pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !void {

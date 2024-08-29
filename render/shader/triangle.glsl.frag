@@ -10,6 +10,7 @@ out vec4 color;
 layout(location = 2) uniform sampler2DArray block_texture;
 
 void main() {
-    color = texture(block_texture, vec3(uv, texture_id)) * sky_light / 15;
+    color = texture(block_texture, vec3(uv, texture_id));
+    color.rgb *= float(sky_light + 2) / 17;
     if (color.a == 0) discard;
 }
