@@ -1,9 +1,11 @@
 const std = @import("std");
-const VarIntByte = @import("../../network/type/var_int_byte.zig").VarIntByte;
-const Vector3 = @import("../../math/vector.zig").Vector3;
-const Uuid = @import("../../entity/Uuid.zig");
-const ItemStack = @import("../../item/ItemStack.zig");
-const NbtElement = @import("root").NbtElement;
+const root = @import("root");
+const network = root.network;
+const VarIntByte = network.VarIntByte;
+const Vector3 = root.Vector3;
+const Uuid = root.Uuid;
+const ItemStack = root.ItemStack;
+const NbtElement = root.NbtElement;
 
 /// A buffer to read incoming packet data (s2c)
 backer: []const u8,
@@ -249,11 +251,11 @@ pub fn readVarIntFromArray(comptime max_bytes: usize, var_int: [max_bytes]VarInt
 }
 
 test readVarInt {
-    const WritePacketBuffer = @import("../../network/packet/WritePacketBuffer.zig");
+    const WriteBuffer = network.packet.c2s.WriteBuffer;
     std.debug.print("\n", .{});
 
     // initialize buffer to write to
-    var write_buffer = WritePacketBuffer.init(std.testing.allocator);
+    var write_buffer = WriteBuffer.init(std.testing.allocator);
     var read_buffer: @This() = undefined;
     // deinitializing read_buffer is unnecessary because it shares a backer with write_buffer
     defer write_buffer.deinit();
