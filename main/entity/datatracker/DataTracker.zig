@@ -39,7 +39,7 @@ pub const DataValue = union(DataTypes) {
     i32: i32,
     f32: f32,
     String: []const u8,
-    ItemStack: ItemStack,
+    ItemStack: ?ItemStack,
     BlockPos: Vector3(i32),
     Rotation: Rotation3(f32),
 };

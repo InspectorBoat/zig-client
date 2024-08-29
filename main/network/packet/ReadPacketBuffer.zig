@@ -3,6 +3,7 @@ const VarIntByte = @import("../../network/type/var_int_byte.zig").VarIntByte;
 const Vector3 = @import("../../math/vector.zig").Vector3;
 const Uuid = @import("../../entity/Uuid.zig");
 const ItemStack = @import("../../item/ItemStack.zig");
+const NbtElement = @import("../../nbt/nbtelement.zig").NbtElement;
 
 /// A buffer to read incoming packet data (s2c)
 backer: []const u8,
@@ -142,10 +143,18 @@ pub fn readStringAllocating(self: *@This(), max_code_points: usize, allocator: s
     return string;
 }
 
-pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !ItemStack {
-    _ = self;
-    _ = allocator;
-    return undefined;
+pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?ItemStack {
+    var item_stack: ?ItemStack = null;
+    const item_id = try self.read(i16);
+    if (item_id >= 0) {
+        item_stack = .{
+            .size = try self.read(i8),
+            .metadata = try self.read(i16),
+            .item = @enumFromInt(item_id),
+            .nbt = (try NbtElement.read(self, allocator)).Compound,
+        };
+    }
+    return item_stack;
 }
 
 /// Uses an i32 and java's """""""""slight  modification""""""""" of utf8
