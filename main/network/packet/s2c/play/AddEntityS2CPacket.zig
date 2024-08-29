@@ -18,17 +18,17 @@ pub fn decode(buffer: *ReadPacketBuffer, allocator: std.mem.Allocator) !@This() 
 
     const network_id = try buffer.readVarInt();
     const entity_type = try buffer.read(i8);
-    const pos = ScaledVector(i32, 32.0){
+    const pos: ScaledVector(i32, 32.0) = .{
         .x = try buffer.read(i32),
         .y = try buffer.read(i32),
         .z = try buffer.read(i32),
     };
-    const rotation = ScaledRotation(i32, 256.0 / 360.0){
+    const rotation: ScaledRotation(i32, 256.0 / 360.0) = .{
         .pitch = try buffer.read(i8),
         .yaw = try buffer.read(i8),
     };
     const data = try buffer.read(i32);
-    const velocity = if (data > 0) ScaledVector(i32, 8000){
+    const velocity: ?ScaledVector(i32, 8000) = if (data > 0) .{
         .x = try buffer.read(i16),
         .y = try buffer.read(i16),
         .z = try buffer.read(i16),
@@ -49,19 +49,13 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     switch (game.*) {
         .Ingame => |*ingame| {
             const Entity = @import("../../../../entity/entity.zig").Entity;
-            const BoatEntity = @import("../../../../entity/impl/vehicle/BoatEntity.zig");
 
             const pos = self.pos.normalize();
-            const entity = switch (self.entity_type) {
-                1 => Entity{ .Boat = BoatEntity{
-                    .base = .{
-                        .network_id = self.network_id,
-                        .pos = pos,
-                        .prev_pos = pos,
-                    },
-                    .interpolator = undefined,
-                } },
-                else => return void{},
+
+            const entity: Entity = switch (self.entity_type) {
+                10 => .{ .Minecart = .{} },
+                1 => .{ .Boat = @import("../../../../entity/impl/vehicle/BoatEntity.zig").init(pos) },
+                else => return,
             };
             try ingame.world.addEntity(entity);
         },
