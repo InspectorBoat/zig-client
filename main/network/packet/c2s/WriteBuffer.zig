@@ -41,7 +41,7 @@ pub fn toReadBuffer(self: *@This()) ReadPacketBuffer {
 
 /// T must be an boolean, integer or float with nonzero size and have a bit size divisible by 8
 pub fn write(self: *@This(), comptime T: type, value: T) std.mem.Allocator.Error!void {
-    if (@typeInfo(T) != .Int and @typeInfo(T) != .Float and T != bool) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be integer, float, or boolean");
+    if (@typeInfo(T) != .int and @typeInfo(T) != .float and T != bool) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be integer, float, or boolean");
     if (T != bool and @sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
     if (@sizeOf(T) == 0) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must not be zero-sized");
 
@@ -63,8 +63,8 @@ pub fn writePacked(self: *@This(), comptime T: type, value: T) !void {
 
 /// T must be an enum backed by an i32
 pub fn writeEnum(self: *@This(), comptime T: type, value: T) !void {
-    if (@typeInfo(T) != .Enum) @compileError("type to write (" ++ @typeName(T) ++ "must be an enum");
-    if (@typeInfo(T).Enum.tag_type != i32) @compileError("type to write (" ++ @typeName(T) ++ "must be backed by an i32");
+    if (@typeInfo(T) != .@"enum") @compileError("type to write (" ++ @typeName(T) ++ "must be an enum");
+    if (@typeInfo(T).@"enum".tag_type != i32) @compileError("type to write (" ++ @typeName(T) ++ "must be backed by an i32");
     return try self.writeVarInt(@intFromEnum(value));
 }
 

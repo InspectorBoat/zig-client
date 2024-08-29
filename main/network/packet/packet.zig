@@ -137,7 +137,7 @@ pub const s2c = opaque {
             /// decodes a packet buffer into a type-erased packet
             pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
                 // the amount of packet types in this union
-                const PacketTypeCount = @typeInfo(@This()).Union.fields.len;
+                const PacketTypeCount = @typeInfo(@This()).@"union".fields.len;
 
                 // read the opcode of the packet from the buffer
                 switch (try buffer.readVarInt()) {
@@ -190,10 +190,10 @@ pub const s2c = opaque {
             }
 
             pub fn nameFromOpcode(comptime opcode: i32) []const u8 {
-                return @typeInfo(@This()).Union.fields[opcode].name;
+                return @typeInfo(@This()).@"union".fields[opcode].name;
             }
             pub fn typeFromOpcode(comptime opcode: i32) type {
-                return @typeInfo(@This()).Union.fields[opcode].type;
+                return @typeInfo(@This()).@"union".fields[opcode].type;
             }
 
             LoginFail: LoginFail,
@@ -282,7 +282,7 @@ pub const s2c = opaque {
             /// decodes a packet buffer into a type-erased packet
             pub fn decode(buffer: *s2c.ReadBuffer, allocator: std.mem.Allocator) !@This() {
                 // the amount of packet types in this union
-                const PacketTypeCount = @typeInfo(@This()).Union.fields.len;
+                const PacketTypeCount = @typeInfo(@This()).@"union".fields.len;
 
                 // read the opcode of the packet from the buffer
                 switch (try buffer.readVarInt()) {
@@ -335,10 +335,10 @@ pub const s2c = opaque {
             }
 
             pub fn nameFromOpcode(comptime opcode: i32) []const u8 {
-                return @typeInfo(@This()).Union.fields[opcode].name;
+                return @typeInfo(@This()).@"union".fields[opcode].name;
             }
             pub fn typeFromOpcode(comptime opcode: i32) type {
-                return @typeInfo(@This()).Union.fields[opcode].type;
+                return @typeInfo(@This()).@"union".fields[opcode].type;
             }
 
             KeepAlive: KeepAlive,

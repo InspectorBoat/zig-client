@@ -58,8 +58,8 @@ pub fn Vector2xy(comptime Element: type) type {
         }
 
         pub fn floatCast(self: @This(), comptime Target: type) Vector2xy(Target) {
-            if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
-            if (@typeInfo(Element) != .Float) @compileLog("Must floatCast from float!");
+            if (@typeInfo(Target) != .float) @compileLog("Must floatCast to float!");
+            if (@typeInfo(Element) != .float) @compileLog("Must floatCast from float!");
             return .{
                 .x = @floatCast(self.x),
                 .z = @floatCast(self.y),
@@ -76,7 +76,7 @@ pub fn Vector2xy(comptime Element: type) type {
         }
 
         pub fn floatToInt(self: @This(), comptime Target: type) Vector2xy(Target) {
-            if (@typeInfo(Target) != .Float) @compileLog("Start type must be float!");
+            if (@typeInfo(Target) != .float) @compileLog("Start type must be float!");
             if (@typeInfo(Element) != .Int) @compileLog("Target type from int!");
             return .{
                 .x = @intFromFloat(self.x),
@@ -86,7 +86,7 @@ pub fn Vector2xy(comptime Element: type) type {
 
         pub fn intToFloat(self: @This(), comptime Target: type) Vector2xy(Target) {
             if (@typeInfo(Target) != .Int) @compileLog("Start type must be int!");
-            if (@typeInfo(Element) != .Float) @compileLog("Target type from float!");
+            if (@typeInfo(Element) != .float) @compileLog("Target type from float!");
             return .{
                 .x = @floatFromInt(self.x),
                 .z = @floatFromInt(self.y),
@@ -168,8 +168,8 @@ pub fn Vector2xz(comptime Element: type) type {
         }
 
         pub fn floatCast(self: @This(), comptime Target: type) Vector2xz(Target) {
-            if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
-            if (@typeInfo(Element) != .Float) @compileLog("Must floatCast from float!");
+            if (@typeInfo(Target) != .float) @compileLog("Must floatCast to float!");
+            if (@typeInfo(Element) != .float) @compileLog("Must floatCast from float!");
             return .{
                 .x = @floatCast(self.x),
                 .z = @floatCast(self.z),
@@ -186,7 +186,7 @@ pub fn Vector2xz(comptime Element: type) type {
         }
 
         pub fn floatToInt(self: @This(), comptime Target: type) Vector2xz(Target) {
-            if (@typeInfo(Target) != .Float) @compileLog("Start type must be float!");
+            if (@typeInfo(Target) != .float) @compileLog("Start type must be float!");
             if (@typeInfo(Element) != .Int) @compileLog("Target type from int!");
             return .{
                 .x = @intFromFloat(self.x),
@@ -196,7 +196,7 @@ pub fn Vector2xz(comptime Element: type) type {
 
         pub fn intToFloat(self: @This(), comptime Target: type) Vector2xz(Target) {
             if (@typeInfo(Target) != .Int) @compileLog("Start type must be int!");
-            if (@typeInfo(Element) != .Float) @compileLog("Target type from float!");
+            if (@typeInfo(Element) != .float) @compileLog("Target type from float!");
             return .{
                 .x = @floatFromInt(self.x),
                 .z = @floatFromInt(self.z),
@@ -354,8 +354,8 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn floatCast(self: @This(), comptime Target: type) Vector3(Target) {
-            if (@typeInfo(Target) != .Float) @compileLog("Must floatCast to float!");
-            if (@typeInfo(Element) != .Float) @compileLog("Must floatCast from float!");
+            if (@typeInfo(Target) != .float) @compileLog("Must floatCast to float!");
+            if (@typeInfo(Element) != .float) @compileLog("Must floatCast from float!");
             return .{
                 .x = @floatCast(self.x),
                 .y = @floatCast(self.y),
@@ -364,8 +364,8 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn intCast(self: @This(), comptime Target: type) Vector3(Target) {
-            if (@typeInfo(Target) != .Int) @compileLog("Must intCast to int!");
-            if (@typeInfo(Element) != .Int) @compileLog("Must intCast from int!");
+            if (@typeInfo(Target) != .int) @compileLog("Must intCast to int!");
+            if (@typeInfo(Element) != .int) @compileLog("Must intCast from int!");
             return .{
                 .x = @intCast(self.x),
                 .y = @intCast(self.y),
@@ -374,8 +374,8 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn floatToInt(self: @This(), comptime Target: type) Vector3(Target) {
-            if (@typeInfo(Element) != .Float) @compileLog("Start type must be float!");
-            if (@typeInfo(Target) != .Int) @compileLog("Target type from int!");
+            if (@typeInfo(Element) != .float) @compileLog("Start type must be float!");
+            if (@typeInfo(Target) != .int) @compileLog("Target type from int!");
             return .{
                 .x = @intFromFloat(self.x),
                 .y = @intFromFloat(self.y),
@@ -384,8 +384,8 @@ pub fn Vector3(comptime Element: type) type {
         }
 
         pub fn intToFloat(self: @This(), comptime Target: type) Vector3(Target) {
-            if (@typeInfo(Element) != .Int) @compileError("Start type must be int!");
-            if (@typeInfo(Target) != .Float) @compileError("Target type from float!");
+            if (@typeInfo(Element) != .int) @compileError("Start type must be int!");
+            if (@typeInfo(Target) != .float) @compileError("Target type from float!");
             return .{
                 .x = @floatFromInt(self.x),
                 .y = @floatFromInt(self.y),

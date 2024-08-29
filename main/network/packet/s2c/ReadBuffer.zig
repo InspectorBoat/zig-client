@@ -37,7 +37,7 @@ pub fn clear(self: *@This()) void {
 
 /// T must be a boolean, integer or float type with nonzero size and have a bit size divisible by 8
 pub fn read(self: *@This(), comptime T: type) error{EndOfBuffer}!T {
-    if (@typeInfo(T) != .Int and @typeInfo(T) != .Float and T != bool) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be boolean, integer or float type");
+    if (@typeInfo(T) != .int and @typeInfo(T) != .float and T != bool) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be boolean, integer or float type");
     if (T != bool and @sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeInfo(T) ++ ") must have a bit size divisible by 8");
     if (@sizeOf(T) == 0) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must not be zero-sized");
     const last_read_index = self.read_location + @sizeOf(T) - 1;
@@ -64,15 +64,15 @@ pub fn remainingBytes(self: @This()) usize {
 /// T must have a bit size divisible by 8 and must be a packed struct
 pub fn readPacked(self: *@This(), comptime T: type) !T {
     if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeInfo(T) ++ ") must have a bit size divisible by 8");
-    if (@typeInfo(T) != .Struct) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be a struct");
-    if (@typeInfo(T).Struct.layout != .@"packed") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be packed");
+    if (@typeInfo(T) != .@"struct") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be a struct");
+    if (@typeInfo(T).@"struct".layout != .@"packed") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be packed");
     return @bitCast(try self.read(std.meta.Int(.unsigned, @bitSizeOf(T))));
 }
 
 /// T must be an enum backed by an i32
 pub fn readEnum(self: *@This(), comptime T: type) !?T {
-    if (@typeInfo(T) != .Enum) @compileError("type to retrieve (" ++ @typeName(T) ++ "must be an enum");
-    if (@typeInfo(T).Enum.tag_type != i32) @compileError("type to retrieve (" ++ @typeName(T) ++ "must be backed by an i32");
+    if (@typeInfo(T) != .@"enum") @compileError("type to retrieve (" ++ @typeName(T) ++ "must be an enum");
+    if (@typeInfo(T).@"enum".tag_type != i32) @compileError("type to retrieve (" ++ @typeName(T) ++ "must be backed by an i32");
     return std.meta.intToEnum(T, try self.readVarInt()) catch null;
 }
 

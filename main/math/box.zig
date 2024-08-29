@@ -97,7 +97,7 @@ pub fn Box(comptime Element: type) type {
         }
 
         pub fn rayTrace(self: *@This(), from: Vector3(Element), to: Vector3(Element)) ?HitResult {
-            if (@typeInfo(Element) != .Float) @compileError("Box.rayTrace is only available for floating point numbers!");
+            if (@typeInfo(Element) != .float) @compileError("Box.rayTrace is only available for floating point numbers!");
 
             const min_x_pos = @This().traceToPlane(from, to, .x, self.min.x);
             const max_x_pos = @This().traceToPlane(from, to, .x, self.max.x);
@@ -193,7 +193,7 @@ pub fn Box(comptime Element: type) type {
         /// from the origin vector3 to the target vector3 until
         /// colliding with the given plane
         pub fn traceToPlane(from: Vector3(Element), to: Vector3(Element), comptime axis: enum { x, y, z }, pos: Element) ?Vector3(Element) {
-            if (@typeInfo(Element) != .Float) @compileError("Box.traceToPlane is only available for floating point numbers!");
+            if (@typeInfo(Element) != .float) @compileError("Box.traceToPlane is only available for floating point numbers!");
 
             const delta = from.sub(to);
             const ray_progress = switch (axis) {
@@ -290,7 +290,7 @@ pub fn Box(comptime Element: type) type {
         /// it is merely a side effect of how the previous two cases function
         ///
         pub fn blockXAxisMovingHitbox(self: @This(), mover: @This(), distance: Element) Element {
-            if (@typeInfo(Element) != .Float) @compileError("Box.blockXAxisMovingHitbox is only available for floating point numbers!");
+            if (@typeInfo(Element) != .float) @compileError("Box.blockXAxisMovingHitbox is only available for floating point numbers!");
 
             // cannot collide
             if (mover.max.y <= self.min.y or mover.min.y >= self.max.y or mover.max.z <= self.min.z or mover.min.z >= self.max.z) {
@@ -311,7 +311,7 @@ pub fn Box(comptime Element: type) type {
         }
 
         pub fn blockYAxisMovingHitbox(self: @This(), mover: @This(), distance: Element) Element {
-            if (@typeInfo(Element) != .Float) @compileError("Box.blockYAxisMovingHitbox is only available for floating point numbers!");
+            if (@typeInfo(Element) != .float) @compileError("Box.blockYAxisMovingHitbox is only available for floating point numbers!");
 
             // cannot collide
             if (mover.max.x <= self.min.x or mover.min.x >= self.max.x or mover.max.z <= self.min.z or mover.min.z >= self.max.z) {
@@ -332,7 +332,7 @@ pub fn Box(comptime Element: type) type {
         }
 
         pub fn blockZAxisMovingHitbox(self: @This(), mover: @This(), distance: Element) Element {
-            if (@typeInfo(Element) != .Float) @compileError("Box.blockZAxisMovingHitbox is only available for floating point numbers!");
+            if (@typeInfo(Element) != .float) @compileError("Box.blockZAxisMovingHitbox is only available for floating point numbers!");
 
             // cannot collide
             if (mover.max.x <= self.min.x or mover.min.x >= self.max.x or mover.max.y <= self.min.y or mover.min.y >= self.max.y) {

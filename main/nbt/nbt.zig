@@ -170,14 +170,14 @@ pub fn NbtNumber(comptime Value: type) type {
 
         /// Assumes no duplicate field types
         pub fn nameFromType(comptime Type: type) []const u8 {
-            for (@typeInfo(NbtElement).Union.fields) |field| {
+            for (@typeInfo(NbtElement).@"union".fields) |field| {
                 if (field.type == Type) return field.name;
             }
         }
 
         /// Assumes no duplicate field types
         pub fn tagFromType(comptime Type: type) NbtElementTag {
-            inline for (@typeInfo(NbtElementTag).Enum.fields, @typeInfo(NbtElement).Union.fields) |tag, field| {
+            inline for (@typeInfo(NbtElementTag).@"enum".fields, @typeInfo(NbtElement).@"union".fields) |tag, field| {
                 if (field.type == Type) {
                     return @enumFromInt(tag.value);
                 }
