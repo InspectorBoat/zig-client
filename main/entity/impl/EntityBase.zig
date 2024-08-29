@@ -7,7 +7,7 @@ const DataTracker = @import("../../entity/datatracker/DataTracker.zig");
 const std = @import("std");
 
 /// This struct supplies fields that every entity needs
-network_id: i32,
+network_id: i32 = undefined,
 pos: Vector3(f64) = Vector3(f64).origin(),
 prev_pos: Vector3(f64) = Vector3(f64).origin(),
 rotation: Rotation2(f32) = Rotation2(f32).origin(),

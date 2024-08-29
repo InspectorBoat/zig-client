@@ -56,6 +56,8 @@ pub const MinecartEntity = @import("impl/player/LocalPlayerEntity.zig");
 
 pub const LightningEntity = @import("impl/weather/LightningEntity.zig");
 
+pub const Datatracker = @import("datatracker/DataTracker.zig");
+
 pub const Entity = union(enum) {
     EnderDragon: EnderDragonEntity,
     Wither: WitherEntity,

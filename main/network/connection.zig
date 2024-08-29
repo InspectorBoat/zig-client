@@ -1,19 +1,20 @@
 const std = @import("std");
-const network = @import("network");
-const WritePacketBuffer = @import("../network/packet/WritePacketBuffer.zig");
-const ReadPacketBuffer = @import("../network/packet/ReadPacketBuffer.zig");
-const Protocol = @import("../network/protocol/protocol.zig").Protocol;
-const S2CLoginPacket = @import("../network/packet/packets.zig").S2CLoginPacket;
-const S2CPlayPacket = @import("../network/packet/packets.zig").S2CPlayPacket;
-const C2SHandshakePacket = @import("../network/packet/packets.zig").C2SHandshakePacket;
-const C2SLoginPacket = @import("../network/packet/packets.zig").C2SLoginPacket;
-const C2SPlayPacket = @import("../network/packet/packets.zig").C2SPlayPacket;
-const C2SPacket = @import("../network/packet/packets.zig").C2SPacket;
-const S2CPacket = @import("../network/packet/packets.zig").S2CPacket;
-const VarIntByte = @import("../network/type/var_int_byte.zig").VarIntByte;
-const Game = @import("../game.zig").Game;
-const HandShakeC2SPacket = @import("../network/packet/c2s/handshake/HandshakeC2SPacket.zig");
-const HelloC2SPacket = @import("../network/packet/c2s/login/HelloC2SPacket.zig");
+const network_lib = @import("network");
+const root = @import("root");
+const network = root.network;
+const WritePacketBuffer = network.packet.c2s.WritePacketBuffer;
+const ReadPacketBuffer = network.packet.c2s.ReadPacketBuffer;
+const Protocol = network.Protocol;
+const S2CLoginPacket = network.packet.S2CLoginPacket;
+const S2CPlayPacket = network.packet.S2CPlayPacket;
+const C2SHandshakePacket = network.packet.C2SHandshakePacket;
+const C2SLoginPacket = network.packet.C2SLoginPacket;
+const C2SPlayPacket = network.packet.C2SPlayPacket;
+const C2SPacket = network.packet.C2SPacket;
+const S2CPacket = network.packet.S2CPacket;
+const HandShakeC2SPacket = network.packet.c2s.handshake.HandshakeC2SPacket;
+const HelloC2SPacket = network.packet.c2s.handshake.HandshakeC2SPacket;
+const Game = root.Game;
 const RingBuffer = @import("util").RingBuffer;
 
 pub const Connection = struct {
@@ -23,7 +24,7 @@ pub const Connection = struct {
 
     disconnected: *bool,
 
-    socket: network.Socket,
+    socket: network_lib.Socket,
 
     protocol: Protocol = .Login,
 
@@ -154,11 +155,11 @@ pub const Connection = struct {
         }
     }
 
-    pub fn connectSocket(name: []const u8, port: u16) !network.Socket {
+    pub fn connectSocket(name: []const u8, port: u16) !network_lib.Socket {
         var buffer: [8192]u8 = undefined;
         var fba_impl = std.heap.FixedBufferAllocator.init(&buffer);
 
-        const socket = try network.connectToHost(fba_impl.allocator(), name, port, .tcp);
+        const socket = try network_lib.connectToHost(fba_impl.allocator(), name, port, .tcp);
         errdefer socket.close();
 
         try makeSocketNonBlocking(socket);
@@ -167,7 +168,7 @@ pub const Connection = struct {
     }
 
     /// https://stackoverflow.com/a/1549344/20084105
-    pub fn makeSocketNonBlocking(socket: network.Socket) !void {
+    pub fn makeSocketNonBlocking(socket: network_lib.Socket) !void {
         if (@import("builtin").os.tag == .windows) {
             const mode: u32 = 1;
             if (try std.os.windows.WSAIoctl(

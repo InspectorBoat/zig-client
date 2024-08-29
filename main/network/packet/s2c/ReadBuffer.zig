@@ -3,7 +3,7 @@ const VarIntByte = @import("../../network/type/var_int_byte.zig").VarIntByte;
 const Vector3 = @import("../../math/vector.zig").Vector3;
 const Uuid = @import("../../entity/Uuid.zig");
 const ItemStack = @import("../../item/ItemStack.zig");
-const NbtElement = @import("../../nbt/nbtelement.zig").NbtElement;
+const NbtElement = @import("root").NbtElement;
 
 /// A buffer to read incoming packet data (s2c)
 backer: []const u8,

@@ -1,9 +1,11 @@
 const std = @import("std");
-const VarIntByte = @import("../../network/type/var_int_byte.zig").VarIntByte;
-const Vector3 = @import("../../math/vector.zig").Vector3;
-const ItemStack = @import("../../item/ItemStack.zig");
-const Uuid = @import("../../entity/Uuid.zig");
-const ReadPacketBuffer = @import("ReadPacketBuffer.zig");
+const root = @import("root");
+const network = root.network;
+const VarIntByte = network.VarIntByte;
+const ReadPacketBuffer = network.packet.s2c.ReadPacketBuffer;
+const Vector3 = root.Vector3;
+const ItemStack = root.ItemStack;
+const Uuid = root.Uuid;
 
 /// A buffer to write packet data (c2s)
 backer: std.ArrayList(u8),

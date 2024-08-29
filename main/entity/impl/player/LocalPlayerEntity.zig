@@ -312,7 +312,7 @@ pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const G
 pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) !void {
     const friction = self.getFrictionNonLiquid(game);
     const traction = try self.getTractionNonLiquid(friction);
-    const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
+    const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw).scaleUniform(15);
     self.base.velocity = self.base.velocity.add(.{
         .x = @floatCast(acceleration.x),
         .y = 0,
@@ -414,7 +414,7 @@ pub fn syncAbilities(self: *@This(), game: *const Game.IngameGame) void {
 }
 
 pub fn jump(self: *@This()) !void {
-    self.base.velocity.y = @as(f32, @floatCast(0.42));
+    self.base.velocity.y = @as(f32, @floatCast(4));
     // TODO: Implement jump boost
     // self.base.velocity.y += @as(f32, @floatFromInt((self.living.getEffectLevel(.JumpBoost) orelse -1) + 1)) * 0.1;
 

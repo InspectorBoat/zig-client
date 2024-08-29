@@ -53,7 +53,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
             const pos = self.pos.normalize();
 
             const entity: Entity = switch (self.entity_type) {
-                10 => .{ .Minecart = .{} },
+                // 10 => .{ .Minecart = .{} },
                 1 => .{ .Boat = @import("../../../../entity/impl/vehicle/BoatEntity.zig").init(pos) },
                 else => return,
             };
