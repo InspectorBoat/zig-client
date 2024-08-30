@@ -3,14 +3,14 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ScaledVector = root.network.ScaledVector;
-const ScaledRotation = root.network.ScaledRotation;
+const ScaledRotation2 = root.network.ScaledRotation2;
 const DataTracker = root.Entity.DataTracker;
 const Uuid = @import("util").Uuid;
 
 network_id: i32,
 uuid: Uuid,
 pos: ScaledVector(i32, 32.0),
-rotation: ScaledRotation(i8, 256.0 / 360.0),
+rotation: ScaledRotation2(i8, 256.0 / 360.0),
 held_item_id: i32,
 datatracker_entries: []const S2C.Play.EntityData.DataTrackerEntry,
 
@@ -40,17 +40,20 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     // const rotation = self.rotation.normalize();
     switch (game.*) {
         .Ingame => |*ingame| {
-            try ingame.world.addEntity(.{
-                .remote_player = .{
-                    .base = .{
-                        .network_id = self.network_id,
-                        .pos = self.pos.normalize(),
-                        .prev_pos = self.pos.normalize(),
-                        .rotation = self.rotation.normalize(),
-                        .prev_rotation = self.rotation.normalize(),
+            try ingame.world.addEntity(
+                .{
+                    .remote_player = .{
+                        .base = .{
+                            .network_id = self.network_id,
+                            .pos = self.pos.normalize(),
+                            .prev_pos = self.pos.normalize(),
+                            .rotation = self.rotation.normalize(),
+                            .prev_rotation = self.rotation.normalize(),
+                        },
                     },
                 },
-            });
+                self.network_id,
+            );
         },
         else => unreachable,
     }

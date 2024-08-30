@@ -25,6 +25,7 @@ pub const ChunkMap = @import("ChunkMap.zig");
 chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
 entities: std.ArrayList(Entity),
+entities_by_network_id: std.AutoHashMap(i32, Entity),
 tick_timer: TickTimer,
 last_tick: std.time.Instant = switch (@import("builtin").os.tag) {
     .windows, .uefi, .wasi => .{ .timestamp = 0 },
@@ -41,6 +42,7 @@ pub fn init(info: struct {
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
         .entities = std.ArrayList(Entity).init(allocator),
+        .entities_by_network_id = std.AutoHashMap(i32, Entity).init(allocator),
         .tick_timer = try TickTimer.init(),
         .last_tick = try std.time.Instant.now(),
         .difficulty = info.difficulty,
@@ -395,8 +397,14 @@ pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator:
     _ = self; // autofix
 }
 
-pub fn addEntity(self: *@This(), entity: Entity) !void {
+pub fn addEntity(self: *@This(), entity: Entity, network_id: i32) !void {
+    std.debug.print("adding {} with network_id {}\n", .{ entity, network_id });
     try self.entities.append(entity);
+    try self.entities_by_network_id.putNoClobber(network_id, entity);
+}
+
+pub fn getEntityByNetworkId(self: *@This(), network_id: i32) ?*Entity {
+    return self.entities_by_network_id.getPtr(network_id);
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -406,6 +414,9 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         @import("log").free_chunk(.{chunk.chunk_pos});
         chunk.deinit(allocator);
     }
+
+    self.entities.deinit();
+    self.entities_by_network_id.deinit();
 
     const milliseconds_elapsed = @as(f64, @floatFromInt(self.tick_timer.timer.read())) / std.time.ns_per_ms;
     @import("log").display_average_tick_ms(.{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});

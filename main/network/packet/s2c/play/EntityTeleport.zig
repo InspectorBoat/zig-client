@@ -3,11 +3,11 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ScaledVector = root.network.ScaledVector;
-const ScaledRotation = root.network.ScaledRotation;
+const ScaledRotation2 = root.network.ScaledRotation2;
 
 network_id: i32,
 pos: ScaledVector(i32, 32.0),
-rotation: ScaledRotation(i32, 32.0),
+rotation: ScaledRotation2(i32, 32.0),
 
 comptime handle_on_network_thread: bool = false,
 

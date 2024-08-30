@@ -3,7 +3,7 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ScaledVector = root.network.ScaledVector;
-const ScaledRotation = root.network.ScaledRotation;
+const ScaledRotation2 = root.network.ScaledRotation2;
 
 network_id: i32,
 
@@ -43,7 +43,7 @@ pub const Position = struct {
 
 pub const Angles = struct {
     network_id: i32,
-    rotation: ScaledRotation(i8, 256.0 / 360.0),
+    rotation: ScaledRotation2(i8, 256.0 / 360.0),
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
@@ -64,7 +64,7 @@ pub const Angles = struct {
 pub const PositionAndAngles = struct {
     network_id: i32,
     delta_pos: ScaledVector(i8, 32.0),
-    rotation: ScaledRotation(i8, 256.0 / 360.0),
+    rotation: ScaledRotation2(i8, 256.0 / 360.0),
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,

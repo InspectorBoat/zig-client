@@ -1,4 +1,8 @@
-pub const Entity = union(enum) {
+pub const Entity = union(enum(i32)) {
+    pub const ItemFrame = @import("impl/decoration/ItemFrame.zig");
+    pub const LeadKnot = @import("impl/decoration/LeadKnot.zig");
+    pub const Painting = @import("impl/decoration/Painting.zig");
+
     pub const EnderDragon = @import("impl/living/boss/EnderDragon.zig");
     pub const Wither = @import("impl/living/boss/Wither.zig");
 
@@ -32,6 +36,7 @@ pub const Entity = union(enum) {
 
     pub const ArmorStand = @import("impl/misc/ArmorStand.zig");
     pub const EnderCrystal = @import("impl/misc/EnderCrystal.zig");
+    pub const EnderEye = @import("impl/misc/EnderEye.zig");
     pub const FallingBlock = @import("impl/misc/FallingBlock.zig");
     pub const Fireworks = @import("impl/misc/Fireworks.zig");
     pub const FishingBobber = @import("impl/misc/FishingBobber.zig");
@@ -65,6 +70,9 @@ pub const Entity = union(enum) {
 
     pub const DataTracker = @import("datatracker/DataTracker.zig");
 
+    item_frame: ItemFrame,
+    lead_knot: LeadKnot,
+    painting: Painting,
     ender_dragon: EnderDragon,
     wither: Wither,
     blaze: Blaze,
@@ -94,6 +102,7 @@ pub const Entity = union(enum) {
     wolf: Wolf,
     armor_stand: ArmorStand,
     ender_crystal: EnderCrystal,
+    ender_eye: EnderEye,
     falling_block: FallingBlock,
     fireworks: Fireworks,
     fishing_bobber: FishingBobber,
