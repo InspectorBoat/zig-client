@@ -34,7 +34,7 @@ chunk_tracker: ChunkTracker,
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     // gl.enable(.cull_face);
-    const program = try initProgram(.{@embedFile("shader/triangle.glsl.vert")}, .{@embedFile("shader/triangle.glsl.frag")});
+    const program = try initProgram("shader/triangle.glsl.vert", "shader/triangle.glsl.frag", allocator);
 
     const vao = try initVao();
 
@@ -63,7 +63,19 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn initProgram(vertex_shader_source: [1][]const u8, frag_shader_source: [1][]const u8) !gl.Program {
+pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8, allocator: std.mem.Allocator) !gl.Program {
+    const vertex_shader_file = try std.fs.cwd().openFile(vertex_shader_path, .{});
+    defer vertex_shader_file.close();
+
+    const vertex_shader_source = try vertex_shader_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(vertex_shader_source);
+
+    const frag_shader_file = try std.fs.cwd().openFile(frag_shader_path, .{});
+    defer frag_shader_file.close();
+
+    const frag_shader_source = try frag_shader_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(frag_shader_source);
+
     const vertex_shader = gl.Shader.create(.vertex);
     vertex_shader.source(1, &vertex_shader_source);
 

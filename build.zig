@@ -45,8 +45,17 @@ pub fn build(b: *std.Build) void {
         const install = b.addInstallArtifact(client, .{});
         b.getInstallStep().dependOn(&install.step);
 
+        // Install shader source
+        const install_shader = b.addInstallDirectory(.{
+            .source_dir = b.path("render/shader"),
+            .install_dir = .bin,
+            .install_subdir = "shader",
+        });
+        b.getInstallStep().dependOn(&install_shader.step);
+
         // Run exe
         const run_exe = b.addRunArtifact(client);
+        run_exe.setCwd(b.path("zig-out/bin"));
         run_exe.step.dependOn(b.getInstallStep());
 
         const run_step = b.step("run", "Run the application");
