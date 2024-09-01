@@ -134,7 +134,12 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
                     .escape => window_input.window.setShouldClose(true),
                     .f => gl.polygonMode(.front_and_back, .line),
                     .g => gl.polygonMode(.front_and_back, .fill),
-                    .k => try renderer.restartEverything(),
+                    .k => if (key.action == .press) try renderer.restartEverything(),
+                    .l => if (key.action == .press) {
+                        @import("log").reload_shader(.{});
+                        renderer.program.delete();
+                        renderer.program = try Renderer.initProgram("shader/triangle.glsl.vert", "shader/triangle.glsl.frag", gpa_impl.allocator());
+                    },
                     else => {},
                 }
             },

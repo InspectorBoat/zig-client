@@ -38,6 +38,7 @@ pub fn build(b: *std.Build) void {
         render.addImport("mach-glfw", mach_glfw);
         render.addImport("zalgebra", zalgebra);
         render.addImport("util", util);
+        render.addImport("log", logging);
 
         util.addImport("log", logging);
 
@@ -108,10 +109,19 @@ pub fn build(b: *std.Build) void {
         render.addImport("mach-glfw", mach_glfw);
         render.addImport("zalgebra", zalgebra);
         render.addImport("util", util);
+        render.addImport("log", logging);
 
         util.addImport("log", logging);
 
         const check = b.step("check", "Check if client compiles");
         check.dependOn(&client.step);
+
+        // Install shader source
+        const install_shader = b.addInstallDirectory(.{
+            .source_dir = b.path("render/shader"),
+            .install_dir = .bin,
+            .install_subdir = "shader",
+        });
+        b.getInstallStep().dependOn(&install_shader.step);
     }
 }
