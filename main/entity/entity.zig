@@ -1,3 +1,8 @@
+const std = @import("std");
+const root = @import("root");
+const Vector3 = root.Vector3;
+const Rotation2 = root.Rotation2;
+
 pub const EntityType = enum(i32) {
     item = 1,
     xp_orb = 2,
@@ -64,6 +69,8 @@ pub const EntityType = enum(i32) {
     local_player,
     remote_player,
     lightning,
+
+    removed,
 };
 
 pub const Entity = union(EntityType) {
@@ -133,12 +140,47 @@ pub const Entity = union(EntityType) {
     remote_player: RemotePlayer,
     lightning: Lightning,
 
-    pub fn tick(entity: @This()) !void {
-        switch (entity) {
-            inline else => |specific_entity| {
+    removed,
+
+    pub fn tick(entity: *@This()) !void {
+        switch (entity.*) {
+            .removed => return,
+            inline else => |*specific_entity| {
                 specific_entity.tick();
             },
         }
+    }
+
+    pub fn move(self: *@This(), delta: Vector3(f64)) void {
+        switch (self.*) {
+            .removed => return,
+            inline else => |*specific_entity| {
+                specific_entity.base.pos = specific_entity.base.pos.add(delta);
+                @import("log").entity_move(.{ self, specific_entity.base.pos });
+            },
+        }
+    }
+
+    pub fn rotateTo(self: *@This(), rotation: Rotation2(f32)) void {
+        switch (self.*) {
+            .removed => return,
+            inline else => |*specific_entity| {
+                specific_entity.base.rotation = rotation;
+                @import("log").entity_rotate(.{ self, specific_entity.base.rotation });
+            },
+        }
+    }
+
+    pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("type={s} id={}", .{
+            @tagName(@as(EntityType, self)),
+            switch (self) {
+                .removed => 0,
+                inline else => |specific_entity| specific_entity.base.network_id,
+            },
+        });
     }
 
     pub const ItemFrame = @import("impl/decoration/ItemFrame.zig");

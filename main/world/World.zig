@@ -21,11 +21,11 @@ pub const Difficulty = @import("difficulty.zig").Difficulty;
 pub const GameMode = @import("gamemode.zig").GameMode;
 pub const GeneratorType = @import("generatortype.zig").GeneratorType;
 pub const ChunkMap = @import("ChunkMap.zig");
+pub const EntityTracker = @import("EntityTracker.zig");
 
 chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
-entities: std.ArrayList(Entity),
-entities_by_network_id: std.AutoHashMap(i32, Entity),
+entities: EntityTracker,
 tick_timer: TickTimer,
 last_tick: std.time.Instant = switch (@import("builtin").os.tag) {
     .windows, .uefi, .wasi => .{ .timestamp = 0 },
@@ -41,8 +41,7 @@ pub fn init(info: struct {
     hardcore: bool,
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
-        .entities = std.ArrayList(Entity).init(allocator),
-        .entities_by_network_id = std.AutoHashMap(i32, Entity).init(allocator),
+        .entities = try EntityTracker.init(allocator),
         .tick_timer = try TickTimer.init(),
         .last_tick = try std.time.Instant.now(),
         .difficulty = info.difficulty,
@@ -55,7 +54,7 @@ pub fn init(info: struct {
 pub fn tick(self: *@This(), game: *Game.IngameGame, allocator: std.mem.Allocator) !void {
     _ = allocator; // autofix
     const now = try std.time.Instant.now();
-
+    self.entities.processEntityRemovals();
     try self.player.update(game);
 
     self.last_tick = now;
@@ -397,14 +396,15 @@ pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator:
     _ = self; // autofix
 }
 
-pub fn addEntity(self: *@This(), entity: Entity, network_id: i32) !void {
-    std.debug.print("adding {} with network_id {}\n", .{ entity, network_id });
-    try self.entities.append(entity);
-    try self.entities_by_network_id.putNoClobber(network_id, entity);
+pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
+    return try self.entities.addEntity(entity);
+}
+pub fn queueEntityRemoval(self: *@This(), network_id: i32) !void {
+    try self.entities.queueEntityRemoval(network_id);
 }
 
 pub fn getEntityByNetworkId(self: *@This(), network_id: i32) ?*Entity {
-    return self.entities_by_network_id.getPtr(network_id);
+    return self.entities.getEntityByNetworkId(network_id);
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -416,7 +416,6 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     }
 
     self.entities.deinit();
-    self.entities_by_network_id.deinit();
 
     const milliseconds_elapsed = @as(f64, @floatFromInt(self.tick_timer.timer.read())) / std.time.ns_per_ms;
     @import("log").display_average_tick_ms(.{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});

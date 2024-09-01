@@ -54,7 +54,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
             _ = pos;
 
             if (self.getEntity(ingame)) |entity| {
-                try ingame.world.addEntity(entity, self.network_id);
+                _ = try ingame.world.addEntity(entity);
             }
         },
         else => unreachable,
@@ -64,56 +64,56 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
 pub fn getEntity(self: *@This(), ingame: *Game.IngameGame) ?Entity {
     const world = &ingame.world;
     switch (self.entity_type) {
-        10 => return .{ .minecart = .{} },
+        10 => return .{ .minecart = Entity.Minecart.init(self.network_id, self.pos.normalize()) },
         90 => if (world.getEntityByNetworkId(self.data)) |referenced_entity| {
             if (referenced_entity.* == .local_player or referenced_entity.* == .remote_player) {
-                return .{ .fishing_bobber = .{} };
+                return .{ .fishing_bobber = Entity.FishingBobber.init(self.network_id, self.pos.normalize()) };
             }
         },
-        60 => return .{ .arrow = .{} },
-        61 => return .{ .snowball = .{} },
+        60 => return .{ .arrow = Entity.Arrow.init(self.network_id, self.pos.normalize()) },
+        61 => return .{ .snowball = Entity.Snowball.init(self.network_id, self.pos.normalize()) },
         71 => {
             self.data = 0;
-            return .{ .item_frame = .{} };
+            return .{ .item_frame = Entity.ItemFrame.init(self.network_id, self.pos.normalize()) };
         },
         77 => {
             self.data = 0;
-            return .{ .lead_knot = .{} };
+            return .{ .lead_knot = Entity.LeadKnot.init(self.network_id, self.pos.normalize()) };
         },
-        65 => return .{ .ender_pearl = .{} },
-        72 => return .{ .ender_eye = .{} },
-        76 => return .{ .fireworks = .{} },
+        65 => return .{ .ender_pearl = Entity.EnderPearl.init(self.network_id, self.pos.normalize()) },
+        72 => return .{ .ender_eye = Entity.EnderEye.init(self.network_id, self.pos.normalize()) },
+        76 => return .{ .fireworks = Entity.Fireworks.init(self.network_id, self.pos.normalize()) },
         63 => {
             self.data = 0;
-            return .{ .fireball = .{} };
+            return .{ .fireball = Entity.Fireball.init(self.network_id, self.pos.normalize()) };
         },
         64 => {
             self.data = 0;
-            return .{ .small_fireball = .{} };
+            return .{ .small_fireball = Entity.SmallFireball.init(self.network_id, self.pos.normalize()) };
         },
         66 => {
             self.data = 0;
-            return .{ .wither_skull = .{} };
+            return .{ .wither_skull = Entity.WitherSkull.init(self.network_id, self.pos.normalize()) };
         },
-        62 => return .{ .egg = .{} },
+        62 => return .{ .egg = Entity.Egg.init(self.network_id, self.pos.normalize()) },
         73 => {
             self.data = 0;
-            return .{ .potion = .{} };
+            return .{ .potion = Entity.Potion.init(self.network_id, self.pos.normalize()) };
         },
         75 => {
             self.data = 0;
-            return .{ .experience_bottle = .{} };
+            return .{ .experience_bottle = Entity.ExperienceBottle.init(self.network_id, self.pos.normalize()) };
         },
-        1 => return .{ .boat = Entity.Boat.init(self.pos.normalize()) },
-        50 => return .{ .primed_tnt = .{} },
-        78 => return .{ .armor_stand = .{} },
-        51 => return .{ .ender_crystal = .{} },
-        2 => return .{ .item = .{} },
+        1 => return .{ .boat = Entity.Boat.init(self.network_id, self.pos.normalize()) },
+        50 => return .{ .primed_tnt = Entity.PrimedTnt.init(self.network_id, self.pos.normalize()) },
+        78 => return .{ .armor_stand = Entity.ArmorStand.init(self.network_id, self.pos.normalize()) },
+        51 => return .{ .ender_crystal = Entity.EnderCrystal.init(self.network_id, self.pos.normalize()) },
+        2 => return .{ .item = Entity.Item.init(self.network_id, self.pos.normalize()) },
         70 => {
             self.data = 0;
-            return .{ .falling_block = .{} };
+            return .{ .falling_block = Entity.FallingBlock.init(self.network_id, self.pos.normalize()) };
         },
         else => return null,
     }
-    unreachable;
+    return null;
 }

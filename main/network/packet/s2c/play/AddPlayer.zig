@@ -40,7 +40,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
     // const rotation = self.rotation.normalize();
     switch (game.*) {
         .Ingame => |*ingame| {
-            try ingame.world.addEntity(
+            _ = try ingame.world.addEntity(
                 .{
                     .remote_player = .{
                         .base = .{
@@ -52,7 +52,6 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                         },
                     },
                 },
-                self.network_id,
             );
         },
         else => unreachable,

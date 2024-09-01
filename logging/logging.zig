@@ -31,6 +31,10 @@ pub const disconnect = LogType(true, "disconnected");
 pub const total_tick_delay = LogType(false, "total delay: {d} ms");
 pub const display_average_tick_ms = LogType(true, "average ms/tick: {d} ms");
 pub const decompression_time = LogType(false, "took {d} ms to decompress {} bytes from {} bytes");
+pub const add_entity = LogType(true, "added entity {} at {}");
+pub const remove_entity = LogType(true, "removed entity {}");
+pub const entity_move = LogType(true, "entity {} moved to {}");
+pub const entity_rotate = LogType(true, "entity {} rotated to {}");
 
 pub const player_start_sprint = LogType(false, "begin sprinting");
 pub const player_stop_sprint = LogType(false, "stop sprinting");

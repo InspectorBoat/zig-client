@@ -33,6 +33,23 @@ height: f32 = 1.8,
 
 ticks_existed: u64 = 0,
 
+pub fn init(network_id: i32, pos: Vector3(f64)) @This() {
+    return .{
+        .network_id = network_id,
+        .pos = pos,
+        .prev_pos = pos,
+    };
+}
+
+pub fn initRotation(network_id: i32, pos: Vector3(f64), rotation: Rotation2(f32)) @This() {
+    return .{
+        .network_id = network_id,
+        .pos = pos,
+        .prev_pos = pos,
+        .rotation = rotation,
+    };
+}
+
 pub fn tick(self: *@This()) void {
     // TODO: This is not vanilla, it should incremet at the beginning
     self.ticks_existed += 1;

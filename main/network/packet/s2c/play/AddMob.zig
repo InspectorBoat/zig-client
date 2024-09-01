@@ -6,6 +6,8 @@ const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 const ScaledRotation1 = root.network.ScaledRotation1;
 const DataTracker = root.Entity.DataTracker;
+const Entity = root.Entity;
+const EntityType = root.EntityType;
 
 network_id: i32,
 entity_type: i32,
@@ -53,6 +55,28 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    _ = game;
-    _ = self;
+    switch (game.*) {
+        .Ingame => |*ingame| {
+            if (self.getEntity()) |entity| {
+                _ = try ingame.world.addEntity(entity);
+            }
+        },
+        else => unreachable,
+    }
+}
+
+pub fn getEntity(self: *@This()) ?Entity {
+    switch (self.entity_type) {
+        inline 1, 2, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 30, 40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 120, 200 => |entity_type_int| {
+            @setEvalBranchQuota(1000000);
+            const entity_type = comptime std.meta.intToEnum(EntityType, entity_type_int) catch unreachable;
+            const SpecificEntity = std.meta.TagPayload(Entity, entity_type);
+            if (!@hasField(SpecificEntity, "living")) {
+                std.debug.panic("{}\n", .{SpecificEntity});
+            }
+            return @unionInit(Entity, @tagName(entity_type), SpecificEntity.initLiving(self.network_id, self.pos.normalize(), self.rotation.normalize(), self.head_yaw.normalize()));
+        },
+        else => unreachable,
+    }
+    unreachable;
 }

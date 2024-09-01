@@ -16,7 +16,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    std.debug.print("message: {s} type: {}", .{ self.message, self.type });
+    std.debug.print("message: {s} type: {}\n", .{ self.message, self.type });
     _ = allocator;
     _ = game;
 }
