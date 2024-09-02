@@ -153,7 +153,10 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
             .size = try self.read(i8),
             .metadata = try self.read(i16),
             .item = @enumFromInt(item_id),
-            .nbt = (try NbtElement.read(self, allocator)).Compound,
+            .nbt = switch (try NbtElement.readDiscardName(self, allocator)) {
+                .Compound => |compound| compound,
+                else => null,
+            },
         };
     }
     return item_stack;
