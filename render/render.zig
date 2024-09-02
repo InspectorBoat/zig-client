@@ -137,8 +137,8 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
                     .k => if (key.action == .press) try renderer.restartEverything(),
                     .l => if (key.action == .press) {
                         @import("log").reload_shader(.{});
-                        renderer.program.delete();
-                        renderer.program = try Renderer.initProgram("shader/triangle.glsl.vert", "shader/triangle.glsl.frag", gpa_impl.allocator());
+                        renderer.terrain_program.delete();
+                        renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", gpa_impl.allocator());
                     },
                     else => {},
                 }

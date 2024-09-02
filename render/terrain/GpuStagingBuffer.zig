@@ -130,3 +130,38 @@ pub fn writeBoxFaces(
         );
     }
 }
+
+pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !void {
+    const cube = [_]f32{
+        min.x, min.y, min.z,
+        max.x, min.y, min.z,
+        min.x, min.y, max.z,
+        max.x, min.y, max.z,
+
+        min.x, max.y, min.z,
+        max.x, max.y, min.z,
+        min.x, max.y, max.z,
+        max.x, max.y, max.z,
+
+        min.x, min.y, min.z,
+        min.x, max.y, min.z,
+        min.x, min.y, max.z,
+        min.x, max.y, max.z,
+
+        max.x, min.y, min.z,
+        max.x, max.y, min.z,
+        max.x, min.y, max.z,
+        max.x, max.y, max.z,
+
+        min.x, min.y, min.z,
+        min.x, max.y, min.z,
+        max.x, min.y, min.z,
+        max.x, max.y, min.z,
+
+        min.x, min.y, max.z,
+        min.x, max.y, max.z,
+        max.x, min.y, max.z,
+        max.x, max.y, max.z,
+    };
+    try self.backer.appendSlice(std.mem.asBytes(&cube));
+}

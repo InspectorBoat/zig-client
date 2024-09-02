@@ -22,8 +22,10 @@ const CompilationResultQueue = @import("terrain/CompilationResultQueue.zig");
 const ChunkTracker = @import("terrain/ChunkTracker.zig");
 
 vao: gl.VertexArray,
-program: gl.Program,
+terrain_program: gl.Program,
+entity_program: gl.Program,
 index_buffer: gl.Buffer,
+entity_buffer: gl.Buffer,
 gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
 compile_thread_pool: *std.Thread.Pool,
@@ -34,7 +36,8 @@ chunk_tracker: ChunkTracker,
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     // gl.enable(.cull_face);
-    const program = try initProgram("shader/triangle.glsl.vert", "shader/triangle.glsl.frag", allocator);
+    const terrain_program = try initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", allocator);
+    const entity_program = try initProgram("shader/entity.glsl.vert", "shader/entity.glsl.frag", allocator);
 
     const vao = try initVao();
 
@@ -50,10 +53,15 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const chunk_tracker = ChunkTracker.init(allocator);
 
+    const entity_buffer = gl.Buffer.create();
+    entity_buffer.storage(u8, 2048, null, .{ .dynamic_storage = true });
+
     return .{
         .vao = vao,
-        .program = program,
+        .terrain_program = terrain_program,
+        .entity_program = entity_program,
         .index_buffer = index_buffer,
+        .entity_buffer = entity_buffer,
         .gpu_memory_allocator = gpu_memory_allocator,
         .texture = texture,
         .compile_thread_pool = compile_thread_pool,
@@ -92,14 +100,15 @@ pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8,
     const compile_log = try program.getCompileLog(fba.allocator());
     if (compile_log.len > 0) std.debug.print("{s}", .{compile_log});
 
-    program.use();
-
     return program;
 }
 
 pub fn initVao() !gl.VertexArray {
     const vao = gl.VertexArray.create();
     vao.bind();
+    vao.enableVertexAttribute(0);
+    vao.attribFormat(0, 3, .float, false, 0);
+    vao.attribBinding(0, 0);
     return vao;
 }
 
@@ -168,7 +177,6 @@ pub fn initTexture() gl.Texture {
     texture.parameter(.min_filter, .nearest);
     texture.parameter(.mag_filter, .nearest);
 
-    gl.uniform1i(2, 0);
     return texture;
 }
 
@@ -176,14 +184,17 @@ pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
     const pool = try allocator.create(std.Thread.Pool);
     try pool.init(.{
         .allocator = allocator,
-        .n_jobs = 2,
+        .n_jobs = 1,
     });
     return pool;
 }
 
 pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
     const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
-    gl.uniformMatrix4fv(0, true, &.{mvp.data});
+    self.terrain_program.use();
+    self.terrain_program.uniform1i(2, 0);
+    self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
+    self.entity_program.uniformMatrix4(0, true, &.{mvp.data});
 
     var entries = self.chunk_tracker.chunks.iterator();
     while (entries.next()) |entry| {
@@ -197,11 +208,12 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
             .Waiting => {},
         }
     }
+    try self.renderEntities(&ingame.world);
 }
 
 pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTracker.SectionRenderInfo) void {
     // uniform for section pos
-    self.program.uniform3f(
+    self.terrain_program.uniform3f(
         1,
         @floatFromInt(section_pos.x),
         @floatFromInt(section_pos.y),
@@ -224,6 +236,38 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTr
         .unsigned_int,
         0,
     );
+}
+
+pub fn renderEntities(self: *@This(), world: *const World) !void {
+    var buffer: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).init(self.allocator) };
+    defer buffer.backer.deinit();
+    self.entity_program.use();
+    self.vao.bind();
+    self.vao.vertexBuffer(0, self.entity_buffer, 0, 3 * @sizeOf(f32));
+    var iter = world.entities.entities.iterator();
+    while (iter.next()) |entry| {
+        const entity = entry.key_ptr.*;
+        switch (entity.*) {
+            .removed => continue,
+            inline else => |specific_entity| {
+                const pos: Vector3(f64) = specific_entity.base.pos;
+                const min = pos.sub(.{
+                    .x = specific_entity.base.width * 0.5,
+                    .y = 0,
+                    .z = specific_entity.base.width * 0.5,
+                });
+                const max = pos.add(.{
+                    .x = specific_entity.base.width * 0.5,
+                    .y = specific_entity.base.height,
+                    .z = specific_entity.base.width * 0.5,
+                });
+                try buffer.writeDebugCube(min.floatCast(f32), max.floatCast(f32));
+                self.entity_buffer.subData(0, u8, buffer.backer.items);
+                gl.drawElements(.triangle_strip, 6 * 5, .unsigned_int, 0);
+                buffer.backer.items.len = 0;
+            },
+        }
+    }
 }
 
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {

@@ -38,10 +38,13 @@ pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
 }
 
 pub fn queueEntityRemoval(self: *@This(), network_id: i32) !void {
-    const removed_entity = self.entities_by_network_id.fetchRemove(network_id).?.value;
+    const removed_entity = (self.entities_by_network_id.fetchRemove(network_id) orelse {
+        @import("log").remove_entity_missing(.{network_id});
+        return;
+    }).value;
     try self.entities_to_remove.append(removed_entity);
+    @import("log").remove_entity(.{removed_entity.*});
     removed_entity.* = .removed;
-    self.entities_to_remove.items.len = 0;
 }
 
 pub fn processEntityRemovals(self: *@This()) void {
@@ -49,6 +52,7 @@ pub fn processEntityRemovals(self: *@This()) void {
         std.debug.assert(self.entities.remove(entity_to_remove));
         self.pool.destroy(entity_to_remove);
     }
+    self.entities_to_remove.items.len = 0;
 }
 
 pub fn getEntityByNetworkId(self: *@This(), network_id: i32) ?*Entity {

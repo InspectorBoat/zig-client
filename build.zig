@@ -122,6 +122,6 @@ pub fn build(b: *std.Build) void {
             .install_dir = .bin,
             .install_subdir = "shader",
         });
-        b.getInstallStep().dependOn(&install_shader.step);
+        check.dependOn(&install_shader.step);
     }
 }
