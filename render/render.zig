@@ -134,7 +134,7 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
                     .escape => window_input.window.setShouldClose(true),
                     .f => gl.polygonMode(.front_and_back, .line),
                     .g => gl.polygonMode(.front_and_back, .fill),
-                    .k => if (key.action == .press) try renderer.restartEverything(),
+                    .k => if (key.action == .press) try renderer.recompileAllChunks(),
                     .l => if (key.action == .press) {
                         @import("log").reload_shader(.{});
                         renderer.terrain_program.delete();

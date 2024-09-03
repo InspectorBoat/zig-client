@@ -340,7 +340,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
     }
 }
 
-pub fn restartEverything(self: *@This()) !void {
+pub fn recompileAllChunks(self: *@This()) !void {
     var iter = self.chunk_tracker.chunks.iterator();
     while (iter.next()) |entry| {
         const chunk = entry.value_ptr;
@@ -348,14 +348,7 @@ pub fn restartEverything(self: *@This()) !void {
             .Rendering => |*sections| {
                 for (sections) |*section| {
                     try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
-                    chunk.* = .{
-                        .Waiting = .{
-                            .north_present = true,
-                            .south_present = true,
-                            .east_present = true,
-                            .west_present = true,
-                        },
-                    };
+                    section.bumpRevision();
                 }
             },
             .Waiting => {},
