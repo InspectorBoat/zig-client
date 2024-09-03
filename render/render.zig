@@ -139,6 +139,7 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
                         @import("log").reload_shader(.{});
                         renderer.terrain_program.delete();
                         renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", gpa_impl.allocator());
+                        renderer.entity_program = try Renderer.initProgram("shader/entity.glsl.vert", "shader/entity.glsl.frag", gpa_impl.allocator());
                     },
                     else => {},
                 }

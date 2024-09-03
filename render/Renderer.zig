@@ -54,7 +54,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     const chunk_tracker = ChunkTracker.init(allocator);
 
     const entity_buffer = gl.Buffer.create();
-    entity_buffer.storage(u8, 2048, null, .{ .dynamic_storage = true });
+    entity_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
 
     return .{
         .vao = vao,
@@ -245,6 +245,7 @@ pub fn renderEntities(self: *@This(), world: *const World) !void {
     self.vao.bind();
     self.vao.vertexBuffer(0, self.entity_buffer, 0, 3 * @sizeOf(f32));
     var iter = world.entities.entities.iterator();
+    var entity_count: usize = 0;
     while (iter.next()) |entry| {
         const entity = entry.key_ptr.*;
         switch (entity.*) {
@@ -262,12 +263,12 @@ pub fn renderEntities(self: *@This(), world: *const World) !void {
                     .z = specific_entity.base.width * 0.5,
                 });
                 try buffer.writeDebugCube(min.floatCast(f32), max.floatCast(f32));
-                self.entity_buffer.subData(0, u8, buffer.backer.items);
-                gl.drawElements(.triangle_strip, 6 * 5, .unsigned_int, 0);
-                buffer.backer.items.len = 0;
+                entity_count += 1;
             },
         }
     }
+    self.entity_buffer.subData(0, u8, buffer.backer.items);
+    gl.drawElements(.triangle_strip, entity_count * 6 * 5, .unsigned_int, 0);
 }
 
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
