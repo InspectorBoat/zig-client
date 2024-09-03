@@ -9,10 +9,10 @@ entities_to_remove: std.ArrayList(*Entity),
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     return .{
-        .entities = std.AutoHashMap(*Entity, void).init(allocator),
-        .entities_by_network_id = std.AutoHashMap(i32, *Entity).init(allocator),
-        .entities_to_remove = std.ArrayList(*Entity).init(allocator),
-        .pool = try std.heap.MemoryPoolExtra(Entity, .{}).initPreheated(allocator, 256),
+        .entities = .init(allocator),
+        .entities_by_network_id = .init(allocator),
+        .entities_to_remove = .init(allocator),
+        .pool = try .initPreheated(allocator, 256),
     };
 }
 pub fn deinit(self: *@This()) void {

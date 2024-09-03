@@ -45,13 +45,13 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const texture = initTexture();
 
-    const gpu_memory_allocator = try GpuMemoryAllocator.init(allocator, 1024 * 1024 * 1024 * 2 - 1);
+    const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
 
     const compile_thread_pool = try initCompileThreadPool(allocator);
 
-    const compilation_result_queue = CompilationResultQueue.init(allocator);
+    const compilation_result_queue: CompilationResultQueue = .init(allocator);
 
-    const chunk_tracker = ChunkTracker.init(allocator);
+    const chunk_tracker: ChunkTracker = .init(allocator);
 
     const entity_buffer = gl.Buffer.create();
     entity_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
@@ -96,7 +96,7 @@ pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8,
     program.link();
 
     var log_buffer: [8192]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&log_buffer);
+    var fba: std.heap.FixedBufferAllocator = .init(&log_buffer);
     const compile_log = try program.getCompileLog(fba.allocator());
     if (compile_log.len > 0) std.debug.print("{s}", .{compile_log});
 
@@ -147,7 +147,7 @@ pub fn initTexture() gl.Texture {
     texture.storage3D(1, .rgba8, texture_size, texture_size, texture_count);
 
     var texture_data: [texture_count * texture_size * texture_size * color_channels]u8 = undefined;
-    var rand_impl = std.Random.DefaultPrng.init(155215);
+    var rand_impl: std.Random.DefaultPrng = .init(155215);
     const rand = rand_impl.random();
     for (0..texture_count) |i| {
         const block = texture_data[i * texture_size * texture_size * color_channels ..][0 .. texture_size * texture_size * color_channels];
@@ -239,7 +239,7 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTr
 }
 
 pub fn renderEntities(self: *@This(), world: *const World) !void {
-    var buffer: GpuStagingBuffer = .{ .backer = std.ArrayList(u8).init(self.allocator) };
+    var buffer: GpuStagingBuffer = .{ .backer = .init(self.allocator) };
     defer buffer.backer.deinit();
     self.entity_program.use();
     self.vao.bind();
@@ -357,7 +357,7 @@ pub fn recompileAllChunks(self: *@This()) !void {
     }
     // std.debug.assert(self.gpu_memory_allocator.detectLeaks() == false);
     self.gpu_memory_allocator.deinit();
-    self.gpu_memory_allocator = try GpuMemoryAllocator.init(self.allocator, 1024 * 1024 * 1024 * 2 - 1);
+    self.gpu_memory_allocator = try .init(self.allocator, 1024 * 1024 * 1024 * 2 - 1);
 }
 
 pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !void {

@@ -64,54 +64,54 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
 pub fn getEntity(self: *@This(), ingame: *Game.IngameGame) ?Entity {
     const world = &ingame.world;
     switch (self.entity_type) {
-        10 => return .{ .minecart = Entity.Minecart.init(self.network_id, self.pos.normalize()) },
+        10 => return .{ .minecart = .init(self.network_id, self.pos.normalize()) },
         90 => if (world.getEntityByNetworkId(self.data)) |referenced_entity| {
             if (referenced_entity.* == .local_player or referenced_entity.* == .remote_player) {
-                return .{ .fishing_bobber = Entity.FishingBobber.init(self.network_id, self.pos.normalize()) };
+                return .{ .fishing_bobber = .init(self.network_id, self.pos.normalize()) };
             }
         },
-        60 => return .{ .arrow = Entity.Arrow.init(self.network_id, self.pos.normalize()) },
-        61 => return .{ .snowball = Entity.Snowball.init(self.network_id, self.pos.normalize()) },
+        60 => return .{ .arrow = .init(self.network_id, self.pos.normalize()) },
+        61 => return .{ .snowball = .init(self.network_id, self.pos.normalize()) },
         71 => {
             self.data = 0;
-            return .{ .item_frame = Entity.ItemFrame.init(self.network_id, self.pos.normalize()) };
+            return .{ .item_frame = .init(self.network_id, self.pos.normalize()) };
         },
         77 => {
             self.data = 0;
-            return .{ .lead_knot = Entity.LeadKnot.init(self.network_id, self.pos.normalize()) };
+            return .{ .lead_knot = .init(self.network_id, self.pos.normalize()) };
         },
-        65 => return .{ .ender_pearl = Entity.EnderPearl.init(self.network_id, self.pos.normalize()) },
-        72 => return .{ .ender_eye = Entity.EnderEye.init(self.network_id, self.pos.normalize()) },
-        76 => return .{ .fireworks = Entity.Fireworks.init(self.network_id, self.pos.normalize()) },
+        65 => return .{ .ender_pearl = .init(self.network_id, self.pos.normalize()) },
+        72 => return .{ .ender_eye = .init(self.network_id, self.pos.normalize()) },
+        76 => return .{ .fireworks = .init(self.network_id, self.pos.normalize()) },
         63 => {
             self.data = 0;
-            return .{ .fireball = Entity.Fireball.init(self.network_id, self.pos.normalize()) };
+            return .{ .fireball = .init(self.network_id, self.pos.normalize()) };
         },
         64 => {
             self.data = 0;
-            return .{ .small_fireball = Entity.SmallFireball.init(self.network_id, self.pos.normalize()) };
+            return .{ .small_fireball = .init(self.network_id, self.pos.normalize()) };
         },
         66 => {
             self.data = 0;
-            return .{ .wither_skull = Entity.WitherSkull.init(self.network_id, self.pos.normalize()) };
+            return .{ .wither_skull = .init(self.network_id, self.pos.normalize()) };
         },
-        62 => return .{ .egg = Entity.Egg.init(self.network_id, self.pos.normalize()) },
+        62 => return .{ .egg = .init(self.network_id, self.pos.normalize()) },
         73 => {
             self.data = 0;
-            return .{ .potion = Entity.Potion.init(self.network_id, self.pos.normalize()) };
+            return .{ .potion = .init(self.network_id, self.pos.normalize()) };
         },
         75 => {
             self.data = 0;
-            return .{ .experience_bottle = Entity.ExperienceBottle.init(self.network_id, self.pos.normalize()) };
+            return .{ .experience_bottle = .init(self.network_id, self.pos.normalize()) };
         },
-        1 => return .{ .boat = Entity.Boat.init(self.network_id, self.pos.normalize()) },
-        50 => return .{ .primed_tnt = Entity.PrimedTnt.init(self.network_id, self.pos.normalize()) },
-        78 => return .{ .armor_stand = Entity.ArmorStand.init(self.network_id, self.pos.normalize()) },
-        51 => return .{ .ender_crystal = Entity.EnderCrystal.init(self.network_id, self.pos.normalize()) },
-        2 => return .{ .item = Entity.Item.init(self.network_id, self.pos.normalize()) },
+        1 => return .{ .boat = .init(self.network_id, self.pos.normalize()) },
+        50 => return .{ .primed_tnt = .init(self.network_id, self.pos.normalize()) },
+        78 => return .{ .armor_stand = .init(self.network_id, self.pos.normalize()) },
+        51 => return .{ .ender_crystal = .init(self.network_id, self.pos.normalize()) },
+        2 => return .{ .item = .init(self.network_id, self.pos.normalize()) },
         70 => {
             self.data = 0;
-            return .{ .falling_block = Entity.FallingBlock.init(self.network_id, self.pos.normalize()) };
+            return .{ .falling_block = .init(self.network_id, self.pos.normalize()) };
         },
         else => return null,
     }

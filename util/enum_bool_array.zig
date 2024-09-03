@@ -10,7 +10,7 @@ pub fn EnumBoolArray(comptime Enum: type) type {
 
         pub fn init(entries: std.enums.EnumFieldStruct(Enum, bool, null)) @This() {
             @setEvalBranchQuota(100000);
-            var set = std.EnumSet(Enum).initEmpty();
+            var set: std.EnumSet(Enum) = .initEmpty();
             inline for (@typeInfo(@TypeOf(entries)).@"struct".fields) |struct_field| {
                 if (@field(entries, struct_field.name)) {
                     inline for (@typeInfo(Enum).@"enum".fields) |enum_field| {

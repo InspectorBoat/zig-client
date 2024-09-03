@@ -4,7 +4,7 @@ const Block = @import("block.zig").Block;
 /// A table of valid metadata values for each block
 /// 0 represents an invalid value that will become air and 1 represents a valid value that should be looked up in raw_to_filtered_conversion_table
 /// For example, the only valid metadata value for .cobblestone is 0
-pub const @"export" = std.EnumArray(Block, std.bit_set.IntegerBitSet(16)).init(.{
+pub const @"export": std.EnumArray(Block, std.bit_set.IntegerBitSet(16)) = .init(.{
     .air = .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) },
     .stone = .{ .mask = @bitReverse(@as(u16, 0b1111111000000000)) },
     .grass = .{ .mask = @bitReverse(@as(u16, 0b1000000000000000)) },

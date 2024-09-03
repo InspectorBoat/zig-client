@@ -3,7 +3,7 @@ const root = @import("root");
 const Vector2xz = root.Vector2xz;
 const Chunk = root.Chunk;
 
-metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = std.bit_set.ArrayBitSet(usize, 32 * 32).initEmpty(),
+metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = .initEmpty(),
 items: [32 * 32]struct { pos: Vector2xz(i32), chunk: Chunk } = undefined,
 
 pub inline fn toIndex(pos: Vector2xz(i32)) usize {
@@ -86,14 +86,13 @@ test "performance" {
     var gpa_impl = std.heap.GeneralPurposeAllocator(.{ .safety = false }){};
     const gpa = gpa_impl.allocator();
 
-    var rand_impl = std.Random.DefaultPrng.init(blk: {
+    var rand_impl: std.Random.DefaultPrng = .init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));
         break :blk seed;
     });
     const rand = rand_impl.random();
-    const HashMap = std.AutoHashMap(Vector2xz(i32), Chunk);
-    var hash_map_world: DummyWorld(HashMap) = .{ .chunks = HashMap.init(gpa) };
+    var hash_map_world: DummyWorld(std.AutoHashMap(Vector2xz(i32), Chunk)) = .{ .chunks = .init(gpa) };
     for (0..8) |x| for (0..8) |z| {
         try hash_map_world.makeChunk(.{ .x = @intCast(x), .z = @intCast(z) }, rand, gpa);
     };

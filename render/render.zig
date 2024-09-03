@@ -38,11 +38,11 @@ pub fn onStartup(_: Events.Startup) !void {
     glfw_helper.setGlErrorCallback();
 
     // initialize window_input
-    window_input = WindowInput.init(window, gpa);
+    window_input = .init(window, gpa);
     window_input.setGlfwInputCallbacks();
 
     // initialize renderer
-    renderer = try Renderer.init(gpa);
+    renderer = try .init(gpa);
 }
 
 pub fn onFrame(frame: Events.Frame) !void {

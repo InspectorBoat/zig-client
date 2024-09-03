@@ -2,7 +2,7 @@ const std = @import("std");
 const ConcreteBlock = @import("root").ConcreteBlock;
 const EnumBoolArray = @import("util").EnumBoolArray;
 
-pub const @"export" = EnumBoolArray(ConcreteBlock).init(.{
+pub const @"export": EnumBoolArray(ConcreteBlock) = .init(.{
     .air = false,
     .stone = true,
     .grass = true,

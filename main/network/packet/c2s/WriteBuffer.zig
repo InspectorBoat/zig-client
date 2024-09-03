@@ -12,13 +12,13 @@ backer: std.ArrayList(u8),
 
 pub fn init(allocator: std.mem.Allocator) @This() {
     return .{
-        .backer = std.ArrayList(u8).init(allocator),
+        .backer = .init(allocator),
     };
 }
 
 pub fn initCapacity(allocator: std.mem.Allocator, bytes: usize) !@This() {
     return .{
-        .backer = try std.ArrayListUnmanaged(u8).initCapacity(allocator, bytes),
+        .backer = try .initCapacity(allocator, bytes),
     };
 }
 
@@ -148,7 +148,7 @@ pub fn fromOwnedArrayList(array_list: std.ArrayList(u8)) @This() {
 
 test writeVarInt {
     std.debug.print("\n", .{});
-    var buffer = @This().init(std.testing.allocator);
+    var buffer = init(std.testing.allocator);
     defer buffer.deinit();
 
     try buffer.writeVarInt(0);

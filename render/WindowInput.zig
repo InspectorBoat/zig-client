@@ -5,7 +5,7 @@ const glfw = @import("mach-glfw");
 window: glfw.Window,
 
 events: std.fifo.LinearFifo(Event, .Dynamic),
-keys: std.EnumArray(glfw.Key, bool) = std.EnumArray(glfw.Key, bool).initFill(false),
+keys: std.EnumArray(glfw.Key, bool) = .initFill(false),
 mouse_delta: Vector2xy(f64) = .{ .x = 0, .y = 0 },
 mouse_pos: ?Vector2xy(f64) = null,
 maximized: bool = false,
@@ -33,7 +33,7 @@ pub const Event = union(enum) {
 pub fn init(window: glfw.Window, allocator: std.mem.Allocator) @This() {
     return .{
         .window = window,
-        .events = std.fifo.LinearFifo(Event, .Dynamic).init(allocator),
+        .events = .init(allocator),
     };
 }
 

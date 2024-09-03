@@ -254,11 +254,11 @@ pub fn readVarIntFromArray(comptime max_bytes: usize, var_int: [max_bytes]VarInt
 }
 
 test readVarInt {
-    const WriteBuffer = network.packet.c2s.WriteBuffer;
+    const WriteBuffer = network.packet.C2S.WriteBuffer;
     std.debug.print("\n", .{});
 
     // initialize buffer to write to
-    var write_buffer = WriteBuffer.init(std.testing.allocator);
+    var write_buffer: WriteBuffer = .init(std.testing.allocator);
     var read_buffer: @This() = undefined;
     // deinitializing read_buffer is unnecessary because it shares a backer with write_buffer
     defer write_buffer.deinit();

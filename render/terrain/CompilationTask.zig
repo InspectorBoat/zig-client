@@ -61,9 +61,9 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
 }
 
 pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
-    // const start = @import("util").Timer.init();
+    // const start: @import("util").Timer = .init();
     // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
-    var staging: GpuStagingBuffer = .{ .backer = try std.ArrayList(u8).initCapacity(allocator, 4096) };
+    var staging: GpuStagingBuffer = .{ .backer = try .initCapacity(allocator, 4096) };
     // place blocks in chunk
     for (1..17) |x| {
         for (1..17) |y| {
@@ -107,7 +107,7 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                         }
 
                         const culling_blocks = @import("face_culling_blocks.zig").@"export";
-                        var unculled_faces = std.EnumSet(Direction).initFull();
+                        var unculled_faces: std.EnumSet(Direction) = .initFull();
                         if (culling_blocks.get(task.block_states[index - 1].block)) {
                             unculled_faces.remove(.West);
                         }

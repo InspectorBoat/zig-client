@@ -15,7 +15,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const data = try buffer.readRemainingBytesAllocating(allocator);
     return .{
         .channel = channel,
-        .data = S2C.ReadBuffer.fromOwnedSlice(data),
+        .data = .fromOwnedSlice(data),
     };
 }
 

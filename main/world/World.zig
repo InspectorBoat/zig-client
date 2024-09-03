@@ -41,9 +41,9 @@ pub fn init(info: struct {
     hardcore: bool,
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
-        .entities = try EntityTracker.init(allocator),
-        .tick_timer = try TickTimer.init(),
-        .last_tick = try std.time.Instant.now(),
+        .entities = try .init(allocator),
+        .tick_timer = try .init(),
+        .last_tick = try .now(),
         .difficulty = info.difficulty,
         .dimension = info.dimension,
         .hardcore = info.hardcore,
@@ -233,7 +233,7 @@ pub fn receiveChunk(
     }
 
     {
-        const timer = @import("util").Timer.init();
+        const timer: @import("util").Timer = .init();
         defer @import("log").devirtualize_chunk(.{timer.ms()});
         self.updateChunk(chunk);
         // self.updateRegion(.{
@@ -340,7 +340,7 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
 }
 
 pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.Allocator) ![]const Box(f64) {
-    var collisions = std.ArrayList(Box(f64)).init(allocator);
+    var collisions: std.ArrayList(Box(f64)) = .init(allocator);
     const min_pos: Vector3(i32) = .{
         .x = @intFromFloat(@floor(hitbox.min.x)),
         .y = @intFromFloat(@floor(hitbox.min.y)),

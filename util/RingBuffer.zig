@@ -190,7 +190,7 @@ test "RingBuffer" {
 
     std.debug.print("\n----------------\n", .{});
 
-    var rand_impl = std.rand.DefaultPrng.init(blk: {
+    var rand_impl: std.rand.DefaultPrng = .init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));
         break :blk seed;
@@ -200,7 +200,7 @@ test "RingBuffer" {
     var ring_alloc: @This() = .{ .buffer = try std.testing.allocator.alloc(u8, 1024) };
     defer std.testing.allocator.free(ring_alloc.buffer);
 
-    var fifo: std.fifo.LinearFifo(usize, .Dynamic) = std.fifo.LinearFifo(usize, .Dynamic).init(std.testing.allocator);
+    var fifo: std.fifo.LinearFifo(usize, .Dynamic) = .init(std.testing.allocator);
     defer fifo.deinit();
 
     for (0..1024) |_| {

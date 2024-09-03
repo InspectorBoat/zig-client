@@ -21,13 +21,13 @@ pub fn PackedNibbleArray(len: usize) type {
 }
 
 test "PackedNibbleArray" {
-    var rand_impl = std.Random.DefaultPrng.init(155215);
+    var rand_impl: std.Random.DefaultPrng = .init(155215);
     const rand = rand_impl.random();
     var ints: [16]u4 = undefined;
     for (&ints) |*int| {
         int.* = rand.int(u4);
     }
-    const @"packed" = PackedNibbleArray(16).init(ints);
+    const @"packed": PackedNibbleArray(16) = .init(ints);
     for (ints, 0..16) |expected, i| {
         try std.testing.expectEqual(expected, @"packed".get(@intCast(i)));
     }

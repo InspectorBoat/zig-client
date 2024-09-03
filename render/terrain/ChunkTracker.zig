@@ -71,7 +71,7 @@ pub const SectionRenderInfo = struct {
 };
 
 pub fn init(allocator: std.mem.Allocator) @This() {
-    return .{ .chunks = std.AutoHashMap(Vector2xz(i32), ChunkCompileStatus).init(allocator) };
+    return .{ .chunks = .init(allocator) };
 }
 
 pub fn markChunkPresent(self: *@This(), chunk_pos: Vector2xz(i32)) !void {

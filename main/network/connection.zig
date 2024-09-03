@@ -148,7 +148,7 @@ pub const Connection = struct {
 
     pub fn connectSocket(name: []const u8, port: u16) !network_lib.Socket {
         var buffer: [8192]u8 = undefined;
-        var fba_impl = std.heap.FixedBufferAllocator.init(&buffer);
+        var fba_impl: std.heap.FixedBufferAllocator = .init(&buffer);
 
         const socket = try network_lib.connectToHost(fba_impl.allocator(), name, port, .tcp);
         errdefer socket.close();
@@ -200,7 +200,7 @@ pub const Connection = struct {
     pub fn decodeQueuedBytes(
         self: *@This(),
     ) !?S2C {
-        var buffer = S2C.ReadBuffer.fromOwnedSlice(self.queued_bytes.readableSlice(0));
+        var buffer: S2C.ReadBuffer = .fromOwnedSlice(self.queued_bytes.readableSlice(0));
         const packet_body_size, const packet_header_size = buffer.readVarIntExtra(3) catch |err| switch (err) {
             error.VarIntTooBig => return err,
             error.EndOfBuffer => return null,
@@ -311,7 +311,7 @@ pub const Connection = struct {
         const actual_decompressed_size = try decompressor.reader().readAll(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
         std.debug.assert(actual_decompressed_size == size_after_decompression);
 
-        return S2C.ReadBuffer.fromOwnedSlice(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
+        return .fromOwnedSlice(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
     }
 
     pub fn setCompressionThreshold(self: *@This(), compression_threshold: i32) void {
@@ -334,11 +334,11 @@ pub const Connection = struct {
     pub fn compressBuffer(self: *@This(), uncompressed_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
         defer uncompressed_buffer.deinit();
 
-        var compressed_bytes = std.ArrayList(u8).init(allocator);
+        var compressed_bytes: std.ArrayList(u8) = .init(allocator);
         errdefer compressed_bytes.deinit();
 
         if (uncompressed_buffer.backer.items.len < self.compression_threshold) {
-            var compressed_buffer = C2S.WriteBuffer.fromOwnedArrayList(compressed_bytes);
+            var compressed_buffer: C2S.WriteBuffer = .fromOwnedArrayList(compressed_bytes);
             try compressed_buffer.writeVarInt(0);
             try compressed_buffer.writeBytes(uncompressed_buffer.backer.items);
             return compressed_buffer;
@@ -348,14 +348,14 @@ pub const Connection = struct {
         try compressor.writer().writeAll(uncompressed_buffer.backer.items);
         try compressor.finish();
 
-        return C2S.WriteBuffer.fromOwnedArrayList(compressed_bytes);
+        return .fromOwnedArrayList(compressed_bytes);
     }
 
     /// takes ownership of original_buffer
     pub fn prependLength(original_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
         defer original_buffer.deinit();
 
-        var out_buffer = C2S.WriteBuffer.init(allocator);
+        var out_buffer: C2S.WriteBuffer = .init(allocator);
         errdefer out_buffer.deinit();
 
         try out_buffer.writeByteSlice(original_buffer.backer.items);
@@ -379,10 +379,10 @@ pub const Connection = struct {
         packet: C2S,
     ) !void {
         var packet_encode_buffer: [1024 * 1024]u8 = undefined;
-        var packet_encode_alloc_impl = std.heap.FixedBufferAllocator.init(&packet_encode_buffer);
+        var packet_encode_alloc_impl: std.heap.FixedBufferAllocator = .init(&packet_encode_buffer);
         const packet_encode_alloc = packet_encode_alloc_impl.allocator();
 
-        var packet_buffer = C2S.WriteBuffer.init(packet_encode_alloc);
+        var packet_buffer: C2S.WriteBuffer = .init(packet_encode_alloc);
         defer packet_buffer.deinit();
 
         // write packet

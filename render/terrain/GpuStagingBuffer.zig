@@ -54,7 +54,7 @@ pub fn writeBox(
         min,
         max,
         texture,
-        std.EnumSet(Direction).initFull(),
+        .initFull(),
         sky_light,
         block_light,
     );

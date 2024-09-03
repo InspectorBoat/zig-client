@@ -46,7 +46,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
     switch (game.*) {
         .Connecting => |*connecting| {
-            var world = try World.init(
+            var world: World = try .init(
                 .{
                     .difficulty = self.difficulty,
                     .dimension = self.dimension,

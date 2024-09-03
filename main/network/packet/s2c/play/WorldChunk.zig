@@ -23,7 +23,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         .full = try buffer.read(bool),
         .chunk_data = ChunkData{
             .sections = .{ .mask = try buffer.read(u16) },
-            .buffer = S2C.ReadBuffer.fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
+            .buffer = .fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
         },
     };
 }

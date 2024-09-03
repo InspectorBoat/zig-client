@@ -13,7 +13,7 @@ comptime handle_on_network_thread: bool = false,
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const action = try buffer.readEnum(Action) orelse return error.InvalidPlayerInfo;
     const entry_count = try buffer.readVarInt();
-    var entries = std.ArrayList(Entry).init(allocator);
+    var entries: std.ArrayList(Entry) = .init(allocator);
     for (0..@intCast(entry_count)) |_| {
         const entry = switch (action) {
             .AddPlayer => Entry{

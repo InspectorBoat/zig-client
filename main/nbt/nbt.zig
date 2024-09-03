@@ -467,13 +467,13 @@ test "NbtCompound" {
         .Compound = try NbtCompound.init(
             .{
                 .foo = NbtElement{ .Byte = .{ .value = 121 } },
-                .bar = NbtElement{ .IntArray = try NbtIntArray.init(&.{ @bitCast(@as(u32, 0xDEADBEEF)), @bitCast(@as(u32, 0xACAB1312)), @bitCast(@as(u32, 0xCAFEBABE)) }, std.testing.allocator) },
+                .bar = NbtElement{ .IntArray = try .init(&.{ @bitCast(@as(u32, 0xDEADBEEF)), @bitCast(@as(u32, 0xACAB1312)), @bitCast(@as(u32, 0xCAFEBABE)) }, std.testing.allocator) },
                 .qux = NbtElement{ .Double = .{ .value = 52.1 } },
                 .foobar = NbtElement{
-                    .List = try NbtList.init(.Double, &.{
-                        NbtDouble{ .value = 1 },
-                        NbtDouble{ .value = 52 },
-                        NbtDouble{ .value = 15 },
+                    .List = try .init(.Double, &.{
+                        .{ .value = 1 },
+                        .{ .value = 52 },
+                        .{ .value = 15 },
                     }, std.testing.allocator),
                 },
             },
@@ -482,7 +482,7 @@ test "NbtCompound" {
     };
     defer nbt.deinit(std.testing.allocator);
 
-    var buffer = C2S.WriteBuffer.init(std.testing.allocator);
+    var buffer: C2S.WriteBuffer = .init(std.testing.allocator);
     defer buffer.deinit();
 
     try nbt.writeBlankName(&buffer);
@@ -490,7 +490,7 @@ test "NbtCompound" {
 
     var read_buffer = buffer.toReadBuffer();
 
-    var read_nbt = try NbtElement.readDiscardName(&read_buffer, std.testing.allocator);
+    var read_nbt: NbtElement = try .readDiscardName(&read_buffer, std.testing.allocator);
     defer read_nbt.deinit(std.testing.allocator);
 
     try std.testing.expect(nbt.deepEquals(&read_nbt));
