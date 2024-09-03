@@ -242,14 +242,14 @@ pub const Connection = struct {
                     // this does not occur in a normal connection
                     .Status => unreachable,
                     .Login => .{
-                        .Login = S2C.Login.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
+                        .login = S2C.Login.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
                             if (self.disconnected.*) return null;
                             try self.handleOom(&buffer, initial_read_location, initial_alloc_index);
                             continue;
                         },
                     },
                     .Play => .{
-                        .Play = S2C.Play.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
+                        .play = S2C.Play.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch {
                             if (self.disconnected.*) return null;
                             try self.handleOom(&buffer, initial_read_location, initial_alloc_index);
                             continue;

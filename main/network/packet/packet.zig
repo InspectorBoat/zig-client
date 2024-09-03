@@ -306,13 +306,13 @@ pub const S2C = union(enum) {
     };
 
     // only the client ever sends packets in the handshake protocol
-    Login: Login,
-    Play: Play,
+    login: Login,
+    play: Play,
 
     pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
         switch (self.*) {
-            .Login => |*login_packet| try login_packet.handleOnMainThread(game, allocator),
-            .Play => |*play_packet| try play_packet.handleOnMainThread(game, allocator),
+            .login => |*login_packet| try login_packet.handleOnMainThread(game, allocator),
+            .play => |*play_packet| try play_packet.handleOnMainThread(game, allocator),
         }
     }
 
