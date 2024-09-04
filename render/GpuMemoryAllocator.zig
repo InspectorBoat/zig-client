@@ -20,7 +20,7 @@ pub fn detectLeaks(self: @This()) bool {
 }
 
 pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
-    const backing_buffer = gl.Buffer.create();
+    const backing_buffer: gl.Buffer = .create();
     errdefer backing_buffer.delete();
     backing_buffer.storage(u8, backing_buffer_size, null, .{ .dynamic_storage = true });
 
@@ -34,7 +34,7 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
     if (!@import("builtin").is_test) gl.binding.getIntegerv(gl.binding.SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &shader_storage_buffer_alignment);
 
     return .{
-        .free_segments = std.SinglyLinkedList(Segment){ .first = first_node },
+        .free_segments = .{ .first = first_node },
         .backing_buffer = backing_buffer,
         .min_alignment = shader_storage_buffer_alignment,
         .allocator = allocator,
