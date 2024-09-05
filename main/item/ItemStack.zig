@@ -18,3 +18,7 @@ pub fn dupe(maybe_item_stack: ?@This(), allocator: std.mem.Allocator) !?@This() 
 
     return maybe_item_stack;
 }
+
+pub fn deinit(maybe_item_stack: *?@This(), allocator: std.mem.Allocator) void {
+    ((maybe_item_stack.* orelse return).nbt orelse return).deinit(allocator);
+}

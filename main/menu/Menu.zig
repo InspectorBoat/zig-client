@@ -7,8 +7,17 @@ stacks: []?ItemStack,
 
 pub fn deinitItemStacks(self: *@This(), allocator: std.mem.Allocator) void {
     for (self.stacks) |*maybe_stack| {
-        ((maybe_stack.* orelse continue).nbt orelse continue).deinit(allocator);
+        ItemStack.deinit(maybe_stack, allocator);
     }
+}
+
+pub fn init(network_id: i32, size: usize, allocator: std.mem.Allocator) !@This() {
+    const stacks = try allocator.alloc(?ItemStack, size);
+    @memset(stacks, null);
+    return .{
+        .network_id = network_id,
+        .stacks = stacks,
+    };
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
