@@ -212,9 +212,6 @@ pub const S2C = union(enum) {
         pub const decode = Mixin(@This()).decode;
         /// handles a type-erased packet
         pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
-        // Of these, only CompressionThreshold, Keepalive, and Disconnect really need to be handled on the network thread
-        // .CompressionThreshold, .TabList, .KeepAlive, .ResourcePack, .Disconnect,
-        pub const handleOnNetworkThread = Mixin(@This()).handleOnNetworkThread;
 
         keep_alive: KeepAlive,
         login: @import("s2c/play/Login.zig"),
@@ -299,7 +296,6 @@ pub const S2C = union(enum) {
         pub const decode = Mixin(@This()).decode;
         /// handles a type-erased packet
         pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
-        pub const handleOnNetworkThread = Mixin(@This()).handleOnNetworkThread;
 
         ping: Ping,
         server_status: ServerStatus,
@@ -354,19 +350,6 @@ pub const S2C = union(enum) {
                         // required to comptime prune other packets to prevent a compile error
                         if (!specific_packet.handle_on_network_thread) {
                             try specific_packet.handleOnMainThread(game, allocator);
-                        }
-                    },
-                }
-            }
-            // Of these, only CompressionThreshold, Keepalive, and Disconnect really need to be handled on the network thread
-            // .CompressionThreshold, .TabList, .KeepAlive, .ResourcePack, .Disconnect,
-            pub fn handleOnNetworkThread(packet: *PacketMixin, server_connection: *Connection) !void {
-                switch (packet) {
-                    inline else => |*specific_packet| {
-                        std.debug.assert(specific_packet.handle_on_network_thread);
-                        // required to comptime prune other packets to prevent a compile error
-                        if (specific_packet.handle_on_network_thread) {
-                            specific_packet.handleOnNetworkThread(server_connection);
                         }
                     },
                 }
