@@ -6,8 +6,8 @@ const GpuMemoryAllocator = @import("../GpuMemoryAllocator.zig");
 chunks: std.AutoHashMap(Vector2xz(i32), ChunkCompileStatus),
 
 pub const ChunkCompileStatus = union(enum) {
-    Waiting: MissingNeighbors,
-    Rendering: [16]SectionCompileStatus,
+    waiting: MissingNeighbors,
+    rendering: [16]SectionCompileStatus,
 };
 
 pub const MissingNeighbors = struct {
@@ -82,57 +82,57 @@ pub fn markChunkPresent(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = -1 }))) |north| {
         new_chunk_neighbors.north_present = true;
         switch (north.*) {
-            .Waiting => |*neighbors| neighbors.south_present = true,
-            .Rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .waiting => |*neighbors| neighbors.south_present = true,
+            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
         }
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = 1 }))) |south| {
         new_chunk_neighbors.south_present = true;
         switch (south.*) {
-            .Waiting => |*neighbors| neighbors.north_present = true,
-            .Rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .waiting => |*neighbors| neighbors.north_present = true,
+            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
         }
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = -1, .z = 0 }))) |west| {
         new_chunk_neighbors.west_present = true;
         switch (west.*) {
-            .Waiting => |*neighbors| neighbors.east_present = true,
-            .Rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .waiting => |*neighbors| neighbors.east_present = true,
+            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
         }
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 1, .z = 0 }))) |east| {
         new_chunk_neighbors.east_present = true;
         switch (east.*) {
-            .Waiting => |*neighbors| neighbors.west_present = true,
-            .Rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .waiting => |*neighbors| neighbors.west_present = true,
+            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
         }
     }
 
-    try self.chunks.put(chunk_pos, .{ .Waiting = new_chunk_neighbors });
+    try self.chunks.put(chunk_pos, .{ .waiting = new_chunk_neighbors });
 }
 
 pub fn markBlockPosDirty(self: *@This(), block_pos: Vector3(i32)) !void {
     const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return;
     switch (chunk.*) {
-        .Rendering => |*sections| {
+        .rendering => |*sections| {
             sections[@intCast(@divFloor(block_pos.y, 16))].current_revision += 1;
         },
-        .Waiting => return,
+        .waiting => return,
     }
 }
 
 pub fn removeChunk(self: *@This(), chunk_pos: Vector2xz(i32)) void {
     std.debug.assert(self.chunks.remove(chunk_pos));
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = -1 }))) |north| {
-        if (north.* == .Waiting) north.Waiting.south_present = false;
+        if (north.* == .waiting) north.waiting.south_present = false;
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = 1 }))) |south| {
-        if (south.* == .Waiting) south.Waiting.north_present = false;
+        if (south.* == .waiting) south.waiting.north_present = false;
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = -1, .z = 0 }))) |west| {
-        if (west.* == .Waiting) west.Waiting.east_present = false;
+        if (west.* == .waiting) west.waiting.east_present = false;
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 1, .z = 0 }))) |east| {
-        if (east.* == .Waiting) east.Waiting.west_present = false;
+        if (east.* == .waiting) east.waiting.west_present = false;
     }
 }

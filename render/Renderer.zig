@@ -200,12 +200,12 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
     while (entries.next()) |entry| {
         const chunk_pos = entry.key_ptr.*;
         switch (entry.value_ptr.*) {
-            .Rendering => |sections| {
+            .rendering => |sections| {
                 for (sections, 0..) |section, y| {
                     self.renderSection(.{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z }, section.render_info orelse continue);
                 }
             },
-            .Waiting => {},
+            .waiting => {},
         }
     }
     try self.renderEntities(&ingame.world);
@@ -306,17 +306,18 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
     const start: @import("util").Timer = .init();
 
     var iter = self.chunk_tracker.chunks.iterator();
+
     while (iter.next()) |entry| {
         const chunk_pos = entry.key_ptr.*;
         const chunk_info = entry.value_ptr;
-        if (chunk_info.* == .Waiting and chunk_info.Waiting.isReady()) {
-            chunk_info.* = .{ .Rendering = .{.{}} ** 16 };
+        if (chunk_info.* == .waiting and chunk_info.waiting.isReady()) {
+            chunk_info.* = .{ .rendering = .{.{}} ** 16 };
         }
-        if (chunk_info.* == .Rendering) {
+        if (chunk_info.* == .rendering) {
             const chunk: *const Chunk = world.chunks.get(chunk_pos).?;
 
             // Only dispatch task if section actually exists, even if adjacent chunks update
-            for (&chunk_info.Rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
+            for (&chunk_info.rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
                 if (section_info.needsRecompile()) {
                     if (maybe_section) |_| {
                         // Send recompilation request if section is non-null
@@ -350,13 +351,13 @@ pub fn recompileAllChunks(self: *@This()) !void {
     while (iter.next()) |entry| {
         const chunk = entry.value_ptr;
         switch (chunk.*) {
-            .Rendering => |*sections| {
+            .rendering => |*sections| {
                 for (sections) |*section| {
                     try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
                     section.bumpRevision();
                 }
             },
-            .Waiting => {},
+            .waiting => {},
         }
     }
     // std.debug.assert(self.gpu_memory_allocator.detectLeaks() == false);
@@ -397,7 +398,7 @@ pub fn uploadCompilationResults(self: *@This()) !void {
                 const section_y: usize = @intCast(compilation_result.section_pos.y);
 
                 // Return if chunk is no longer being tracked
-                const section_compile_info = &(self.chunk_tracker.chunks.getPtr(chunk_pos) orelse continue).Rendering[section_y];
+                const section_compile_info = &(self.chunk_tracker.chunks.getPtr(chunk_pos) orelse continue).rendering[section_y];
 
                 // Notify compile tracker
                 section_compile_info.alertCompilationRecieved(compilation_result.revision) catch |e| switch (e) {
@@ -429,12 +430,12 @@ pub fn uploadCompilationResults(self: *@This()) !void {
 pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
     const chunk = self.chunk_tracker.chunks.getPtr(chunk_pos).?;
     switch (chunk.*) {
-        .Rendering => |*sections| {
+        .rendering => |*sections| {
             for (sections) |*section| {
                 try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
             }
         },
-        .Waiting => {},
+        .waiting => {},
     }
     self.chunk_tracker.removeChunk(chunk_pos);
 }
@@ -444,12 +445,12 @@ pub fn unloadAllChunks(self: *@This()) !void {
     while (iter.next()) |entry| {
         const chunk = entry.value_ptr;
         switch (chunk.*) {
-            .Rendering => |*sections| {
+            .rendering => |*sections| {
                 for (sections) |*section| {
                     try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
                 }
             },
-            .Waiting => {},
+            .waiting => {},
         }
     }
     self.chunk_tracker.chunks.clearAndFree();
