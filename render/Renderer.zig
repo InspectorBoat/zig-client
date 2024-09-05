@@ -303,6 +303,8 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
 }
 
 pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, allocator: std.mem.Allocator) !void {
+    const start: @import("util").Timer = .init();
+
     var iter = self.chunk_tracker.chunks.iterator();
     while (iter.next()) |entry| {
         const chunk_pos = entry.key_ptr.*;
@@ -338,6 +340,8 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
                 }
             }
         }
+
+        if (start.ms() > 3) return;
     }
 }
 
@@ -382,6 +386,8 @@ pub fn dispatchCompilationTaskSync(self: *@This(), section_pos: Vector3(i32), wo
 pub fn uploadCompilationResults(self: *@This()) !void {
     if (self.compilation_result_queue.sections.first == null) return;
 
+    const start: @import("util").Timer = .init();
+
     while (self.compilation_result_queue.pop()) |compilation_result| {
         switch (compilation_result.result) {
             .Success => |compiled_section| {
@@ -416,6 +422,7 @@ pub fn uploadCompilationResults(self: *@This()) !void {
             },
             .Error => |e| std.debug.print("Error meshing section at {}: {}", .{ compilation_result.section_pos, e }),
         }
+        if (start.ms() > 3) return;
     }
 }
 
