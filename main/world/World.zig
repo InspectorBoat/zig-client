@@ -14,6 +14,8 @@ const ConcreteBlockState = root.ConcreteBlockState;
 const Box = root.Box;
 const EventHandler = root.EventHandler;
 const Events = root.Events;
+const Menu = root.Menu;
+const ItemStack = root.ItemStack;
 pub const Chunk = @import("Chunk.zig");
 pub const Section = @import("Section.zig");
 pub const TickTimer = @import("TickTimer.zig");
@@ -34,6 +36,8 @@ last_tick: std.time.Instant = switch (@import("builtin").os.tag) {
 difficulty: Difficulty,
 dimension: i8,
 hardcore: bool,
+player_inventory_menu: Menu,
+menu: union(enum) { none, player_menu, other: Menu } = .none,
 
 pub fn init(info: struct {
     difficulty: Difficulty,
@@ -48,6 +52,7 @@ pub fn init(info: struct {
         .dimension = info.dimension,
         .hardcore = info.hardcore,
         .player = player,
+        .player_inventory_menu = .{ .network_id = 0, .stacks = try allocator.alloc(?ItemStack, 36) },
     };
 }
 

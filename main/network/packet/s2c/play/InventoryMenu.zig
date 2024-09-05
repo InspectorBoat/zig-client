@@ -3,6 +3,7 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Game = root.Game;
 const ItemStack = root.ItemStack;
+const Menu = root.Menu;
 
 menu_network_id: i32,
 stacks: []const ?ItemStack,
@@ -23,7 +24,24 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    _ = allocator;
-    _ = game;
-    _ = self;
+    switch (game.*) {
+        .Ingame => |*ingame| {
+            const world = &ingame.world;
+
+            const menu: *Menu = switch (self.menu_network_id) {
+                0 => blk: {
+                    world.player_inventory_menu.deinitItemStacks(allocator);
+                    break :blk &world.player_inventory_menu;
+                },
+                else => |menu_network_id| blk: {
+                    if (world.menu != .other or world.menu.other.network_id != menu_network_id) return;
+                    break :blk &world.menu.other;
+                },
+            };
+            for (self.stacks, 0..) |new_stack, i| {
+                menu.stacks[i] = try ItemStack.dupe(new_stack, allocator);
+            }
+        },
+        else => unreachable,
+    }
 }
