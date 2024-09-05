@@ -8,7 +8,7 @@ last_nanos: u64 = 0,
 
 pub fn init() !@This() {
     return .{
-        .timer = try std.time.Timer.start(),
+        .timer = try .start(),
     };
 }
 

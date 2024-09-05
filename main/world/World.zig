@@ -29,10 +29,7 @@ chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
 entities: EntityTracker,
 tick_timer: TickTimer,
-last_tick: std.time.Instant = switch (@import("builtin").os.tag) {
-    .windows, .uefi, .wasi => .{ .timestamp = 0 },
-    else => .{ .tv_sec = 0, .tv_nsec = 0 },
-},
+last_tick: std.time.Instant,
 difficulty: Difficulty,
 dimension: i8,
 hardcore: bool,
@@ -52,7 +49,7 @@ pub fn init(info: struct {
         .dimension = info.dimension,
         .hardcore = info.hardcore,
         .player = player,
-        .player_inventory_menu = .{ .network_id = 0, .stacks = try allocator.alloc(?ItemStack, 36) },
+        .player_inventory_menu = try .init(0, 45, allocator),
     };
 }
 
@@ -419,6 +416,8 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         @import("log").free_chunk(.{chunk.chunk_pos});
         chunk.deinit(allocator);
     }
+    if (self.menu == .other) self.menu.other.deinit(allocator);
+    self.player_inventory_menu.deinit(allocator);
 
     self.entities.deinit();
 
