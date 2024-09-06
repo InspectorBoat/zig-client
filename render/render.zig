@@ -144,6 +144,27 @@ pub fn handleInputIngame(game: *Client.Game) !void {
                     else => {},
                 }
             },
+            .MouseButton => |button| blk: {
+                switch (button.button) {
+                    .left => if (button.action == .press) {
+                        try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
+
+                        if (game.world.player.crosshair != .block) break :blk;
+
+                        try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+                            .action = .StartDestroyBlock,
+                            .block_pos = game.world.player.crosshair.block.block_pos,
+                            .face = game.world.player.crosshair.block.dir,
+                        } });
+                        try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+                            .action = .FinishDestroyBlock,
+                            .block_pos = game.world.player.crosshair.block.block_pos,
+                            .face = game.world.player.crosshair.block.dir,
+                        } });
+                    },
+                    else => {},
+                }
+            },
             .Size => |size| {
                 gl.viewport(0, 0, @intCast(size.width), @intCast(size.height));
             },

@@ -45,7 +45,7 @@ server_movement_status: struct {
 crosshair: HitResult = .miss,
 
 pub fn update(self: *@This(), game: *Client.Game) !void {
-    self.crosshair = HitResult.rayTrace(game.world, self.getEyePos(), self.base.rotation, 30, .{});
+    self.crosshair = HitResult.rayTraceBlocks(game.world, self.getEyePos(), self.base.rotation, 30, .{});
 
     // tick spectator onground and noclip
     if (self.player.isSpectator(game)) {
