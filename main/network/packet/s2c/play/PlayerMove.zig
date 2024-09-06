@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
 
@@ -10,6 +11,7 @@ rotation: Rotation2(f32),
 relative_arguments: RelativeArguments,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
@@ -27,60 +29,55 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
     @import("log").recieve_teleport_packet(.{ self.pos, self.rotation, self.relative_arguments });
 
-    switch (client.*) {
-        .game => |*game| {
-            const player = &game.world.player;
+    const player = &game.world.player;
 
-            if (self.relative_arguments.x == .Absolute) player.base.velocity.x = 0;
-            if (self.relative_arguments.y == .Absolute) player.base.velocity.y = 0;
-            if (self.relative_arguments.z == .Absolute) player.base.velocity.z = 0;
+    if (self.relative_arguments.x == .Absolute) player.base.velocity.x = 0;
+    if (self.relative_arguments.y == .Absolute) player.base.velocity.y = 0;
+    if (self.relative_arguments.z == .Absolute) player.base.velocity.z = 0;
 
-            player.base.teleport(
-                Vector3(f64){
-                    .x = switch (self.relative_arguments.x) {
-                        .Absolute => self.pos.x,
-                        .Relative => self.pos.x + player.base.pos.x,
-                    },
-                    .y = switch (self.relative_arguments.y) {
-                        .Absolute => self.pos.y,
-                        .Relative => self.pos.y + player.base.pos.y,
-                    },
-                    .z = switch (self.relative_arguments.z) {
-                        .Absolute => self.pos.z,
-                        .Relative => self.pos.z + player.base.pos.z,
-                    },
-                },
-                Rotation2(f32){
-                    .yaw = switch (self.relative_arguments.yaw) {
-                        .Absolute => self.rotation.yaw,
-                        .Relative => self.rotation.yaw + player.base.rotation.yaw,
-                    },
-                    .pitch = switch (self.relative_arguments.pitch) {
-                        .Absolute => self.rotation.pitch,
-                        .Relative => self.rotation.pitch + player.base.rotation.pitch,
-                    },
-                },
-            );
-            try game.connection_handle.sendPlayPacket(
-                .{ .player_move_position_and_angles = .{
-                    .on_ground = false,
-                    .pos = player.base.pos,
-                    .rotation = player.base.rotation,
-                } },
-            );
-            // Temporary hack for respawning
-            try game.connection_handle.sendPlayPacket(
-                .{ .client_status = .{
-                    .status = .PerformRespawn,
-                } },
-            );
+    player.base.teleport(
+        Vector3(f64){
+            .x = switch (self.relative_arguments.x) {
+                .Absolute => self.pos.x,
+                .Relative => self.pos.x + player.base.pos.x,
+            },
+            .y = switch (self.relative_arguments.y) {
+                .Absolute => self.pos.y,
+                .Relative => self.pos.y + player.base.pos.y,
+            },
+            .z = switch (self.relative_arguments.z) {
+                .Absolute => self.pos.z,
+                .Relative => self.pos.z + player.base.pos.z,
+            },
         },
-        else => unreachable,
-    }
+        Rotation2(f32){
+            .yaw = switch (self.relative_arguments.yaw) {
+                .Absolute => self.rotation.yaw,
+                .Relative => self.rotation.yaw + player.base.rotation.yaw,
+            },
+            .pitch = switch (self.relative_arguments.pitch) {
+                .Absolute => self.rotation.pitch,
+                .Relative => self.rotation.pitch + player.base.rotation.pitch,
+            },
+        },
+    );
+    try game.connection_handle.sendPlayPacket(
+        .{ .player_move_position_and_angles = .{
+            .on_ground = false,
+            .pos = player.base.pos,
+            .rotation = player.base.rotation,
+        } },
+    );
+    // Temporary hack for respawning
+    try game.connection_handle.sendPlayPacket(
+        .{ .client_status = .{
+            .status = .PerformRespawn,
+        } },
+    );
 }
 
 pub const RelativeArguments = packed struct {

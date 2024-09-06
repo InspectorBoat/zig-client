@@ -3,6 +3,7 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const C2S = root.network.packet.C2S;
 const Client = root.Client;
+const ClientState = root.ClientState;
 
 is_invulnerable: bool,
 is_flying: bool,
@@ -12,6 +13,7 @@ fly_speed: f32,
 walk_speed: f32,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub const AbilityFlags = C2S.Play.PlayerAbilities.AbilityFlags;
 
@@ -31,19 +33,14 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    switch (client.*) {
-        .game => |*game| {
-            game.world.player.abilities = .{
-                .is_invulnerable = self.is_invulnerable,
-                .is_flying = self.is_flying,
-                .allow_flying = self.allow_flying,
-                .creative_mode = self.creative_mode,
-                .fly_speed = self.fly_speed,
-                .walk_speed = self.walk_speed,
-            };
-        },
-        else => unreachable,
-    }
+    game.world.player.abilities = .{
+        .is_invulnerable = self.is_invulnerable,
+        .is_flying = self.is_flying,
+        .allow_flying = self.allow_flying,
+        .creative_mode = self.creative_mode,
+        .fly_speed = self.fly_speed,
+        .walk_speed = self.walk_speed,
+    };
 }

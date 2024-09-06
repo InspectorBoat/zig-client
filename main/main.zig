@@ -55,6 +55,7 @@ pub const Chunk = World.Chunk;
 pub const Section = World.Section;
 
 pub const Client = @import("client.zig").Client;
+pub const ClientState = @import("client.zig").ClientState;
 
 const EnumBoolArray = @import("util").EnumBoolArray;
 const std = @import("std");

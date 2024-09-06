@@ -2,12 +2,14 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const Vector3 = root.Vector3;
 
 network_id: i32,
 block_pos: Vector3(i32),
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
@@ -15,8 +17,8 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return undefined;
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    _ = client;
+    _ = game;
     _ = self;
 }

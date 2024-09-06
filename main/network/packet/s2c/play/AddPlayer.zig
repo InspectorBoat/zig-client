@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 const DataTracker = root.Entity.DataTracker;
@@ -15,6 +16,7 @@ held_item_id: i32,
 datatracker_entries: []const S2C.Play.EntityData.DataTrackerEntry,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
@@ -35,26 +37,19 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-    // const pos = self.pos.normalize();
-    // const rotation = self.rotation.normalize();
-    switch (client.*) {
-        .game => |*game| {
-            _ = try game.world.addEntity(
-                .{
-                    .remote_player = .{
-                        .base = .{
-                            .network_id = self.network_id,
-                            .pos = self.pos.normalize(),
-                            .prev_pos = self.pos.normalize(),
-                            .rotation = self.rotation.normalize(),
-                            .prev_rotation = self.rotation.normalize(),
-                        },
-                    },
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+    _ = try game.world.addEntity(
+        .{
+            .remote_player = .{
+                .base = .{
+                    .network_id = self.network_id,
+                    .pos = self.pos.normalize(),
+                    .prev_pos = self.pos.normalize(),
+                    .rotation = self.rotation.normalize(),
+                    .prev_rotation = self.rotation.normalize(),
                 },
-            );
+            },
         },
-        else => unreachable,
-    }
+    );
     _ = allocator;
 }

@@ -2,12 +2,14 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 
 network_id: i32,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
@@ -16,9 +18,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    _ = client;
+    _ = game;
     _ = self;
 }
 
@@ -28,6 +30,7 @@ pub const Position = struct {
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
+    comptime required_client_state: ClientState = .game,
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
@@ -42,14 +45,9 @@ pub const Position = struct {
         };
     }
 
-    pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-        switch (client.*) {
-            .game => |*game| {
-                const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
-                entity.move(self.delta_pos.normalize());
-            },
-            else => unreachable,
-        }
+    pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+        const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
+        entity.move(self.delta_pos.normalize());
         _ = allocator;
     }
 };
@@ -60,6 +58,7 @@ pub const Angles = struct {
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
+    comptime required_client_state: ClientState = .game,
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
@@ -73,14 +72,9 @@ pub const Angles = struct {
         };
     }
 
-    pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-        switch (client.*) {
-            .game => |*game| {
-                const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
-                entity.rotateTo(self.rotation.normalize());
-            },
-            else => unreachable,
-        }
+    pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+        const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
+        entity.rotateTo(self.rotation.normalize());
         _ = allocator;
     }
 };
@@ -92,6 +86,7 @@ pub const PositionAndAngles = struct {
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
+    comptime required_client_state: ClientState = .game,
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
@@ -110,15 +105,10 @@ pub const PositionAndAngles = struct {
         };
     }
 
-    pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-        switch (client.*) {
-            .game => |*game| {
-                const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
-                entity.move(self.delta_pos.normalize());
-                entity.rotateTo(self.rotation.normalize());
-            },
-            else => unreachable,
-        }
+    pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+        const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
+        entity.move(self.delta_pos.normalize());
+        entity.rotateTo(self.rotation.normalize());
         _ = allocator;
     }
 };

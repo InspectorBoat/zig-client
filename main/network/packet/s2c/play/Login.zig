@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const World = root.World;
 const GameMode = World.GameMode;
 const Difficulty = World.Difficulty;
@@ -19,6 +20,7 @@ generator_type: GeneratorType,
 reduced_debug_info: bool,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .connecting,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
@@ -43,37 +45,32 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-    switch (client.*) {
-        .connecting => |*connecting| {
-            var world: World = try .init(
-                .{
-                    .difficulty = self.difficulty,
-                    .dimension = self.dimension,
-                    .hardcore = self.hardcore,
-                },
-                LocalPlayerEntity{
-                    .base = .{
-                        .network_id = self.network_id,
-                    },
-                    .abilities = undefined,
-                },
-                allocator,
-            );
-            errdefer world.deinit(allocator);
-
-            // send brand packet
-            try connecting.connection_handle.sendPlayPacket(.{ .custom_payload = .{
-                .channel = "MC|Brand",
-                .data = "vanilla",
-            } });
-
-            client.* = .{ .game = .{
-                .connection_handle = connecting.connection_handle,
-                .gpa = connecting.gpa,
-                .world = world,
-            } };
+pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, allocator: std.mem.Allocator) !void {
+    var world: World = try .init(
+        .{
+            .difficulty = self.difficulty,
+            .dimension = self.dimension,
+            .hardcore = self.hardcore,
         },
-        else => unreachable,
-    }
+        LocalPlayerEntity{
+            .base = .{
+                .network_id = self.network_id,
+            },
+            .abilities = undefined,
+        },
+        allocator,
+    );
+    errdefer world.deinit(allocator);
+
+    // send brand packet
+    try connecting.connection_handle.sendPlayPacket(.{ .custom_payload = .{
+        .channel = "MC|Brand",
+        .data = "vanilla",
+    } });
+
+    @as(*Client, @fieldParentPtr("connecting", connecting)).* = .{ .game = .{
+        .connection_handle = connecting.connection_handle,
+        .gpa = connecting.gpa,
+        .world = world,
+    } };
 }

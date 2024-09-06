@@ -5,7 +5,9 @@ const ConnectionHandle = @import("network/connection.zig").ConnectionHandle;
 const World = @import("world/World.zig");
 const Screen = @import("screen/Screen.zig");
 
-pub const Client = union(enum) {
+pub const ClientState = enum { idle, connecting, game };
+
+pub const Client = union(ClientState) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
     };
@@ -104,40 +106,43 @@ pub const Client = union(enum) {
 
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     pub fn tickConnection(self: *@This()) !void {
-        switch (self.*) {
-            inline .game, .connecting => |client_state| {
-                const s2c_packet_queue = client_state.connection_handle.s2c_packet_queue;
-
-                // Read and handle incoming s2c packets
-                while (blk: {
-                    s2c_packet_queue.lock();
-                    break :blk s2c_packet_queue.read();
-                }) |s2c_packet_wrapper| : (s2c_packet_queue.unlock()) {
-                    @import("log").handle_packet(.{s2c_packet_wrapper.packet});
-
-                    var s2c_play_packet = s2c_packet_wrapper.packet;
-
-                    switch (s2c_play_packet) {
-                        // Specific packet type must be comptime known, thus inline else is necessary
-                        inline else => |*specific_packet| {
-                            // required to comptime prune other packets to prevent a compile error
-                            if (!specific_packet.handle_on_network_thread) {
-                                try specific_packet.handleOnMainThread(self, client_state.gpa);
-                            } else unreachable;
-                        },
-                    }
-                } else {
-                    s2c_packet_queue.unlock();
-                }
-
-                // Free c2s packets already sent by the network thread
-                const c2s_packet_queue = client_state.connection_handle.c2s_packet_queue;
-                c2s_packet_queue.lock();
-                defer c2s_packet_queue.unlock();
-                while (c2s_packet_queue.free()) |_| {}
-            },
+        const s2c_packet_queue, const c2s_packet_queue, const allocator = switch (self.*) {
+            inline .game, .connecting => |client_state| .{ client_state.connection_handle.s2c_packet_queue, client_state.connection_handle.c2s_packet_queue, client_state.gpa },
             else => unreachable,
+        };
+
+        // Read and handle incoming s2c packets
+        while (blk: {
+            s2c_packet_queue.lock();
+            break :blk s2c_packet_queue.read();
+        }) |s2c_packet_wrapper| : (s2c_packet_queue.unlock()) {
+            @import("log").handle_packet(.{s2c_packet_wrapper.packet});
+
+            var s2c_play_packet = s2c_packet_wrapper.packet;
+
+            switch (s2c_play_packet) {
+                // Specific packet type must be comptime known, thus inline else is necessary
+                inline else => |*specific_packet| {
+                    // Eliminate packets at comptime to prevent a compile error
+                    if (specific_packet.handle_on_network_thread) unreachable;
+
+                    try specific_packet.handleOnMainThread(
+                        switch (self.*) {
+                            specific_packet.required_client_state => |*client_state| client_state,
+                            else => return error.BadClientState,
+                        },
+                        allocator,
+                    );
+                },
+            }
+        } else {
+            s2c_packet_queue.unlock();
         }
+
+        // Free c2s packets already sent by the network thread
+        c2s_packet_queue.lock();
+        defer c2s_packet_queue.unlock();
+        while (c2s_packet_queue.free()) |_| {}
     }
 
     /// Disconnect if we broke connection

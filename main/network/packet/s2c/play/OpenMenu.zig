@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const Menu = root.Menu;
 const ItemStack = root.ItemStack;
 
@@ -12,6 +13,7 @@ size: i32,
 owner_network_id: i32,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const menu_network_id = try buffer.read(u8);
@@ -28,24 +30,19 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-    switch (client.*) {
-        .game => |*game| {
-            const world = &game.world;
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+    const world = &game.world;
 
-            switch (world.menu) {
-                .other => |*previous_menu| previous_menu.deinit(allocator),
-                else => {},
-            }
-
-            const stacks = try allocator.alloc(?ItemStack, @intCast(self.size));
-            @memset(stacks, null);
-
-            world.menu = .{ .other = .{
-                .network_id = self.menu_network_id,
-                .stacks = stacks,
-            } };
-        },
-        else => unreachable,
+    switch (world.menu) {
+        .other => |*previous_menu| previous_menu.deinit(allocator),
+        else => {},
     }
+
+    const stacks = try allocator.alloc(?ItemStack, @intCast(self.size));
+    @memset(stacks, null);
+
+    world.menu = .{ .other = .{
+        .network_id = self.menu_network_id,
+        .stacks = stacks,
+    } };
 }

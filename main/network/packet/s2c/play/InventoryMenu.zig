@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const ItemStack = root.ItemStack;
 const Menu = root.Menu;
 
@@ -9,6 +10,7 @@ menu_network_id: i32,
 stacks: []const ?ItemStack,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const menu_network_id = try buffer.read(u8);
@@ -23,25 +25,20 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-    switch (client.*) {
-        .game => |*game| {
-            const world = &game.world;
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+    const world = &game.world;
 
-            const menu: *Menu = switch (self.menu_network_id) {
-                0 => blk: {
-                    world.player_inventory_menu.deinitItemStacks(allocator);
-                    break :blk &world.player_inventory_menu;
-                },
-                else => |menu_network_id| blk: {
-                    if (world.menu != .other or world.menu.other.network_id != menu_network_id) return;
-                    break :blk &world.menu.other;
-                },
-            };
-            for (self.stacks, 0..) |new_stack, i| {
-                menu.stacks[i] = try ItemStack.dupe(new_stack, allocator);
-            }
+    const menu: *Menu = switch (self.menu_network_id) {
+        0 => blk: {
+            world.player_inventory_menu.deinitItemStacks(allocator);
+            break :blk &world.player_inventory_menu;
         },
-        else => unreachable,
+        else => |menu_network_id| blk: {
+            if (world.menu != .other or world.menu.other.network_id != menu_network_id) return;
+            break :blk &world.menu.other;
+        },
+    };
+    for (self.stacks, 0..) |new_stack, i| {
+        menu.stacks[i] = try ItemStack.dupe(new_stack, allocator);
     }
 }

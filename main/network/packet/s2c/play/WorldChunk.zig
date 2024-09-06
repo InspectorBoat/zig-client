@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const ClientState = root.ClientState;
 const Vector2xz = root.Vector2xz;
 const Chunk = root.Chunk;
 const Section = root.Section;
@@ -13,6 +14,7 @@ chunk_data: ChunkData,
 full: bool,
 
 comptime handle_on_network_thread: bool = false,
+comptime required_client_state: ClientState = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return .{
@@ -28,24 +30,19 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
-    switch (client.*) {
-        .game => |*game| {
-            // if full:
-            // unload existing chunk if count is 0
-            // otherwise load new chunk
-            if (self.full) {
-                if (self.chunk_data.sections.count() == 0) {
-                    game.world.unloadChunk(self.chunk_pos, allocator) catch {}; // TODO: Figure out why this happens
-                    return;
-                } else {
-                    _ = game.world.loadChunk(self.chunk_pos) catch {}; // TODO: Figure out why this happens
-                }
-            }
-            try game.world.receiveChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);
-        },
-        else => unreachable,
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+    // if full:
+    // unload existing chunk if count is 0
+    // otherwise load new chunk
+    if (self.full) {
+        if (self.chunk_data.sections.count() == 0) {
+            game.world.unloadChunk(self.chunk_pos, allocator) catch {}; // TODO: Figure out why this happens
+            return;
+        } else {
+            _ = game.world.loadChunk(self.chunk_pos) catch {}; // TODO: Figure out why this happens
+        }
     }
+    try game.world.receiveChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);
 }
 
 pub const ChunkData = struct {
