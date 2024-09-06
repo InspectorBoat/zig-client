@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 
 health: f32,
 hunger: i32,
@@ -18,13 +18,13 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    switch (game.*) {
-        .Ingame => |*ingame| {
+    switch (client.*) {
+        .game => |*game| {
             _ = self.health; // TODO
-            ingame.world.player.player.hunger.food_level = self.hunger;
-            ingame.world.player.player.hunger.saturation_level = self.saturation;
+            game.world.player.player.hunger.food_level = self.hunger;
+            game.world.player.player.hunger.saturation_level = self.saturation;
         },
         else => unreachable,
     }

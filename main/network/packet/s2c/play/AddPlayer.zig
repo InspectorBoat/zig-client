@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 const DataTracker = root.Entity.DataTracker;
@@ -35,12 +35,12 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     // const pos = self.pos.normalize();
     // const rotation = self.rotation.normalize();
-    switch (game.*) {
-        .Ingame => |*ingame| {
-            _ = try ingame.world.addEntity(
+    switch (client.*) {
+        .game => |*game| {
+            _ = try game.world.addEntity(
                 .{
                     .remote_player = .{
                         .base = .{

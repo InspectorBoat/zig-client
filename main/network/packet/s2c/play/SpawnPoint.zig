@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const Vector3 = root.Vector3;
 
 block_pos: Vector3(i32),
@@ -16,8 +16,8 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 }
 
 /// Spawn point doesn't do anything for the client, so this is currently unimplemented
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    _ = game;
+    _ = client;
     _ = self;
 }

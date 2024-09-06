@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const World = root.World;
 const GameMode = World.GameMode;
 const Difficulty = World.Difficulty;
@@ -43,9 +43,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    switch (game.*) {
-        .Connecting => |*connecting| {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+    switch (client.*) {
+        .connecting => |*connecting| {
             var world: World = try .init(
                 .{
                     .difficulty = self.difficulty,
@@ -68,7 +68,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                 .data = "vanilla",
             } });
 
-            game.* = .{ .Ingame = .{
+            client.* = .{ .game = .{
                 .connection_handle = connecting.connection_handle,
                 .gpa = connecting.gpa,
                 .world = world,

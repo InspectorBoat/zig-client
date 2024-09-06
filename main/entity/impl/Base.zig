@@ -1,6 +1,6 @@
 const root = @import("root");
 const Entity = root.Entity;
-const Game = root.Game;
+const Client = root.Client;
 const Box = root.Box;
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
@@ -67,7 +67,7 @@ pub fn teleport(self: *@This(), new_pos: Vector3(f64), new_rotation: Rotation2(f
     self.setRotation(self.rotation);
 }
 
-pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *const Game.IngameGame) !void {
+pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *const Client.Game) !void {
     // TODO: handle noclip
     const start_pos = self.pos;
     _ = start_pos;

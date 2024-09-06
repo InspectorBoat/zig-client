@@ -5,7 +5,7 @@ const network = root.network;
 const C2S = network.packet.C2S;
 const S2C = network.packet.S2C;
 const Protocol = network.Protocol;
-const Game = root.Game;
+const Client = root.Client;
 const RingBuffer = @import("util").RingBuffer;
 
 pub const Connection = struct {

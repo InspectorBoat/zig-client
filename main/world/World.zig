@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const Vector2xz = root.Vector2xz;
 const Vector3 = root.Vector3;
-const Game = root.Game;
+const Client = root.Client;
 const S2C = root.network.packet.S2C;
 const LocalPlayerEntity = root.Entity.LocalPlayer;
 const Entity = root.Entity;
@@ -53,7 +53,7 @@ pub fn init(info: struct {
     };
 }
 
-pub fn tick(self: *@This(), game: *Game.IngameGame, allocator: std.mem.Allocator) !void {
+pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator; // autofix
     const now = try std.time.Instant.now();
     self.entities.processEntityRemovals();

@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 const Entity = root.Entity;
@@ -46,23 +46,23 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    switch (game.*) {
-        .Ingame => |*ingame| {
+    switch (client.*) {
+        .game => |*game| {
             const pos = self.pos.normalize();
             _ = pos;
 
-            if (self.getEntity(ingame)) |entity| {
-                _ = try ingame.world.addEntity(entity);
+            if (self.getEntity(game)) |entity| {
+                _ = try game.world.addEntity(entity);
             }
         },
         else => unreachable,
     }
 }
 
-pub fn getEntity(self: *@This(), ingame: *Game.IngameGame) ?Entity {
-    const world = &ingame.world;
+pub fn getEntity(self: *@This(), game: *Client.Game) ?Entity {
+    const world = &game.world;
     switch (self.entity_type) {
         10 => return .{ .minecart = .init(self.network_id, self.pos.normalize()) },
         90 => if (world.getEntityByNetworkId(self.data)) |referenced_entity| {

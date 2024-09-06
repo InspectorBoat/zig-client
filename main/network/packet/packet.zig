@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("root");
-const Game = root.Game;
+const Client = root.Client;
 const Connection = root.network.Connection;
 
 pub const C2S = union(enum) {

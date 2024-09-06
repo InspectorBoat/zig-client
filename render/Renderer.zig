@@ -9,7 +9,7 @@ const Chunk = root.Chunk;
 const LocalPlayerEntity = root.Entity.LocalPlayer;
 const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
 const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
-const Game = root.Game;
+const Client = root.Client;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
@@ -189,8 +189,8 @@ pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
     return pool;
 }
 
-pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
-    const mvp = getMvpMatrix(ingame.world.player, ingame.partial_tick);
+pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
+    const mvp = getMvpMatrix(game.world.player, game.partial_tick);
     self.terrain_program.use();
     self.terrain_program.uniform1i(2, 0);
     self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
@@ -208,7 +208,7 @@ pub fn renderFrame(self: *@This(), ingame: *const Game.IngameGame) !void {
             .waiting => {},
         }
     }
-    try self.renderEntities(&ingame.world);
+    try self.renderEntities(&game.world);
 }
 
 pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTracker.SectionRenderInfo) void {

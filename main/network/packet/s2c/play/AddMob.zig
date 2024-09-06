@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 const ScaledRotation1 = root.network.ScaledRotation1;
@@ -53,12 +53,12 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    switch (game.*) {
-        .Ingame => |*ingame| {
+    switch (client.*) {
+        .game => |*game| {
             if (self.getEntity()) |entity| {
-                _ = try ingame.world.addEntity(entity);
+                _ = try game.world.addEntity(entity);
             }
         },
         else => unreachable,

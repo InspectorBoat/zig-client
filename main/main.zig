@@ -54,7 +54,7 @@ pub const World = @import("world/World.zig");
 pub const Chunk = World.Chunk;
 pub const Section = World.Section;
 
-pub const Game = @import("game.zig").Game;
+pub const Client = @import("client.zig").Client;
 
 const EnumBoolArray = @import("util").EnumBoolArray;
 const std = @import("std");
@@ -74,27 +74,27 @@ pub fn main() !void {
     try network_lib.init();
     defer network_lib.deinit();
 
-    var game: Game = .{ .Idle = .{ .gpa = gpa } };
+    var client: Client = .{ .idle = .{ .gpa = gpa } };
 
     var c2s_packet_alloc_impl = std.heap.GeneralPurposeAllocator(.{}){};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
-    try game.initConnection("127.0.0.1", 25565, gpa, c2s_packet_alloc);
-    try game.initLoginSequence("baz");
+    try client.initConnection("127.0.0.1", 25565, gpa, c2s_packet_alloc);
+    try client.initLoginSequence("baz");
 
     while (true) {
-        if (game == .Ingame) try game.advanceTimer();
+        if (client == .game) try client.advanceTimer();
 
-        if (game != .Idle) try game.tickConnection();
-        if (game == .Ingame) try game.tickWorld();
-        if (game != .Idle) game.checkConnection();
+        if (client != .idle) try client.tickConnection();
+        if (client == .game) try client.tickWorld();
+        if (client != .idle) client.checkConnection();
 
-        try EventHandler.dispatch(Events.Frame, .{ .game = &game });
+        try EventHandler.dispatch(Events.Frame, .{ .client = &client });
         if (done) break;
     }
 
-    if (game == .Ingame or game == .Connecting) {
-        game.disconnect();
+    if (client == .game or client == .connecting) {
+        client.disconnect();
     }
     std.debug.print("leaks: {}\n", .{gpa_impl.detectLeaks()});
 }
@@ -109,7 +109,7 @@ pub const Events = struct {
     pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *Chunk, world: *World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
-    pub const Frame = struct { game: *Game };
+    pub const Frame = struct { client: *Client };
     pub const Exit = struct {};
 };
 

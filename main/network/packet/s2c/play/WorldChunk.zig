@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const Vector2xz = root.Vector2xz;
 const Chunk = root.Chunk;
 const Section = root.Section;
@@ -28,21 +28,21 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    switch (game.*) {
-        .Ingame => |*ingame| {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+    switch (client.*) {
+        .game => |*game| {
             // if full:
             // unload existing chunk if count is 0
             // otherwise load new chunk
             if (self.full) {
                 if (self.chunk_data.sections.count() == 0) {
-                    ingame.world.unloadChunk(self.chunk_pos, allocator) catch {}; // TODO: Figure out why this happens
+                    game.world.unloadChunk(self.chunk_pos, allocator) catch {}; // TODO: Figure out why this happens
                     return;
                 } else {
-                    _ = ingame.world.loadChunk(self.chunk_pos) catch {}; // TODO: Figure out why this happens
+                    _ = game.world.loadChunk(self.chunk_pos) catch {}; // TODO: Figure out why this happens
                 }
             }
-            try ingame.world.receiveChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);
+            try game.world.receiveChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);
         },
         else => unreachable,
     }

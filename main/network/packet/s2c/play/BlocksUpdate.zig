@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 
 const Vector2xz = root.Vector2xz;
 const Vector3 = root.Vector3;
@@ -30,11 +30,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    switch (game.*) {
-        .Ingame => |*ingame| {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+    switch (client.*) {
+        .game => |*game| {
             for (self.updates) |update| {
-                try ingame.world.setBlockState(
+                try game.world.setBlockState(
                     .{
                         .x = self.chunk_pos.x * 16 + update.pos.x,
                         .y = update.pos.y,

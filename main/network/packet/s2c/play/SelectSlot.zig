@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 
 slot: i8,
 
@@ -14,12 +14,12 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    switch (game.*) {
-        .Ingame => |*ingame| {
+    switch (client.*) {
+        .game => |*game| {
             if (self.slot >= 0 and self.slot <= 8) {
-                ingame.world.player.inventory.hotbar_slot = @intCast(self.slot);
+                game.world.player.inventory.hotbar_slot = @intCast(self.slot);
             }
         },
         else => unreachable,

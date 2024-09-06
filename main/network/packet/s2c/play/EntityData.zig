@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const DataTracker = root.Entity.DataTracker;
 
 network_id: i32,
@@ -51,8 +51,8 @@ pub const DataTrackerEntry = struct {
     value: DataTracker.DataValue,
 };
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    _ = game;
+    _ = client;
     _ = self;
 }

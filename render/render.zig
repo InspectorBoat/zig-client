@@ -2,7 +2,7 @@ const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
 const root = @import("root");
-const Game = root.Game;
+const Client = root.Client;
 const EventHandler = root.EventHandler;
 const Events = root.Events;
 const glfw_helper = @import("glfw_helper.zig");
@@ -50,26 +50,26 @@ pub fn onFrame(frame: Events.Frame) !void {
         try EventHandler.dispatch(Events.Exit, .{});
         return;
     }
-    const game = frame.game;
+    const client = frame.client;
     glfw.pollEvents();
 
     gl.clearColor(
-        if (game.* == .Idle) 1.0 else 0.75,
-        if (game.* == .Connecting) 1.0 else 0.75,
-        if (game.* == .Ingame) 1.0 else 0.75,
+        if (client.* == .idle) 1.0 else 0.75,
+        if (client.* == .connecting) 1.0 else 0.75,
+        if (client.* == .game) 1.0 else 0.75,
         1,
     );
     gl.clear(.{ .color = true, .depth = true });
 
-    switch (game.*) {
-        .Ingame => |*ingame| {
-            try handleInputIngame(ingame);
-            try renderer.updateAndDispatchDirtySections(&ingame.world, gpa_impl.allocator());
+    switch (client.*) {
+        .game => |*game| {
+            try handleInputIngame(game);
+            try renderer.updateAndDispatchDirtySections(&game.world, gpa_impl.allocator());
             try renderer.uploadCompilationResults();
-            try renderer.renderFrame(ingame);
+            try renderer.renderFrame(game);
         },
-        .Connecting => |*connecting_game| handleInputConnecting(connecting_game),
-        .Idle => |*idle_game| handleInputIdle(idle_game),
+        .connecting => |*connecting_game| handleInputConnecting(connecting_game),
+        .idle => |*idle_game| handleInputIdle(idle_game),
     }
     window_input.window.swapBuffers();
 }
@@ -95,7 +95,7 @@ pub fn onExit(_: Events.Exit) !void {
     std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }
 
-pub fn handleInputIdle(_: *Game.IdleGame) void {
+pub fn handleInputIdle(_: *Client.Idle) void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -109,7 +109,7 @@ pub fn handleInputIdle(_: *Game.IdleGame) void {
     }
 }
 
-pub fn handleInputConnecting(_: *Game.ConnectingGame) void {
+pub fn handleInputConnecting(_: *Client.Connecting) void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -123,7 +123,7 @@ pub fn handleInputConnecting(_: *Game.ConnectingGame) void {
     }
 }
 
-pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
+pub fn handleInputIngame(game: *Client.Game) !void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -151,7 +151,7 @@ pub fn handleInputIngame(ingame: *Game.IngameGame) !void {
         }
     }
 
-    var player = &ingame.world.player;
+    var player = &game.world.player;
 
     player.base.rotation.yaw -= @floatCast(window_input.mouse_delta.x / 5);
     player.base.rotation.pitch -= @floatCast(window_input.mouse_delta.y / 5);

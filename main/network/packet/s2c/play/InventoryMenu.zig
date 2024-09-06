@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const ItemStack = root.ItemStack;
 const Menu = root.Menu;
 
@@ -23,10 +23,10 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    switch (game.*) {
-        .Ingame => |*ingame| {
-            const world = &ingame.world;
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+    switch (client.*) {
+        .game => |*game| {
+            const world = &game.world;
 
             const menu: *Menu = switch (self.menu_network_id) {
                 0 => blk: {

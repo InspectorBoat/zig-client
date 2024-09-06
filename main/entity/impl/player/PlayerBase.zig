@@ -1,6 +1,6 @@
 const root = @import("root");
 const GameMode = root.World.GameMode;
-const Game = root.Game;
+const Client = root.Client;
 
 game_mode: GameMode = .NotSet,
 hunger: struct {
@@ -11,7 +11,7 @@ hunger: struct {
 } = .{},
 sleeping: bool = false,
 
-pub fn isSpectator(self: *const @This(), game: *const Game.IngameGame) bool {
+pub fn isSpectator(self: *const @This(), game: *const Client.Game) bool {
     _ = self;
     _ = game;
     return false;

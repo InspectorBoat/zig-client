@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Connection = root.network.Connection;
-const Game = root.Game;
+const Client = root.Client;
 const Uuid = @import("util").Uuid;
 
 uuid: Uuid,

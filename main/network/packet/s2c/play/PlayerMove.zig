@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
 
@@ -27,13 +27,13 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
     @import("log").recieve_teleport_packet(.{ self.pos, self.rotation, self.relative_arguments });
 
-    switch (game.*) {
-        .Ingame => |*ingame| {
-            const player = &ingame.world.player;
+    switch (client.*) {
+        .game => |*game| {
+            const player = &game.world.player;
 
             if (self.relative_arguments.x == .Absolute) player.base.velocity.x = 0;
             if (self.relative_arguments.y == .Absolute) player.base.velocity.y = 0;
@@ -65,7 +65,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                     },
                 },
             );
-            try ingame.connection_handle.sendPlayPacket(
+            try game.connection_handle.sendPlayPacket(
                 .{ .player_move_position_and_angles = .{
                     .on_ground = false,
                     .pos = player.base.pos,
@@ -73,7 +73,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Alloca
                 } },
             );
             // Temporary hack for respawning
-            try ingame.connection_handle.sendPlayPacket(
+            try game.connection_handle.sendPlayPacket(
                 .{ .client_status = .{
                     .status = .PerformRespawn,
                 } },

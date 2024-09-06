@@ -5,21 +5,15 @@ const ConnectionHandle = @import("network/connection.zig").ConnectionHandle;
 const World = @import("world/World.zig");
 const Screen = @import("screen/Screen.zig");
 
-pub const GameState = enum {
-    Idle,
-    Connecting,
-    Ingame,
-};
-
-pub const Game = union(GameState) {
-    pub const IdleGame = struct {
+pub const Client = union(enum) {
+    pub const Idle = struct {
         gpa: std.mem.Allocator,
     };
-    pub const ConnectingGame = struct {
+    pub const Connecting = struct {
         gpa: std.mem.Allocator,
         connection_handle: ConnectionHandle,
     };
-    pub const IngameGame = struct {
+    pub const Game = struct {
         gpa: std.mem.Allocator,
         connection_handle: ConnectionHandle,
         world: World,
@@ -28,15 +22,15 @@ pub const Game = union(GameState) {
         ticks_elapsed: usize = 0,
     };
 
-    Idle: IdleGame,
-    Connecting: ConnectingGame,
-    Ingame: IngameGame,
+    idle: Idle,
+    connecting: Connecting,
+    game: Game,
 
     pub fn initConnection(self: *@This(), name: []const u8, port: u16, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
         switch (self.*) {
-            .Idle => |idle| {
+            .idle => |idle| {
                 const connection_handle = try connection.initConnection(name, port, allocator, c2s_packet_allocator);
-                self.* = .{ .Connecting = .{
+                self.* = .{ .connecting = .{
                     .gpa = idle.gpa,
                     .connection_handle = connection_handle,
                 } };
@@ -47,29 +41,29 @@ pub const Game = union(GameState) {
 
     pub fn initLoginSequence(self: *@This(), player_name: []const u8) !void {
         switch (self.*) {
-            .Connecting => |*connecting| {
+            .connecting => |*connecting| {
                 try connecting.connection_handle.sendLoginSequence(player_name);
             },
             else => unreachable,
         }
     }
 
-    /// Calling this if self is .Ingame or .Connecting is always safe, because it can only be called once
+    /// Calling this if self is .game or .connecting is always safe, because it can only be called once
     pub fn disconnect(self: *@This()) void {
         switch (self.*) {
-            .Ingame => |*ingame| {
-                @import("log").total_tick_delay(.{ingame.tick_delay});
+            .game => |*game| {
+                @import("log").total_tick_delay(.{game.tick_delay});
                 @import("log").disconnect(.{});
-                ingame.connection_handle.disconnect(ingame.gpa);
-                ingame.world.deinit(ingame.gpa);
-                self.* = .{ .Idle = .{
-                    .gpa = ingame.gpa,
+                game.connection_handle.disconnect(game.gpa);
+                game.world.deinit(game.gpa);
+                self.* = .{ .idle = .{
+                    .gpa = game.gpa,
                 } };
             },
-            .Connecting => |*connecting| {
+            .connecting => |*connecting| {
                 @import("log").disconnect(.{});
                 connecting.connection_handle.disconnect(connecting.gpa);
-                self.* = .{ .Idle = .{
+                self.* = .{ .idle = .{
                     .gpa = connecting.gpa,
                 } };
             },
@@ -79,8 +73,8 @@ pub const Game = union(GameState) {
 
     pub fn advanceTimer(self: *@This()) !void {
         switch (self.*) {
-            .Ingame => |*ingame| {
-                ingame.ticks_elapsed, ingame.partial_tick = ingame.world.tick_timer.advance();
+            .game => |*game| {
+                game.ticks_elapsed, game.partial_tick = game.world.tick_timer.advance();
             },
             else => unreachable,
         }
@@ -88,21 +82,21 @@ pub const Game = union(GameState) {
 
     pub fn tickWorld(self: *@This()) !void {
         switch (self.*) {
-            .Ingame => |*ingame| {
-                if (ingame.ticks_elapsed > 0) {
-                    if (ingame.partial_tick > 0.0001) {
-                        const delay = ingame.partial_tick * @as(f64, @floatFromInt(ingame.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
+            .game => |*game| {
+                if (game.ticks_elapsed > 0) {
+                    if (game.partial_tick > 0.0001) {
+                        const delay = game.partial_tick * @as(f64, @floatFromInt(game.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
                         @import("log").delayed_tick(.{delay});
-                        ingame.tick_delay += delay;
+                        game.tick_delay += delay;
                     } else {
                         @import("log").tick_on_time(.{});
                     }
                 }
-                if (ingame.ticks_elapsed > 1) @import("log").lag_spike(.{ingame.ticks_elapsed});
-                for (0..ingame.ticks_elapsed) |_| {
-                    try ingame.world.tick(ingame, ingame.gpa);
+                if (game.ticks_elapsed > 1) @import("log").lag_spike(.{game.ticks_elapsed});
+                for (0..game.ticks_elapsed) |_| {
+                    try game.world.tick(game, game.gpa);
                 }
-                ingame.ticks_elapsed = 0;
+                game.ticks_elapsed = 0;
             },
             else => unreachable,
         }
@@ -111,7 +105,7 @@ pub const Game = union(GameState) {
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     pub fn tickConnection(self: *@This()) !void {
         switch (self.*) {
-            inline .Ingame, .Connecting => |client_state| {
+            inline .game, .connecting => |client_state| {
                 const s2c_packet_queue = client_state.connection_handle.s2c_packet_queue;
 
                 // Read and handle incoming s2c packets
@@ -149,7 +143,7 @@ pub const Game = union(GameState) {
     /// Disconnect if we broke connection
     pub fn checkConnection(self: *@This()) void {
         switch (self.*) {
-            inline .Connecting, .Ingame => |game_state| {
+            inline .connecting, .game => |game_state| {
                 if (game_state.connection_handle.disconnected.*) {
                     std.debug.print("main thread disconnecting\n", .{});
                     self.disconnect();

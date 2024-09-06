@@ -1,7 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
-const Game = root.Game;
+const Client = root.Client;
 
 network_ids: []const i32,
 
@@ -17,11 +17,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-    switch (game.*) {
-        .Ingame => |*ingame| {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
+    switch (client.*) {
+        .game => |*game| {
             for (self.network_ids) |network_id| {
-                try ingame.world.queueEntityRemoval(network_id);
+                try game.world.queueEntityRemoval(network_id);
             }
         },
         else => unreachable,

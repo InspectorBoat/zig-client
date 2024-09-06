@@ -3,7 +3,7 @@ const root = @import("root");
 const Entity = root.Entity;
 const PlayerInventory = @import("../../inventory/PlayerInventory.zig");
 const ItemStack = root.ItemStack;
-const Game = root.Game;
+const Client = root.Client;
 const Vector2xz = root.Vector2xz;
 const Vector3 = root.Vector3;
 const World = root.World;
@@ -44,7 +44,7 @@ server_movement_status: struct {
 
 crosshair: HitResult = .miss,
 
-pub fn update(self: *@This(), game: *Game.IngameGame) !void {
+pub fn update(self: *@This(), game: *Client.Game) !void {
     self.crosshair = HitResult.rayTrace(game.world, self.getEyePos(), self.base.rotation, 30, .{});
 
     // tick spectator onground and noclip
@@ -231,7 +231,7 @@ pub fn updateSprinting(self: *@This()) !void {
     }
 }
 
-pub fn sendMovementPackets(self: *@This(), game: *Game.IngameGame) !void {
+pub fn sendMovementPackets(self: *@This(), game: *Client.Game) !void {
     if (try self.base.isSprinting() != self.server_movement_status.sprinting) {
         try game.connection_handle.sendPlayPacket(.{ .player_movement_action = .{
             .network_id = self.base.network_id,
@@ -288,7 +288,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Game.IngameGame) !void {
     }
 }
 
-pub fn moveWithSteer(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) !void {
+pub fn moveWithSteer(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) !void {
     if (self.inWater() and !self.abilities.is_flying) {
         self.moveWithSteerInWater(steer, game);
     } else if (self.inLava() and !self.abilities.is_flying) {
@@ -298,17 +298,17 @@ pub fn moveWithSteer(self: *@This(), steer: Vector2xz(f32), game: *const Game.In
     }
 }
 
-pub fn moveWithSteerInWater(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) void {
+pub fn moveWithSteerInWater(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) void {
     _ = self;
     _ = steer;
     _ = game;
 }
-pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) void {
+pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) void {
     _ = self;
     _ = steer;
     _ = game;
 }
-pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Game.IngameGame) !void {
+pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) !void {
     const friction = self.getFrictionNonLiquid(game);
     const traction = try self.getTractionNonLiquid(friction);
     const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw).scaleUniform(15);
@@ -349,7 +349,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *cons
 pub fn getGravityNonLiquid(y_velocity: f64) f64 {
     return (y_velocity - 0.08) * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
 }
-pub fn getFrictionNonLiquid(self: *const @This(), game: *const Game.IngameGame) f32 {
+pub fn getFrictionNonLiquid(self: *const @This(), game: *const Client.Game) f32 {
     if (self.base.colliding.on_ground) {
         const pos = Vector3(i32){
             .x = @intFromFloat(@floor(self.base.pos.x)),
@@ -391,7 +391,7 @@ pub fn getGroundWaterSpeed(self: *const @This()) !f32 {
 }
 
 // TODO: Implement
-pub fn isClimbing(self: *const @This(), game: *const Game.IngameGame) bool {
+pub fn isClimbing(self: *const @This(), game: *const Client.Game) bool {
     _ = self;
     _ = game;
     return false;
@@ -407,7 +407,7 @@ pub fn isSneaking(self: @This()) bool {
     return self.input.sneak and !self.player.sleeping;
 }
 
-pub fn syncAbilities(self: *@This(), game: *const Game.IngameGame) void {
+pub fn syncAbilities(self: *@This(), game: *const Client.Game) void {
     _ = self;
     _ = game;
 }

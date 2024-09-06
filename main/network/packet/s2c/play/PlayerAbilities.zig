@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const C2S = root.network.packet.C2S;
-const Game = root.Game;
+const Client = root.Client;
 
 is_invulnerable: bool,
 is_flying: bool,
@@ -31,11 +31,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), client: *Client, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    switch (game.*) {
-        .Ingame => |*ingame| {
-            ingame.world.player.abilities = .{
+    switch (client.*) {
+        .game => |*game| {
+            game.world.player.abilities = .{
                 .is_invulnerable = self.is_invulnerable,
                 .is_flying = self.is_flying,
                 .allow_flying = self.allow_flying,
