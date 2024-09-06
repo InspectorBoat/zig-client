@@ -111,15 +111,14 @@ pub const Game = union(GameState) {
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     pub fn tickConnection(self: *@This()) !void {
         switch (self.*) {
-            .Ingame => |game| {
-                const s2c_packet_queue = game.connection_handle.s2c_packet_queue;
+            inline .Ingame, .Connecting => |client_state| {
+                const s2c_packet_queue = client_state.connection_handle.s2c_packet_queue;
 
                 // Read and handle incoming s2c packets
                 while (blk: {
                     s2c_packet_queue.lock();
-                    defer s2c_packet_queue.unlock();
                     break :blk s2c_packet_queue.read();
-                }) |s2c_packet_wrapper| {
+                }) |s2c_packet_wrapper| : (s2c_packet_queue.unlock()) {
                     @import("log").handle_packet(.{s2c_packet_wrapper.packet});
 
                     var s2c_play_packet = s2c_packet_wrapper.packet;
@@ -129,22 +128,16 @@ pub const Game = union(GameState) {
                         inline else => |*specific_packet| {
                             // required to comptime prune other packets to prevent a compile error
                             if (!specific_packet.handle_on_network_thread) {
-                                try specific_packet.handleOnMainThread(self, game.gpa);
+                                try specific_packet.handleOnMainThread(self, client_state.gpa);
                             } else unreachable;
                         },
                     }
+                } else {
+                    s2c_packet_queue.unlock();
                 }
 
                 // Free c2s packets already sent by the network thread
-                const c2s_packet_queue = game.connection_handle.c2s_packet_queue;
-                c2s_packet_queue.lock();
-                defer c2s_packet_queue.unlock();
-                while (c2s_packet_queue.free()) |_| {}
-            },
-            // Packets are never sent to the main thread in the connecting state
-            .Connecting => |connecting| {
-                // Free c2s packets already sent by the network thread
-                const c2s_packet_queue = connecting.connection_handle.c2s_packet_queue;
+                const c2s_packet_queue = client_state.connection_handle.c2s_packet_queue;
                 c2s_packet_queue.lock();
                 defer c2s_packet_queue.unlock();
                 while (c2s_packet_queue.free()) |_| {}
