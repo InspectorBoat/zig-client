@@ -15,14 +15,15 @@ pub const HitResult = union(HitType) {
         dir: Direction,
     },
     entity: struct {
-        entity: void,
+        entity_network_id: i32,
         pos: Vector3(f64),
         dir: Direction,
     },
     miss,
-    pub fn rayTrace(
+
+    pub fn rayTraceBlocks(
         world: World,
-        eye_pos: Vector3(f64),
+        origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,
         comptime options: struct {
@@ -30,8 +31,8 @@ pub const HitResult = union(HitType) {
             ignore_blocks_without_collision: bool = false,
         },
     ) @This() {
-        var from = eye_pos;
-        const to = eye_pos.add(rotationToVec(rotation).scaleUniform(range));
+        var from = origin;
+        const to = origin.add(rotationToVec(rotation).scaleUniform(range));
 
         if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
