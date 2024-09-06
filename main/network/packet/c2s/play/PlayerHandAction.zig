@@ -15,10 +15,10 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
 }
 
 pub const Action = enum(i32) {
-    StartDestroyBlock,
-    CancelDestroyBlock,
-    FinishDestroyBlock,
-    DropAllItems,
-    DropItem,
-    ReleaseUseItem,
+    start_breaking_block,
+    cancel_breaking_block,
+    finish_breaking_block,
+    drop_complete_stack,
+    drop_single_item,
+    stop_using_item,
 };

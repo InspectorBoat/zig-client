@@ -152,12 +152,12 @@ pub fn handleInputIngame(game: *Client.Game) !void {
                         if (game.world.player.crosshair != .block) break :blk;
 
                         try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                            .action = .StartDestroyBlock,
+                            .action = .start_breaking_block,
                             .block_pos = game.world.player.crosshair.block.block_pos,
                             .face = game.world.player.crosshair.block.dir,
                         } });
                         try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                            .action = .FinishDestroyBlock,
+                            .action = .finish_breaking_block,
                             .block_pos = game.world.player.crosshair.block.block_pos,
                             .face = game.world.player.crosshair.block.dir,
                         } });
