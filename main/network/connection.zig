@@ -97,23 +97,21 @@ pub const Connection = struct {
 
     pub fn freeS2CPackets(self: *@This()) !void {
         self.s2c_packet_queue.lock();
-        errdefer self.s2c_packet_queue.unlock();
+        defer self.s2c_packet_queue.unlock();
         while (self.s2c_packet_queue.free()) |s2c_packet_wrapper| {
             // only free if packet actually allocated any memory
             if (s2c_packet_wrapper.alloc_index) |alloc_index| {
                 try self.s2c_packet_ring_alloc.freeOldest(alloc_index);
             }
         }
-        self.s2c_packet_queue.unlock();
     }
 
     pub fn sendC2SPackets(self: *@This()) !void {
         self.c2s_packet_queue.lock();
-        errdefer self.c2s_packet_queue.unlock();
+        defer self.c2s_packet_queue.unlock();
         while (self.c2s_packet_queue.read()) |packet| {
             try self.sendPacket(packet);
         }
-        self.c2s_packet_queue.unlock();
     }
 
     pub fn dispatchS2CPacket(self: *@This(), packet: S2C, initial_alloc_index: usize) !void {
@@ -137,7 +135,7 @@ pub const Connection = struct {
                                 null;
                             self.s2c_packet_queue.lock();
                             errdefer self.s2c_packet_queue.unlock();
-                            try self.s2c_packet_queue.write(.{ .packet = packet, .alloc_index = alloc_index });
+                            try self.s2c_packet_queue.write(.{ .packet = packet.play, .alloc_index = alloc_index });
                             self.s2c_packet_queue.unlock();
                         }
                     },
@@ -278,9 +276,9 @@ pub const Connection = struct {
         // free if any bytes were actually allocated
         if (initial_alloc_index != self.s2c_packet_ring_alloc.alloc_index) try self.s2c_packet_ring_alloc.freeLatest(initial_alloc_index);
 
-        // free s2c packets to clear up memory
+        // free handled s2c packets to clear up memory
         try self.freeS2CPackets();
-        // try to send c2s packets to prevent a deadlock
+        // send c2s packets to prevent a deadlock
         try self.sendC2SPackets();
     }
 
@@ -521,7 +519,7 @@ pub fn initConnection(
     s2c_packet_queue.* = .{};
     disconnect_ptr.* = false;
 
-    const thread = try std.Thread.spawn(.{}, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, c2s_packet_queue, s2c_packet_queue });
+    const thread: std.Thread = try .spawn(.{}, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, c2s_packet_queue, s2c_packet_queue });
 
     return .{
         .name = name_dupe,
@@ -534,8 +532,10 @@ pub fn initConnection(
     };
 }
 
+// Wrapper for S2C packet being sent to the main thread
 pub const S2CWrapper = struct {
-    packet: S2C,
+    // Only S2C.Play packets are ever sent to the main thread
+    packet: S2C.Play,
     alloc_index: ?usize,
 };
 

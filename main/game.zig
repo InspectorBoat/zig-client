@@ -108,24 +108,46 @@ pub const Game = union(GameState) {
         }
     }
 
-    /// Returns whether a packet was handled
-    pub fn handleIncomingPackets(self: *@This()) !void {
+    /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
+    pub fn tickConnection(self: *@This()) !void {
         switch (self.*) {
-            inline .Connecting, .Ingame => |game_state| {
-                const s2c_packet_queue = game_state.connection_handle.s2c_packet_queue;
-                s2c_packet_queue.lock();
-                while (s2c_packet_queue.read()) |s2c_packet_wrapper| {
+            .Ingame => |game| {
+                const s2c_packet_queue = game.connection_handle.s2c_packet_queue;
+
+                // Read and handle incoming s2c packets
+                while (blk: {
+                    s2c_packet_queue.lock();
+                    defer s2c_packet_queue.unlock();
+                    break :blk s2c_packet_queue.read();
+                }) |s2c_packet_wrapper| {
                     @import("log").handle_packet(.{s2c_packet_wrapper.packet});
 
-                    var s2c_packet_wrapper_mut = s2c_packet_wrapper;
-                    try s2c_packet_wrapper_mut.packet.handleOnMainThread(self, game_state.gpa);
-                }
-                s2c_packet_queue.unlock();
+                    var s2c_play_packet = s2c_packet_wrapper.packet;
 
-                const c2s_packet_queue = game_state.connection_handle.c2s_packet_queue;
+                    switch (s2c_play_packet) {
+                        // Specific packet type must be comptime known, thus inline else is necessary
+                        inline else => |*specific_packet| {
+                            // required to comptime prune other packets to prevent a compile error
+                            if (!specific_packet.handle_on_network_thread) {
+                                try specific_packet.handleOnMainThread(self, game.gpa);
+                            } else unreachable;
+                        },
+                    }
+                }
+
+                // Free c2s packets already sent by the network thread
+                const c2s_packet_queue = game.connection_handle.c2s_packet_queue;
                 c2s_packet_queue.lock();
+                defer c2s_packet_queue.unlock();
                 while (c2s_packet_queue.free()) |_| {}
-                c2s_packet_queue.unlock();
+            },
+            // Packets are never sent to the main thread in the connecting state
+            .Connecting => |connecting| {
+                // Free c2s packets already sent by the network thread
+                const c2s_packet_queue = connecting.connection_handle.c2s_packet_queue;
+                c2s_packet_queue.lock();
+                defer c2s_packet_queue.unlock();
+                while (c2s_packet_queue.free()) |_| {}
             },
             else => unreachable,
         }

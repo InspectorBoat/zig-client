@@ -85,9 +85,9 @@ pub fn main() !void {
     while (true) {
         if (game == .Ingame) try game.advanceTimer();
 
-        if (game != .Idle) try game.handleIncomingPackets();
+        if (game != .Idle) try game.tickConnection();
         if (game == .Ingame) try game.tickWorld();
-        if (game == .Ingame or game == .Connecting) game.checkConnection();
+        if (game != .Idle) game.checkConnection();
 
         try EventHandler.dispatch(Events.Frame, .{ .game = &game });
         if (done) break;

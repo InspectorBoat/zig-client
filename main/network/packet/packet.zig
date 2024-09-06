@@ -123,9 +123,6 @@ pub const S2C = union(enum) {
 
         /// decodes a packet buffer into a type-erased packet
         pub const decode = Mixin(@This()).decode;
-        /// handles a type-erased packet
-        pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
-        pub const handleOnNetworkThread = Mixin(@This()).handleOnNetworkThread;
 
         login_fail: LoginFail,
         hello: Hello,
@@ -210,8 +207,6 @@ pub const S2C = union(enum) {
 
         /// decodes a packet buffer into a type-erased packet
         pub const decode = Mixin(@This()).decode;
-        /// handles a type-erased packet
-        pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
 
         keep_alive: KeepAlive,
         login: @import("s2c/play/Login.zig"),
@@ -294,8 +289,6 @@ pub const S2C = union(enum) {
 
         /// decodes a packet buffer into a type-erased packet
         pub const decode = Mixin(@This()).decode;
-        /// handles a type-erased packet
-        pub const handleOnMainThread = Mixin(@This()).handleOnMainThread;
 
         ping: Ping,
         server_status: ServerStatus,
@@ -304,13 +297,6 @@ pub const S2C = union(enum) {
     // only the client ever sends packets in the handshake protocol
     login: Login,
     play: Play,
-
-    pub fn handleOnMainThread(self: *@This(), game: *Game, allocator: std.mem.Allocator) !void {
-        switch (self.*) {
-            .login => |*login_packet| try login_packet.handleOnMainThread(game, allocator),
-            .play => |*play_packet| try play_packet.handleOnMainThread(game, allocator),
-        }
-    }
 
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
@@ -337,20 +323,6 @@ pub const S2C = union(enum) {
                     else => |opcode| {
                         @import("log").invalid_opcode(.{opcode});
                         return error.InvalidOpcode;
-                    },
-                }
-            }
-
-            /// handles a type-erased packet
-            pub fn handleOnMainThread(packet: *PacketMixin, game: *Game, allocator: std.mem.Allocator) !void {
-                switch (packet.*) {
-                    // specific packet type must be comptime known, thus inline else is necessary
-                    inline else => |*specific_packet| {
-                        std.debug.assert(!specific_packet.handle_on_network_thread);
-                        // required to comptime prune other packets to prevent a compile error
-                        if (!specific_packet.handle_on_network_thread) {
-                            try specific_packet.handleOnMainThread(game, allocator);
-                        }
                     },
                 }
             }
