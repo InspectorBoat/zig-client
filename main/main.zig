@@ -83,6 +83,13 @@ pub fn main() !void {
     try client.initConnection("127.0.0.1", 25565, gpa, c2s_packet_alloc);
     try client.initLoginSequence("baz");
 
+    defer {
+        if (client == .game or client == .connecting) {
+            client.disconnect();
+        }
+        std.debug.print("leaks: {}\n", .{gpa_impl.detectLeaks()});
+    }
+
     while (true) {
         if (client == .game) try client.advanceTimer();
 
@@ -93,11 +100,6 @@ pub fn main() !void {
         try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input else null });
         if (done) break;
     }
-
-    if (client == .game or client == .connecting) {
-        client.disconnect();
-    }
-    std.debug.print("leaks: {}\n", .{gpa_impl.detectLeaks()});
 }
 
 var done = false;
