@@ -2698,7 +2698,7 @@ pub const ConcreteBlockState = packed struct(u16) {
                 return .{
                     .{
                         .min = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-                        .max = .{ .x = 1.0, .y = @as(f32, @floatFromInt(snow_layer.stored.layers)) / 8.0, .z = 1.0 },
+                        .max = .{ .x = 1.0, .y = @as(f32, @floatFromInt(@as(u4, snow_layer.stored.layers) + 1)) / 8.0, .z = 1.0 },
                     },
                     null,
                     null,
