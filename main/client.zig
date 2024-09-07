@@ -160,7 +160,12 @@ pub const Client = union(ClientState) {
 
                 while (game.input.on_tick.readItem()) |input| {
                     switch (input) {
-                        .hand => {},
+                        .hand => |hand| {
+                            switch (hand) {
+                                .drop => |drop| if (drop) try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
+                                else => {},
+                            }
+                        },
                         .movement => |movement| {
                             switch (movement) {
                                 .forward => |forward| player_input.forward = forward,
