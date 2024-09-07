@@ -74,8 +74,8 @@ pub fn sizeCallback(window: glfw.Window, width: i32, height: i32) void {
         return;
     };
     window_input.events.writeItem(.{ .Size = .{
-        .x = height,
-        .y = width,
+        .x = width,
+        .y = height,
     } }) catch unreachable;
     window_input.window_size = .{ .x = width, .y = height };
 }
