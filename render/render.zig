@@ -63,13 +63,17 @@ pub fn onFrame(frame: Events.Frame) !void {
 
     switch (client.*) {
         .game => |*game| {
-            try handleInputIngame(game);
+            try handleInputIngame(frame.input_queue.?);
             try renderer.updateAndDispatchDirtySections(&game.world, gpa_impl.allocator());
             try renderer.uploadCompilationResults();
             try renderer.renderFrame(game);
         },
-        .connecting => |*connecting_game| handleInputConnecting(connecting_game),
-        .idle => |*idle_game| handleInputIdle(idle_game),
+        .connecting => |*connecting_game| {
+            handleInputConnecting(connecting_game);
+        },
+        .idle => |*idle_game| {
+            handleInputIdle(idle_game);
+        },
     }
     window_input.window.swapBuffers();
 }
@@ -95,7 +99,7 @@ pub fn onExit(_: Events.Exit) !void {
     std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }
 
-pub fn handleInputIdle(_: *Client.Idle) void {
+pub fn handleInputIdle(_: *const Client.Idle) void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -109,7 +113,7 @@ pub fn handleInputIdle(_: *Client.Idle) void {
     }
 }
 
-pub fn handleInputConnecting(_: *Client.Connecting) void {
+pub fn handleInputConnecting(_: *const Client.Connecting) void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -123,10 +127,11 @@ pub fn handleInputConnecting(_: *Client.Connecting) void {
     }
 }
 
-pub fn handleInputIngame(game: *Client.Game) !void {
+pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
+                if (key.action == .repeat) continue;
                 switch (key.key) {
                     .tab => if (key.action == .press) {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
@@ -141,53 +146,32 @@ pub fn handleInputIngame(game: *Client.Game) !void {
                         renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", gpa_impl.allocator());
                         renderer.entity_program = try Renderer.initProgram("shader/entity.glsl.vert", "shader/entity.glsl.frag", gpa_impl.allocator());
                     },
+
+                    .w => try input_queue.queueOnTick(.{ .movement = .{ .forward = (key.action == .press) } }),
+                    .a => try input_queue.queueOnTick(.{ .movement = .{ .left = (key.action == .press) } }),
+                    .s => try input_queue.queueOnTick(.{ .movement = .{ .back = (key.action == .press) } }),
+                    .d => try input_queue.queueOnTick(.{ .movement = .{ .right = (key.action == .press) } }),
+                    .space => try input_queue.queueOnTick(.{ .movement = .{ .jump = (key.action == .press) } }),
+                    .left_shift => try input_queue.queueOnTick(.{ .movement = .{ .sneak = (key.action == .press) } }),
+                    .left_control => try input_queue.queueOnTick(.{ .movement = .{ .sprint = (key.action == .press) } }),
+
                     else => {},
                 }
             },
-            .MouseButton => |button| blk: {
+            .MouseButton => |button| {
+                if (button.action == .repeat) continue;
                 switch (button.button) {
-                    .left => if (button.action == .press) {
-                        try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
-
-                        if (game.world.player.crosshair != .block) break :blk;
-
-                        try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                            .action = .start_breaking_block,
-                            .block_pos = game.world.player.crosshair.block.block_pos,
-                            .face = game.world.player.crosshair.block.dir,
-                        } });
-                        try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                            .action = .finish_breaking_block,
-                            .block_pos = game.world.player.crosshair.block.block_pos,
-                            .face = game.world.player.crosshair.block.dir,
-                        } });
-                    },
+                    .left => try input_queue.queueOnTick(.{ .hand = .{ .main = (button.action == .press) } }),
                     else => {},
                 }
             },
             .Size => |size| {
-                gl.viewport(0, 0, @intCast(size.width), @intCast(size.height));
+                gl.viewport(0, 0, @intCast(size.x), @intCast(size.y));
             },
+            .CursorPos => {},
             else => {},
         }
     }
-
-    var player = &game.world.player;
-
-    player.base.rotation.yaw -= @floatCast(window_input.mouse_delta.x / 5);
-    player.base.rotation.pitch -= @floatCast(window_input.mouse_delta.y / 5);
-
-    window_input.mouse_delta = .{ .x = 0, .y = 0 };
-    player.base.rotation.pitch = std.math.clamp(player.base.rotation.pitch, -90, 90);
-    player.input = .{
-        .jump = window_input.keys.get(.space),
-        .sneak = window_input.keys.get(.left_shift),
-        .sprint = window_input.keys.get(.left_control),
-        .steer = .{
-            .x = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.a))) - @as(i8, @intFromBool(window_input.keys.get(.d)))),
-            .z = @floatFromInt(@as(i8, @intFromBool(window_input.keys.get(.w))) - @as(i8, @intFromBool(window_input.keys.get(.s)))),
-        },
-    };
 }
 
 test {

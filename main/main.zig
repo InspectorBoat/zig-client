@@ -90,7 +90,7 @@ pub fn main() !void {
         if (client == .game) try client.tickWorld();
         if (client != .idle) client.checkConnection();
 
-        try EventHandler.dispatch(Events.Frame, .{ .client = &client });
+        try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input else null });
         if (done) break;
     }
 
@@ -107,10 +107,10 @@ pub fn exit(_: Events.Exit) void {
 
 pub const Events = struct {
     pub const Startup = struct {};
-    pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *Chunk, world: *World };
-    pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *World };
+    pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const Chunk, world: *const World };
+    pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
-    pub const Frame = struct { client: *Client };
+    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue };
     pub const Exit = struct {};
 };
 
