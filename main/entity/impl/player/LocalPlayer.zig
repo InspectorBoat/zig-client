@@ -218,8 +218,8 @@ pub fn updateSprinting(self: *@This(), steer: Vector2xz(f32)) !void {
     const not_using_item = self.item_in_use == null;
     const not_blinded = !self.living.hasStatusEffect(.Blindness);
     const sprint_input = self.input.sprint;
-
-    if (sprint_input and !try self.base.isSprinting() and
+    if (sprint_input and
+        !try self.base.isSprinting() and
         (sufficient_forward_input) and
         (sufficient_food) and
         (not_using_item) and
