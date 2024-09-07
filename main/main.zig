@@ -91,7 +91,6 @@ pub fn main() !void {
     }
 
     while (true) {
-        if (client == .game) try client.advanceTimer();
         if (client != .idle) try client.tickConnection();
         if (client == .game) try client.tickWorld();
         if (client == .game) try client.handleInputOnFrame();

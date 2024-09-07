@@ -66,7 +66,6 @@ pub const Client = union(ClientState) {
         world: World,
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
-        ticks_elapsed: usize = 0,
         input: InputQueue = .{},
     };
 
@@ -119,10 +118,11 @@ pub const Client = union(ClientState) {
         }
     }
 
-    pub fn advanceTimer(self: *@This()) !void {
+    pub fn advanceTimer(self: *@This()) !usize {
         switch (self.*) {
             .game => |*game| {
-                game.ticks_elapsed, game.partial_tick = game.world.tick_timer.advance();
+                const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance();
+                return ticks_elapsed;
             },
             else => unreachable,
         }
@@ -131,21 +131,23 @@ pub const Client = union(ClientState) {
     pub fn tickWorld(self: *@This()) !void {
         switch (self.*) {
             .game => |*game| {
-                if (game.ticks_elapsed > 0) {
-                    try self.handleInputOnTick();
-                    if (game.partial_tick > 0.0001) {
-                        const delay = game.partial_tick * @as(f64, @floatFromInt(game.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
-                        @import("log").delayed_tick(.{delay});
-                        game.tick_delay += delay;
-                    } else {
-                        @import("log").tick_on_time(.{});
-                    }
+                const ticks_elapsed = try self.advanceTimer();
+                if (ticks_elapsed == 0) return;
+
+                // Do logging
+                if (game.partial_tick > 0.0001) {
+                    const delay = game.partial_tick * @as(f64, @floatFromInt(game.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
+                    @import("log").delayed_tick(.{delay});
+                    game.tick_delay += delay;
+                } else {
+                    @import("log").tick_on_time(.{});
                 }
-                if (game.ticks_elapsed > 1) @import("log").lag_spike(.{game.ticks_elapsed});
-                for (0..game.ticks_elapsed) |_| {
+                if (ticks_elapsed > 1) @import("log").lag_spike(.{ticks_elapsed});
+
+                try self.handleInputOnTick();
+                for (0..ticks_elapsed) |_| {
                     try game.world.tick(game, game.gpa);
                 }
-                game.ticks_elapsed = 0;
             },
             else => unreachable,
         }
