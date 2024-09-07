@@ -92,11 +92,11 @@ pub fn main() !void {
 
     while (true) {
         if (client == .game) try client.advanceTimer();
-
         if (client != .idle) try client.tickConnection();
         if (client == .game) try client.tickWorld();
-        if (client != .idle) client.checkConnection();
+        if (client == .game) try client.handleInputOnFrame();
 
+        if (client != .idle) client.checkConnection();
         try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input else null });
         if (done) break;
     }

@@ -18,10 +18,19 @@ inventory: PlayerInventory = .{},
 abilities: PlayerAbilities = .{},
 
 input: struct {
-    steer: Vector2xz(f32) = .{ .x = 0, .z = 0 },
+    forward: bool = false,
+    left: bool = false,
+    right: bool = false,
+    back: bool = false,
     jump: bool = false,
     sneak: bool = false,
     sprint: bool = false,
+    pub fn steer(self: @This()) Vector2xz(f32) {
+        return .{
+            .x = @floatFromInt(@as(i2, @intFromBool(self.left)) - @as(i2, @intFromBool(self.right))),
+            .z = @floatFromInt(@as(i2, @intFromBool(self.forward)) - @as(i2, @intFromBool(self.back))),
+        };
+    }
 } = .{},
 
 item_in_use: ?*ItemStack = null,
@@ -94,20 +103,16 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     // close screen if in portal
 
     // set steer from input
-    // self.input = .{
-    // .jump = false,
-    // .sneak = false,
-    // .steer = .{ .x = 0, .z = 0 },
-    // };
+    var steer = self.input.steer();
     // apply slowdown
     if (self.input.sneak) {
-        self.input.steer.x = @floatCast(@as(f64, self.input.steer.x) * 0.3);
-        self.input.steer.z = @floatCast(@as(f64, self.input.steer.z) * 0.3);
+        steer.x = @floatCast(@as(f64, steer.x) * 0.3);
+        steer.z = @floatCast(@as(f64, steer.z) * 0.3);
     }
     if (self.item_in_use) |_| {
         if (!self.base.hasVehicle()) {
-            self.input.steer.x *= 0.2;
-            self.input.steer.z *= 0.2;
+            steer.x *= 0.2;
+            steer.z *= 0.2;
         }
     }
 
@@ -115,7 +120,7 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     // self.pushAwayFromFullBlocks(game);
 
     // update sprinting
-    try self.updateSprinting();
+    try self.updateSprinting(steer);
     // TODO
     // update flying input
     // TODO
@@ -137,13 +142,10 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     // if dead, stop movement inputs
     // otherwise, if camera, update movement inputs, multiplying steer by 0.98
     if (!self.hasControl()) {
-        self.input = .{
-            .jump = false,
-            .steer = .{ .x = 0, .z = 0 },
-            .sneak = self.input.sneak,
-        };
+        self.input.back, self.input.forward, self.input.left, self.input.left, self.input.jump = .{ false, false, false, false, false };
+        steer = .origin();
     } else {
-        self.input.steer = self.input.steer.scaleUniform(0.98);
+        steer = steer.scaleUniform(0.98);
     }
 
     // attempt to jump or float
@@ -162,12 +164,12 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
         const prev_air_speed = self.air_speed;
         self.air_speed = self.abilities.fly_speed;
 
-        try self.moveWithSteer(self.input.steer, game);
+        try self.moveWithSteer(steer, game);
 
         self.base.velocity.y = prev_y_velocity * 0.6;
         self.air_speed = prev_air_speed;
     } else {
-        try self.moveWithSteer(self.input.steer, game);
+        try self.moveWithSteer(steer, game);
     }
 
     // update air speed according to sprinting status
@@ -208,10 +210,10 @@ pub fn hasControl(self: *@This()) bool {
     return true;
 }
 
-pub fn updateSprinting(self: *@This()) !void {
+pub fn updateSprinting(self: *@This(), steer: Vector2xz(f32)) !void {
     // TODO: Double tap sprint code
 
-    const sufficient_forward_input = self.input.steer.z >= @as(f32, @floatCast(0.8));
+    const sufficient_forward_input = steer.z >= @as(f32, @floatCast(0.8));
     const sufficient_food = self.player.hunger.food_level > 6 or self.abilities.allow_flying;
     const not_using_item = self.item_in_use == null;
     const not_blinded = !self.living.hasStatusEffect(.Blindness);
@@ -311,7 +313,7 @@ pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const C
 pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) !void {
     const friction = self.getFrictionNonLiquid(game);
     const traction = try self.getTractionNonLiquid(friction);
-    const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw).scaleUniform(15);
+    const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
     self.base.velocity = self.base.velocity.add(.{
         .x = @floatCast(acceleration.x),
         .y = 0,
@@ -413,7 +415,7 @@ pub fn syncAbilities(self: *@This(), game: *const Client.Game) void {
 }
 
 pub fn jump(self: *@This()) !void {
-    self.base.velocity.y = @as(f32, @floatCast(4));
+    self.base.velocity.y = @as(f32, @floatCast(0.42));
     // TODO: Implement jump boost
     // self.base.velocity.y += @as(f32, @floatFromInt((self.living.getEffectLevel(.JumpBoost) orelse -1) + 1)) * 0.1;
 

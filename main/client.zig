@@ -132,6 +132,7 @@ pub const Client = union(ClientState) {
         switch (self.*) {
             .game => |*game| {
                 if (game.ticks_elapsed > 0) {
+                    try self.handleInputOnTick();
                     if (game.partial_tick > 0.0001) {
                         const delay = game.partial_tick * @as(f64, @floatFromInt(game.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
                         @import("log").delayed_tick(.{delay});
@@ -145,6 +146,55 @@ pub const Client = union(ClientState) {
                     try game.world.tick(game, game.gpa);
                 }
                 game.ticks_elapsed = 0;
+            },
+            else => unreachable,
+        }
+    }
+
+    pub fn handleInputOnTick(self: *@This()) !void {
+        switch (self.*) {
+            .game => |*game| {
+                const player_input = &game.world.player.input;
+
+                while (game.input.on_tick.readItem()) |input| {
+                    switch (input) {
+                        .hand => {},
+                        .movement => |movement| {
+                            switch (movement) {
+                                .forward => |forward| player_input.forward = forward,
+                                .left => |left| player_input.left = left,
+                                .right => |right| player_input.right = right,
+                                .back => |back| player_input.back = back,
+                                .jump => |jump| player_input.jump = jump,
+                                .sprint => |sprint| player_input.sprint = sprint,
+                                .sneak => |sneak| player_input.sneak = sneak,
+                            }
+                        },
+                        .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
+                        .inventory => std.debug.panic("TODO!", .{}),
+                    }
+                }
+            },
+            else => unreachable,
+        }
+    }
+
+    pub fn handleInputOnFrame(self: *@This()) !void {
+        switch (self.*) {
+            .game => |*game| {
+                const player = &game.world.player;
+
+                while (game.input.on_frame.readItem()) |input| {
+                    switch (input) {
+                        .hand => std.debug.panic("Hand action on frame - don't do this! Queue on tick instead", .{}),
+                        .movement => std.debug.panic("Movement action on frame - don't do this! Queue on tick instead", .{}),
+                        .rotate => |rotation| {
+                            player.base.rotation.yaw -= @as(f32, @floatFromInt(rotation.x)) / 5;
+                            player.base.rotation.pitch -= @as(f32, @floatFromInt(rotation.y)) / 5;
+                        },
+                        .inventory => std.debug.panic("Inventory action on frame - don't do this! Queue on tick instead!", .{}),
+                    }
+                }
             },
             else => unreachable,
         }
