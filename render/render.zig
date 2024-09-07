@@ -8,6 +8,7 @@ const Events = root.Events;
 const glfw_helper = @import("glfw_helper.zig");
 const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
+const Vector2xy = root.Vector2xy;
 
 var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .{};
 pub var window_input: WindowInput = undefined;
@@ -128,6 +129,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 }
 
 pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
+    var cursor_delta: Vector2xy(f64) = .origin();
     while (window_input.events.readItem()) |event| {
         switch (event) {
             .Key => |key| {
@@ -137,8 +139,8 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
                     .escape => window_input.window.setShouldClose(true),
-                    .f => gl.polygonMode(.front_and_back, .line),
-                    .g => gl.polygonMode(.front_and_back, .fill),
+                    .f => if (key.action == .press) gl.polygonMode(.front_and_back, .line),
+                    .g => if (key.action == .press) gl.polygonMode(.front_and_back, .fill),
                     .k => if (key.action == .press) try renderer.recompileAllChunks(),
                     .l => if (key.action == .press) {
                         @import("log").reload_shader(.{});
@@ -168,10 +170,13 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             .Size => |size| {
                 gl.viewport(0, 0, @intCast(size.x), @intCast(size.y));
             },
-            .CursorPos => {},
+            .CursorPos => |cursor_event| {
+                cursor_delta = cursor_delta.add(cursor_event.delta);
+            },
             else => {},
         }
     }
+    try input_queue.queueOnFrame(.{ .rotate = cursor_delta.floatToInt(i32) });
 }
 
 test {
