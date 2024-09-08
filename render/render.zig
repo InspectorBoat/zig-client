@@ -156,7 +156,10 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                     .space => try input_queue.queueOnTick(.{ .movement = .{ .jump = (key.action == .press) } }),
                     .left_shift => try input_queue.queueOnTick(.{ .movement = .{ .sneak = (key.action == .press) } }),
                     .left_control => try input_queue.queueOnTick(.{ .movement = .{ .sprint = (key.action == .press) } }),
+
                     .q => try input_queue.queueOnTick(.{ .hand = .{ .drop = (key.action == .press) } }),
+
+                    .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| try input_queue.queueOnTick(.{ .hand = .{ .hotkey = .{ @intFromEnum(num) - @intFromEnum(glfw.Key.one), key.action == .press } } }),
                     else => {},
                 }
             },

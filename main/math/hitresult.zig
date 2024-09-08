@@ -21,15 +21,17 @@ pub const HitResult = union(HitType) {
     },
     miss,
 
+    const RayTraceOptions = struct {
+        ignore_liquids: bool = true,
+        ignore_blocks_without_collision: bool = false,
+    };
+
     pub fn rayTraceBlocks(
         world: World,
         origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,
-        comptime options: struct {
-            ignore_liquids: bool = true,
-            ignore_blocks_without_collision: bool = false,
-        },
+        comptime options: RayTraceOptions,
     ) @This() {
         var from = origin;
         const to = origin.add(rotationToVec(rotation).scaleUniform(range));
@@ -145,6 +147,77 @@ pub const HitResult = union(HitType) {
         }
 
         return .miss;
+    }
+
+    pub fn rayTraceEntities(
+        world: World,
+        origin: Vector3(f64),
+        rotation: Rotation2(f32),
+        range: f64,
+    ) @This() {
+        const to = origin.add(rotationToVec(rotation).scaleUniform(range));
+        var closest_hit_distance: f64 = std.math.inf(f64);
+        var hit_result: @This() = .miss;
+
+        var iter = world.entities.entities_by_network_id.iterator();
+        while (iter.next()) |entry| {
+            const entity = entry.value_ptr.*;
+            const entity_network_id = entry.key_ptr.*;
+
+            const hitbox: Box(f64) = switch (entity.*) {
+                .removed => continue,
+                inline else => |specific_entity| blk: {
+                    const pos: Vector3(f64) = specific_entity.base.pos;
+                    const min = pos.sub(.{
+                        .x = specific_entity.base.width * 0.5,
+                        .y = 0,
+                        .z = specific_entity.base.width * 0.5,
+                    });
+                    const max = pos.add(.{
+                        .x = specific_entity.base.width * 0.5,
+                        .y = specific_entity.base.height,
+                        .z = specific_entity.base.width * 0.5,
+                    });
+                    break :blk .{ .min = min, .max = max };
+                },
+            };
+
+            switch (rayTraceHitbox(hitbox, origin, to)) {
+                .block => |hit| {
+                    const dist = hit.pos.distance_squared(origin);
+                    if (dist < closest_hit_distance) {
+                        closest_hit_distance = dist;
+                        hit_result = .{ .entity = .{
+                            .entity_network_id = entity_network_id,
+                            .pos = hit.pos,
+                            .dir = hit.dir,
+                        } };
+                    }
+                },
+                else => {},
+            }
+        }
+        return hit_result;
+    }
+
+    pub fn rayTraceWorld(
+        world: World,
+        origin: Vector3(f64),
+        rotation: Rotation2(f32),
+        range: f64,
+        comptime options: RayTraceOptions,
+    ) @This() {
+        const block_hit_result = rayTraceBlocks(world, origin, rotation, range, options);
+        const entity_hit_result = rayTraceEntities(world, origin, rotation, range);
+        const block_hit_distance = switch (block_hit_result) {
+            .block => |hit| hit.pos.distance_squared(origin),
+            else => std.math.inf(f64),
+        };
+        const entity_hit_distance = switch (entity_hit_result) {
+            .entity => |hit| hit.pos.distance_squared(origin),
+            else => std.math.inf(f64),
+        };
+        return if (block_hit_distance < entity_hit_distance) block_hit_result else entity_hit_result;
     }
 
     fn between(min: anytype, mid: anytype, max: anytype) bool {

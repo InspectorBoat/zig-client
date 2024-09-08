@@ -25,13 +25,14 @@ vao: gl.VertexArray,
 terrain_program: gl.Program,
 entity_program: gl.Program,
 index_buffer: gl.Buffer,
-entity_buffer: gl.Buffer,
 gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
 compile_thread_pool: *std.Thread.Pool,
 compilation_result_queue: CompilationResultQueue,
 allocator: std.mem.Allocator,
 chunk_tracker: ChunkTracker,
+debug_buffer: gl.Buffer,
+debug_staging_buffer: GpuStagingBuffer,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -53,21 +54,24 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 
     const chunk_tracker: ChunkTracker = .init(allocator);
 
-    const entity_buffer = gl.Buffer.create();
-    entity_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
+    const debug_buffer = gl.Buffer.create();
+    debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
+
+    const debug_staging_buffer: GpuStagingBuffer = .{ .backer = .init(allocator) };
 
     return .{
         .vao = vao,
         .terrain_program = terrain_program,
         .entity_program = entity_program,
         .index_buffer = index_buffer,
-        .entity_buffer = entity_buffer,
         .gpu_memory_allocator = gpu_memory_allocator,
         .texture = texture,
         .compile_thread_pool = compile_thread_pool,
         .compilation_result_queue = compilation_result_queue,
         .allocator = allocator,
         .chunk_tracker = chunk_tracker,
+        .debug_buffer = debug_buffer,
+        .debug_staging_buffer = debug_staging_buffer,
     };
 }
 
@@ -208,7 +212,9 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
             .waiting => {},
         }
     }
-    try self.renderEntities(&game.world);
+    try self.bufferCrosshair(&game.world);
+    try self.bufferEntities(&game.world);
+    self.renderDebug();
 }
 
 pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTracker.SectionRenderInfo) void {
@@ -238,14 +244,8 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTr
     );
 }
 
-pub fn renderEntities(self: *@This(), world: *const World) !void {
-    var buffer: GpuStagingBuffer = .{ .backer = .init(self.allocator) };
-    defer buffer.backer.deinit();
-    self.entity_program.use();
-    self.vao.bind();
-    self.vao.vertexBuffer(0, self.entity_buffer, 0, 3 * @sizeOf(f32));
+pub fn bufferEntities(self: *@This(), world: *const World) !void {
     var iter = world.entities.entities.iterator();
-    var entity_count: usize = 0;
     while (iter.next()) |entry| {
         const entity = entry.key_ptr.*;
         switch (entity.*) {
@@ -262,13 +262,34 @@ pub fn renderEntities(self: *@This(), world: *const World) !void {
                     .y = specific_entity.base.height,
                     .z = specific_entity.base.width * 0.5,
                 });
-                try buffer.writeDebugCube(min.floatCast(f32), max.floatCast(f32));
-                entity_count += 1;
+                try self.debug_staging_buffer.writeDebugCube(min.floatCast(f32), max.floatCast(f32));
             },
         }
     }
-    self.entity_buffer.subData(0, u8, buffer.backer.items);
-    gl.drawElements(.triangle_strip, entity_count * 6 * 5, .unsigned_int, 0);
+}
+
+pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
+    switch (world.player.crosshair) {
+        .block => |block| try self.debug_staging_buffer.writeDebugCube(
+            block.block_pos.dir(block.dir).intToFloat(f32),
+            block.block_pos.dir(block.dir).add(.{ .x = 1, .y = 1, .z = 1 }).intToFloat(f32),
+        ),
+        .entity => |entity| try self.debug_staging_buffer.writeDebugCube(
+            entity.pos.dir(entity.dir).floatCast(f32),
+            entity.pos.dir(entity.dir).add(.{ .x = 1, .y = 1, .z = 1 }).floatCast(f32),
+        ),
+        .miss => return,
+    }
+}
+
+pub fn renderDebug(self: *@This()) void {
+    self.entity_program.use();
+    self.vao.bind();
+    self.vao.vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
+    self.debug_buffer.subData(0, u8, self.debug_staging_buffer.backer.items);
+    gl.drawElements(.triangle_strip, self.debug_staging_buffer.backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
+
+    self.debug_staging_buffer.backer.items.len = 0;
 }
 
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {

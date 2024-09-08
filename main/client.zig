@@ -37,7 +37,7 @@ pub const Client = union(ClientState) {
             main: bool,
             pick: bool,
             use: bool,
-            hotkey: bool,
+            hotkey: struct { i32, bool },
             scroll: i32,
             drop: bool,
         },
