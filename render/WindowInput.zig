@@ -37,6 +37,10 @@ pub fn init(window: glfw.Window, allocator: std.mem.Allocator) @This() {
     };
 }
 
+pub fn deinit(self: *@This()) void {
+    self.events.deinit();
+}
+
 pub fn setGlfwInputCallbacks(self: *@This()) void {
     self.window.setUserPointer(self);
 

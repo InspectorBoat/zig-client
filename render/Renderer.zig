@@ -275,8 +275,8 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
             block.block_pos.dir(block.dir).add(.{ .x = 1, .y = 1, .z = 1 }).intToFloat(f32),
         ),
         .entity => |entity| try self.debug_staging_buffer.writeDebugCube(
-            entity.pos.dir(entity.dir).floatCast(f32),
-            entity.pos.dir(entity.dir).add(.{ .x = 1, .y = 1, .z = 1 }).floatCast(f32),
+            entity.pos.floatCast(f32).sub(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
+            entity.pos.floatCast(f32).add(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
         ),
         .miss => return,
     }
@@ -475,6 +475,13 @@ pub fn unloadAllChunks(self: *@This()) !void {
         }
     }
     self.chunk_tracker.chunks.clearAndFree();
+}
+
+pub fn deinit(self: *@This()) !void {
+    try self.unloadAllChunks();
+    self.gpu_memory_allocator.deinit();
+    self.compile_thread_pool.deinit();
+    self.debug_staging_buffer.backer.deinit();
 }
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {

@@ -10,7 +10,7 @@ const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
 const Vector2xy = root.Vector2xy;
 
-var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .{};
+var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true, .stack_trace_frames = 50 }) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 
@@ -92,9 +92,8 @@ pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
 }
 
 pub fn onExit(_: Events.Exit) !void {
-    try renderer.unloadAllChunks();
-    renderer.gpu_memory_allocator.deinit();
-    renderer.compile_thread_pool.deinit();
+    try renderer.deinit();
+    window_input.deinit();
     gpa_impl.allocator().destroy(renderer.compile_thread_pool);
     _ = gpa_impl.detectLeaks();
     std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
