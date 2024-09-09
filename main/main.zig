@@ -96,7 +96,7 @@ pub fn main() !void {
         if (client == .game) try client.handleInputOnFrame();
 
         if (client != .idle) client.checkConnection();
-        try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input else null });
+        try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input_queue else null });
         if (done) break;
     }
 }

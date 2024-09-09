@@ -16,6 +16,7 @@ const EventHandler = root.EventHandler;
 const Events = root.Events;
 const Menu = root.Menu;
 const ItemStack = root.ItemStack;
+const Direction = root.Direction;
 pub const Chunk = @import("Chunk.zig");
 pub const Section = @import("Section.zig");
 pub const TickTimer = @import("TickTimer.zig");
@@ -35,6 +36,11 @@ dimension: i8,
 hardcore: bool,
 player_inventory_menu: Menu,
 menu: union(enum) { none, player_menu, other: Menu } = .none,
+mining_state: ?struct {
+    target_block_pos: Vector3(i32),
+    ticks: usize = 0,
+    face: Direction,
+} = null,
 
 pub fn init(info: struct {
     difficulty: Difficulty,
@@ -56,10 +62,22 @@ pub fn init(info: struct {
 pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator; // autofix
     const now = try std.time.Instant.now();
+    defer self.last_tick = now;
+
+    // Update mining
+    if (self.mining_state) |*mining_state| {
+        mining_state.ticks += 1;
+        if (mining_state.ticks > 10) {
+            try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+                .action = .finish_breaking_block,
+                .block_pos = mining_state.target_block_pos,
+                .face = mining_state.face,
+            } });
+        }
+    }
+
     self.entities.processEntityRemovals();
     try self.player.update(game);
-
-    self.last_tick = now;
 }
 
 pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {

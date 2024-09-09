@@ -66,7 +66,15 @@ pub const Client = union(ClientState) {
         world: World,
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
-        input: InputQueue = .{},
+        input_queue: InputQueue = .{},
+        inputs: struct {
+            hand: struct {
+                main: bool,
+                pick: bool,
+                use: bool,
+            },
+            movement: struct {},
+        },
     };
 
     idle: Idle,
@@ -156,13 +164,36 @@ pub const Client = union(ClientState) {
     pub fn handleInputOnTick(self: *@This()) !void {
         switch (self.*) {
             .game => |*game| {
-                const player_input = &game.world.player.input;
-
-                while (game.input.on_tick.readItem()) |input| {
+                const player = &game.world.player;
+                const player_input = &player.input;
+                while (game.input_queue.on_tick.readItem()) |input| {
                     switch (input) {
                         .hand => |hand| {
                             switch (hand) {
                                 .drop => |drop| if (drop) try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
+                                .main => |main| switch (main) {
+                                    true => {
+                                        try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
+                                        switch (player.crosshair) {
+                                            .block => |block| {
+                                                game.world.mining_state = .{ .target_block_pos = block.block_pos, .face = block.dir };
+                                                try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+                                                    .action = .start_breaking_block,
+                                                    .face = block.dir,
+                                                    .block_pos = block.block_pos,
+                                                } });
+                                            },
+                                            .entity => |entity| {
+                                                try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+                                                    .action = .attack,
+                                                    .target_network_id = entity.entity_network_id,
+                                                } });
+                                            },
+                                            .miss => {},
+                                        }
+                                    },
+                                    false => {},
+                                },
                                 else => {},
                             }
                         },
@@ -191,7 +222,7 @@ pub const Client = union(ClientState) {
             .game => |*game| {
                 const player = &game.world.player;
 
-                while (game.input.on_frame.readItem()) |input| {
+                while (game.input_queue.on_frame.readItem()) |input| {
                     switch (input) {
                         .hand => std.debug.panic("Hand action on frame - don't do this! Queue on tick instead", .{}),
                         .movement => std.debug.panic("Movement action on frame - don't do this! Queue on tick instead", .{}),
