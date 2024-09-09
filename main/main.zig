@@ -54,8 +54,7 @@ pub const World = @import("world/World.zig");
 pub const Chunk = World.Chunk;
 pub const Section = World.Section;
 
-pub const Client = @import("client.zig").Client;
-pub const ClientState = @import("client.zig").ClientState;
+pub const Client = @import("client/client.zig").Client;
 
 const EnumBoolArray = @import("util").EnumBoolArray;
 const std = @import("std");
@@ -95,7 +94,6 @@ pub fn main() !void {
         if (client == .game) try client.tickWorld();
         if (client == .game) try client.handleInputOnFrame();
 
-        if (client != .idle) client.checkConnection();
         try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input_queue else null });
         if (done) break;
     }

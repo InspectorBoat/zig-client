@@ -2,14 +2,14 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
-const ClientState = root.ClientState;
+
 const DataTracker = root.Entity.DataTracker;
 
 network_id: i32,
 entries: []const DataTrackerEntry,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .game,
+comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const network_id = try buffer.readVarInt();

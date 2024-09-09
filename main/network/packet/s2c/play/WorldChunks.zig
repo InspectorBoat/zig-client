@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
-const ClientState = root.ClientState;
+
 const Vector2xz = root.Vector2xz;
 
 chunk_positions: []const Vector2xz(i32),
@@ -10,7 +10,7 @@ chunk_datas: []ChunkData,
 has_light: bool,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .game,
+comptime required_client_state: Client.State = .game,
 
 pub const ChunkData = S2C.Play.WorldChunk.ChunkData;
 

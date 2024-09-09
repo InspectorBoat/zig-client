@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
-const ClientState = root.ClientState;
+
 const World = root.World;
 const GameMode = World.GameMode;
 const Difficulty = World.Difficulty;
@@ -20,7 +20,7 @@ generator_type: GeneratorType,
 reduced_debug_info: bool,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .connecting,
+comptime required_client_state: Client.State = .connecting,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;

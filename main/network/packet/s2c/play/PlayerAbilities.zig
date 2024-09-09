@@ -3,7 +3,6 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const C2S = root.network.packet.C2S;
 const Client = root.Client;
-const ClientState = root.ClientState;
 
 is_invulnerable: bool,
 is_flying: bool,
@@ -13,7 +12,7 @@ fly_speed: f32,
 walk_speed: f32,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .game,
+comptime required_client_state: Client.State = .game,
 
 pub const AbilityFlags = C2S.Play.PlayerAbilities.AbilityFlags;
 

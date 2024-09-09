@@ -1,58 +1,11 @@
 const std = @import("std");
 const root = @import("root");
 const Vector2xy = root.Vector2xy;
-const connection = @import("network/connection.zig");
-const Connection = @import("network/connection.zig").Connection;
-const ConnectionHandle = @import("network/connection.zig").ConnectionHandle;
-const World = @import("world/World.zig");
-const Screen = @import("screen/Screen.zig");
+const Connection = root.network.Connection;
+const ConnectionHandle = root.network.ConnectionHandle;
+const World = root.World;
 
-pub const ClientState = enum { idle, connecting, game };
-
-pub const Client = union(ClientState) {
-    pub const InputQueue = struct {
-        on_frame: std.fifo.LinearFifo(Input, .{ .Static = 256 }) = .init(),
-        on_tick: std.fifo.LinearFifo(Input, .{ .Static = 128 }) = .init(),
-
-        pub fn queueOnFrame(self: *@This(), input: Input) !void {
-            try self.on_frame.writeItem(input);
-        }
-        pub fn queueOnTick(self: *@This(), input: Input) !void {
-            try self.on_tick.writeItem(input);
-        }
-    };
-
-    pub const Input = union(enum) {
-        rotate: Vector2xy(i32),
-        movement: union(enum) {
-            forward: bool,
-            left: bool,
-            right: bool,
-            back: bool,
-            jump: bool,
-            sprint: bool,
-            sneak: bool,
-        },
-        hand: union(enum) {
-            main: bool,
-            pick: bool,
-            use: bool,
-            hotkey: struct { i32, bool },
-            scroll: i32,
-            drop: bool,
-        },
-        inventory: union(enum) {
-            toggle,
-            click_stack: usize,
-            drag_stack: usize,
-            release_drag,
-            deposit_stack: usize,
-            release_deposit: usize,
-            drop_item: usize,
-            drop_full_stack: usize,
-        },
-    };
-
+pub const Client = union(enum) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
     };
@@ -67,15 +20,20 @@ pub const Client = union(ClientState) {
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
         input_queue: InputQueue = .{},
-        inputs: struct {
+        active_inputs: struct {
             hand: struct {
-                main: bool,
-                pick: bool,
-                use: bool,
-            },
-            movement: struct {},
-        },
+                main: bool = false,
+                pick: bool = false,
+                use: bool = false,
+            } = .{},
+            movement: struct {} = .{},
+        } = .{},
     };
+
+    pub const InputQueue = @import("InputQueue.zig");
+    pub const Input = InputQueue.Input;
+
+    pub const State = std.meta.Tag(@This());
 
     idle: Idle,
     connecting: Connecting,
@@ -84,7 +42,7 @@ pub const Client = union(ClientState) {
     pub fn initConnection(self: *@This(), name: []const u8, port: u16, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
         switch (self.*) {
             .idle => |idle| {
-                const connection_handle = try connection.initConnection(name, port, allocator, c2s_packet_allocator);
+                const connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
                 self.* = .{ .connecting = .{
                     .gpa = idle.gpa,
                     .connection_handle = connection_handle,
@@ -126,6 +84,7 @@ pub const Client = union(ClientState) {
         }
     }
 
+    /// Returns the number of ticks elapsed since last call
     pub fn advanceTimer(self: *@This()) !usize {
         switch (self.*) {
             .game => |*game| {
@@ -144,7 +103,9 @@ pub const Client = union(ClientState) {
 
                 // Do logging
                 if (game.partial_tick > 0.0001) {
-                    const delay = game.partial_tick * @as(f64, @floatFromInt(game.world.tick_timer.nanosPerTick())) / std.time.ns_per_ms;
+                    const nanos_per_tick: f64 = @floatFromInt(game.world.tick_timer.nanosPerTick());
+                    const ms_per_tick = nanos_per_tick / std.time.ns_per_ms;
+                    const delay = game.partial_tick * ms_per_tick;
                     @import("log").delayed_tick(.{delay});
                     game.tick_delay += delay;
                 } else {
@@ -274,9 +235,13 @@ pub const Client = union(ClientState) {
         }
 
         // Free c2s packets already sent by the network thread
-        c2s_packet_queue.lock();
-        defer c2s_packet_queue.unlock();
-        while (c2s_packet_queue.free()) |_| {}
+        {
+            c2s_packet_queue.lock();
+            defer c2s_packet_queue.unlock();
+            while (c2s_packet_queue.free()) |_| {}
+        }
+
+        self.checkConnection();
     }
 
     /// Disconnect if we broke connection

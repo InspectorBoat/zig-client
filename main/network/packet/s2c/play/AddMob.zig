@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
-const ClientState = root.ClientState;
+
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 const ScaledRotation1 = root.network.ScaledRotation1;
@@ -19,7 +19,7 @@ head_yaw: ScaledRotation1(i8, 256.0 / 360.0),
 datatracker_entries: []const S2C.Play.EntityData.DataTrackerEntry,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .game,
+comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;

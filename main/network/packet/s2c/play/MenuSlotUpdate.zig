@@ -2,7 +2,7 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
-const ClientState = root.ClientState;
+
 const ItemStack = root.ItemStack;
 
 menu_network_id: i32,
@@ -10,7 +10,7 @@ slot_id: i32,
 item_stack: ?ItemStack,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .game,
+comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return .{

@@ -2,14 +2,14 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
-const ClientState = root.ClientState;
+
 const ScaledVector = root.network.ScaledVector;
 const ScaledRotation2 = root.network.ScaledRotation2;
 
 network_id: i32,
 
 comptime handle_on_network_thread: bool = false,
-comptime required_client_state: ClientState = .game,
+comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
@@ -30,7 +30,7 @@ pub const Position = struct {
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
-    comptime required_client_state: ClientState = .game,
+    comptime required_client_state: Client.State = .game,
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
@@ -58,7 +58,7 @@ pub const Angles = struct {
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
-    comptime required_client_state: ClientState = .game,
+    comptime required_client_state: Client.State = .game,
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
@@ -86,7 +86,7 @@ pub const PositionAndAngles = struct {
     on_ground: bool,
 
     comptime handle_on_network_thread: bool = false,
-    comptime required_client_state: ClientState = .game,
+    comptime required_client_state: Client.State = .game,
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
