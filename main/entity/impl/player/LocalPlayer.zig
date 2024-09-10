@@ -17,21 +17,7 @@ player: Entity.PlayerBase = .{},
 inventory: PlayerInventory = .{},
 abilities: PlayerAbilities = .{},
 
-input: struct {
-    forward: bool = false,
-    left: bool = false,
-    right: bool = false,
-    back: bool = false,
-    jump: bool = false,
-    sneak: bool = false,
-    sprint: bool = false,
-    pub fn steer(self: @This()) Vector2xz(f32) {
-        return .{
-            .x = @floatFromInt(@as(i2, @intFromBool(self.left)) - @as(i2, @intFromBool(self.right))),
-            .z = @floatFromInt(@as(i2, @intFromBool(self.forward)) - @as(i2, @intFromBool(self.back))),
-        };
-    }
-} = .{},
+input: Inputs = .{},
 
 item_in_use: ?*ItemStack = null,
 item_use_timer: i32 = 0,
@@ -52,6 +38,29 @@ server_movement_status: struct {
 } = .{},
 
 crosshair: HitResult = .miss,
+
+pub const Inputs = struct {
+    hand: struct {
+        main: bool = false,
+        pick: bool = false,
+        use: bool = false,
+    } = .{},
+    movement: struct {
+        forward: bool = false,
+        left: bool = false,
+        right: bool = false,
+        back: bool = false,
+        jump: bool = false,
+        sneak: bool = false,
+        sprint: bool = false,
+        pub fn steer(self: @This()) Vector2xz(f32) {
+            return .{
+                .x = @floatFromInt(@as(i2, @intFromBool(self.left)) - @as(i2, @intFromBool(self.right))),
+                .z = @floatFromInt(@as(i2, @intFromBool(self.forward)) - @as(i2, @intFromBool(self.back))),
+            };
+        }
+    } = .{},
+};
 
 pub fn update(self: *@This(), game: *Client.Game) !void {
     self.crosshair = HitResult.rayTraceWorld(game.world, self.getEyePos(), self.base.rotation, 30, .{});
@@ -103,9 +112,9 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     // close screen if in portal
 
     // set steer from input
-    var steer = self.input.steer();
+    var steer = self.input.movement.steer();
     // apply slowdown
-    if (self.input.sneak) {
+    if (self.input.movement.sneak) {
         steer.x = @floatCast(@as(f64, steer.x) * 0.3);
         steer.z = @floatCast(@as(f64, steer.z) * 0.3);
     }
@@ -142,14 +151,14 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     // if dead, stop movement inputs
     // otherwise, if camera, update movement inputs, multiplying steer by 0.98
     if (!self.hasControl()) {
-        self.input.back, self.input.forward, self.input.left, self.input.left, self.input.jump = .{ false, false, false, false, false };
+        self.input.movement.back, self.input.movement.forward, self.input.movement.left, self.input.movement.left, self.input.movement.jump = .{ false, false, false, false, false };
         steer = .origin();
     } else {
         steer = steer.scaleUniform(0.98);
     }
 
     // attempt to jump or float
-    if (self.input.jump) {
+    if (self.input.movement.jump) {
         if (self.inWater() or self.inLava()) {
             self.base.velocity.y += 0.04;
         } else if (self.base.colliding.on_ground) {
@@ -217,7 +226,7 @@ pub fn updateSprinting(self: *@This(), steer: Vector2xz(f32)) !void {
     const sufficient_food = self.player.hunger.food_level > 6 or self.abilities.allow_flying;
     const not_using_item = self.item_in_use == null;
     const not_blinded = !self.living.hasStatusEffect(.Blindness);
-    const sprint_input = self.input.sprint;
+    const sprint_input = self.input.movement.sprint;
     if (sprint_input and
         !try self.base.isSprinting() and
         (sufficient_forward_input) and
@@ -406,7 +415,7 @@ pub fn setSprinting(self: *@This(), sprint_state: bool) !void {
 }
 
 pub fn isSneaking(self: @This()) bool {
-    return self.input.sneak and !self.player.sleeping;
+    return self.input.movement.sneak and !self.player.sleeping;
 }
 
 pub fn syncAbilities(self: *@This(), game: *const Client.Game) void {

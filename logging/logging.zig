@@ -8,16 +8,17 @@ pub fn LogType(comptime enabled: bool, comptime fmt: []const u8) fn (args: anyty
     }.closure;
 }
 
-pub const ring_buffer_oom_wait = LogType(false, "ring buffer ran out of memory, waiting");
 pub const DEBUG_RING_ALLOCATOR = false;
+pub const ring_buffer_oom_wait = LogType(DEBUG_RING_ALLOCATOR, "ring buffer ran out of memory, waiting");
+pub const ring_buffer_oom = LogType(DEBUG_RING_ALLOCATOR, "failed {} byte allocation from ring allocator, used {} bytes");
 pub const ring_buffer_allocate = LogType(DEBUG_RING_ALLOCATOR, "allocated {} bytes from ring allocator");
 pub const ring_buffer_free = LogType(DEBUG_RING_ALLOCATOR, "freed {} bytes from ring allocator");
 pub const stop_network_thread = LogType(true, "stopping network thread");
 pub const invalid_opcode = LogType(true, "invalid opcode {}");
-pub const switch_protocol = LogType(true, "switching protocol to {}");
+pub const switch_protocol = LogType(false, "switching protocol to {}");
 pub const warn_unused_buffer_bytes = LogType(false, "{} unused bytes in buffer");
 pub const decode_packet = LogType(false, "decoding packet - {} bytes header + {} bytes body");
-pub const handle_packet = LogType(false, "handling packet - {}");
+pub const handle_packet = LogType(false, "handling packet - {s}");
 pub const recieve_teleport_packet = LogType(false, "teleported to pos: {} | rot: {} | rel: {}");
 pub const transaction = LogType(false, "transaction - {}");
 pub const free_section = LogType(false, "freeing section");

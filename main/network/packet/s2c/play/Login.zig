@@ -52,7 +52,7 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
             .dimension = self.dimension,
             .hardcore = self.hardcore,
         },
-        LocalPlayerEntity{
+        .{
             .base = .{
                 .network_id = self.network_id,
             },

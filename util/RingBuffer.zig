@@ -14,6 +14,7 @@ pub fn alloc(self: *@This(), n: usize, log2_ptr_align: u8) ![]u8 {
 
     // reset state if we couldn't allocate
     errdefer {
+        @import("log").ring_buffer_oom(.{ n, self.used_bytes });
         self.alloc_index = start_alloc_index;
         self.used_bytes = start_used_bytes;
     }

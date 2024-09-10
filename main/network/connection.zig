@@ -120,8 +120,8 @@ pub const Connection = struct {
             inline else => |*specific_protocol| {
                 switch (specific_protocol.*) {
                     inline else => |*specific_packet| {
+                        @import("log").handle_packet(.{@tagName(std.meta.activeTag(specific_protocol.*))});
                         if (specific_packet.handle_on_network_thread) {
-                            @import("log").handle_packet(.{specific_packet});
                             try specific_packet.handleOnNetworkThread(self);
                             // free immediately
                             if (self.s2c_packet_ring_alloc.alloc_index != initial_alloc_index) {

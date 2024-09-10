@@ -1,6 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const Vector2xy = root.Vector2xy;
+const Vector2xz = root.Vector2xz;
 const Connection = root.network.Connection;
 const ConnectionHandle = root.network.ConnectionHandle;
 const World = root.World;
@@ -30,14 +31,6 @@ pub const Client = union(enum) {
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
         input_queue: InputQueue = .{},
-        active_inputs: struct {
-            hand: struct {
-                main: bool = false,
-                pick: bool = false,
-                use: bool = false,
-            } = .{},
-            movement: struct {} = .{},
-        } = .{},
 
         pub fn handleInputOnFrame(self: *@This()) void {
             const player = &self.world.player;
@@ -91,13 +84,13 @@ pub const Client = union(enum) {
                     },
                     .movement => |movement| {
                         switch (movement) {
-                            .forward => |forward| player_input.forward = forward,
-                            .left => |left| player_input.left = left,
-                            .right => |right| player_input.right = right,
-                            .back => |back| player_input.back = back,
-                            .jump => |jump| player_input.jump = jump,
-                            .sprint => |sprint| player_input.sprint = sprint,
-                            .sneak => |sneak| player_input.sneak = sneak,
+                            .forward => |forward| player_input.movement.forward = forward,
+                            .left => |left| player_input.movement.left = left,
+                            .right => |right| player_input.movement.right = right,
+                            .back => |back| player_input.movement.back = back,
+                            .jump => |jump| player_input.movement.jump = jump,
+                            .sprint => |sprint| player_input.movement.sprint = sprint,
+                            .sneak => |sneak| player_input.movement.sneak = sneak,
                         }
                     },
                     .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
@@ -109,7 +102,6 @@ pub const Client = union(enum) {
 
     pub const InputQueue = @import("InputQueue.zig");
     pub const Input = InputQueue.Input;
-
     pub const State = std.meta.Tag(@This());
 
     idle: Idle,
@@ -159,7 +151,7 @@ pub const Client = union(enum) {
             s2c_packet_queue.lock();
             break :blk s2c_packet_queue.read();
         }) |s2c_packet_wrapper| : (s2c_packet_queue.unlock()) {
-            @import("log").handle_packet(.{s2c_packet_wrapper.packet});
+            @import("log").handle_packet(.{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
 
             var s2c_play_packet = s2c_packet_wrapper.packet;
 
