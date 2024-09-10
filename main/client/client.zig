@@ -8,6 +8,16 @@ const World = root.World;
 pub const Client = union(enum) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
+
+        pub fn initConnection(self: *@This(), name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
+            var connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
+            const client: *Client = @fieldParentPtr("idle", self);
+            client.* = .{ .connecting = .{
+                .gpa = self.gpa,
+                .connection_handle = connection_handle,
+            } };
+            try connection_handle.sendLoginSequence(player_name);
+        }
     };
     pub const Connecting = struct {
         gpa: std.mem.Allocator,
@@ -28,6 +38,73 @@ pub const Client = union(enum) {
             } = .{},
             movement: struct {} = .{},
         } = .{},
+
+        pub fn handleInputOnFrame(self: *@This()) void {
+            const player = &self.world.player;
+
+            while (self.input_queue.on_frame.readItem()) |input| {
+                switch (input) {
+                    .hand => std.debug.panic("Hand action on frame - don't do this! Queue on tick instead", .{}),
+                    .movement => std.debug.panic("Movement action on frame - don't do this! Queue on tick instead", .{}),
+                    .rotate => |rotation| {
+                        player.base.rotation.yaw -= @as(f32, @floatFromInt(rotation.x)) / 5;
+                        player.base.rotation.pitch -= @as(f32, @floatFromInt(rotation.y)) / 5;
+                    },
+                    .inventory => std.debug.panic("Inventory action on frame - don't do this! Queue on tick instead!", .{}),
+                }
+            }
+        }
+
+        pub fn handleInputOnTick(self: *@This()) !void {
+            const player = &self.world.player;
+            const player_input = &player.input;
+            while (self.input_queue.on_tick.readItem()) |input| {
+                switch (input) {
+                    .hand => |hand| {
+                        switch (hand) {
+                            .drop => |drop| if (drop) try self.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
+                            .main => |main| switch (main) {
+                                true => {
+                                    try self.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
+                                    switch (player.crosshair) {
+                                        .block => |block| {
+                                            self.world.mining_state = .{ .target_block_pos = block.block_pos, .face = block.dir };
+                                            try self.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+                                                .action = .start_breaking_block,
+                                                .face = block.dir,
+                                                .block_pos = block.block_pos,
+                                            } });
+                                        },
+                                        .entity => |entity| {
+                                            try self.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+                                                .action = .attack,
+                                                .target_network_id = entity.entity_network_id,
+                                            } });
+                                        },
+                                        .miss => {},
+                                    }
+                                },
+                                false => {},
+                            },
+                            else => {},
+                        }
+                    },
+                    .movement => |movement| {
+                        switch (movement) {
+                            .forward => |forward| player_input.forward = forward,
+                            .left => |left| player_input.left = left,
+                            .right => |right| player_input.right = right,
+                            .back => |back| player_input.back = back,
+                            .jump => |jump| player_input.jump = jump,
+                            .sprint => |sprint| player_input.sprint = sprint,
+                            .sneak => |sneak| player_input.sneak = sneak,
+                        }
+                    },
+                    .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
+                    .inventory => std.debug.panic("TODO!", .{}),
+                }
+            }
+        }
     };
 
     pub const InputQueue = @import("InputQueue.zig");
@@ -39,58 +116,13 @@ pub const Client = union(enum) {
     connecting: Connecting,
     game: Game,
 
-    pub fn initConnection(self: *@This(), name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
-        switch (self.*) {
-            .idle => |idle| {
-                var connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
-                self.* = .{ .connecting = .{
-                    .gpa = idle.gpa,
-                    .connection_handle = connection_handle,
-                } };
-                try connection_handle.sendLoginSequence(player_name);
-            },
-            else => unreachable,
-        }
-    }
-
-    /// Calling this if self is .game or .connecting is always safe, because it can only be called once
-    pub fn disconnect(self: *@This()) void {
+    ///Handle inputs, and tick world if necessary
+    pub fn updateGame(self: *@This()) !void {
         switch (self.*) {
             .game => |*game| {
-                @import("log").total_tick_delay(.{game.tick_delay});
-                @import("log").disconnect(.{});
-                game.connection_handle.disconnect(game.gpa);
-                game.world.deinit(game.gpa);
-                self.* = .{ .idle = .{
-                    .gpa = game.gpa,
-                } };
-            },
-            .connecting => |*connecting| {
-                @import("log").disconnect(.{});
-                connecting.connection_handle.disconnect(connecting.gpa);
-                self.* = .{ .idle = .{
-                    .gpa = connecting.gpa,
-                } };
-            },
-            else => unreachable,
-        }
-    }
+                game.handleInputOnFrame();
 
-    /// Returns the number of ticks elapsed since last call
-    pub fn advanceTimer(self: *@This()) !usize {
-        switch (self.*) {
-            .game => |*game| {
                 const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance();
-                return ticks_elapsed;
-            },
-            else => unreachable,
-        }
-    }
-
-    pub fn tickWorld(self: *@This()) !void {
-        switch (self.*) {
-            .game => |*game| {
-                const ticks_elapsed = try self.advanceTimer();
                 if (ticks_elapsed == 0) return;
 
                 // Do logging
@@ -105,7 +137,7 @@ pub const Client = union(enum) {
                 }
                 if (ticks_elapsed > 1) @import("log").lag_spike(.{ticks_elapsed});
 
-                try self.handleInputOnTick();
+                try game.handleInputOnTick();
                 for (0..ticks_elapsed) |_| {
                     try game.world.tick(game, game.gpa);
                 }
@@ -114,87 +146,11 @@ pub const Client = union(enum) {
         }
     }
 
-    pub fn handleInputOnTick(self: *@This()) !void {
-        switch (self.*) {
-            .game => |*game| {
-                const player = &game.world.player;
-                const player_input = &player.input;
-                while (game.input_queue.on_tick.readItem()) |input| {
-                    switch (input) {
-                        .hand => |hand| {
-                            switch (hand) {
-                                .drop => |drop| if (drop) try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
-                                .main => |main| switch (main) {
-                                    true => {
-                                        try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
-                                        switch (player.crosshair) {
-                                            .block => |block| {
-                                                game.world.mining_state = .{ .target_block_pos = block.block_pos, .face = block.dir };
-                                                try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                                                    .action = .start_breaking_block,
-                                                    .face = block.dir,
-                                                    .block_pos = block.block_pos,
-                                                } });
-                                            },
-                                            .entity => |entity| {
-                                                try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
-                                                    .action = .attack,
-                                                    .target_network_id = entity.entity_network_id,
-                                                } });
-                                            },
-                                            .miss => {},
-                                        }
-                                    },
-                                    false => {},
-                                },
-                                else => {},
-                            }
-                        },
-                        .movement => |movement| {
-                            switch (movement) {
-                                .forward => |forward| player_input.forward = forward,
-                                .left => |left| player_input.left = left,
-                                .right => |right| player_input.right = right,
-                                .back => |back| player_input.back = back,
-                                .jump => |jump| player_input.jump = jump,
-                                .sprint => |sprint| player_input.sprint = sprint,
-                                .sneak => |sneak| player_input.sneak = sneak,
-                            }
-                        },
-                        .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
-                        .inventory => std.debug.panic("TODO!", .{}),
-                    }
-                }
-            },
-            else => unreachable,
-        }
-    }
-
-    pub fn handleInputOnFrame(self: *@This()) !void {
-        switch (self.*) {
-            .game => |*game| {
-                const player = &game.world.player;
-
-                while (game.input_queue.on_frame.readItem()) |input| {
-                    switch (input) {
-                        .hand => std.debug.panic("Hand action on frame - don't do this! Queue on tick instead", .{}),
-                        .movement => std.debug.panic("Movement action on frame - don't do this! Queue on tick instead", .{}),
-                        .rotate => |rotation| {
-                            player.base.rotation.yaw -= @as(f32, @floatFromInt(rotation.x)) / 5;
-                            player.base.rotation.pitch -= @as(f32, @floatFromInt(rotation.y)) / 5;
-                        },
-                        .inventory => std.debug.panic("Inventory action on frame - don't do this! Queue on tick instead!", .{}),
-                    }
-                }
-            },
-            else => unreachable,
-        }
-    }
-
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
+    /// Disconnects if connection is closed
     pub fn tickConnection(self: *@This()) !void {
-        const s2c_packet_queue, const c2s_packet_queue, const allocator = switch (self.*) {
-            inline .game, .connecting => |client_state| .{ client_state.connection_handle.s2c_packet_queue, client_state.connection_handle.c2s_packet_queue, client_state.gpa },
+        const connection_handle, const s2c_packet_queue, const c2s_packet_queue, const allocator = switch (self.*) {
+            inline .game, .connecting => |client_state| .{ client_state.connection_handle, client_state.connection_handle.s2c_packet_queue, client_state.connection_handle.c2s_packet_queue, client_state.gpa },
             else => unreachable,
         };
 
@@ -222,9 +178,8 @@ pub const Client = union(enum) {
                     );
                 },
             }
-        } else {
-            s2c_packet_queue.unlock();
         }
+        s2c_packet_queue.unlock();
 
         // Free c2s packets already sent by the network thread
         {
@@ -233,17 +188,29 @@ pub const Client = union(enum) {
             while (c2s_packet_queue.free()) |_| {}
         }
 
-        self.checkConnection();
+        if (connection_handle.disconnected.*) {
+            self.disconnect();
+        }
     }
 
-    /// Disconnect if we broke connection
-    pub fn checkConnection(self: *@This()) void {
+    /// Calling this if self is .game or .connecting is always safe, because it can only be called once
+    pub fn disconnect(self: *@This()) void {
         switch (self.*) {
-            inline .connecting, .game => |game_state| {
-                if (game_state.connection_handle.disconnected.*) {
-                    std.debug.print("main thread disconnecting\n", .{});
-                    self.disconnect();
-                }
+            .game => |*game| {
+                @import("log").total_tick_delay(.{game.tick_delay});
+                @import("log").disconnect(.{});
+                game.connection_handle.disconnect(game.gpa);
+                game.world.deinit(game.gpa);
+                self.* = .{ .idle = .{
+                    .gpa = game.gpa,
+                } };
+            },
+            .connecting => |*connecting| {
+                @import("log").disconnect(.{});
+                connecting.connection_handle.disconnect(connecting.gpa);
+                self.* = .{ .idle = .{
+                    .gpa = connecting.gpa,
+                } };
             },
             else => unreachable,
         }
