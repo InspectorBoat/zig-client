@@ -39,23 +39,15 @@ pub const Client = union(enum) {
     connecting: Connecting,
     game: Game,
 
-    pub fn initConnection(self: *@This(), name: []const u8, port: u16, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
+    pub fn initConnection(self: *@This(), name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
         switch (self.*) {
             .idle => |idle| {
-                const connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
+                var connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
                 self.* = .{ .connecting = .{
                     .gpa = idle.gpa,
                     .connection_handle = connection_handle,
                 } };
-            },
-            else => unreachable,
-        }
-    }
-
-    pub fn initLoginSequence(self: *@This(), player_name: []const u8) !void {
-        switch (self.*) {
-            .connecting => |*connecting| {
-                try connecting.connection_handle.sendLoginSequence(player_name);
+                try connection_handle.sendLoginSequence(player_name);
             },
             else => unreachable,
         }

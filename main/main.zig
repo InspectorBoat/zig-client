@@ -79,8 +79,7 @@ pub fn main() !void {
     var c2s_packet_alloc_impl = std.heap.GeneralPurposeAllocator(.{}){};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
-    try client.initConnection("127.0.0.1", 25565, gpa, c2s_packet_alloc);
-    try client.initLoginSequence("baz");
+    try client.initConnection("127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
 
     defer {
         if (client == .game or client == .connecting) {
