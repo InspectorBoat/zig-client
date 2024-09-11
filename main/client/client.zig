@@ -31,6 +31,7 @@ pub const Client = union(enum) {
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
         input_queue: InputQueue = .{},
+        active_inputs: ActiveInputs = .{},
 
         pub fn handleInputOnFrame(self: *@This()) void {
             const player = &self.world.player;
@@ -50,9 +51,9 @@ pub const Client = union(enum) {
 
         pub fn handleInputOnTick(self: *@This()) !void {
             const player = &self.world.player;
-            const player_input = &player.input;
-            while (self.input_queue.on_tick.readItem()) |input| {
-                switch (input) {
+            const inputs = &self.active_inputs;
+            while (self.input_queue.on_tick.readItem()) |queued_input| {
+                switch (queued_input) {
                     .hand => |hand| {
                         switch (hand) {
                             .drop => |drop| if (drop) try self.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
@@ -60,37 +61,29 @@ pub const Client = union(enum) {
                                 true => {
                                     try self.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
                                     switch (player.crosshair) {
-                                        .block => |block| {
-                                            self.world.mining_state = .{ .target_block_pos = block.block_pos, .face = block.dir };
-                                            try self.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                                                .action = .start_breaking_block,
-                                                .face = block.dir,
-                                                .block_pos = block.block_pos,
-                                            } });
-                                        },
+                                        .miss, .block => inputs.hand.main = true,
                                         .entity => |entity| {
                                             try self.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
                                                 .action = .attack,
                                                 .target_network_id = entity.entity_network_id,
                                             } });
                                         },
-                                        .miss => {},
                                     }
                                 },
-                                false => {},
+                                false => inputs.hand.main = false,
                             },
                             else => {},
                         }
                     },
                     .movement => |movement| {
                         switch (movement) {
-                            .forward => |forward| player_input.movement.forward = forward,
-                            .left => |left| player_input.movement.left = left,
-                            .right => |right| player_input.movement.right = right,
-                            .back => |back| player_input.movement.back = back,
-                            .jump => |jump| player_input.movement.jump = jump,
-                            .sprint => |sprint| player_input.movement.sprint = sprint,
-                            .sneak => |sneak| player_input.movement.sneak = sneak,
+                            .forward => |forward| inputs.movement.forward = forward,
+                            .left => |left| inputs.movement.left = left,
+                            .right => |right| inputs.movement.right = right,
+                            .back => |back| inputs.movement.back = back,
+                            .jump => |jump| inputs.movement.jump = jump,
+                            .sprint => |sprint| inputs.movement.sprint = sprint,
+                            .sneak => |sneak| inputs.movement.sneak = sneak,
                         }
                     },
                     .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
@@ -98,6 +91,29 @@ pub const Client = union(enum) {
                 }
             }
         }
+
+        pub const ActiveInputs = struct {
+            hand: struct {
+                main: bool = false,
+                pick: bool = false,
+                use: bool = false,
+            } = .{},
+            movement: struct {
+                forward: bool = false,
+                left: bool = false,
+                right: bool = false,
+                back: bool = false,
+                jump: bool = false,
+                sneak: bool = false,
+                sprint: bool = false,
+                pub fn steer(self: @This()) Vector2xz(f32) {
+                    return .{
+                        .x = @floatFromInt(@as(i2, @intFromBool(self.left)) - @as(i2, @intFromBool(self.right))),
+                        .z = @floatFromInt(@as(i2, @intFromBool(self.forward)) - @as(i2, @intFromBool(self.back))),
+                    };
+                }
+            } = .{},
+        };
     };
 
     pub const InputQueue = @import("InputQueue.zig");
