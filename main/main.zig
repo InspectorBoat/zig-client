@@ -68,7 +68,7 @@ pub fn main() !void {
 
     try EventHandler.dispatch(Events.Startup, .{});
 
-    var gpa_impl = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
     const gpa = gpa_impl.allocator();
 
     try network_lib.init();
@@ -76,7 +76,7 @@ pub fn main() !void {
 
     var client: Client = .{ .idle = .{ .gpa = gpa } };
 
-    var c2s_packet_alloc_impl = std.heap.GeneralPurposeAllocator(.{}){};
+    var c2s_packet_alloc_impl: std.heap.GeneralPurposeAllocator(.{}) = .{};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
     try client.idle.initConnection("127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
