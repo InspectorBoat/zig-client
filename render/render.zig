@@ -138,8 +138,13 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
                     .escape => window_input.window.setShouldClose(true),
-                    .f => if (key.action == .press) gl.polygonMode(.front_and_back, .line),
-                    .g => if (key.action == .press) gl.polygonMode(.front_and_back, .fill),
+                    .f => if (key.action == .press) {
+                        renderer.draw_mode = switch (renderer.draw_mode) {
+                            .fill => .line,
+                            .line => .fill,
+                            .point => .fill,
+                        };
+                    },
                     .k => if (key.action == .press) try renderer.recompileAllChunks(),
                     .l => if (key.action == .press) {
                         @import("log").reload_shader(.{});

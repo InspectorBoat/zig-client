@@ -33,6 +33,7 @@ allocator: std.mem.Allocator,
 chunk_tracker: ChunkTracker,
 debug_buffer: gl.Buffer,
 debug_staging_buffer: GpuStagingBuffer,
+draw_mode: gl.DrawMode = .fill,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -199,6 +200,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     self.terrain_program.uniform1i(2, 0);
     self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
     self.entity_program.uniformMatrix4(0, true, &.{mvp.data});
+    gl.polygonMode(.front_and_back, self.draw_mode);
 
     var entries = self.chunk_tracker.chunks.iterator();
     while (entries.next()) |entry| {
@@ -214,6 +216,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     }
     try self.bufferCrosshair(&game.world);
     try self.bufferEntities(&game.world);
+
     self.renderDebug();
 }
 
@@ -286,6 +289,8 @@ pub fn renderDebug(self: *@This()) void {
     self.entity_program.use();
     self.vao.bind();
     self.vao.vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
+    gl.polygonMode(.front_and_back, .line);
+
     self.debug_buffer.subData(0, u8, self.debug_staging_buffer.backer.items);
     gl.drawElements(.triangle_strip, self.debug_staging_buffer.backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
 
