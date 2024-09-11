@@ -50,6 +50,7 @@ pub const Client = union(enum) {
         }
 
         pub fn handleInputOnTick(self: *@This()) !void {
+            const interactions = @import("interactions.zig");
             const player = &self.world.player;
             const inputs = &self.active_inputs;
             while (self.input_queue.on_tick.readItem()) |queued_input| {
@@ -59,15 +60,11 @@ pub const Client = union(enum) {
                             .drop => |drop| if (drop) try self.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
                             .main => |main| switch (main) {
                                 true => {
-                                    try self.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
+                                    inputs.hand.main = true;
                                     switch (player.crosshair) {
-                                        .miss, .block => inputs.hand.main = true,
-                                        .entity => |entity| {
-                                            try self.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
-                                                .action = .attack,
-                                                .target_network_id = entity.entity_network_id,
-                                            } });
-                                        },
+                                        .miss => {},
+                                        .block => try interactions.startMiningBlock(self, player),
+                                        .entity => |entity| try interactions.attackEntity(self, entity.entity_network_id),
                                     }
                                 },
                                 false => inputs.hand.main = false,
@@ -89,6 +86,10 @@ pub const Client = union(enum) {
                     .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
                     .inventory => std.debug.panic("TODO!", .{}),
                 }
+            }
+
+            if (inputs.hand.main) {
+                try interactions.updateMiningBlock(self, player);
             }
         }
 
