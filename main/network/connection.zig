@@ -134,9 +134,8 @@ pub const Connection = struct {
                             else
                                 null;
                             self.s2c_packet_queue.lock();
-                            errdefer self.s2c_packet_queue.unlock();
+                            defer self.s2c_packet_queue.unlock();
                             try self.s2c_packet_queue.write(.{ .packet = packet.play, .alloc_index = alloc_index });
-                            self.s2c_packet_queue.unlock();
                         }
                     },
                 }
@@ -447,9 +446,8 @@ pub const ConnectionHandle = struct {
 
     pub fn sendPacket(self: *@This(), packet: C2S) !void {
         self.c2s_packet_queue.lock();
-        errdefer self.c2s_packet_queue.unlock();
+        defer self.c2s_packet_queue.unlock();
         try self.c2s_packet_queue.write(packet);
-        self.c2s_packet_queue.unlock();
     }
 
     pub fn getPacket(self: *@This()) ?S2C {
