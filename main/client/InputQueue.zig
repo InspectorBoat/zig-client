@@ -32,7 +32,7 @@ pub const Input = union(enum) {
         drop: bool,
     },
     inventory: union(enum) {
-        toggle,
+        toggle_screen,
         click_stack: usize,
         drag_stack: usize,
         release_drag,

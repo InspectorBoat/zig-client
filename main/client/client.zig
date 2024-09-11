@@ -118,16 +118,7 @@ pub const Client = union(enum) {
                 if (ticks_elapsed == 0) return;
 
                 // Do logging
-                if (game.partial_tick > 0.0001) {
-                    const nanos_per_tick: f64 = @floatFromInt(game.world.tick_timer.nanosPerTick());
-                    const ms_per_tick = nanos_per_tick / std.time.ns_per_ms;
-                    const delay = game.partial_tick * ms_per_tick;
-                    @import("log").delayed_tick(.{delay});
-                    game.tick_delay += delay;
-                } else {
-                    @import("log").tick_on_time(.{});
-                }
-                if (ticks_elapsed > 1) @import("log").lag_spike(.{ticks_elapsed});
+                logTickStatistics(game.partial_tick, ticks_elapsed);
 
                 try game.handleInputOnTick();
                 for (0..ticks_elapsed) |_| {
@@ -206,5 +197,14 @@ pub const Client = union(enum) {
             },
             else => unreachable,
         }
+    }
+
+    pub fn logTickStatistics(partial_tick: f64, ticks_elapsed: usize) void {
+        if (partial_tick > 0.0001) {
+            @import("log").delayed_tick(.{partial_tick * 50});
+        } else {
+            @import("log").tick_on_time(.{});
+        }
+        if (ticks_elapsed > 1) @import("log").lag_spike(.{ticks_elapsed});
     }
 };
