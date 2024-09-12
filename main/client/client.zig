@@ -81,6 +81,7 @@ pub const Client = union(enum) {
                             .use => |use| switch (use) {
                                 true => {
                                     if (player.item_in_use != null or released_use_item) continue;
+                                    try interactions.use(self, player);
                                 },
                                 false => if (player.item_in_use != null) {
                                     released_use_item = true;

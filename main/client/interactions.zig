@@ -109,7 +109,7 @@ pub fn use(game: *Game, player: *LocalPlayer) !void {
     const interaction_consumed = switch (player.crosshair) {
         .entity => try interactEntityAt(game, player) or try interactEntity(game, player),
         .block => try useBlock(game, player),
-        .miss => {},
+        .miss => false,
     };
     if (!interaction_consumed and false) {}
 }
@@ -120,23 +120,30 @@ pub fn useItem(game: *Game, player: *LocalPlayer) !void {
 }
 
 /// TODO
-pub fn interactEntityAt(game: *Game, player: *LocalPlayer) !void {
-    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{ .action = .{ .interact_at = player.crosshair.entity.pos } } });
+pub fn interactEntityAt(game: *Game, player: *LocalPlayer) !bool {
+    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+        .action = .{ .interact_at = player.crosshair.entity.pos },
+        .target_network_id = player.crosshair.entity.entity_network_id,
+    } });
     return false;
 }
 
 /// TODO
-pub fn interactEntity(game: *Game, player: *LocalPlayer) !void {
-    _ = player;
-    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{ .action = .interact } });
+pub fn interactEntity(game: *Game, player: *LocalPlayer) !bool {
+    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+        .action = .interact,
+        .target_network_id = player.crosshair.entity.entity_network_id,
+    } });
     return false;
 }
 
 /// Returns whether the interaction was consumed
 /// Attempts to either interact with block or place block
 pub fn useBlock(game: *Game, player: *LocalPlayer) !bool {
+    // TODO: World border, check gamemode
     std.debug.assert(player.crosshair == .block);
     std.debug.assert(game.world.getBlock(player.crosshair.block.block_pos) != .air);
+
     return false;
 }
 

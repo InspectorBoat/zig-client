@@ -172,6 +172,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                 if (button.action == .repeat) continue;
                 switch (button.button) {
                     .left => try input_queue.queueOnTick(.{ .hand = .{ .main = (button.action == .press) } }),
+                    .right => try input_queue.queueOnTick(.{ .hand = .{ .use = (button.action == .press) } }),
                     else => {},
                 }
             },
