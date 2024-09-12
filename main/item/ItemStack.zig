@@ -22,3 +22,14 @@ pub fn dupe(maybe_item_stack: ?@This(), allocator: std.mem.Allocator) !?@This() 
 pub fn deinit(maybe_item_stack: *?@This(), allocator: std.mem.Allocator) void {
     ((maybe_item_stack.* orelse return).nbt orelse return).deinit(allocator);
 }
+
+// TODO: Fix this awful code
+pub fn deepEquals(maybe_lhs: ?@This(), maybe_rhs: ?@This()) bool {
+    if (maybe_lhs) |lhs| {
+        if (maybe_rhs) |rhs| {
+            return lhs.item == rhs.item and lhs.metadata == rhs.metadata and lhs.size == rhs.size and blk: {
+                break :blk if (lhs.nbt) |lhs_nbt| lhs_nbt.deepEquals(&.{ .Compound = rhs.nbt orelse break :blk false }) else rhs.nbt == null;
+            };
+        } else return false;
+    } else return maybe_rhs == null;
+}

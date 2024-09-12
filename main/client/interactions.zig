@@ -111,12 +111,20 @@ pub fn use(game: *Game, player: *LocalPlayer) !void {
         .block => try useBlock(game, player),
         .miss => false,
     };
-    if (!interaction_consumed and false) {}
+    if (!interaction_consumed) {
+        try useItem(game, player);
+    }
 }
 
 pub fn useItem(game: *Game, player: *LocalPlayer) !void {
-    _ = game;
-    _ = player;
+    const held_stack = player.getHeldStack(game) orelse return;
+    switch (held_stack.item) {
+        .diamond_sword => {
+            player.item_in_use = held_stack;
+            player.item_use_timer = 72000;
+        },
+        else => {},
+    }
 }
 
 /// TODO

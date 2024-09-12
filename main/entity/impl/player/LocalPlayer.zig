@@ -14,10 +14,10 @@ base: Entity.Base,
 living: Entity.LivingBase = .{},
 player: Entity.PlayerBase = .{},
 
-inventory: PlayerInventory = .{},
 abilities: PlayerAbilities = .{},
 
-item_in_use: ?*ItemStack = null,
+// TODO: This is not accurate; the vanilla client checks for pointer equality while we check for structural equality
+item_in_use: ?ItemStack = null,
 item_use_timer: i32 = 0,
 
 air_speed: f32 = 0.02,
@@ -39,6 +39,8 @@ crosshair: HitResult = .miss,
 
 sneaking: bool = false,
 
+hotbar_slot: u8 = 0,
+
 pub fn update(self: *@This(), game: *Client.Game) !void {
     self.crosshair = HitResult.rayTraceWorld(game.world, self.getEyePos(), self.base.rotation, 30, .{});
 
@@ -51,7 +53,7 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     }
     // tick item use
     if (self.item_in_use) |item_in_use| {
-        if (item_in_use != self.inventory.getHeldStack()) {
+        if (!ItemStack.deepEquals(item_in_use, self.getHeldStack(game))) {
             self.item_in_use = null;
         } else {
             self.item_use_timer -= 1;
@@ -178,6 +180,10 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     }
     // send movement packets
     try self.sendMovementPackets(game);
+}
+
+pub fn getHeldStack(self: *@This(), game: *Client.Game) ?ItemStack {
+    return game.world.player_inventory_menu.stacks[self.hotbar_slot];
 }
 
 // TODO: Implement
