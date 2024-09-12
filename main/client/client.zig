@@ -53,25 +53,37 @@ pub const Client = union(enum) {
             const interactions = @import("interactions.zig");
             const player = &self.world.player;
             const inputs = &self.active_inputs;
+
+            // Cannot attack or break the same tick as stopping item usage
+            var released_use_item = false;
+
             while (self.input_queue.on_tick.readItem()) |queued_input| {
                 switch (queued_input) {
                     .hand => |hand| {
                         switch (hand) {
-                            .drop => |drop| if (drop) try self.connection_handle.sendPlayPacket(.{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } }),
+                            .drop => |drop| switch (drop) {
+                                true => if (inputs.movement.sprint) try interactions.dropEntireStack(self) else try interactions.dropSingleItem(self),
+                                false => {},
+                            },
                             .main => |main| switch (main) {
                                 true => {
                                     inputs.hand.main = true;
+                                    if (player.item_in_use != null or released_use_item) continue;
+                                    try interactions.swingHand(self);
                                     switch (player.crosshair) {
                                         .miss => {},
-                                        .block => try interactions.startMiningBlock(self, player),
+                                        .block => if (self.world.mining_state == null) try interactions.startMiningBlock(self, player),
                                         .entity => |entity| try interactions.attackEntity(self, entity.entity_network_id),
                                     }
                                 },
-                                false => {
-                                    inputs.hand.main = false;
-                                    if (self.world.mining_state != null) {
-                                        try interactions.stopMiningBlock(self);
-                                    }
+                                false => inputs.hand.main = false,
+                            },
+                            .use => |use| switch (use) {
+                                true => {
+                                    if (player.item_in_use != null or released_use_item) continue;
+                                },
+                                false => if (player.item_in_use) {
+                                    released_use_item = true;
                                 },
                             },
                             else => {},
@@ -94,7 +106,9 @@ pub const Client = union(enum) {
             }
 
             if (inputs.hand.main) {
-                try interactions.updateMiningBlock(self, player);
+                try interactions.updateBlockMining(self, player);
+            } else if (self.world.mining_state != null) {
+                try interactions.stopMiningBlock(self);
             }
         }
 

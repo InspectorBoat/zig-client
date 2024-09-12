@@ -18,7 +18,7 @@ pub const Action = enum(i32) {
     start_breaking_block,
     cancel_breaking_block,
     finish_breaking_block,
-    drop_complete_stack,
+    drop_entire_stack,
     drop_single_item,
     stop_using_item,
 };
