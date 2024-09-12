@@ -104,3 +104,46 @@ pub fn dropEntireStack(game: *Game) !void {
         .{ .player_hand_action = .{ .action = .drop_entire_stack, .block_pos = .origin(), .face = .Down } },
     );
 }
+
+pub fn use(game: *Game, player: *LocalPlayer) !void {
+    const interaction_consumed = switch (player.crosshair) {
+        .entity => try interactEntityAt(game, player) or try interactEntity(game, player),
+        .block => try useBlock(game, player),
+        .miss => {},
+    };
+    if (!interaction_consumed and false) {}
+}
+
+pub fn useItem(game: *Game, player: *LocalPlayer) !void {
+    _ = game;
+    _ = player;
+}
+
+/// TODO
+pub fn interactEntityAt(game: *Game, player: *LocalPlayer) !void {
+    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{ .action = .{ .interact_at = player.crosshair.entity.pos } } });
+    return false;
+}
+
+/// TODO
+pub fn interactEntity(game: *Game, player: *LocalPlayer) !void {
+    _ = player;
+    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{ .action = .interact } });
+    return false;
+}
+
+/// Returns whether the interaction was consumed
+/// Attempts to either interact with block or place block
+pub fn useBlock(game: *Game, player: *LocalPlayer) !bool {
+    std.debug.assert(player.crosshair == .block);
+    std.debug.assert(game.world.getBlock(player.crosshair.block.block_pos) != .air);
+    return false;
+}
+
+pub fn stopUsingItem(game: *Game, player: *LocalPlayer) !void {
+    try game.connection_handle.sendPlayPacket(
+        .{ .player_hand_action = .{ .action = .stop_using_item, .block_pos = .origin(), .face = .Down } },
+    );
+    player.item_in_use = null;
+    player.item_use_timer = 0;
+}

@@ -82,7 +82,7 @@ pub const Client = union(enum) {
                                 true => {
                                     if (player.item_in_use != null or released_use_item) continue;
                                 },
-                                false => if (player.item_in_use) {
+                                false => if (player.item_in_use != null) {
                                     released_use_item = true;
                                 },
                             },
