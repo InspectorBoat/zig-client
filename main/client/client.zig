@@ -67,7 +67,12 @@ pub const Client = union(enum) {
                                         .entity => |entity| try interactions.attackEntity(self, entity.entity_network_id),
                                     }
                                 },
-                                false => inputs.hand.main = false,
+                                false => {
+                                    inputs.hand.main = false;
+                                    if (self.world.mining_state != null) {
+                                        try interactions.stopMiningBlock(self);
+                                    }
+                                },
                             },
                             else => {},
                         }

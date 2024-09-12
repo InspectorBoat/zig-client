@@ -30,6 +30,7 @@ pub fn stopMiningBlock(game: *Game) !void {
 }
 
 pub fn updateMiningBlock(game: *Game, player: *LocalPlayer) !void {
+    // TODO: World border, creative/adventure mode
     if (game.world.mining_state) |*mining_state| {
         switch (player.crosshair) {
             .miss, .entity => try stopMiningBlock(game),
@@ -46,6 +47,7 @@ pub fn updateMiningBlock(game: *Game, player: *LocalPlayer) !void {
                     }
                 } else {
                     try stopMiningBlock(game);
+                    try startMiningBlock(game, player);
                 }
             },
         }

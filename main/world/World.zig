@@ -60,18 +60,6 @@ pub fn init(info: struct {
 pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator; // autofix
 
-    // Update mining
-    if (self.mining_state) |*mining_state| {
-        mining_state.ticks += 1;
-        if (mining_state.ticks > 10) { // TODO: Calculate this
-            try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
-                .action = .finish_breaking_block,
-                .block_pos = mining_state.target_block_pos,
-                .face = mining_state.face,
-            } });
-        }
-    }
-
     self.entities.processEntityRemovals();
     try self.player.update(game);
 }
