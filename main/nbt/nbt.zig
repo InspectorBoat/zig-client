@@ -463,7 +463,7 @@ pub const NbtIntArray = struct {
         };
     }
 
-    pub fn deepEquals(self: *const @This(), other: *NbtElement) bool {
+    pub fn deepEquals(self: *const @This(), other: *const NbtElement) bool {
         if (other.* != .IntArray) {
             std.debug.print("expected array, found {}\n", .{@as(NbtElementTag, other.*)});
             return false;
