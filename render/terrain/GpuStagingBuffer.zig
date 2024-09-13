@@ -1,6 +1,6 @@
 const std = @import("std");
 const Vector3 = @import("root").Vector3;
-const Vector2 = @import("root").Vector2;
+const Vector2xy = @import("root").Vector2xy;
 const Direction = @import("root").Direction;
 
 backer: std.ArrayList(u8),
@@ -164,4 +164,14 @@ pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !voi
         max.x, max.y, max.z,
     };
     try self.backer.appendSlice(std.mem.asBytes(&cube));
+}
+
+pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)) !void {
+    const quad = [_]f32{
+        min.x, min.y, @bitCast(@as(u32, 0xffffffff)),
+        max.x, min.y, @bitCast(@as(u32, 0xffffffff)),
+        min.x, max.y, @bitCast(@as(u32, 0xffffffff)),
+        max.x, max.y, @bitCast(@as(u32, 0xffffffff)),
+    };
+    try self.backer.appendSlice(std.mem.asBytes(&quad));
 }

@@ -149,9 +149,9 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                     .l => if (key.action == .press) {
                         @import("log").reload_shader(.{});
                         renderer.terrain_program.delete();
-                        renderer.entity_program.delete();
+                        renderer.debug_program.delete();
                         renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", gpa_impl.allocator());
-                        renderer.entity_program = try Renderer.initProgram("shader/entity.glsl.vert", "shader/entity.glsl.frag", gpa_impl.allocator());
+                        renderer.debug_program = try Renderer.initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", gpa_impl.allocator());
                     },
 
                     .w => try input_queue.queueOnTick(.{ .movement = .{ .forward = (key.action == .press) } }),
