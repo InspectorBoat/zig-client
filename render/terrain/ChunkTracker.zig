@@ -35,7 +35,7 @@ pub const SectionCompileStatus = struct {
     /// Segment of memory uploaded into VRAM
     render_info: ?SectionRenderInfo = null,
 
-    pub fn bumpRevision(self: *@This()) void {
+    pub fn markDirty(self: *@This()) void {
         self.current_revision += 1;
     }
     pub fn alertCompilationRecieved(self: *@This(), revision: u32) error{ DuplicateRevision, OutdatedRevision }!void {
@@ -83,28 +83,28 @@ pub fn markChunkPresent(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
         new_chunk_neighbors.north_present = true;
         switch (north.*) {
             .waiting => |*neighbors| neighbors.south_present = true,
-            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .rendering => |*sections| for (sections) |*section| section.markDirty(),
         }
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = 1 }))) |south| {
         new_chunk_neighbors.south_present = true;
         switch (south.*) {
             .waiting => |*neighbors| neighbors.north_present = true,
-            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .rendering => |*sections| for (sections) |*section| section.markDirty(),
         }
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = -1, .z = 0 }))) |west| {
         new_chunk_neighbors.west_present = true;
         switch (west.*) {
             .waiting => |*neighbors| neighbors.east_present = true,
-            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .rendering => |*sections| for (sections) |*section| section.markDirty(),
         }
     }
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 1, .z = 0 }))) |east| {
         new_chunk_neighbors.east_present = true;
         switch (east.*) {
             .waiting => |*neighbors| neighbors.west_present = true,
-            .rendering => |*sections| for (sections) |*section| section.bumpRevision(),
+            .rendering => |*sections| for (sections) |*section| section.markDirty(),
         }
     }
 
@@ -115,7 +115,7 @@ pub fn markBlockPosDirty(self: *@This(), block_pos: Vector3(i32)) !void {
     const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return;
     switch (chunk.*) {
         .rendering => |*sections| {
-            sections[@intCast(@divFloor(block_pos.y, 16))].current_revision += 1;
+            sections[@intCast(@divFloor(block_pos.y, 16))].markDirty();
         },
         .waiting => return,
     }

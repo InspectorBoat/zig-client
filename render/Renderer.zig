@@ -151,7 +151,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 }
 
 pub fn initTexture() gl.Texture {
-    const texture = gl.Texture.create(.@"2d_array");
+    const texture: gl.Texture = .create(.@"2d_array");
 
     const texture_size = 1;
     const color_channels = 4;
@@ -328,19 +328,20 @@ pub fn render2dDebug(self: *@This()) void {
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
 
-    const player_pos_cast = za.Vec3_f64.new(
-        -eye_pos.x,
-        -eye_pos.y,
-        -eye_pos.z,
-    ).cast(f32);
+    const window_width: f32 = @floatFromInt(@import("render.zig").window_input.window_size.x);
+    const window_height: f32 = @floatFromInt(@import("render.zig").window_input.window_size.y);
 
-    const projection = za.perspective(90.0, @as(f32, @floatFromInt(@import("render.zig").window_input.window_size.x)) / @as(f32, @floatFromInt(@import("render.zig").window_input.window_size.y)), 0.05, 1000.0);
-    const view = Mat4.mul(
-        Mat4.fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
-        Mat4.fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
+    const projection: Mat4 = za.perspective(90.0, window_width / window_height, 0.05, 1000.0);
+    const view: Mat4 = .mul(
+        .fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
+        .fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
     );
 
-    const model = Mat4.fromTranslate(player_pos_cast);
+    const model: Mat4 = .fromTranslate(.new(
+        @floatCast(-eye_pos.x),
+        @floatCast(-eye_pos.y),
+        @floatCast(-eye_pos.z),
+    ));
 
     return projection.mul(view.mul(model));
 }
@@ -408,7 +409,7 @@ pub fn recompileAllChunks(self: *@This()) !void {
             .rendering => |*sections| {
                 for (sections) |*section| {
                     try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
-                    section.bumpRevision();
+                    section.markDirty();
                 }
             },
             .waiting => {},
