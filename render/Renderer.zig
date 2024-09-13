@@ -359,8 +359,8 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
 
     const projection: Mat4 = za.perspective(90.0, window_width / window_height, 0.05, 1000.0);
     const view: Mat4 = .mul(
-        .fromEulerAngles(Vec3.new(player.base.rotation.pitch, 0, 0)),
-        .fromEulerAngles(Vec3.new(0, player.base.rotation.yaw + 180, 0)),
+        .fromEulerAngles(.new(player.base.rotation.pitch, 0, 0)),
+        .fromEulerAngles(.new(0, player.base.rotation.yaw + 180, 0)),
     );
 
     const model: Mat4 = .fromTranslate(.new(
