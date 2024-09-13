@@ -42,16 +42,18 @@ debug_program: gl.Program,
 debug_buffer: gl.Buffer,
 @"3d_debug_staging_buffer": GpuStagingBuffer,
 @"2d_debug_staging_buffer": GpuStagingBuffer,
+@"3d_vao": gl.VertexArray,
+@"2d_vao": gl.VertexArray,
 draw_mode: gl.DrawMode = .fill,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     // gl.enable(.cull_face);
 
-    const vao = try initVao();
     const terrain_program = try initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", allocator);
     const index_buffer = try initIndexBuffer(allocator);
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
+    const vao: gl.VertexArray = .create();
     const texture = initTexture();
 
     const compile_thread_pool = try initCompileThreadPool(allocator);
@@ -63,6 +65,13 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
     const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .init(allocator) };
     const @"2d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .init(allocator) };
+
+    const @"3d_vao" = try init3dVao();
+    const @"2d_vao" = try init2dVao();
+
+    vao.elementBuffer(index_buffer);
+    @"3d_vao".elementBuffer(index_buffer);
+    @"2d_vao".elementBuffer(index_buffer);
 
     return .{
         .allocator = allocator,
@@ -81,6 +90,8 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .debug_program = debug_program,
         .@"3d_debug_staging_buffer" = @"3d_debug_staging_buffer",
         .@"2d_debug_staging_buffer" = @"2d_debug_staging_buffer",
+        .@"3d_vao" = @"3d_vao",
+        .@"2d_vao" = @"2d_vao",
     };
 }
 
@@ -116,12 +127,26 @@ pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8,
     return program;
 }
 
-pub fn initVao() !gl.VertexArray {
+pub fn init3dVao() !gl.VertexArray {
     const vao = gl.VertexArray.create();
-    vao.bind();
     vao.enableVertexAttribute(0);
     vao.attribFormat(0, 3, .float, false, 0);
     vao.attribBinding(0, 0);
+
+    return vao;
+}
+
+pub fn init2dVao() !gl.VertexArray {
+    const vao = gl.VertexArray.create();
+
+    vao.enableVertexAttribute(0);
+    vao.attribFormat(0, 3, .float, false, 0);
+    vao.attribBinding(0, 0);
+
+    // vao.enableVertexAttribute(1);
+    // vao.attribFormat(1, 3, .float, false, 0);
+    // vao.attribBinding(1, 1);
+
     return vao;
 }
 
@@ -142,7 +167,6 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
     }
     const index_buffer = gl.Buffer.create();
     index_buffer.storage(u32, 1024 * 1024 * 8, @ptrCast(indices), .{});
-    index_buffer.bind(.element_array_buffer);
 
     gl.enable(.primitive_restart);
     gl.primitiveRestartIndex(primitive_restart_index);
@@ -225,7 +249,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     try self.bufferCrosshair(&game.world);
     try self.bufferEntities(&game.world);
 
-    self.renderDebug();
+    self.render3dDebug();
 
     try self.bufferInventory(&game.world);
     self.render2dDebug();
@@ -301,10 +325,10 @@ pub fn bufferInventory(self: *@This(), world: *const World) !void {
     try self.@"2d_debug_staging_buffer".write2dDebugQuad(.{ .x = -0.2, .y = -0.2 }, .{ .x = 0.2, .y = 0.2 });
 }
 
-pub fn renderDebug(self: *@This()) void {
+pub fn render3dDebug(self: *@This()) void {
     self.debug_program.use();
-    self.vao.bind();
-    self.vao.vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
+    self.@"3d_vao".bind();
+    self.@"3d_vao".vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
     gl.polygonMode(.front_and_back, .line);
 
     self.debug_buffer.subData(0, u8, self.@"3d_debug_staging_buffer".backer.items);
@@ -315,14 +339,16 @@ pub fn renderDebug(self: *@This()) void {
 
 pub fn render2dDebug(self: *@This()) void {
     self.debug_program.use();
-    self.vao.bind();
-    self.vao.vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
-    gl.polygonMode(.front_and_back, .line);
+    self.@"2d_vao".bind();
+    self.@"2d_vao".vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
+    gl.polygonMode(.front_and_back, .fill);
 
-    self.debug_buffer.subData(0, u8, self.@"3d_debug_staging_buffer".backer.items);
-    gl.drawElements(.triangle_strip, self.@"3d_debug_staging_buffer".backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
+    gl.disable(.depth_test);
+    self.debug_buffer.subData(0, u8, self.@"2d_debug_staging_buffer".backer.items);
+    gl.drawElements(.triangle_strip, self.@"2d_debug_staging_buffer".backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
+    gl.enable(.depth_test);
 
-    self.@"3d_debug_staging_buffer".backer.items.len = 0;
+    self.@"2d_debug_staging_buffer".backer.items.len = 0;
 }
 
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
