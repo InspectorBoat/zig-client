@@ -97,13 +97,13 @@ pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8,
     const frag_shader_source = try frag_shader_file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(frag_shader_source);
 
-    const vertex_shader = gl.Shader.create(.vertex);
+    const vertex_shader: gl.Shader = .create(.vertex);
     vertex_shader.source(1, &vertex_shader_source);
 
-    const frag_shader = gl.Shader.create(.fragment);
+    const frag_shader: gl.Shader = .create(.fragment);
     frag_shader.source(1, &frag_shader_source);
 
-    const program = gl.Program.create();
+    const program: gl.Program = .create();
     program.attach(vertex_shader);
     program.attach(frag_shader);
     program.link();
