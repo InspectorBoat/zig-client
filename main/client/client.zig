@@ -43,6 +43,8 @@ pub const Client = union(enum) {
                     .rotate => |rotation| {
                         player.base.rotation.yaw -= @as(f32, @floatFromInt(rotation.x)) / 5;
                         player.base.rotation.pitch -= @as(f32, @floatFromInt(rotation.y)) / 5;
+
+                        player.base.rotation.pitch = @max(@min(90, player.base.rotation.pitch), -90);
                     },
                     .inventory => std.debug.panic("Inventory action on frame - don't do this! Queue on tick instead!", .{}),
                 }
