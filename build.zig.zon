@@ -4,8 +4,8 @@
     .paths = .{"./src/main.zig"},
     .dependencies = .{
         .network = .{
-            .url = "https://github.com/MasterQ32/zig-network/archive/bcf6cc8918d574f947b2647522d84a805c33f1c8.tar.gz",
-            .hash = "12203b3634f36570ffced059248bd429cd06dc89a98659c86569d890fdd99b5070bd",
+            .url = "https://github.com/RcCreeperTech/zig-network/archive/9de111e838247bb4f607faebbfc4f0c7ce097885.tar.gz",
+            .hash = "1220df64a3c113691c2a3bb3f793fcaa656132ee7860df986b74d9bffadf1cb3467b",
         },
         .zgl = .{
             .path = "./libs/zgl",
@@ -14,8 +14,7 @@
             .path = "./libs/mach-glfw",
         },
         .zalgebra = .{
-            .url = "https://github.com/kooparse/zalgebra/archive/e36116987d11c4a28ab8a03ab62d71be8b81404a.tar.gz",
-            .hash = "12200e1b17e15217623e36563e459164fff4debb8210ea9d027d8548aca6d30f0811",
+            .path = "./libs/zalgebra",
         },
     },
 }
