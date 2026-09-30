@@ -1,14 +1,15 @@
 const std = @import("std");
+const monotonicNanos = @import("llm-code-quarantine").monotonicNanos;
 
 tps: f32 = 20.0,
 tps_scale: f32 = 1.0,
-timer: std.time.Timer,
+start: u64 = 0,
 total_ticks: usize = 0,
 last_nanos: u64 = 0,
 
 pub fn init() !@This() {
     return .{
-        .timer = try .start(),
+        .start = monotonicNanos(),
     };
 }
 
@@ -17,7 +18,7 @@ pub const PartialTick = f64;
 
 /// Returns the amount of ticks elapsed since the last time `advance` was called and the progress from the last tick to the next
 pub fn advance(self: *@This()) struct { TicksElapsed, PartialTick } {
-    const current_nanos = self.timer.read();
+    const current_nanos = monotonicNanos();
     // the amount of ticks elapsed since the last time advance was called
     var ticks_elapsed: usize = 0;
 

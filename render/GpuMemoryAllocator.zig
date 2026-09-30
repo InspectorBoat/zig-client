@@ -9,7 +9,16 @@ const gl = if (!@import("builtin").is_test) @import("zgl") else struct {
     };
 };
 
-free_segments: std.SinglyLinkedList(Segment),
+const FreeSegment = struct {
+    node: std.SinglyLinkedList.Node,
+    segment: Segment,
+};
+
+fn listEntry(node: *std.SinglyLinkedList.Node) *FreeSegment {
+    return @fieldParentPtr("node", node);
+}
+
+free_segments: std.SinglyLinkedList,
 backing_buffer: gl.Buffer,
 min_alignment: c_int,
 used: usize = 0,
@@ -24,17 +33,17 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
     errdefer backing_buffer.delete();
     backing_buffer.storage(u8, backing_buffer_size, null, .{ .dynamic_storage = true });
 
-    const first_node = try allocator.create(std.SinglyLinkedList(Segment).Node);
+    const first_node = try allocator.create(FreeSegment);
     first_node.* = .{
-        .data = .{ .length = backing_buffer_size, .offset = 0 },
-        .next = null,
+        .node = .{ .next = null },
+        .segment = .{ .length = backing_buffer_size, .offset = 0 },
     };
 
     var shader_storage_buffer_alignment: c_int = 0;
     if (!@import("builtin").is_test) gl.binding.getIntegerv(gl.binding.SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &shader_storage_buffer_alignment);
 
     return .{
-        .free_segments = .{ .first = first_node },
+        .free_segments = .{ .first = &first_node.node },
         .backing_buffer = backing_buffer,
         .min_alignment = shader_storage_buffer_alignment,
         .allocator = allocator,
@@ -43,7 +52,7 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
 
 pub fn deinit(self: *@This()) void {
     while (self.free_segments.popFirst()) |node| {
-        self.allocator.destroy(node);
+        self.allocator.destroy(listEntry(node));
     }
     self.backing_buffer.delete();
 }
@@ -54,16 +63,16 @@ pub fn alloc(self: *@This(), n: usize) !Segment {
 
     var maybe_node = self.free_segments.first;
     while (maybe_node) |node| : (maybe_node = node.next) {
-        const segment = &node.data;
+        const free_segment = listEntry(node);
+        const segment = &free_segment.segment;
         if (segment.length >= actual_required_size) {
             defer {
                 segment.offset += actual_required_size;
                 segment.length -= actual_required_size;
-                std.debug.assert(segment.length >= 0);
                 if (segment.length == 0) {
                     self.free_segments.remove(node);
 
-                    self.allocator.destroy(node);
+                    self.allocator.destroy(free_segment);
                 }
             }
 
@@ -78,12 +87,12 @@ pub fn alloc(self: *@This(), n: usize) !Segment {
 }
 
 pub fn free(self: *@This(), free_segment: Segment) !void {
-    const node = try self.allocator.create(std.SinglyLinkedList(Segment).Node);
-    node.* = .{
-        .data = free_segment,
-        .next = null,
+    const entry = try self.allocator.create(FreeSegment);
+    entry.* = .{
+        .node = .{ .next = null },
+        .segment = free_segment,
     };
-    self.free_segments.prepend(node);
+    self.free_segments.prepend(&entry.node);
     self.used -= free_segment.length;
 }
 
@@ -102,12 +111,13 @@ pub const Segment = struct {
 };
 
 test alloc {
-    var gpa_impl = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_impl = std.heap.DebugAllocator(.{}){};
     const gpa = gpa_impl.allocator();
     defer _ = gpa_impl.deinit();
 
     var gpu_mem_alloc = try init(gpa, 1024);
+    defer gpu_mem_alloc.deinit();
     while (true) {
-        _ = gpu_mem_alloc.alloc(1024, gpa) catch break;
+        _ = gpu_mem_alloc.alloc(1024) catch break;
     }
 }

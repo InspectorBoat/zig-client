@@ -8,7 +8,7 @@ free_index: usize = 0,
 
 used_bytes: usize = 0,
 
-pub fn alloc(self: *@This(), n: usize, log2_ptr_align: u8) ![]u8 {
+pub fn alloc(self: *@This(), n: usize, alignment: std.mem.Alignment) ![]u8 {
     const start_alloc_index = self.alloc_index;
     const start_used_bytes = self.used_bytes;
 
@@ -25,7 +25,7 @@ pub fn alloc(self: *@This(), n: usize, log2_ptr_align: u8) ![]u8 {
         }
     }
 
-    const ptr_align = @as(usize, 1) << @as(std.mem.Allocator.Log2Align, @intCast(log2_ptr_align));
+    const ptr_align = alignment.toByteUnits();
 
     while (true) {
         // pad to the correct alignment
@@ -43,10 +43,10 @@ pub fn alloc(self: *@This(), n: usize, log2_ptr_align: u8) ![]u8 {
     }
 }
 
-pub fn rawAlloc(ctx: *anyopaque, n: usize, log2_ptr_align: u8, ra: usize) ?[*]u8 {
+pub fn rawAlloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usize) ?[*]u8 {
     _ = ra;
     const self: *@This() = @ptrCast(@alignCast(ctx));
-    return @ptrCast(self.alloc(n, log2_ptr_align) catch null);
+    return @ptrCast(self.alloc(n, alignment) catch null);
 }
 
 pub fn freeOldest(self: *@This(), allocation_end_index: usize) !void {
@@ -171,6 +171,7 @@ pub fn allocator(self: *@This()) std.mem.Allocator {
         .vtable = &.{
             .alloc = rawAlloc,
             .resize = std.mem.Allocator.noResize,
+            .remap = std.mem.Allocator.noRemap,
             .free = std.mem.Allocator.noFree,
         },
     };
@@ -193,7 +194,7 @@ test "RingBuffer" {
 
     var rand_impl: std.rand.DefaultPrng = .init(blk: {
         var seed: u64 = undefined;
-        try std.posix.getrandom(std.mem.asBytes(&seed));
+        std.debug.assert(std.os.linux.errno(std.os.linux.getrandom(std.mem.asBytes(&seed).ptr, @sizeOf(@TypeOf(seed)), 0)) == .SUCCESS);
         break :blk seed;
     });
     const rand = rand_impl.random();

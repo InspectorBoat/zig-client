@@ -69,7 +69,7 @@ pub const NbtElement = union(NbtElementTag) {
     }
 
     pub fn readElementType(buffer: *S2C.ReadBuffer) !NbtElementTag {
-        return std.meta.intToEnum(NbtElementTag, try buffer.read(i8)) catch return error.InvalidNbtElementType;
+        return std.enums.fromInt(NbtElementTag, try buffer.read(i8)) orelse return error.InvalidNbtElementType;
     }
 
     pub fn readWithName(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!struct { name: ?[]const u8, element: NbtElement } {
@@ -98,7 +98,7 @@ pub const NbtElement = union(NbtElementTag) {
     }
 
     pub fn typeFromTag(comptime element_type: NbtElementTag) type {
-        return std.meta.TagPayload(NbtElement, element_type);
+        return @FieldType(NbtElement, @tagName(element_type));
     }
 
     pub fn deepEquals(self: *const @This(), other: *const @This()) bool {
@@ -324,7 +324,7 @@ pub const NbtList = struct {
         const elements = try allocator.alloc(NbtElement, element_count);
         switch (element_type) {
             inline else => |specific_element_type| {
-                const NbtElementType = std.meta.TagPayload(NbtElement, specific_element_type);
+                const NbtElementType = @FieldType(NbtElement, @tagName(specific_element_type));
                 for (elements) |*element| {
                     element.* = @unionInit(NbtElement, @tagName(specific_element_type), try NbtElementType.read(buffer, allocator));
                 }

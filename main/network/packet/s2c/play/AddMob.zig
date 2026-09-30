@@ -66,8 +66,8 @@ pub fn getEntity(self: *@This()) ?Entity {
     switch (self.entity_type) {
         inline 1, 2, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 30, 40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 120, 200 => |entity_type_int| {
             @setEvalBranchQuota(1000000);
-            const entity_type = comptime std.meta.intToEnum(EntityType, entity_type_int) catch unreachable;
-            const SpecificEntity = std.meta.TagPayload(Entity, entity_type);
+            const entity_type = comptime std.enums.fromInt(EntityType, entity_type_int) orelse unreachable;
+            const SpecificEntity = @FieldType(Entity, @tagName(entity_type));
             if (!@hasField(SpecificEntity, "living")) {
                 std.debug.panic("{}\n", .{SpecificEntity});
             }

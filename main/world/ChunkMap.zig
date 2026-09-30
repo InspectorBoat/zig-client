@@ -83,12 +83,12 @@ test toIndex {
 test "performance" {
     std.debug.print("\n\n", .{});
 
-    var gpa_impl = std.heap.GeneralPurposeAllocator(.{ .safety = false }){};
+    var gpa_impl = std.heap.DebugAllocator(.{ .safety = false }){};
     const gpa = gpa_impl.allocator();
 
     var rand_impl: std.Random.DefaultPrng = .init(blk: {
         var seed: u64 = undefined;
-        try std.posix.getrandom(std.mem.asBytes(&seed));
+        std.debug.assert(std.os.linux.errno(std.os.linux.getrandom(std.mem.asBytes(&seed).ptr, @sizeOf(@TypeOf(seed)), 0)) == .SUCCESS);
         break :blk seed;
     });
     const rand = rand_impl.random();

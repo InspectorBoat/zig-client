@@ -10,7 +10,7 @@ const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
 const Vector2xy = root.Vector2xy;
 
-var gpa_impl: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true, .stack_trace_frames = 50 }) = .{};
+var gpa_impl: std.heap.DebugAllocator(.{ .thread_safe = true, .stack_trace_frames = 50 }) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 

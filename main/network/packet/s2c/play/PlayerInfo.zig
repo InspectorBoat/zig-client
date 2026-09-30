@@ -15,7 +15,7 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const action = try buffer.readEnum(Action) orelse return error.InvalidPlayerInfo;
     const entry_count = try buffer.readVarInt();
-    var entries: std.ArrayList(Entry) = .init(allocator);
+    var entries: std.ArrayList(Entry) = .empty;
     for (0..@intCast(entry_count)) |_| {
         const entry = switch (action) {
             .AddPlayer => Entry{
@@ -67,11 +67,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
                 },
             },
         };
-        try entries.append(entry);
+        try entries.append(allocator, entry);
     }
     return .{
         .action = action,
-        .entries = try entries.toOwnedSlice(),
+        .entries = try entries.toOwnedSlice(allocator),
     };
 }
 

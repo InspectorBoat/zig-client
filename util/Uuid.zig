@@ -7,7 +7,7 @@ bytes: [16]u8,
 pub fn fromAscii(string: []const u8) !@This() {
     if (string.len != 36) return error.BadStringLength;
     for (string, 0..36) |char, i| {
-        if (!std.ascii.isASCII(char)) return error.NotAscii;
+        if (!std.ascii.isAscii(char)) return error.NotAscii;
         if (i == 8 or i == 13 or i == 18 or i == 23) {
             if (char != '-') return error.ExpectedDash;
             continue;

@@ -4,7 +4,11 @@ const ItemStack = root.ItemStack;
 const Vector3 = root.Vector3;
 const Rotation3 = root.Rotation3;
 
-entries: [32]?DataValue = .{.{ .i8 = 0 }} ++ .{null} ** 31,
+entries: [32]?DataValue = blk: {
+    var result: [32]?DataValue = @splat(null);
+    result[0] = .{ .i8 = 0 };
+    break :blk result;
+},
 
 pub fn put(self: *@This(), id: u5, value: DataValue) !void {
     if (self.entries[id] != null) return error.EntryAlreadyExists;

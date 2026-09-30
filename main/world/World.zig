@@ -192,7 +192,7 @@ pub fn receiveChunk(
 ) !void {
     @import("log").update_chunk(.{chunk_pos});
 
-    const start = try std.time.Instant.now();
+    const start = @import("llm-code-quarantine").monotonicNanos();
     const chunk = self.chunks.getPtr(chunk_pos).?;
     // copy block state data
     for (0..16) |section_y| {
@@ -237,7 +237,7 @@ pub fn receiveChunk(
     }
 
     {
-        const timer: @import("util").Timer = .init();
+        const timer: @import("llm-code-quarantine").Timer = .init();
         defer @import("log").devirtualize_chunk(.{timer.ms()});
         self.updateChunk(chunk);
         // self.updateRegion(.{
@@ -253,7 +253,7 @@ pub fn receiveChunk(
         //     },
         // });
     }
-    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((try std.time.Instant.now()).since(start))) / @as(f64, std.time.ns_per_ms)});
+    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((@import("llm-code-quarantine").monotonicNanos() - start))) / @as(f64, std.time.ns_per_ms)});
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
 
@@ -344,7 +344,7 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
 }
 
 pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.Allocator) ![]const Box(f64) {
-    var collisions: std.ArrayList(Box(f64)) = .init(allocator);
+    var collisions: std.ArrayList(Box(f64)) = .empty;
     const min_pos: Vector3(i32) = .{
         .x = @intFromFloat(@floor(hitbox.min.x)),
         .y = @intFromFloat(@floor(hitbox.min.y)),
@@ -362,7 +362,7 @@ pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
                 if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
-                    try collisions.append(Box(f64){
+                    try collisions.append(allocator, Box(f64){
                         .min = .{
                             .x = @floatFromInt(x),
                             .y = @floatFromInt(y),
@@ -379,7 +379,7 @@ pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.
         }
     }
     // TODO: Include entities
-    return try collisions.toOwnedSlice();
+    return try collisions.toOwnedSlice(allocator);
 }
 
 /// returns intersecting hitboxes originating from blocks
@@ -423,6 +423,6 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
 
     self.entities.deinit();
 
-    const milliseconds_elapsed = @as(f64, @floatFromInt(self.tick_timer.timer.read())) / std.time.ns_per_ms;
+    const milliseconds_elapsed = @as(f64, @floatFromInt(@import("llm-code-quarantine").monotonicNanos() - self.tick_timer.start)) / std.time.ns_per_ms;
     @import("log").display_average_tick_ms(.{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
 }

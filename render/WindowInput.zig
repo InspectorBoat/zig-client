@@ -4,7 +4,7 @@ const glfw = @import("mach-glfw");
 
 window: glfw.Window,
 
-events: std.fifo.LinearFifo(Event, .Dynamic),
+events: @import("llm-code-quarantine").Fifo(Event),
 keys: std.EnumArray(glfw.Key, bool) = .initFill(false),
 mouse_pos: ?Vector2xy(f64) = null,
 maximized: bool = false,

@@ -73,7 +73,7 @@ pub fn readPacked(self: *@This(), comptime T: type) !T {
 pub fn readEnum(self: *@This(), comptime T: type) !?T {
     if (@typeInfo(T) != .@"enum") @compileError("type to retrieve (" ++ @typeName(T) ++ "must be an enum");
     if (@typeInfo(T).@"enum".tag_type != i32) @compileError("type to retrieve (" ++ @typeName(T) ++ "must be backed by an i32");
-    return std.meta.intToEnum(T, try self.readVarInt()) catch null;
+    return std.enums.fromInt(T, try self.readVarInt()) orelse null;
 }
 
 /// return value is backed by the buffer

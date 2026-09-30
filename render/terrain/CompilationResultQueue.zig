@@ -1,8 +1,17 @@
 const std = @import("std");
 const CompilationResult = @import("CompilationTask.zig").CompilationResult;
 
-sections: std.SinglyLinkedList(CompilationResult) = .{},
-mutex: std.Thread.Mutex = .{},
+const SectionNode = struct {
+    node: std.SinglyLinkedList.Node,
+    section: CompilationResult,
+};
+
+fn listEntry(node: *std.SinglyLinkedList.Node) *SectionNode {
+    return @fieldParentPtr("node", node);
+}
+
+sections: std.SinglyLinkedList = .{},
+mutex: @import("llm-code-quarantine").Mutex = .{},
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) @This() {
@@ -10,15 +19,16 @@ pub fn init(allocator: std.mem.Allocator) @This() {
 }
 
 pub fn add(self: *@This(), section: CompilationResult) !void {
-    const node = try self.allocator.create(std.SinglyLinkedList(CompilationResult).Node);
+    const entry = try self.allocator.create(SectionNode);
+    entry.* = .{
+        .node = .{ .next = null },
+        .section = section,
+    };
 
     self.mutex.lock();
     defer self.mutex.unlock();
 
-    node.* = .{
-        .data = section,
-    };
-    self.sections.prepend(node);
+    self.sections.prepend(&entry.node);
 }
 
 pub fn pop(self: *@This()) ?CompilationResult {
@@ -30,7 +40,8 @@ pub fn pop(self: *@This()) ?CompilationResult {
     };
 
     if (maybe_node) |node| {
-        defer self.allocator.destroy(node);
-        return node.data;
+        const entry = listEntry(node);
+        defer self.allocator.destroy(entry);
+        return entry.section;
     } else return null;
 }

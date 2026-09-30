@@ -1,20 +1,32 @@
 .{
-    .name = "client",
+    .name = .client,
+    .fingerprint = 0xc7440455460777fa,
     .version = "0.0.0",
-    .paths = .{"./src/main.zig"},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "main",
+        "render",
+        "logging",
+        "util",
+        "quarantine",
+    },
     .dependencies = .{
-        .network = .{
-            .url = "https://github.com/RcCreeperTech/zig-network/archive/9de111e838247bb4f607faebbfc4f0c7ce097885.tar.gz",
-            .hash = "1220df64a3c113691c2a3bb3f793fcaa656132ee7860df986b74d9bffadf1cb3467b",
-        },
-        .zgl = .{
-            .path = "./libs/zgl",
-        },
         .mach_glfw = .{
-            .path = "./libs/mach-glfw",
+            .url = "git+https://github.com/InspectorBoat/mach_glfw.git#ace535f38771ede755f24acbc59c4b12bab0c56a",
+            .hash = "mach_glfw-0.2.0-HMuMvYVABQBYApVeo1oEqAnMTJ7nlGjx7NO0WnZ2MIKo",
         },
         .zalgebra = .{
-            .path = "./libs/zalgebra",
+            .url = "git+https://github.com/kooparse/zalgebra#0482fbaf8f17b90b51c333ea60e77dfa12aaf5e2",
+            .hash = "zalgebra-0.0.0-aaiVSoN_AQCWiF1SsKeHX0FxJ2-38OIPsqU9F-cVMQMN",
+        },
+        .zgl = .{
+            .url = "git+https://github.com/InspectorBoat/zgl#9b8dacf88a5634655ff8a5058b558ef5d780bfa9",
+            .hash = "zgl-1.1.0-p_NpAI4zCgBU9vmfngYNj38lK8NxfVWvSKjLjmRYFdta",
+        },
+        .network = .{
+            .url = "git+https://github.com/InspectorBoat/zig-network#2803cdf29206cbb398b089680f956c3381209e0e",
+            .hash = "network-0.1.0-UtQr95f-AADG5wllUBpvg1t8xA1W6Z4KfrGB1h6-gQHd",
         },
     },
 }

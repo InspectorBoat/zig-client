@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const network_lib = @import("network");
 const root = @import("root");
 const network = root.network;
@@ -29,7 +30,7 @@ pub const Connection = struct {
     s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
 
     /// A buffer of raw bytes read from the socket but not yet decoded
-    queued_bytes: std.fifo.LinearFifo(u8, .{ .Static = 1024 * 1024 }),
+    queued_bytes: @import("llm-code-quarantine").FixedFifo(u8, 1024 * 1024),
     /// This ring allocator should be used to allocate memory for s2c packets and *nothing else*
     s2c_packet_ring_alloc: RingBuffer,
 
@@ -55,7 +56,7 @@ pub const Connection = struct {
             .c2s_packet_queue = c2s_packet_queue,
             .s2c_packet_queue = s2c_packet_queue,
 
-            .queued_bytes = std.fifo.LinearFifo(u8, .{ .Static = 1024 * 1024 }).init(),
+            .queued_bytes = .init(),
 
             .s2c_packet_ring_alloc = .{ .buffer = &ring_alloc_buffer },
         };
@@ -170,22 +171,25 @@ pub const Connection = struct {
         } else {
             const F_SETFL = 4;
 
-            const flags = try std.posix.fcntl(socket.internal, F_SETFL, 0);
+            const get_flags_rc = std.os.linux.fcntl(socket.internal, F_SETFL, 0);
+            const flags: u32 = switch (std.os.linux.errno(get_flags_rc)) {
+                .SUCCESS => @intCast(get_flags_rc),
+                else => return error.FailedOperation,
+            };
 
-            if (flags == -1) return error.FailedOperation;
-            if (try std.posix.fcntl(
+            const set_flags_rc = std.os.linux.fcntl(
                 socket.internal,
                 F_SETFL,
                 flags | std.posix.SOCK.NONBLOCK,
-            ) != 0)
-                return error.FailedOperation;
+            );
+            if (std.os.linux.errno(set_flags_rc) != .SUCCESS) return error.FailedOperation;
         }
     }
 
     pub fn readIncomingBytes(self: *@This()) !void {
         // read available bytes
         var read_buffer: [262144]u8 = undefined;
-        const read_bytes = self.socket.reader().read(&read_buffer) catch |err| switch (err) {
+        const read_bytes = self.socket.receive(&read_buffer) catch |err| switch (err) {
             // no available bytes
             error.WouldBlock => return,
             else => return err,
@@ -197,7 +201,8 @@ pub const Connection = struct {
     pub fn decodeQueuedBytes(
         self: *@This(),
     ) !?S2C {
-        var buffer: S2C.ReadBuffer = .fromOwnedSlice(self.queued_bytes.readableSlice(0));
+        self.queued_bytes.realign();
+        var buffer: S2C.ReadBuffer = .fromOwnedSlice(self.queued_bytes.readableSlice());
         const packet_body_size, const packet_header_size = buffer.readVarIntExtra(3) catch |err| switch (err) {
             error.VarIntTooBig => return err,
             error.EndOfBuffer => return null,
@@ -291,7 +296,9 @@ pub const Connection = struct {
         if (size_after_decompression == 0) return null;
 
         // decompressed size below threshold
-        if (size_after_decompression < self.compression_threshold) return error.PacketTooSmall;
+        if (size_after_decompression < self.compression_threshold) {
+            return error.PacketTooSmall;
+        }
         // decompressed size above max size
         if (size_after_decompression > 2097152) return error.PacketTooLarge;
 
@@ -302,13 +309,14 @@ pub const Connection = struct {
         // take slice of unread bytes to be compressed
         const compressed_bytes = compressed_buffer.readRemainingBytesNonAllocating();
 
-        var compressed_byte_stream = std.io.fixedBufferStream(compressed_bytes);
-        var decompressor = std.compress.zlib.decompressor(compressed_byte_stream.reader());
+        var input: std.Io.Reader = .fixed(compressed_bytes);
+        var window: [std.compress.flate.max_window_len]u8 = undefined;
+        var decompressor = std.compress.flate.Decompress.init(&input, .zlib, &window);
 
-        const actual_decompressed_size = try decompressor.reader().readAll(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
-        std.debug.assert(actual_decompressed_size == size_after_decompression);
+        const out = decompress_raw_buffer[0..@intCast(size_after_decompression)];
+        try decompressor.reader.readSliceAll(out);
 
-        return .fromOwnedSlice(decompress_raw_buffer[0..@intCast(size_after_decompression)]);
+        return .fromOwnedSlice(out);
     }
 
     pub fn setCompressionThreshold(self: *@This(), compression_threshold: i32) void {
@@ -331,21 +339,32 @@ pub const Connection = struct {
     pub fn compressBuffer(self: *@This(), uncompressed_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
         defer uncompressed_buffer.deinit();
 
-        var compressed_bytes: std.ArrayList(u8) = .init(allocator);
-        errdefer compressed_bytes.deinit();
+        var compressed_bytes: std.ArrayList(u8) = .empty;
+        errdefer compressed_bytes.deinit(allocator);
 
         if (uncompressed_buffer.backer.items.len < self.compression_threshold) {
-            var compressed_buffer: C2S.WriteBuffer = .fromOwnedArrayList(compressed_bytes);
+            var compressed_buffer: C2S.WriteBuffer = .fromOwnedArrayList(allocator, compressed_bytes);
             try compressed_buffer.writeVarInt(0);
             try compressed_buffer.writeBytes(uncompressed_buffer.backer.items);
             return compressed_buffer;
         }
 
-        var compressor = try std.compress.zlib.compressor(compressed_bytes.writer(), .{});
-        try compressor.writer().writeAll(uncompressed_buffer.backer.items);
-        try compressor.finish();
+        // Compress needs a fixed output writer, so compress into a scratch
+        // buffer and copy the result out. +64 covers the framing.
+        const uncompressed = uncompressed_buffer.backer.items;
+        const window = try allocator.alloc(u8, std.compress.flate.max_window_len);
+        defer allocator.free(window);
+        const scratch = try allocator.alloc(u8, uncompressed.len + 64);
+        defer allocator.free(scratch);
 
-        return .fromOwnedArrayList(compressed_bytes);
+        var output: std.Io.Writer = .fixed(scratch);
+        var compressor = try std.compress.flate.Compress.init(&output, window, .zlib, .default);
+        try compressor.writer.writeAll(uncompressed);
+        try std.compress.flate.Compress.finish(&compressor);
+
+        try compressed_bytes.appendSlice(allocator, output.buffered());
+
+        return .fromOwnedArrayList(allocator, compressed_bytes);
     }
 
     /// takes ownership of original_buffer
@@ -395,37 +414,7 @@ pub const Connection = struct {
         }
 
         packet_buffer = try prependLength(&packet_buffer, packet_encode_alloc);
-        try self.socket.writer().writeAll(packet_buffer.backer.items);
-    }
-
-    pub fn tcpConnectToHost(allocator: std.mem.Allocator, name: []const u8, port: u16) std.net.TcpConnectToHostError!std.net.Stream {
-        const list = try std.net.getAddressList(allocator, name, port);
-        defer list.deinit();
-
-        if (list.addrs.len == 0) return error.UnknownHostName;
-
-        for (list.addrs) |addr| {
-            return tcpConnectToAddress(addr) catch |err| switch (err) {
-                error.ConnectionRefused => {
-                    continue;
-                },
-                else => return err,
-            };
-        }
-        return std.os.ConnectError.ConnectionRefused;
-    }
-
-    pub fn tcpConnectToAddress(address: std.net.Address) std.net.TcpConnectToAddressError!std.net.Stream {
-        const sock_flags = std.os.SOCK.STREAM | std.os.SOCK.NONBLOCK |
-            (if (@import("builtin").target.os.tag == .windows) 0 else std.os.SOCK.CLOEXEC);
-        const sockfd = try std.os.socket(address.any.family, sock_flags, std.os.IPPROTO.TCP);
-        errdefer std.net.Stream.close(.{ .handle = sockfd });
-        std.os.connect(sockfd, &address.any, address.getOsSockLen()) catch |err| switch (err) {
-            error.WouldBlock => void{},
-            else => return err,
-        };
-
-        return std.net.Stream{ .handle = sockfd };
+        _ = try self.socket.send(packet_buffer.backer.items);
     }
 };
 
@@ -517,7 +506,7 @@ pub fn initConnection(
     s2c_packet_queue.* = .{};
     disconnect_ptr.* = false;
 
-    const thread: std.Thread = try .spawn(.{}, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, c2s_packet_queue, s2c_packet_queue });
+    const thread: std.Thread = try .spawn(.{ .stack_size = 16 * 1024 * 1024 }, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, c2s_packet_queue, s2c_packet_queue });
 
     return .{
         .name = name_dupe,
@@ -545,7 +534,7 @@ pub fn WriteReadFreeQueue(comptime Element: type) type {
     return struct {
         buffer: [size]Element = .{undefined} ** size,
 
-        mutex: std.Thread.Mutex = .{},
+        mutex: @import("llm-code-quarantine").Mutex = .{},
 
         /// The next element freed will be from this index
         free_index: usize = 0,

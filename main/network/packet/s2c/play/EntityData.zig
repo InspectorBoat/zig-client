@@ -20,10 +20,10 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 }
 
 pub fn readDataEntries(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) ![]const DataTrackerEntry {
-    var entries: std.ArrayList(DataTrackerEntry) = .init(allocator);
+    var entries: std.ArrayList(DataTrackerEntry) = .empty;
     var entry_info = try buffer.readPacked(DataTrackerEntryInfo);
     while (@as(u8, @bitCast(entry_info)) != DataTrackerEntryInfo.Stop) {
-        try entries.append(.{
+        try entries.append(allocator, .{
             .id = entry_info.id,
             .value = switch (entry_info.type) {
                 .i8 => .{ .i8 = try buffer.read(i8) },
@@ -38,7 +38,7 @@ pub fn readDataEntries(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) ![
         });
         entry_info = try buffer.readPacked(DataTrackerEntryInfo);
     }
-    return entries.toOwnedSlice();
+    return entries.toOwnedSlice(allocator);
 }
 
 pub const DataTrackerEntryInfo = packed struct {

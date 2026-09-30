@@ -2098,7 +2098,7 @@ pub const ConcreteBlockState = packed struct(u16) {
         std.debug.assert(self.block == block);
         return @field(self.properties, @tagName(block));
     }
-    pub fn payloadPtr(self: *@This(), comptime block: ConcreteBlock) *@TypeOf(@field(self.properties, @tagName(block))) {
+    pub fn payloadPtr(self: *@This(), comptime block: ConcreteBlock) @TypeOf(&@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);
         return &@field(self.properties, @tagName(block));
     }

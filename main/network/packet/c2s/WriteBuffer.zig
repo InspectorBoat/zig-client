@@ -9,21 +9,24 @@ const Uuid = @import("util").Uuid;
 
 /// A buffer to write packet data (c2s)
 backer: std.ArrayList(u8),
+allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) @This() {
     return .{
-        .backer = .init(allocator),
+        .backer = .empty,
+        .allocator = allocator,
     };
 }
 
 pub fn initCapacity(allocator: std.mem.Allocator, bytes: usize) !@This() {
     return .{
         .backer = try .initCapacity(allocator, bytes),
+        .allocator = allocator,
     };
 }
 
 pub fn deinit(self: *@This()) void {
-    self.backer.deinit();
+    self.backer.deinit(self.allocator);
 }
 
 /// resets the buffer
@@ -45,20 +48,20 @@ pub fn write(self: *@This(), comptime T: type, value: T) std.mem.Allocator.Error
     if (T != bool and @sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
     if (@sizeOf(T) == 0) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must not be zero-sized");
 
-    if (T == bool) return try self.backer.append(@intCast(@intFromBool(value)));
+    if (T == bool) return try self.backer.append(self.allocator, @intCast(@intFromBool(value)));
 
     const ValueAsInt = std.meta.Int(.unsigned, @bitSizeOf(T));
     const value_as_int: ValueAsInt = @bitCast(value);
     const value_slice = std.mem.toBytes(std.mem.nativeToBig(ValueAsInt, value_as_int));
 
-    try self.backer.appendSlice(&value_slice);
+    try self.backer.appendSlice(self.allocator, &value_slice);
 }
 
 pub fn writePacked(self: *@This(), comptime T: type, value: T) !void {
     if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to write (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
     if (@sizeOf(T) != 1) @compileError("type to write (" ++ @typeName(T) ++ ") must have a byte size of 1");
 
-    try self.backer.append(@bitCast(value));
+    try self.backer.append(self.allocator, @bitCast(value));
 }
 
 /// T must be an enum backed by an i32
@@ -69,7 +72,7 @@ pub fn writeEnum(self: *@This(), comptime T: type, value: T) !void {
 }
 
 pub fn writeBytes(self: *@This(), b: []const u8) !void {
-    try self.backer.appendSlice(b);
+    try self.backer.appendSlice(self.allocator, b);
 }
 
 pub fn writeByteSlice(self: *@This(), b: []const u8) !void {
@@ -140,9 +143,10 @@ pub fn writeVarInt(self: *@This(), i: i32) std.mem.Allocator.Error!void {
     }
 }
 
-pub fn fromOwnedArrayList(array_list: std.ArrayList(u8)) @This() {
+pub fn fromOwnedArrayList(allocator: std.mem.Allocator, array_list: std.ArrayList(u8)) @This() {
     return .{
         .backer = array_list,
+        .allocator = allocator,
     };
 }
 

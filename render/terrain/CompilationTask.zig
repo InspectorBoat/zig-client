@@ -61,9 +61,12 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
 }
 
 pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
-    // const start: @import("util").Timer = .init();
+    // const start: @import("llm-code-quarantine").Timer = .init();
     // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
-    var staging: GpuStagingBuffer = .{ .backer = try .initCapacity(allocator, 4096) };
+    var staging: GpuStagingBuffer = .{
+        .backer = try .initCapacity(allocator, 4096),
+        .allocator = allocator,
+    };
     // place blocks in chunk
     for (1..17) |x| {
         for (1..17) |y| {

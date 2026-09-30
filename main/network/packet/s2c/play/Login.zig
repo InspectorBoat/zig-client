@@ -27,7 +27,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const network_id = try buffer.read(i32);
     const i = try buffer.read(u8);
     const hardcore = i & 8 == 8;
-    const game_mode = std.meta.intToEnum(GameMode, i & ~@as(u8, 8)) catch .Survival;
+    const game_mode = std.enums.fromInt(GameMode, i & ~@as(u8, 8)) orelse .Survival;
     const dimension = try buffer.read(i8);
     const difficulty = (try buffer.readPacked(packed struct { difficulty: Difficulty, _: u6 })).difficulty;
     const max_player_count = try buffer.read(u8);

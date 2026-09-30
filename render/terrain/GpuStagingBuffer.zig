@@ -4,6 +4,7 @@ const Vector2xy = @import("root").Vector2xy;
 const Direction = @import("root").Direction;
 
 backer: std.ArrayList(u8),
+allocator: std.mem.Allocator,
 
 pub const GpuQuad = packed struct(u128) {
     pos: packed struct(u48) { x: u16, y: u16, z: u16 },
@@ -39,7 +40,7 @@ pub fn writeQuad(
         .sky_light = sky_light,
         .block_light = block_light,
     };
-    try self.backer.appendSlice(std.mem.asBytes(&quad));
+    try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
 }
 
 pub fn writeBox(
@@ -163,7 +164,7 @@ pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !voi
         max.x, min.y, max.z,
         max.x, max.y, max.z,
     };
-    try self.backer.appendSlice(std.mem.asBytes(&cube));
+    try self.backer.appendSlice(self.allocator, std.mem.asBytes(&cube));
 }
 
 pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)) !void {
@@ -173,5 +174,5 @@ pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)
         min.x, max.y, @bitCast(@as(u32, 0xffffffff)),
         max.x, max.y, @bitCast(@as(u32, 0xffffffff)),
     };
-    try self.backer.appendSlice(std.mem.asBytes(&quad));
+    try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
 }

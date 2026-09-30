@@ -31,7 +31,7 @@ gpu_memory_allocator: GpuMemoryAllocator,
 texture: gl.Texture,
 
 /// Thread pool that compiles chunk geometry for rendering
-compile_thread_pool: *std.Thread.Pool,
+compile_thread_pool: *@import("llm-code-quarantine").ThreadPool,
 /// Collects compiled geometry from compile_thread_pool
 compilation_result_queue: CompilationResultQueue,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
@@ -63,8 +63,8 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     const debug_program = try initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", allocator);
     const debug_buffer = gl.Buffer.create();
     debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
-    const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .init(allocator) };
-    const @"2d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .init(allocator) };
+    const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
+    const @"2d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
 
     const @"3d_vao" = try init3dVao();
     const @"2d_vao" = try init2dVao();
@@ -96,23 +96,34 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
 }
 
 pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8, allocator: std.mem.Allocator) !gl.Program {
-    const vertex_shader_file = try std.fs.cwd().openFile(vertex_shader_path, .{});
-    defer vertex_shader_file.close();
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
 
-    const vertex_shader_source = try vertex_shader_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const vertex_shader_source = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        vertex_shader_path,
+        allocator,
+        .unlimited,
+    );
     defer allocator.free(vertex_shader_source);
 
-    const frag_shader_file = try std.fs.cwd().openFile(frag_shader_path, .{});
-    defer frag_shader_file.close();
-
-    const frag_shader_source = try frag_shader_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const frag_shader_source = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        frag_shader_path,
+        allocator,
+        .unlimited,
+    );
     defer allocator.free(frag_shader_source);
 
     const vertex_shader: gl.Shader = .create(.vertex);
     vertex_shader.source(1, &vertex_shader_source);
+    vertex_shader.compile();
+    try logShader("vertex", vertex_shader);
 
     const frag_shader: gl.Shader = .create(.fragment);
     frag_shader.source(1, &frag_shader_source);
+    frag_shader.compile();
+    try logShader("fragment", frag_shader);
 
     const program: gl.Program = .create();
     program.attach(vertex_shader);
@@ -122,9 +133,21 @@ pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8,
     var log_buffer: [8192]u8 = undefined;
     var fba: std.heap.FixedBufferAllocator = .init(&log_buffer);
     const compile_log = try program.getCompileLog(fba.allocator());
-    if (compile_log.len > 0) std.debug.print("{s}", .{compile_log});
+    if (compile_log.len > 0) std.debug.print("program link log: {s}\n", .{compile_log});
 
     return program;
+}
+
+/// Prints the compile status and info log of a single shader stage.
+fn logShader(stage: []const u8, shader: gl.Shader) !void {
+    var log_buffer: [8192]u8 = undefined;
+    var fba: std.heap.FixedBufferAllocator = .init(&log_buffer);
+
+    const compiled = gl.getShader(shader, .compile_status) != 0;
+    const log = try shader.getCompileLog(fba.allocator());
+    if (!compiled or log.len > 0) {
+        std.debug.print("{s} shader compiled: {}, log: {s}\n", .{ stage, compiled, log });
+    }
 }
 
 pub fn init3dVao() !gl.VertexArray {
@@ -217,10 +240,9 @@ pub fn initTexture() gl.Texture {
     return texture;
 }
 
-pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
-    const pool = try allocator.create(std.Thread.Pool);
-    try pool.init(.{
-        .allocator = allocator,
+pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*@import("llm-code-quarantine").ThreadPool {
+    const pool = try allocator.create(@import("llm-code-quarantine").ThreadPool);
+    try pool.init(allocator, .{
         .n_jobs = 1,
     });
     return pool;
@@ -229,6 +251,7 @@ pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*std.Thread.Pool {
 pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     const mvp = getMvpMatrix(game.world.player, game.partial_tick);
     self.terrain_program.use();
+    self.vao.bind();
     self.terrain_program.uniform1i(2, 0);
     self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
     self.debug_program.uniformMatrix4(0, true, &.{mvp.data});
@@ -265,7 +288,8 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTr
     );
 
     // bind buffer as ssbo at offset
-    self.gpu_memory_allocator.backing_buffer.bindRange(
+    gl.bindBufferRange(
+        self.gpu_memory_allocator.backing_buffer,
         .shader_storage_buffer,
         0,
         @intCast(section.segment.offset),
@@ -384,7 +408,7 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
 }
 
 pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, allocator: std.mem.Allocator) !void {
-    const start: @import("util").Timer = .init();
+    const start: @import("llm-code-quarantine").Timer = .init();
 
     var iter = self.chunk_tracker.chunks.iterator();
 
@@ -392,7 +416,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
         const chunk_pos = entry.key_ptr.*;
         const chunk_info = entry.value_ptr;
         if (chunk_info.* == .waiting and chunk_info.waiting.isReady()) {
-            chunk_info.* = .{ .rendering = .{.{}} ** 16 };
+            chunk_info.* = .{ .rendering = @splat(.{}) };
         }
         if (chunk_info.* == .rendering) {
             const chunk: *const Chunk = world.chunks.get(chunk_pos).?;
@@ -468,12 +492,13 @@ pub fn dispatchCompilationTaskSync(self: *@This(), section_pos: Vector3(i32), wo
 pub fn uploadCompilationResults(self: *@This()) !void {
     if (self.compilation_result_queue.sections.first == null) return;
 
-    const start: @import("util").Timer = .init();
+    const start: @import("llm-code-quarantine").Timer = .init();
 
     while (self.compilation_result_queue.pop()) |compilation_result| {
         switch (compilation_result.result) {
-            .Success => |compiled_section| {
-                defer compiled_section.buffer.deinit();
+            .Success => |section| {
+                var compiled_section = section;
+                defer compiled_section.buffer.deinit(self.allocator);
 
                 const chunk_pos: Vector2xz(i32) = .{ .x = compilation_result.section_pos.x, .z = compilation_result.section_pos.z };
                 const section_y: usize = @intCast(compilation_result.section_pos.y);
@@ -541,7 +566,7 @@ pub fn deinit(self: *@This()) !void {
     try self.unloadAllChunks();
     self.gpu_memory_allocator.deinit();
     self.compile_thread_pool.deinit();
-    self.@"3d_debug_staging_buffer".backer.deinit();
+    self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
 }
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {

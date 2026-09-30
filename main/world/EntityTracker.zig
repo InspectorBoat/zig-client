@@ -6,23 +6,25 @@ entities: std.AutoHashMap(*Entity, void),
 entities_by_network_id: std.AutoHashMap(i32, *Entity),
 pool: std.heap.MemoryPoolExtra(Entity, .{}),
 entities_to_remove: std.ArrayList(*Entity),
+allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     return .{
         .entities = .init(allocator),
         .entities_by_network_id = .init(allocator),
-        .entities_to_remove = .init(allocator),
-        .pool = try .initPreheated(allocator, 256),
+        .entities_to_remove = .empty,
+        .pool = try .initCapacity(allocator, 256),
+        .allocator = allocator,
     };
 }
 pub fn deinit(self: *@This()) void {
     self.entities.deinit();
     self.entities_by_network_id.deinit();
-    self.pool.deinit();
-    self.entities_to_remove.deinit();
+    self.pool.deinit(self.allocator);
+    self.entities_to_remove.deinit(self.allocator);
 }
 pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
-    const new_entity: *Entity = try self.pool.create();
+    const new_entity: *Entity = try self.pool.create(self.allocator);
     new_entity.* = entity;
     const network_id = switch (entity) {
         .removed => return error.RemovedEntity,
@@ -42,7 +44,7 @@ pub fn queueEntityRemoval(self: *@This(), network_id: i32) !void {
         @import("log").remove_entity_missing(.{network_id});
         return;
     }).value;
-    try self.entities_to_remove.append(removed_entity);
+    try self.entities_to_remove.append(self.allocator, removed_entity);
     @import("log").remove_entity(.{removed_entity.*});
     removed_entity.* = .removed;
 }

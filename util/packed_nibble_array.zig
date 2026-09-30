@@ -11,7 +11,7 @@ pub fn PackedNibbleArray(len: usize) type {
             self.bytes[index / 2] |= @as(u8, value) << @intCast((index & 1) * 4);
         }
         pub fn init(values: [len]u4) @This() {
-            var self: @This() = .{ .raw = .{0} ** (len / 2) };
+            var self: @This() = .{ .bytes = @splat(0) };
             for (values, 0..) |value, i| {
                 self.set(i, value);
             }

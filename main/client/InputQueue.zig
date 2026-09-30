@@ -2,8 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const Vector2xy = root.Vector2xy;
 
-on_frame: std.fifo.LinearFifo(Input, .{ .Static = 256 }) = .init(),
-on_tick: std.fifo.LinearFifo(Input, .{ .Static = 128 }) = .init(),
+on_frame: @import("llm-code-quarantine").FixedFifo(Input, 256) = .init(),
+on_tick: @import("llm-code-quarantine").FixedFifo(Input, 128) = .init(),
 
 pub fn queueOnFrame(self: *@This(), input: Input) !void {
     try self.on_frame.writeItem(input);

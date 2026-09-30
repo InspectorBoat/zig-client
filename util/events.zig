@@ -42,7 +42,7 @@ fn validate(comptime Events: type, comptime listeners: anytype) void {
 
 fn declList(comptime Container: type, comptime Decl: type) []const Decl {
     const decl_names = @typeInfo(Container).@"struct".decls;
-    var decls: [decl_names.len]Decl = undefined;
+    comptime var decls: [decl_names.len]Decl = undefined;
     for (decl_names, &decls) |decl_name, *decl| {
         decl.* = @field(Container, decl_name.name);
     }
