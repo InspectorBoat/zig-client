@@ -6,7 +6,6 @@
 
 const std = @import("std");
 
-pub const Fifo = @import("Fifo.zig").Fifo;
 pub const FixedFifo = @import("Fifo.zig").FixedFifo;
 pub const ThreadPool = @import("ThreadPool.zig").ThreadPool;
 pub const Mutex = @import("Mutex.zig").Mutex;

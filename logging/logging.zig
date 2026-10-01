@@ -8,11 +8,7 @@ pub fn LogType(comptime enabled: bool, comptime fmt: []const u8) fn (args: anyty
     }.closure;
 }
 
-pub const DEBUG_RING_ALLOCATOR = false;
-pub const ring_buffer_oom_wait = LogType(DEBUG_RING_ALLOCATOR, "ring buffer ran out of memory, waiting");
-pub const ring_buffer_oom = LogType(DEBUG_RING_ALLOCATOR, "failed {} byte allocation from ring allocator, used {} bytes");
-pub const ring_buffer_allocate = LogType(DEBUG_RING_ALLOCATOR, "allocated {} bytes from ring allocator");
-pub const ring_buffer_free = LogType(DEBUG_RING_ALLOCATOR, "freed {} bytes from ring allocator");
+pub const ring_buffer_oom_wait = LogType(true, "ring buffer ran out of memory, waiting");
 pub const stop_network_thread = LogType(true, "stopping network thread");
 pub const invalid_opcode = LogType(true, "invalid opcode {}");
 pub const switch_protocol = LogType(false, "switching protocol to {}");

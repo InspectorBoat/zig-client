@@ -346,7 +346,8 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
 
 pub fn bufferInventory(self: *@This(), world: *const World) !void {
     _ = world;
-    try self.@"2d_debug_staging_buffer".write2dDebugQuad(.{ .x = -0.2, .y = -0.2 }, .{ .x = 0.2, .y = 0.2 });
+    _ = self;
+    // try self.@"2d_debug_staging_buffer".write2dDebugQuad(.{ .x = -0.2, .y = -0.2 }, .{ .x = 0.2, .y = 0.2 });
 }
 
 pub fn render3dDebug(self: *@This()) void {

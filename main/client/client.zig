@@ -177,10 +177,10 @@ pub const Client = union(enum) {
         };
 
         // Read and handle incoming s2c packets
-        while (blk: {
-            s2c_packet_queue.lock();
-            break :blk s2c_packet_queue.read();
-        }) |s2c_packet_wrapper| : (s2c_packet_queue.unlock()) {
+        while (true) {
+            const s2c_packet_wrapper = s2c_packet_queue.claim() orelse break;
+            defer s2c_packet_queue.release();
+
             @import("log").handle_packet(.{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
 
             var s2c_play_packet = s2c_packet_wrapper.packet;
@@ -190,27 +190,21 @@ pub const Client = union(enum) {
                 inline else => |*specific_packet| {
                     // Eliminate packets at comptime to prevent a compile error
                     if (specific_packet.handle_on_network_thread) unreachable;
-
                     try specific_packet.handleOnMainThread(
                         switch (self.*) {
                             specific_packet.required_client_state => |*client_state| client_state,
-                            else => return error.BadClientState,
+                            else => std.debug.panic("expected {}", .{specific_packet.required_client_state}),
                         },
                         allocator,
                     );
                 },
             }
         }
-        s2c_packet_queue.unlock();
 
         // Free c2s packets already sent by the network thread
-        {
-            c2s_packet_queue.lock();
-            defer c2s_packet_queue.unlock();
-            while (c2s_packet_queue.free()) |_| {}
-        }
+        while (c2s_packet_queue.reclaim()) |_| {}
 
-        if (connection_handle.disconnected.*) {
+        if (connection_handle.disconnected.load(.acquire)) {
             self.disconnect();
         }
     }

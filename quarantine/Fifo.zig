@@ -6,6 +6,9 @@
 //! by compacting when space runs short. That keeps `readableSlice` trivially
 //! correct, which matters because the packet decoder hands it straight to a
 //! buffer that must see every queued byte.
+//!
+//! This exists because `std.Deque` is a wrapping ring with no contiguous-slice
+//! accessor. For a plain growable queue, use `std.Deque` instead.
 
 const std = @import("std");
 
@@ -101,37 +104,6 @@ pub fn FixedFifo(comptime T: type, comptime capacity: usize) type {
     };
 }
 
-/// A FIFO queue backed by a heap-allocated growable buffer.
-pub fn Fifo(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        allocator: std.mem.Allocator,
-        buffer: std.ArrayList(T),
-
-        pub fn init(allocator: std.mem.Allocator) Self {
-            return .{ .allocator = allocator, .buffer = .empty };
-        }
-
-        pub fn deinit(self: *Self) void {
-            self.buffer.deinit(self.allocator);
-        }
-
-        pub fn writeItem(self: *Self, item: T) !void {
-            try self.buffer.append(self.allocator, item);
-        }
-
-        pub fn readItem(self: *Self) ?T {
-            if (self.buffer.items.len == 0) return null;
-            return self.buffer.orderedRemove(0);
-        }
-
-        pub fn count(self: *const Self) usize {
-            return self.buffer.items.len;
-        }
-    };
-}
-
 test "FixedFifo is FIFO ordered" {
     var fifo: FixedFifo(u32, 4) = .init();
     defer fifo.deinit();
@@ -186,19 +158,4 @@ test "FixedFifo readable slice stays contiguous and correct" {
         try fifo.write(all[i .. i + 1]);
     }
     try std.testing.expectEqualSlices(u8, all[17..64], fifo.readableSlice());
-}
-
-test "Fifo is FIFO ordered" {
-    var fifo: Fifo(u32) = .init(std.testing.allocator);
-    defer fifo.deinit();
-
-    try std.testing.expectEqual(@as(?u32, null), fifo.readItem());
-
-    try fifo.writeItem(10);
-    try fifo.writeItem(20);
-
-    try std.testing.expectEqual(@as(usize, 2), fifo.count());
-    try std.testing.expectEqual(@as(u32, 10), fifo.readItem().?);
-    try std.testing.expectEqual(@as(u32, 20), fifo.readItem().?);
-    try std.testing.expectEqual(@as(?u32, null), fifo.readItem());
 }

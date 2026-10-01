@@ -4,7 +4,8 @@ const glfw = @import("mach-glfw");
 
 window: glfw.Window,
 
-events: @import("llm-code-quarantine").Fifo(Event),
+events: std.Deque(Event),
+allocator: std.mem.Allocator,
 keys: std.EnumArray(glfw.Key, bool) = .initFill(false),
 mouse_pos: ?Vector2xy(f64) = null,
 maximized: bool = false,
@@ -33,12 +34,13 @@ pub const Event = union(enum) {
 pub fn init(window: glfw.Window, allocator: std.mem.Allocator) @This() {
     return .{
         .window = window,
-        .events = .init(allocator),
+        .events = .empty,
+        .allocator = allocator,
     };
 }
 
 pub fn deinit(self: *@This()) void {
-    self.events.deinit();
+    self.events.deinit(self.allocator);
 }
 
 pub fn setGlfwInputCallbacks(self: *@This()) void {
@@ -67,7 +69,7 @@ pub fn posCallback(window: glfw.Window, xpos: i32, ypos: i32) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{ .Pos = .{
+    window_input.events.pushBack(window_input.allocator, .{ .Pos = .{
         .x = xpos,
         .y = ypos,
     } }) catch unreachable;
@@ -77,7 +79,7 @@ pub fn sizeCallback(window: glfw.Window, width: i32, height: i32) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{ .Size = .{
+    window_input.events.pushBack(window_input.allocator, .{ .Size = .{
         .x = width,
         .y = height,
     } }) catch unreachable;
@@ -88,21 +90,21 @@ pub fn closeCallback(window: glfw.Window) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.Close) catch unreachable;
+    window_input.events.pushBack(window_input.allocator, .Close) catch unreachable;
 }
 pub fn refreshCallback(window: glfw.Window) void {
     var window_input = window.getUserPointer(@This()) orelse {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.Refresh) catch unreachable;
+    window_input.events.pushBack(window_input.allocator, .Refresh) catch unreachable;
 }
 pub fn focusCallback(window: glfw.Window, focused: bool) void {
     var window_input = window.getUserPointer(@This()) orelse {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Focus = focused,
     }) catch unreachable;
 }
@@ -111,7 +113,7 @@ pub fn iconifyCallback(window: glfw.Window, iconified: bool) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Iconify = iconified,
     }) catch unreachable;
 }
@@ -120,7 +122,7 @@ pub fn maximizeCallback(window: glfw.Window, maximized: bool) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Maximize = maximized,
     }) catch unreachable;
     window_input.maximized = maximized;
@@ -130,7 +132,7 @@ pub fn framebufferSizeCallback(window: glfw.Window, width: u32, height: u32) voi
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .FramebufferSize = .{ .x = width, .y = height },
     }) catch unreachable;
 }
@@ -139,7 +141,7 @@ pub fn contentScaleCallback(window: glfw.Window, xscale: f32, yscale: f32) void 
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .ContentScale = .{ .x = xscale, .y = yscale },
     }) catch unreachable;
 }
@@ -148,7 +150,7 @@ pub fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: gl
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods },
     }) catch unreachable;
     window_input.keys.set(key, if (action == .release) false else true);
@@ -158,7 +160,7 @@ pub fn charCallback(window: glfw.Window, codepoint: u21) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Char = codepoint,
     }) catch unreachable;
 }
@@ -167,7 +169,7 @@ pub fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .MouseButton = .{ .button = button, .action = action, .mods = mods },
     }) catch unreachable;
 }
@@ -180,7 +182,7 @@ pub fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
     const pos: Vector2xy(f64) = .{ .x = xpos, .y = ypos };
     const delta: Vector2xy(f64) = if (window_input.mouse_pos) |prev_pos| prev_pos.sub(pos) else .{ .x = 0, .y = 0 };
 
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .CursorPos = .{ .pos = pos, .delta = delta },
     }) catch unreachable;
 
@@ -191,7 +193,7 @@ pub fn cursorEnterCallback(window: glfw.Window, entered: bool) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .CursorEnter = entered,
     }) catch unreachable;
 }
@@ -200,7 +202,7 @@ pub fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Scroll = .{ .x = xoffset, .y = yoffset },
     }) catch unreachable;
 }
@@ -209,7 +211,7 @@ pub fn dropCallback(window: glfw.Window, paths: [][*:0]const u8) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.writeItem(.{
+    window_input.events.pushBack(window_input.allocator, .{
         .Drop = .{ .paths = paths },
     }) catch unreachable;
 }

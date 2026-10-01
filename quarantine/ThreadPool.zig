@@ -4,7 +4,6 @@
 //! that a worker thread runs and then frees.
 
 const std = @import("std");
-const Fifo = @import("Fifo.zig").Fifo;
 const Mutex = @import("Mutex.zig").Mutex;
 const Condition = @import("Mutex.zig").Condition;
 
@@ -18,7 +17,7 @@ pub const ThreadPool = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
-    queue: Fifo(Task),
+    queue: std.Deque(Task),
     mutex: Mutex = .{},
     /// Signalled when a task is queued or when the pool is shutting down.
     cond: Condition = .{},
@@ -37,7 +36,7 @@ pub const ThreadPool = struct {
     pub fn init(self: *Self, allocator: std.mem.Allocator, options: Options) !void {
         self.* = .{
             .allocator = allocator,
-            .queue = .init(allocator),
+            .queue = .empty,
             .threads = &.{},
         };
 
@@ -70,7 +69,7 @@ pub const ThreadPool = struct {
         self.threads = &.{};
         self.spawned = 0;
 
-        self.queue.deinit();
+        self.queue.deinit(self.allocator);
     }
 
     /// Queues `func(args...)` to run on a worker thread. Returns as soon as
@@ -100,7 +99,7 @@ pub const ThreadPool = struct {
         defer self.mutex.unlock();
         // Worker threads only exit once shutdown is set and the queue has
         // drained, so there is nothing to reject here.
-        self.queue.writeItem(.{ .run = Closure.run, .context = closure }) catch {
+        self.queue.pushBack(self.allocator, .{ .run = Closure.run, .context = closure }) catch {
             self.allocator.destroy(closure);
             return error.OutOfMemory;
         };
@@ -110,15 +109,15 @@ pub const ThreadPool = struct {
     fn worker(self: *Self) void {
         while (true) {
             self.mutex.lock();
-            while (self.queue.count() == 0 and !self.shutdown) {
+            while (self.queue.len == 0 and !self.shutdown) {
                 self.cond.wait(&self.mutex);
             }
-            if (self.queue.count() == 0) {
+            if (self.queue.len == 0) {
                 // Only reachable once shutdown is set and the queue is empty.
                 self.mutex.unlock();
                 return;
             }
-            const task = self.queue.readItem().?;
+            const task = self.queue.popFront().?;
             self.mutex.unlock();
 
             task.run(task.context, self);

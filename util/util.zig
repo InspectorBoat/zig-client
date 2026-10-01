@@ -6,4 +6,5 @@ pub const Uuid = @import("Uuid.zig");
 
 test {
     _ = @import("packed_nibble_array.zig");
+    _ = @import("RingBuffer.zig");
 }

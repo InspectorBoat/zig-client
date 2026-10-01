@@ -100,7 +100,7 @@ pub fn onExit(_: Events.Exit) !void {
 }
 
 pub fn handleInputIdle(_: *const Client.Idle) void {
-    while (window_input.events.readItem()) |event| {
+    while (window_input.events.popFront()) |event| {
         switch (event) {
             .Key => |key| {
                 switch (key.key) {
@@ -114,7 +114,7 @@ pub fn handleInputIdle(_: *const Client.Idle) void {
 }
 
 pub fn handleInputConnecting(_: *const Client.Connecting) void {
-    while (window_input.events.readItem()) |event| {
+    while (window_input.events.popFront()) |event| {
         switch (event) {
             .Key => |key| {
                 switch (key.key) {
@@ -129,7 +129,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 
 pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
     var cursor_delta: Vector2xy(f64) = .origin();
-    while (window_input.events.readItem()) |event| {
+    while (window_input.events.popFront()) |event| {
         switch (event) {
             .Key => |key| {
                 if (key.action == .repeat) continue;

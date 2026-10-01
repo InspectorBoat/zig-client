@@ -14,6 +14,6 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 }
 
 pub fn handleOnNetworkThread(self: *@This(), connection: *Connection) !void {
-    connection.disconnected.* = true;
+    connection.disconnected.store(true, .release);
     _ = self;
 }
