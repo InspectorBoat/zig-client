@@ -31,7 +31,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
-    @import("log").recieve_teleport_packet(.{ self.pos, self.rotation, self.relative_arguments });
+    std.log.scoped(.local_player_moved).debug("teleported to pos: {any} | rot: {any} | rel: {any}", .{ self.pos, self.rotation, self.relative_arguments });
 
     const player = &game.world.player;
 

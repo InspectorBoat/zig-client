@@ -2,6 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
+const Client = root.Client;
+const World = root.World;
 
 pub const EntityType = enum(i32) {
     item = 1,
@@ -142,11 +144,66 @@ pub const Entity = union(EntityType) {
 
     removed,
 
-    pub fn tick(entity: *@This()) !void {
+    pub fn tick(entity: *@This(), game: *Client.Game) !void {
+        // std.std.log.scoped(.entity).debug("{}", .{std.meta.activeTag(entity.*)});
         switch (entity.*) {
             .removed => return,
+            inline .cow, .item, .local_player => |*specific_entity| try specific_entity.tick(game),
+            // Unlisted types only get the snapshot below.
+            inline else => |*specific_entity| specific_entity.base.tick(),
+        }
+    }
+
+    pub fn setVelocityFromPacket(self: *@This(), velocity: Vector3(f64)) void {
+        switch (self.*) {
+            .removed => return,
             inline else => |*specific_entity| {
-                specific_entity.tick();
+                specific_entity.base.velocity = velocity;
+            },
+        }
+    }
+
+    pub fn interpolateOrSnap(
+        self: *@This(),
+        pos: Vector3(f64),
+        rot: Rotation2(f32),
+        steps: i32,
+        world: *const World,
+        allocator: std.mem.Allocator,
+    ) !void {
+        switch (self.*) {
+            .removed => return,
+            inline else => |*specific_entity| {
+                if (@hasField(@TypeOf(specific_entity.*), "interpolate")) {
+                    specific_entity.interpolate.beginInterp(pos, rot, steps);
+                } else {
+                    specific_entity.base.setPosition(pos);
+                    specific_entity.base.setRotation(rot);
+
+                    // lifts the entity out of blocks
+                    const contracted = specific_entity.base.hitbox.contract(.{ .x = 0.03125, .y = 0.0, .z = 0.03125 });
+                    const collisions = try world.getCollisions(contracted, allocator);
+                    defer allocator.free(collisions);
+
+                    var highest: f64 = 0.0;
+                    var overlapping = false;
+                    for (collisions) |block| {
+                        // ours doesn't filter (yet?), vanilla does
+                        if (!block.intersects(contracted)) continue;
+                        overlapping = true;
+                        if (block.max.y > highest) highest = block.max.y;
+                    }
+
+                    if (overlapping) {
+                        specific_entity.base.setPosition(.{
+                            .x = pos.x,
+                            .y = pos.y + (highest - contracted.min.y),
+                            .z = pos.z,
+                        });
+                    }
+
+                    std.log.scoped(.entity).debug("entity {any} moved to {any}", .{ self, specific_entity.base.pos });
+                }
             },
         }
     }
@@ -156,7 +213,7 @@ pub const Entity = union(EntityType) {
             .removed => return,
             inline else => |*specific_entity| {
                 specific_entity.base.pos = specific_entity.base.pos.add(delta);
-                @import("log").entity_move(.{ self, specific_entity.base.pos });
+                std.log.scoped(.entity).debug("entity {any} moved to {any}", .{ self, specific_entity.base.pos });
             },
         }
     }
@@ -166,7 +223,7 @@ pub const Entity = union(EntityType) {
             .removed => return,
             inline else => |*specific_entity| {
                 specific_entity.base.rotation = rotation;
-                @import("log").entity_rotate(.{ self, specific_entity.base.rotation });
+                std.log.scoped(.entity).debug("entity {any} rotated to {any}", .{ self, specific_entity.base.rotation });
             },
         }
     }

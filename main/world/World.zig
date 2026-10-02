@@ -28,7 +28,7 @@ pub const EntityTracker = @import("EntityTracker.zig");
 
 chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
-entities: EntityTracker,
+entity_tracker: EntityTracker,
 tick_timer: TickTimer,
 difficulty: Difficulty,
 dimension: i8,
@@ -47,7 +47,7 @@ pub fn init(info: struct {
     hardcore: bool,
 }, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
     return .{
-        .entities = try .init(allocator),
+        .entity_tracker = try .init(allocator),
         .tick_timer = try .init(),
         .difficulty = info.difficulty,
         .dimension = info.dimension,
@@ -60,12 +60,16 @@ pub fn init(info: struct {
 pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator; // autofix
 
-    self.entities.processEntityRemovals();
-    try self.player.update(game);
+    self.entity_tracker.processEntityRemovals();
+    var entity_iter = self.entity_tracker.entities.keyIterator();
+    while (entity_iter.next()) |maybe_entity| {
+        try maybe_entity.*.tick(game);
+    }
+    try self.player.tick(game);
 }
 
 pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {
-    @import("log").load_new_chunk(.{chunk_pos});
+    std.log.scoped(.world).debug("loaded new chunk at {}", .{chunk_pos});
 
     const chunk: Chunk = .{
         .sections = .{null} ** 16,
@@ -79,7 +83,7 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {
 }
 
 pub fn unloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), allocator: std.mem.Allocator) !void {
-    @import("log").unload_chunk(.{chunk_pos});
+    std.log.scoped(.world).debug("unloaded chunk at {}", .{chunk_pos});
 
     (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
     try EventHandler.dispatch(Events.UnloadChunk, .{ .chunk_pos = chunk_pos });
@@ -137,7 +141,7 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlock {
 
 pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: ConcreteBlockState, allocator: std.mem.Allocator) !void {
     const chunk: *Chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
-        @import("log").set_block_in_missing_chunk(.{.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
+        std.log.scoped(.world).warn("attempted to set block in missing chunk {any}!", .{.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
         return;
     };
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse blk: {
@@ -190,7 +194,7 @@ pub fn receiveChunk(
     has_sky_light: bool,
     allocator: std.mem.Allocator,
 ) !void {
-    @import("log").update_chunk(.{chunk_pos});
+    std.log.scoped(.world).debug("updating chunk at {}", .{chunk_pos});
 
     const start = @import("llm-code-quarantine").monotonicNanos();
     const chunk = self.chunks.getPtr(chunk_pos).?;
@@ -238,7 +242,7 @@ pub fn receiveChunk(
 
     {
         const timer: @import("llm-code-quarantine").Timer = .init();
-        defer @import("log").devirtualize_chunk(.{timer.ms()});
+        defer std.log.scoped(.world).debug("chunk devirtualized in {d} ms", .{timer.ms()});
         self.updateChunk(chunk);
         // self.updateRegion(.{
         //     .min = .{
@@ -253,7 +257,7 @@ pub fn receiveChunk(
         //     },
         // });
     }
-    @import("log").recieved_chunk(.{@as(f64, @floatFromInt((@import("llm-code-quarantine").monotonicNanos() - start))) / @as(f64, std.time.ns_per_ms)});
+    std.log.scoped(.world).debug("decoded chunk in {d} ms", .{@as(f64, @floatFromInt((@import("llm-code-quarantine").monotonicNanos() - start))) / @as(f64, std.time.ns_per_ms)});
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
 
@@ -334,6 +338,10 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
+                for (self.getBlockState(.{ .x = x, .y = y, .z = z }).getCollisionHitbox()) |maybe_block_hitbox| {
+                    _ = maybe_block_hitbox orelse continue;
+                    collisions_count += 1;
+                }
                 if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
                     collisions_count += 1;
                 }
@@ -346,14 +354,14 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
 pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.Allocator) ![]const Box(f64) {
     var collisions: std.ArrayList(Box(f64)) = .empty;
     const min_pos: Vector3(i32) = .{
-        .x = @intFromFloat(@floor(hitbox.min.x)),
-        .y = @intFromFloat(@floor(hitbox.min.y)),
-        .z = @intFromFloat(@floor(hitbox.min.z)),
+        .x = @floor(hitbox.min.x),
+        .y = @floor(hitbox.min.y),
+        .z = @floor(hitbox.min.z),
     };
     const max_pos: Vector3(i32) = .{
-        .x = @intFromFloat(@floor(hitbox.max.x + 1)),
-        .y = @intFromFloat(@floor(hitbox.max.y + 1)),
-        .z = @intFromFloat(@floor(hitbox.max.z + 1)),
+        .x = @ceil(hitbox.max.x),
+        .y = @ceil(hitbox.max.y),
+        .z = @ceil(hitbox.max.z),
     };
     var x = min_pos.x;
     while (x < max_pos.x) : (x += 1) {
@@ -361,19 +369,14 @@ pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
-                if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
-                    try collisions.append(allocator, Box(f64){
-                        .min = .{
-                            .x = @floatFromInt(x),
-                            .y = @floatFromInt(y),
-                            .z = @floatFromInt(z),
-                        },
-                        .max = .{
-                            .x = @floatFromInt(x + 1),
-                            .y = @floatFromInt(y + 1),
-                            .z = @floatFromInt(z + 1),
-                        },
-                    });
+                for (self.getBlockState(.{ .x = x, .y = y, .z = z }).getCollisionHitbox()) |maybe_block_hitbox| {
+                    const block_hitbox = maybe_block_hitbox orelse continue;
+                    // if (!block_hitbox.intersects(hitbox)) continue;
+                    try collisions.append(allocator, block_hitbox.move(.{
+                        .x = @floatFromInt(x),
+                        .y = @floatFromInt(y),
+                        .z = @floatFromInt(z),
+                    }));
                 }
             }
         }
@@ -401,28 +404,28 @@ pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator:
 }
 
 pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
-    return try self.entities.addEntity(entity);
+    return try self.entity_tracker.addEntity(entity);
 }
 pub fn queueEntityRemoval(self: *@This(), network_id: i32) !void {
-    try self.entities.queueEntityRemoval(network_id);
+    try self.entity_tracker.queueEntityRemoval(network_id);
 }
 
 pub fn getEntityByNetworkId(self: *@This(), network_id: i32) ?*Entity {
-    return self.entities.getEntityByNetworkId(network_id);
+    return self.entity_tracker.getEntityByNetworkId(network_id);
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     // free chunks
     var chunks = self.chunks.iterator();
     while (chunks.next()) |chunk| {
-        @import("log").free_chunk(.{chunk.chunk_pos});
+        std.log.scoped(.world).debug("freeing chunk at {}", .{chunk.chunk_pos});
         chunk.deinit(allocator);
     }
     if (self.menu == .other) self.menu.other.deinit(allocator);
     self.player_inventory_menu.deinit(allocator);
 
-    self.entities.deinit();
+    self.entity_tracker.deinit();
 
     const milliseconds_elapsed = @as(f64, @floatFromInt(@import("llm-code-quarantine").monotonicNanos() - self.tick_timer.start)) / std.time.ns_per_ms;
-    @import("log").display_average_tick_ms(.{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
+    std.log.scoped(.world).info("average ms/tick: {d} ms", .{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
 }

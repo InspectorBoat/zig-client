@@ -9,6 +9,8 @@ const Vector3 = root.Vector3;
 const World = root.World;
 const Rotation2 = root.Rotation2;
 const HitResult = root.HitResult;
+const MathHelper = root.math.MathHelper;
+const Direction = root.math.Direction;
 
 base: Entity.Base,
 living: Entity.LivingBase = .{},
@@ -41,7 +43,7 @@ sneaking: bool = false,
 
 hotbar_slot: u8 = 0,
 
-pub fn update(self: *@This(), game: *Client.Game) !void {
+pub fn tick(self: *@This(), game: *Client.Game) !void {
     self.crosshair = HitResult.rayTraceWorld(game.world, self.getEyePos(), self.base.rotation, 30, .{});
 
     // tick spectator onground and noclip
@@ -82,7 +84,7 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
 
     // stop sprinting if sprinting cooldown expired
     if (self.remaining_sprint_ticks > 0) {
-        self.remaining_sprint_ticks -= 0;
+        self.remaining_sprint_ticks -= 1;
         if (self.remaining_sprint_ticks == 0) {
             try self.setSprinting(false);
         }
@@ -106,8 +108,10 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
         }
     }
 
-    // apply velocity from being in full block
-    // self.pushAwayFromFullBlocks(game);
+    self.pushAwayFrom(game, self.base.pos.x - self.base.width * 0.35, self.base.hitbox.min.y + 0.5, self.base.pos.z + self.base.width * 0.35);
+    self.pushAwayFrom(game, self.base.pos.x - self.base.width * 0.35, self.base.hitbox.min.y + 0.5, self.base.pos.z - self.base.width * 0.35);
+    self.pushAwayFrom(game, self.base.pos.x + self.base.width * 0.35, self.base.hitbox.min.y + 0.5, self.base.pos.z - self.base.width * 0.35);
+    self.pushAwayFrom(game, self.base.pos.x + self.base.width * 0.35, self.base.hitbox.min.y + 0.5, self.base.pos.z + self.base.width * 0.35);
 
     // update sprinting
     try self.updateSprinting(inputs.*, steer);
@@ -132,7 +136,7 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     // if dead, stop movement inputs
     // otherwise, if camera, update movement inputs, multiplying steer by 0.98
     if (!self.hasControl()) {
-        inputs.movement.back, inputs.movement.forward, inputs.movement.left, inputs.movement.left, inputs.movement.jump = .{ false, false, false, false, false };
+        inputs.movement.back, inputs.movement.forward, inputs.movement.left, inputs.movement.right, inputs.movement.jump = .{ false, false, false, false, false };
         steer = .origin();
     } else {
         steer = steer.scaleUniform(0.98);
@@ -176,10 +180,55 @@ pub fn update(self: *@This(), game: *Client.Game) !void {
     const clamped_x = std.math.clamp(self.base.pos.x, -29_999_999, 29_999_999);
     const clamped_z = std.math.clamp(self.base.pos.z, -29_999_999, 29_999_999);
     if (clamped_x != self.base.pos.x or clamped_z != self.base.pos.z) {
-        self.base.teleport(.{ .x = self.base.pos.x, .y = self.base.pos.y, .z = self.base.pos.z }, self.base.rotation);
+        self.base.setPosition(.{ .x = clamped_x, .y = self.base.pos.y, .z = clamped_z });
     }
     // send movement packets
     try self.sendMovementPackets(game);
+}
+
+fn canSurvive(game: *const Client.Game, pos: Vector3(i32)) bool {
+    const block = game.world.getBlock(pos);
+    const above = game.world.getBlock(pos.add(.{ .x = 0, .y = 1, .z = 0 }));
+    return !block.isSolid() and !above.isSolid();
+}
+
+pub fn pushAwayFrom(self: *@This(), game: *const Client.Game, x: f64, y: f64, z: f64) void {
+    if (self.base.no_clip) return;
+
+    const block_pos: Vector3(i32) = .{
+        .x = @intFromFloat(@floor(x)),
+        .y = @intFromFloat(@floor(y)),
+        .z = @intFromFloat(@floor(z)),
+    };
+    const d = x - @as(f64, @floatFromInt(block_pos.x));
+    const e = z - @as(f64, @floatFromInt(block_pos.z));
+
+    if (!canSurvive(game, block_pos)) {
+        var dir: ?Direction = null;
+        var best: f64 = 9999.0;
+
+        if (canSurvive(game, block_pos.west()) and d < best) {
+            best = d;
+            dir = .West;
+        }
+        if (canSurvive(game, block_pos.east()) and 1.0 - d < best) {
+            best = 1.0 - d;
+            dir = .East;
+        }
+        if (canSurvive(game, block_pos.north()) and e < best) {
+            best = e;
+            dir = .North;
+        }
+        if (canSurvive(game, block_pos.south()) and 1.0 - e < best) {
+            best = 1.0 - e;
+            dir = .South;
+        }
+
+        if (dir == .West) self.base.velocity.x = -0.1;
+        if (dir == .East) self.base.velocity.x = 0.1;
+        if (dir == .North) self.base.velocity.z = -0.1;
+        if (dir == .South) self.base.velocity.z = 0.1;
+    }
 }
 
 pub fn getHeldStack(self: *@This(), game: *Client.Game) ?ItemStack {
@@ -236,11 +285,11 @@ pub fn sendMovementPackets(self: *@This(), game: *Client.Game) !void {
         } });
         self.server_movement_status.sprinting = try self.base.isSprinting();
     }
-    if (self.isSneaking() != self.server_movement_status.sprinting) {
+    if (self.isSneaking() != self.server_movement_status.sneaking) {
         try game.connection_handle.sendPlayPacket(.{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
-            .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
+            .action = if (self.isSneaking()) .StartSneaking else .StopSneaking,
         } });
         self.server_movement_status.sneaking = self.isSneaking();
     }
@@ -305,8 +354,8 @@ pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const C
     _ = game;
 }
 pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) !void {
-    const friction = self.getFrictionNonLiquid(game);
-    const traction = try self.getTractionNonLiquid(friction);
+    const friction = self.nonLiquidFriction(game);
+    const traction = try self.nonLiquidTraction(friction);
     const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
     self.base.velocity = self.base.velocity.add(.{
         .x = @floatCast(acceleration.x),
@@ -333,19 +382,23 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *cons
         .y = 0,
         .z = @intFromFloat(self.base.pos.z),
     })) {
-        self.base.velocity.y = getGravityNonLiquid(self.base.velocity.y);
+        self.base.velocity.y = nonLiquidGravity(self.base.velocity.y);
     } else {
-        self.base.velocity.y = if (self.base.pos.y > 0) -0.098 else 0;
+        self.base.velocity.y = if (self.base.pos.y > 0) unloadedGravity() else 0;
     }
 
     self.base.velocity.x *= friction;
     self.base.velocity.z *= friction;
 }
 
-pub fn getGravityNonLiquid(y_velocity: f64) f64 {
+pub fn nonLiquidGravity(y_velocity: f64) f64 {
     return (y_velocity - 0.08) * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
 }
-pub fn getFrictionNonLiquid(self: *const @This(), game: *const Client.Game) f32 {
+
+pub fn unloadedGravity() f64 {
+    return -0.1 * @as(f64, @floatCast(@as(f32, @floatCast(0.98))));
+}
+pub fn nonLiquidFriction(self: *const @This(), game: *const Client.Game) f32 {
     if (self.base.colliding.on_ground) {
         const pos = Vector3(i32){
             .x = @intFromFloat(@floor(self.base.pos.x)),
@@ -358,7 +411,7 @@ pub fn getFrictionNonLiquid(self: *const @This(), game: *const Client.Game) f32 
         return 0.91;
     }
 }
-pub fn getTractionNonLiquid(self: *const @This(), friction: f32) !f32 {
+pub fn nonLiquidTraction(self: *const @This(), friction: f32) !f32 {
     if (self.base.colliding.on_ground) {
         return try self.getGroundWaterSpeed() * (0.16277136 / (friction * friction * friction));
     } else {
@@ -371,8 +424,8 @@ pub fn getAccelerationFromSteer(steer: Vector2xz(f32), traction: f32, yaw: f32) 
 
     const yaw_radians = yaw * (@as(f32, @floatCast(std.math.pi)) / 180.0);
 
-    const sin = @sin(yaw_radians);
-    const cos = @cos(yaw_radians);
+    const sin = MathHelper.sin(yaw_radians);
+    const cos = MathHelper.cos(yaw_radians);
 
     const scaled_steer = steer.scaleUniform(traction / @max(steer.magnitude(), 1.0));
 
@@ -394,7 +447,7 @@ pub fn isClimbing(self: *const @This(), game: *const Client.Game) bool {
 }
 
 pub fn setSprinting(self: *@This(), sprint_state: bool) !void {
-    if (sprint_state) @import("log").player_start_sprint(.{}) else @import("log").player_stop_sprint(.{});
+    if (sprint_state) std.log.scoped(.player).debug("begin sprinting", .{}) else std.log.scoped(.player).debug("stop sprinting", .{});
     self.remaining_sprint_ticks = if (sprint_state) 600 else 0;
     try self.base.setSprinting(sprint_state);
 }
@@ -415,9 +468,8 @@ pub fn jump(self: *@This()) !void {
 
     if (try self.base.isSprinting()) {
         const yaw_radians = self.base.rotation.yaw * @as(f32, @floatCast(@as(f64, std.math.pi) / 180));
-        // TODO: Replace this with lookup table version
-        self.base.velocity.x -= @sin(yaw_radians) * 0.2;
-        self.base.velocity.z += @cos(yaw_radians) * 0.2;
+        self.base.velocity.x -= MathHelper.sin(yaw_radians) * 0.2;
+        self.base.velocity.z += MathHelper.cos(yaw_radians) * 0.2;
     }
 }
 

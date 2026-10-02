@@ -8,9 +8,9 @@ reason: []const u8,
 comptime handle_on_network_thread: bool = true,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-    _ = allocator;
-    _ = buffer;
-    return undefined;
+    return .{
+        .reason = try buffer.readStringAllocating(32767, allocator),
+    };
 }
 
 pub fn handleOnNetworkThread(self: *@This(), connection: *Connection) !void {

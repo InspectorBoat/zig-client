@@ -147,7 +147,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                     },
                     .k => if (key.action == .press) try renderer.recompileAllChunks(),
                     .l => if (key.action == .press) {
-                        @import("log").reload_shader(.{});
+                        std.log.scoped(.render).info("reloading shaders", .{});
                         renderer.terrain_program.delete();
                         renderer.debug_program.delete();
                         renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", gpa_impl.allocator());

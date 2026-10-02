@@ -12,8 +12,10 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+
+    return .{
+        .pos = try buffer.readBlockPos(),
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

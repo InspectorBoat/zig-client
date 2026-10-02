@@ -23,11 +23,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return @This(){
         .network_id = try buffer.readVarInt(),
         .uuid = try buffer.readUuid(),
-        .pos = .{
+        .pos = .{ .raw = .{
             .x = try buffer.read(i32),
             .y = try buffer.read(i32),
             .z = try buffer.read(i32),
-        },
+        } },
         .rotation = .{
             .yaw = try buffer.read(i8),
             .pitch = try buffer.read(i8),

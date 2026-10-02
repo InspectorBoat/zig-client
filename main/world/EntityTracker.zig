@@ -23,13 +23,14 @@ pub fn deinit(self: *@This()) void {
     self.pool.deinit(self.allocator);
     self.entities_to_remove.deinit(self.allocator);
 }
+// TODO: Forced entities, insert into chunk
 pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
     const new_entity: *Entity = try self.pool.create(self.allocator);
     new_entity.* = entity;
     const network_id = switch (entity) {
         .removed => return error.RemovedEntity,
         inline else => |specific_entity| blk: {
-            @import("log").add_entity(.{ entity, specific_entity.base.pos });
+            std.log.scoped(.entity).debug("added entity {any} at {any}", .{ entity, specific_entity.base.pos });
             break :blk specific_entity.base.network_id;
         },
     };
@@ -41,11 +42,11 @@ pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
 
 pub fn queueEntityRemoval(self: *@This(), network_id: i32) !void {
     const removed_entity = (self.entities_by_network_id.fetchRemove(network_id) orelse {
-        @import("log").remove_entity_missing(.{network_id});
+        std.log.scoped(.entity).warn("tried to remove missing entity with network id {}", .{network_id});
         return;
     }).value;
     try self.entities_to_remove.append(self.allocator, removed_entity);
-    @import("log").remove_entity(.{removed_entity.*});
+    std.log.scoped(.entity).debug("removed entity {any}", .{removed_entity.*});
     removed_entity.* = .removed;
 }
 

@@ -9,9 +9,17 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-    _ = allocator;
-    _ = buffer;
-    return undefined;
+    const suggestion_count = try buffer.readVarInt();
+
+    var suggestions: std.ArrayList([]const u8) = .empty;
+    try suggestions.ensureTotalCapacity(allocator, @intCast(suggestion_count));
+    for (0..@intCast(suggestion_count)) |_| {
+        try suggestions.append(allocator, try buffer.readStringAllocating(32767, allocator));
+    }
+
+    return .{
+        .suggestions = suggestions.items,
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

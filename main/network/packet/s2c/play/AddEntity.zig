@@ -22,21 +22,21 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 
     const network_id = try buffer.readVarInt();
     const entity_type = try buffer.read(i8);
-    const pos: ScaledVector(i32, 32.0) = .{
+    const pos: ScaledVector(i32, 32.0) = .{ .raw = .{
         .x = try buffer.read(i32),
         .y = try buffer.read(i32),
         .z = try buffer.read(i32),
-    };
+    } };
     const rotation: ScaledRotation2(i32, 256.0 / 360.0) = .{
         .pitch = try buffer.read(i8),
         .yaw = try buffer.read(i8),
     };
     const data = try buffer.read(i32);
-    const velocity: ?ScaledVector(i32, 8000) = if (data > 0) .{
+    const velocity: ?ScaledVector(i32, 8000) = if (data > 0) .{ .raw = .{
         .x = try buffer.read(i16),
         .y = try buffer.read(i16),
         .z = try buffer.read(i16),
-    } else null;
+    } } else null;
 
     return .{
         .network_id = network_id,
@@ -105,7 +105,7 @@ pub fn getEntity(self: *@This(), game: *Client.Game) ?Entity {
         50 => return .{ .primed_tnt = .init(self.network_id, self.pos.normalize()) },
         78 => return .{ .armor_stand = .init(self.network_id, self.pos.normalize()) },
         51 => return .{ .ender_crystal = .init(self.network_id, self.pos.normalize()) },
-        2 => return .{ .item = .init(self.network_id, self.pos.normalize()) },
+        2 => return .{ .item = .init(self.network_id, self.pos, self.velocity orelse .{ .raw = .origin() }) },
         70 => {
             self.data = 0;
             return .{ .falling_block = .init(self.network_id, self.pos.normalize()) };

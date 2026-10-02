@@ -5,6 +5,7 @@ const Rotation2 = root.Rotation2;
 const World = root.World;
 const Direction = root.Direction;
 const Box = root.Box;
+const MathHelper = root.MathHelper;
 
 pub const HitType = enum { block, entity, miss };
 
@@ -159,7 +160,7 @@ pub const HitResult = union(HitType) {
         var closest_hit_distance: f64 = std.math.inf(f64);
         var hit_result: @This() = .miss;
 
-        var iter = world.entities.entities_by_network_id.iterator();
+        var iter = world.entity_tracker.entities_by_network_id.iterator();
         while (iter.next()) |entry| {
             const entity = entry.value_ptr.*;
             const entity_network_id = entry.key_ptr.*;
@@ -332,10 +333,10 @@ pub const HitResult = union(HitType) {
     }
 
     pub fn rotationToVec(rotation: Rotation2(f32)) Vector3(f64) {
-        const x = @sin(-rotation.yaw * (std.math.pi / 180.0) - std.math.pi);
-        const z = @cos(-rotation.yaw * (std.math.pi / 180.0) - std.math.pi);
-        const y = @sin(-rotation.pitch * (std.math.pi / 180.0));
-        const pitch_scalar = -@cos(-rotation.pitch * (std.math.pi / 180.0));
+        const x = MathHelper.sin(-rotation.yaw * @as(f32, @floatCast(std.math.pi / 180.0)) - @as(f32, std.math.pi));
+        const z = MathHelper.cos(-rotation.yaw * @as(f32, @floatCast(std.math.pi / 180.0)) - @as(f32, std.math.pi));
+        const y = MathHelper.sin(-rotation.pitch * @as(f32, @floatCast(std.math.pi / 180.0)));
+        const pitch_scalar = -MathHelper.cos(-rotation.pitch * @as(f32, @floatCast(std.math.pi / 180.0)));
         return .{
             .x = @floatCast(x * pitch_scalar),
             .y = @floatCast(y),

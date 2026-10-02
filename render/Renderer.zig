@@ -270,7 +270,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
         }
     }
     try self.bufferCrosshair(&game.world);
-    try self.bufferEntities(&game.world);
+    try self.bufferEntities(&game.world, game.partial_tick);
 
     self.render3dDebug();
 
@@ -306,14 +306,17 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTr
     );
 }
 
-pub fn bufferEntities(self: *@This(), world: *const World) !void {
-    var iter = world.entities.entities.iterator();
+pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !void {
+    var iter = world.entity_tracker.entities.iterator();
     while (iter.next()) |entry| {
         const entity = entry.key_ptr.*;
         switch (entity.*) {
             .removed => continue,
             inline else => |specific_entity| {
-                const pos: Vector3(f64) = specific_entity.base.pos;
+                const pos: Vector3(f64) = .add(
+                    specific_entity.base.prev_pos,
+                    .scaleUniform(.sub(specific_entity.base.pos, specific_entity.base.prev_pos), partial_tick),
+                );
                 const min = pos.sub(.{
                     .x = specific_entity.base.width * 0.5,
                     .y = 0,
@@ -333,13 +336,16 @@ pub fn bufferEntities(self: *@This(), world: *const World) !void {
 pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
     switch (world.player.crosshair) {
         .block => |block| try self.@"3d_debug_staging_buffer".writeDebugCube(
-            block.block_pos.dir(block.dir).intToFloat(f32),
-            block.block_pos.dir(block.dir).add(.{ .x = 1, .y = 1, .z = 1 }).intToFloat(f32),
+            block.block_pos.intToFloat(f32),
+            block.block_pos.add(.{ .x = 1, .y = 1, .z = 1 }).intToFloat(f32),
         ),
-        .entity => |entity| try self.@"3d_debug_staging_buffer".writeDebugCube(
-            entity.pos.floatCast(f32).sub(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
-            entity.pos.floatCast(f32).add(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
-        ),
+        .entity => |entity| {
+            _ = entity;
+            // try self.@"3d_debug_staging_buffer".writeDebugCube(
+            //     entity.pos.floatCast(f32).sub(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
+            //     entity.pos.floatCast(f32).add(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
+            // );
+        },
         .miss => return,
     }
 }

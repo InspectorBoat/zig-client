@@ -55,6 +55,7 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
         .{
             .base = .{
                 .network_id = self.network_id,
+                .step_height = 0.6,
             },
             .abilities = undefined,
         },

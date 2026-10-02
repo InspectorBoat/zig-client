@@ -14,15 +14,14 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-    _ = buffer; // autofix
     _ = allocator;
-    // return .{
-    //     .event = try buffer.read(i32),
-    //     .pos = try buffer.readBlockPos(),
-    //     .data = try buffer.read(i32),
-    //     .global = try buffer.read(bool),
-    // };
-    return undefined;
+
+    return .{
+        .event = try buffer.read(i32),
+        .block_pos = try buffer.readBlockPos(),
+        .data = try buffer.read(i32),
+        .global = try buffer.read(bool),
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

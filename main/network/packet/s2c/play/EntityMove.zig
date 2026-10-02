@@ -34,21 +34,32 @@ pub const Position = struct {
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
+
         return .{
             .network_id = try buffer.readVarInt(),
-            .delta_pos = .{
+            .delta_pos = .{ .raw = .{
                 .x = try buffer.read(i8),
                 .y = try buffer.read(i8),
                 .z = try buffer.read(i8),
-            },
+            } },
             .on_ground = try buffer.read(bool),
         };
     }
 
     pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
         const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
-        entity.move(self.delta_pos.normalize());
-        _ = allocator;
+        switch (entity.*) {
+            .removed => {},
+            inline else => |*specific_entity| {
+                specific_entity.base.server_tracked_pos = .{
+                    .raw = .add(
+                        specific_entity.base.server_tracked_pos.raw,
+                        self.delta_pos.raw.intCast(i32),
+                    ),
+                };
+                try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world, allocator);
+            },
+        }
     }
 };
 
@@ -62,6 +73,7 @@ pub const Angles = struct {
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
+
         return .{
             .network_id = try buffer.readVarInt(),
             .rotation = .{
@@ -74,8 +86,12 @@ pub const Angles = struct {
 
     pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
         const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
-        entity.rotateTo(self.rotation.normalize());
-        _ = allocator;
+        switch (entity.*) {
+            .removed => {},
+            inline else => |*specific_entity| {
+                try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world, allocator);
+            },
+        }
     }
 };
 
@@ -90,13 +106,14 @@ pub const PositionAndAngles = struct {
 
     pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         _ = allocator;
+
         return .{
             .network_id = try buffer.readVarInt(),
-            .delta_pos = .{
+            .delta_pos = .{ .raw = .{
                 .x = try buffer.read(i8),
                 .y = try buffer.read(i8),
                 .z = try buffer.read(i8),
-            },
+            } },
             .rotation = .{
                 .yaw = try buffer.read(i8),
                 .pitch = try buffer.read(i8),
@@ -107,8 +124,17 @@ pub const PositionAndAngles = struct {
 
     pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
         const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
-        entity.move(self.delta_pos.normalize());
-        entity.rotateTo(self.rotation.normalize());
-        _ = allocator;
+        switch (entity.*) {
+            .removed => {},
+            inline else => |*specific_entity| {
+                specific_entity.base.server_tracked_pos = .{
+                    .raw = .add(
+                        specific_entity.base.server_tracked_pos.raw,
+                        self.delta_pos.raw.intCast(i32),
+                    ),
+                };
+                try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), self.rotation.normalize(), 3, &game.world, allocator);
+            },
+        }
     }
 };

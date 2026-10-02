@@ -13,12 +13,22 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+
+    const network_id = try buffer.readVarInt();
+    const velocity: ScaledVector(i32, 8000.0) = .{ .raw = .{
+        .x = try buffer.read(i16),
+        .y = try buffer.read(i16),
+        .z = try buffer.read(i16),
+    } };
+
+    return .{
+        .network_id = network_id,
+        .velocity = velocity,
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+    const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
+    entity.setVelocityFromPacket(self.velocity.normalize());
     _ = allocator;
-    _ = game;
-    _ = self;
 }

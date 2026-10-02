@@ -10,7 +10,7 @@ chunk_pos: Vector2xz(i32),
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     for (self.sections) |maybe_section| {
         if (maybe_section) |section| {
-            @import("log").free_section(&.{});
+            std.log.scoped(.world).debug("freeing section", .{});
             allocator.destroy(section);
         }
     }

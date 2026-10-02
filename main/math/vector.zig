@@ -267,6 +267,22 @@ pub fn Vector3(comptime Element: type) type {
             };
         }
 
+        pub fn div(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = self.x / divisor.x,
+                .y = self.y / divisor.y,
+                .z = self.z / divisor.z,
+            };
+        }
+
+        pub fn divUniform(self: @This(), divisor: Element) @This() {
+            return .{
+                .x = self.x / divisor,
+                .y = self.y / divisor,
+                .z = self.z / divisor,
+            };
+        }
+
         pub fn negate(self: @This()) @This() {
             return .{
                 .x = -self.x,

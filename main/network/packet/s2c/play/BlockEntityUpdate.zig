@@ -14,9 +14,13 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-    _ = allocator;
-    _ = buffer;
-    return undefined;
+    const block_pos = try buffer.readBlockPos();
+    const block_entity_type = try buffer.read(u8);
+    return .{
+        .block_pos = block_pos,
+        .type = block_entity_type,
+        .nbt = try NbtCompound.read(buffer, allocator),
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

@@ -5,15 +5,17 @@ const Box = root.Box;
 const Vector3 = root.Vector3;
 const Rotation2 = root.Rotation2;
 const DataTracker = root.Entity.DataTracker;
+const ScaledVector = root.network.ScaledVector;
 const std = @import("std");
 
 /// This struct supplies fields that every entity needs
 network_id: i32 = undefined,
-pos: Vector3(f64) = Vector3(f64).origin(),
-prev_pos: Vector3(f64) = Vector3(f64).origin(),
-rotation: Rotation2(f32) = Rotation2(f32).origin(),
-prev_rotation: Rotation2(f32) = Rotation2(f32).origin(),
-velocity: Vector3(f64) = Vector3(f64).origin(),
+pos: Vector3(f64) = .origin(),
+prev_pos: Vector3(f64) = .origin(),
+server_tracked_pos: ScaledVector(i32, 32) = .{ .raw = .origin() },
+rotation: Rotation2(f32) = .origin(),
+prev_rotation: Rotation2(f32) = .origin(),
+velocity: Vector3(f64) = .origin(),
 colliding: struct {
     horizontal: bool = false,
     vertical: bool = false,
@@ -23,6 +25,7 @@ colliding: struct {
 fall_distance: f32 = 0,
 no_clip: bool = false,
 hitbox: Box(f64) = .{ .min = .{ .x = 0, .y = 0, .z = 0 }, .max = .{ .x = 1, .y = 1, .z = 1 } },
+step_height: f64 = 0.0,
 
 vehicle: ?*Entity = null,
 
@@ -51,7 +54,7 @@ pub fn initRotation(network_id: i32, pos: Vector3(f64), rotation: Rotation2(f32)
 }
 
 pub fn tick(self: *@This()) void {
-    // TODO: This is not vanilla, it should incremet at the beginning
+    // TODO: This is not vanilla, it should increment at the beginning
     self.ticks_existed += 1;
     self.prev_pos = self.pos;
     self.prev_rotation = self.rotation;
@@ -133,7 +136,6 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
     }
 
     const initial_hitbox = self.hitbox;
-    _ = initial_hitbox;
     // handle collisions
     const possible_collisions = try game.world.getCollisions(self.hitbox.grow(initial_velocity), game.gpa);
     defer game.gpa.free(possible_collisions);
@@ -142,6 +144,8 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
         actual_movement.y = blocking_hitbox.blockYAxisMovingHitbox(self.hitbox, actual_movement.y);
     }
     self.hitbox = self.hitbox.move(.{ .x = 0, .y = actual_movement.y, .z = 0 });
+
+    const grounded = self.colliding.on_ground or (initial_velocity.y != actual_movement.y and initial_velocity.y < 0);
 
     // move and collide on the x axis
     for (possible_collisions) |blocking_hitbox| {
@@ -157,10 +161,78 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
 
     // step up blocks
     // to step, we must have been on the ground in the previous tick, or on the ground in this new tick
-    if (self.getStepHeight() > 0.0 and
-        (self.colliding.on_ground or (initial_velocity.y != actual_movement.y and initial_velocity.y < 0)) and
+    if (self.step_height > 0.0 and grounded and
         (initial_velocity.x != actual_movement.x or initial_velocity.z != actual_movement.z))
-    {}
+    {
+        const no_step_movement = actual_movement;
+        const no_step_hitbox = self.hitbox;
+
+        self.hitbox = initial_hitbox;
+        const step_x = initial_velocity.x;
+        const step_y = self.step_height;
+        const step_z = initial_velocity.z;
+        const step_collisions = try game.world.getCollisions(self.hitbox.grow(.{ .x = step_x, .y = step_y, .z = step_z }), game.gpa);
+        defer game.gpa.free(step_collisions);
+
+        // y movement uses a box expanded in the direction of the step, so a ceiling over the
+        // destination clamps it
+        var low_hitbox = self.hitbox;
+        const low_swept = low_hitbox.grow(.{ .x = step_x, .y = 0.0, .z = step_z });
+        var low_movement: Vector3(f64) = .{ .x = step_x, .y = step_y, .z = step_z };
+        for (step_collisions) |blocking_hitbox| {
+            low_movement.y = blocking_hitbox.blockYAxisMovingHitbox(low_swept, low_movement.y);
+        }
+        low_hitbox = low_hitbox.move(.{ .x = 0, .y = low_movement.y, .z = 0 });
+        for (step_collisions) |blocking_hitbox| {
+            low_movement.x = blocking_hitbox.blockXAxisMovingHitbox(low_hitbox, low_movement.x);
+        }
+        low_hitbox = low_hitbox.move(.{ .x = low_movement.x, .y = 0, .z = 0 });
+        for (step_collisions) |blocking_hitbox| {
+            low_movement.z = blocking_hitbox.blockZAxisMovingHitbox(low_hitbox, low_movement.z);
+        }
+        low_hitbox = low_hitbox.move(.{ .x = 0, .y = 0, .z = low_movement.z });
+
+        // y movement uses the current hitbox, so it only
+        // needs headroom where the entity stands now
+        // actually i'm not sure when this would ever give a better result
+        var high_hitbox = self.hitbox;
+        var high_movement: Vector3(f64) = .{ .x = step_x, .y = step_y, .z = step_z };
+        for (step_collisions) |blocking_hitbox| {
+            high_movement.y = blocking_hitbox.blockYAxisMovingHitbox(high_hitbox, high_movement.y);
+        }
+        high_hitbox = high_hitbox.move(.{ .x = 0, .y = high_movement.y, .z = 0 });
+        for (step_collisions) |blocking_hitbox| {
+            high_movement.x = blocking_hitbox.blockXAxisMovingHitbox(high_hitbox, high_movement.x);
+        }
+        high_hitbox = high_hitbox.move(.{ .x = high_movement.x, .y = 0, .z = 0 });
+        for (step_collisions) |blocking_hitbox| {
+            high_movement.z = blocking_hitbox.blockZAxisMovingHitbox(high_hitbox, high_movement.z);
+        }
+        high_hitbox = high_hitbox.move(.{ .x = 0, .y = 0, .z = high_movement.z });
+
+        const low_dist = low_movement.x * low_movement.x + low_movement.z * low_movement.z;
+        const high_dist = high_movement.x * high_movement.x + high_movement.z * high_movement.z;
+        if (low_dist > high_dist) {
+            actual_movement = .{ .x = low_movement.x, .y = -low_movement.y, .z = low_movement.z };
+            self.hitbox = low_hitbox;
+        } else {
+            actual_movement = .{ .x = high_movement.x, .y = -high_movement.y, .z = high_movement.z };
+            self.hitbox = high_hitbox;
+        }
+
+        // move back down to rest on the ground
+        for (step_collisions) |blocking_hitbox| {
+            actual_movement.y = blocking_hitbox.blockYAxisMovingHitbox(self.hitbox, actual_movement.y);
+        }
+        self.hitbox = self.hitbox.move(.{ .x = 0, .y = actual_movement.y, .z = 0 });
+
+        const stepped_dist = actual_movement.x * actual_movement.x + actual_movement.z * actual_movement.z;
+        const flat_dist = no_step_movement.x * no_step_movement.x + no_step_movement.z * no_step_movement.z;
+        if (flat_dist >= stepped_dist) {
+            actual_movement = no_step_movement;
+            self.hitbox = no_step_hitbox;
+        }
+    }
 
     // set position from hitbox
     self.pos = getPositionFromHitbox(self.hitbox);
@@ -178,10 +250,8 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
     if (initial_velocity.y != actual_movement.y) self.velocity.y = 0; // block.applyFallReaction - slime block bounce code is here
 }
 
-// TODO: Implement
-pub fn getStepHeight(self: *@This()) f32 {
-    _ = self;
-    return 0.6;
+pub fn getStepHeight(self: *@This()) f64 {
+    return self.step_height;
 }
 
 pub fn fall(self: *@This(), on_ground: bool, distance: f64) void {
@@ -229,6 +299,11 @@ pub fn setRotation(self: *@This(), rotation: Rotation2(f32)) void {
         .pitch = @rem(rotation.pitch, 360.0),
         .yaw = @rem(rotation.yaw, 360.0),
     };
+}
+
+pub fn syncPositionAndRotation(self: *@This(), pos: Vector3(f64), rotation: Vector3(f64)) void {
+    self.prev_pos = pos;
+    self.prev_rotation = rotation;
 }
 
 pub fn hasVehicle(self: @This()) bool {

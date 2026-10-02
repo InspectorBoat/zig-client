@@ -321,7 +321,7 @@ pub const S2C = union(enum) {
                     },
                     // error on invalid opcodes
                     else => |opcode| {
-                        @import("log").invalid_opcode(.{opcode});
+                        std.log.scoped(.net).err("invalid opcode {}", .{opcode});
                         return error.InvalidOpcode;
                     },
                 }

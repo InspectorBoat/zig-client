@@ -4,19 +4,39 @@ const World = root.World;
 const Vector3 = root.Vector3;
 const Box = root.Box;
 
-// Requirements of system:
-// Looking up the raytrace hitboxes for a blockstate, which depends on virtual properties, must be fast
-// Looking up the collision hitboxes for a blockstate, which depends on virtual properties, must be fast
-// Looking up the model for a blockstate, which depends on virtual properties, must be fast
-// looking up toughness, friction, tool, etc. for a block, must be fast
-// Fully resolved blockstates must take up 16 bits or less
+// In minecraft versions <1.13, chunks store block(states) packed in 16 bits:
+// <block type: 12 bits>|<block metadata: 4 bits>
+// Block type denotes well, the specific type of the block, such as dirt,
+// water, torches, packed ice, etc.
+// Metadata denotes the state the block it is in - e.g. for levers, powered vs
+// unpowered and what face it is attached to.
+// Of course, there are some stupid exceptions, like stone, where
+// andesite, diorite, granite, and their polished variants are all metadata
+// of the same block type (stone).
+// So sometimes metadata only determines the transient state of the block
+// (like the shape of a fence), but other times metadata actually
+// persists after breaking the block and placing it back down.
 
-// To accomplish this, we split off the blocks that have too many virtual blockstates into multiple blocks
+// As if this system wasn't bad enough, you may notice that
+// some blocks should actually require more than 4 bits to
+// store their block state! For example, redstone dust
+// stores power level (0-15), then for each cardinal direction,
+// whether there is a flat, rising, or no connection.
+// That's 16 * 3 * 3 * 3 * 3, or 1296 states, which obviously
+// can't fit within 4 bits.
+// What actually happens is that the game just recomputes them on demand
+// based on the neighboring blocks. See Block.resolveVirtualProperties.
+// (Note that Block.resolveVirtualProperties is only called for rendering
+// and in the client debug overlay, but essentially similar logic is used
+// throughout for other tasks like getting collisions.)
+// For an especially convoluted example: Doors have facing (n/e/s/w),
+// open (bool), hinge (left/right), powered (bool), and half (upper/lower).
+// Half is always a stored property, but only the lower half stores facing
+// and open, and only the upper half stores hinge and powered.
+// So each half has to look at the other to retrieve the state it doesn't
+// have.
 
-// To look up the raytrace/collision hitboxes, we use a hashmap
-// To look up the toughness/friction/tool/solidity, we use only the block bits and index into an enum array
-
-// The types of each block
+/// The types of each block
 pub const Block = enum(u8) {
     air,
     stone,
@@ -680,6 +700,10 @@ pub const ConcreteBlock = enum(u8) {
 
     pub fn isFullCube(self: @This()) bool {
         return @import("full_cube_table.zig").@"export".get(self);
+    }
+
+    pub fn isSolid(self: @This()) bool {
+        return self.isFullCube();
     }
 
     pub fn getFriction(self: @This()) f32 {
@@ -1995,105 +2019,6 @@ pub const ConcreteBlockState = packed struct(u16) {
         }
     }
 
-    pub fn updateDummy(self: *@This(), world: anytype, block_pos: Vector3(i32)) void {
-        switch (self.block) {
-            .grass,
-            .dirt,
-            => {
-                const up = world.getBlock(block_pos.up());
-                self.properties.grass.virtual.snowy = up == .snow or up == .snow_layer;
-            },
-            // .dirt,
-            .piston_head => {},
-            .fire => {},
-            .oak_stairs,
-            .stone_stairs,
-            .brick_stairs,
-            .stone_brick_stairs,
-            .nether_brick_stairs,
-            .sandstone_stairs,
-            .spruce_stairs,
-            .birch_stairs,
-            .jungle_stairs,
-            .quartz_stairs,
-            .acacia_stairs,
-            .dark_oak_stairs,
-            .red_sandstone_stairs,
-            => {
-                // const stairs = &self.properties.oak_stairs;
-                // if (stairs.isInner(world, block_pos)) {
-                //     stairs.virtual.shape = stairs.getInnerStairShape(world, block_pos);
-                // } else {
-                //     stairs.virtual.shape = stairs.getOuterStairShape(world, block_pos);
-                // }
-            },
-            .chest => {},
-            .redstone_wire => {},
-            // .stone_stairs,
-            .fence,
-            .spruce_fence,
-            .birch_fence,
-            .jungle_fence,
-            .dark_oak_fence,
-            .acacia_fence,
-            => {
-                self.properties.fence.virtual = .{
-                    .west = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.west())),
-                    .south = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.south())),
-                    .north = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.north())),
-                    .east = self.properties.fence.shouldConnectTo(world.getBlock(block_pos.east())),
-                };
-            },
-            .unpowered_repeater => {},
-            .powered_repeater => {},
-            .iron_bars => {},
-            .glass_pane => {},
-            .pumpkin_stem => {},
-            .melon_stem => {},
-            .vine => {},
-            .fence_gate => {},
-            // .brick_stairs,
-            // .stone_brick_stairs,
-            .mycelium => {},
-            .nether_brick_fence => {
-                // self.payloadPtr(.nether_brick_fence).virtual = .{
-                //     .west = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.west())),
-                //     .south = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.south())),
-                //     .north = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.north())),
-                //     .east = self.payload(.nether_brick_fence).shouldConnectTo(world.getBlock(block_pos.east())),
-                // };
-            },
-            // .nether_brick_stairs,
-            // .sandstone_stairs,
-            .tripwire_hook => {},
-            .tripwire => {},
-            // .spruce_stairs,
-            // .birch_stairs,
-            // .jungle_stairs,
-            .cobblestone_wall => {},
-            .flower_pot => {},
-            .trapped_chest => {},
-            // .quartz_stairs,
-            .stained_glass_pane => {},
-            // .acacia_stairs,
-            // .dark_oak_stairs,
-            // .red_sandstone_stairs,
-            .spruce_fence_gate => {},
-            .birch_fence_gate => {},
-            .jungle_fence_gate => {},
-            .dark_oak_fence_gate => {},
-            .acacia_fence_gate => {},
-
-            // .spruce_fence => {},
-            // .birch_fence => {},
-            // .jungle_fence => {},
-            // .dark_oak_fence => {},
-            // .acacia_fence => {},
-
-            else => {},
-        }
-    }
-
     pub fn payload(self: @This(), comptime block: ConcreteBlock) @TypeOf(@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);
         return @field(self.properties, @tagName(block));
@@ -2101,6 +2026,62 @@ pub const ConcreteBlockState = packed struct(u16) {
     pub fn payloadPtr(self: *@This(), comptime block: ConcreteBlock) @TypeOf(&@field(self.properties, @tagName(block))) {
         std.debug.assert(self.block == block);
         return &@field(self.properties, @tagName(block));
+    }
+
+    pub fn getCollisionHitbox(self: @This()) [3]?Box(f64) {
+        const NONE: [3]?Box(f64) = .{ null, null, null };
+        return switch (self.block) {
+            .sapling,
+            .flowing_water,
+            .water,
+            .flowing_lava,
+            .lava,
+            .rail,
+            .golden_rail,
+            .detector_rail,
+            .web,
+            .tallgrass,
+            .double_plant,
+            .deadbush,
+            .yellow_flower,
+            .red_flower,
+            .brown_mushroom,
+            .red_mushroom,
+            .torch,
+            .wheat,
+            .carrots,
+            .potatoes,
+            .standing_sign,
+            .wall_sign,
+            .lever,
+            .stone_pressure_plate,
+            .wooden_pressure_plate,
+            .heavy_weighted_pressure_plate,
+            .light_weighted_pressure_plate,
+            .redstone_torch,
+            .redstone_wire,
+            .reeds,
+            .vine,
+            .tripwire_hook,
+            .tripwire,
+            .wooden_button,
+            .stone_button,
+            .unpowered_comparator,
+            .powered_comparator,
+            .activator_rail,
+            .standing_banner,
+            .wall_banner,
+            .redstone_wire_none_flat,
+            .redstone_wire_none_upper,
+            .redstone_wire_flat_none,
+            .redstone_wire_flat_flat,
+            .redstone_wire_flat_upper,
+            .redstone_wire_upper_none,
+            .redstone_wire_upper_flat,
+            .redstone_wire_upper_upper,
+            => NONE,
+            else => self.getRaytraceHitbox(),
+        };
     }
 
     pub fn getRaytraceHitbox(self: @This()) [3]?Box(f64) {

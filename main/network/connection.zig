@@ -19,6 +19,13 @@ pub const Connection = struct {
     /// then calls connection_handle.disconnect to notify network thread
     disconnected: *std.atomic.Value(bool),
 
+    /// Held by the main thread until it calls disconnect()
+    /// Queued packets point into this thread's stack (the
+    /// s2c ring buffer and queued_bytes), so the network thread
+    /// blocks on it before exiting so it doesn't pull the rug
+    /// out from under the main thread.
+    lifetime_mutex: *std.atomic.Mutex,
+
     socket: network_lib.Socket,
 
     protocol: Protocol = .Login,
@@ -41,6 +48,7 @@ pub const Connection = struct {
         name: []const u8,
         port: u16,
         disconnect_ptr: *std.atomic.Value(bool),
+        lifetime_mutex: *std.atomic.Mutex,
         c2s_packet_queue: *WriteReadFreeQueue(C2S),
         s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
     ) !void {
@@ -50,6 +58,8 @@ pub const Connection = struct {
             .port = port,
 
             .disconnected = disconnect_ptr,
+
+            .lifetime_mutex = lifetime_mutex,
 
             .socket = connectSocket(name, port) catch {
                 disconnect_ptr.store(true, .release);
@@ -66,11 +76,15 @@ pub const Connection = struct {
 
         while (true) {
             connection.tick() catch {
+                if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
                 connection.disconnected.store(true, .release);
             };
             if (connection.disconnected.load(.acquire)) {
+                // Wait for the main thread to signal safety
+                while (!lifetime_mutex.tryLock()) std.atomic.spinLoopHint();
+                lifetime_mutex.unlock();
                 connection.socket.close();
-                @import("log").stop_network_thread(.{});
+                std.log.scoped(.net).info("stopping network thread", .{});
                 return;
             }
         }
@@ -121,7 +135,7 @@ pub const Connection = struct {
             inline else => |*specific_protocol| {
                 switch (specific_protocol.*) {
                     inline else => |*specific_packet| {
-                        @import("log").handle_packet(.{@tagName(std.meta.activeTag(specific_protocol.*))});
+                        std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
                         if (specific_packet.handle_on_network_thread) {
                             try specific_packet.handleOnNetworkThread(self);
                             // free immediately
@@ -207,7 +221,7 @@ pub const Connection = struct {
 
         // We don't have enough bytes - the packet is not complete
         if (buffer.remainingBytes() < packet_body_size) return null;
-        @import("log").decode_packet(.{ buffer.read_location, packet_body_size });
+        std.log.scoped(.decode_packet).debug("decoding packet - {} bytes header + {} bytes body", .{ buffer.read_location, packet_body_size });
 
         const packet_size = packet_header_size + @as(usize, @intCast(packet_body_size));
         // trim buffer to prevent reading
@@ -270,7 +284,7 @@ pub const Connection = struct {
         initial_buffer_mark: usize,
         initial_allocator_mark: usize,
     ) !void {
-        @import("log").ring_buffer_oom_wait(.{});
+        std.log.scoped(.net).warn("ring buffer ran out of memory, waiting", .{});
         // undo allocations and reads
         buffer.read_location = initial_buffer_mark;
         try self.s2c_packet_ring_alloc.undoAllocations(initial_allocator_mark);
@@ -319,7 +333,7 @@ pub const Connection = struct {
     }
 
     pub fn switchProtocol(self: *@This(), protocol: Protocol) void {
-        @import("log").switch_protocol(.{protocol});
+        std.log.scoped(.switch_protocol).debug("switching protocol to {}", .{protocol});
         std.debug.assert(self.protocol != protocol);
         self.protocol = protocol;
     }
@@ -421,6 +435,12 @@ pub const ConnectionHandle = struct {
     c2s_packet_allocator: std.mem.Allocator,
     /// If either thread sets this flag to true, the network thread will disconnect and halt
     disconnected: *std.atomic.Value(bool),
+    /// Held by the main thread until it calls disconnect()
+    /// Queued packets point into this thread's stack (the
+    /// s2c ring buffer and queued_bytes), so the network thread
+    /// blocks on it before exiting so it doesn't pull the rug
+    /// out from under the main thread.
+    lifetime_mutex: *std.atomic.Mutex,
 
     pub fn sendPacket(self: *@This(), packet: C2S) !void {
         try self.c2s_packet_queue.write(packet);
@@ -459,10 +479,15 @@ pub const ConnectionHandle = struct {
         allocator: std.mem.Allocator,
     ) void {
         self.disconnected.store(true, .release);
+        // Release the session lock before joining: the network thread is parked on it
+        // and cannot return until we do. After this point we must not touch either
+        // queue's contents - the network thread's backing memory is about to go away.
+        self.lifetime_mutex.unlock();
         self.network_thread.join();
         allocator.destroy(self.c2s_packet_queue);
         allocator.destroy(self.s2c_packet_queue);
         allocator.destroy(self.disconnected);
+        allocator.destroy(self.lifetime_mutex);
         allocator.free(self.name);
     }
 };
@@ -480,13 +505,18 @@ pub fn initConnection(
     const c2s_packet_queue: *WriteReadFreeQueue(C2S) = try allocator.create(WriteReadFreeQueue(C2S));
     const s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper) = try allocator.create(WriteReadFreeQueue(S2CWrapper));
     const disconnect_ptr = try allocator.create(std.atomic.Value(bool));
+    const lifetime_mutex = try allocator.create(std.atomic.Mutex);
     const name_dupe = try allocator.dupe(u8, name);
 
     c2s_packet_queue.* = .{};
     s2c_packet_queue.* = .{};
     disconnect_ptr.* = .init(false);
+    // main thread owns the session until it releases it with disconnect()
+    // this prevents the network thread from shutting down while the main
+    // thread is still reading memory
+    lifetime_mutex.* = .locked;
 
-    const thread: std.Thread = try .spawn(.{ .stack_size = 16 * 1024 * 1024 }, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, c2s_packet_queue, s2c_packet_queue });
+    const thread: std.Thread = try .spawn(.{ .stack_size = 16 * 1024 * 1024 }, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, lifetime_mutex, c2s_packet_queue, s2c_packet_queue });
 
     return .{
         .name = name_dupe,
@@ -496,6 +526,7 @@ pub fn initConnection(
         .s2c_packet_queue = s2c_packet_queue,
         .c2s_packet_allocator = c2s_packet_allocator,
         .disconnected = disconnect_ptr,
+        .lifetime_mutex = lifetime_mutex,
     };
 }
 

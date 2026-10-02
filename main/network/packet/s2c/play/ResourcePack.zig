@@ -10,9 +10,10 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-    _ = allocator;
-    _ = buffer;
-    return undefined;
+    return .{
+        .url = try buffer.readStringAllocating(32767, allocator),
+        .hash = try buffer.readStringAllocating(40, allocator),
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

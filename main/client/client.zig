@@ -181,7 +181,7 @@ pub const Client = union(enum) {
             const s2c_packet_wrapper = s2c_packet_queue.claim() orelse break;
             defer s2c_packet_queue.release();
 
-            @import("log").handle_packet(.{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
+            std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
 
             var s2c_play_packet = s2c_packet_wrapper.packet;
 
@@ -213,8 +213,8 @@ pub const Client = union(enum) {
     pub fn disconnect(self: *@This()) void {
         switch (self.*) {
             .game => |*game| {
-                @import("log").total_tick_delay(.{game.tick_delay});
-                @import("log").disconnect(.{});
+                std.log.scoped(.client).debug("total delay: {d} ms", .{game.tick_delay});
+                std.log.scoped(.client).info("main thread terminating connection", .{});
                 game.connection_handle.disconnect(game.gpa);
                 game.world.deinit(game.gpa);
                 self.* = .{ .idle = .{
@@ -222,7 +222,7 @@ pub const Client = union(enum) {
                 } };
             },
             .connecting => |*connecting| {
-                @import("log").disconnect(.{});
+                std.log.scoped(.client).info("main thread terminating connection", .{});
                 connecting.connection_handle.disconnect(connecting.gpa);
                 self.* = .{ .idle = .{
                     .gpa = connecting.gpa,
@@ -233,11 +233,13 @@ pub const Client = union(enum) {
     }
 
     pub fn logTickStatistics(partial_tick: f64, ticks_elapsed: usize) void {
-        if (partial_tick > 0.0001) {
-            @import("log").delayed_tick(.{partial_tick * 50});
+        const late_tick_threshold_ms: f64 = 10.0;
+        const ms_behind = partial_tick * 50.0;
+        if (ms_behind > late_tick_threshold_ms) {
+            std.log.scoped(.tick_late).warn("late tick: {d} ms behind", .{ms_behind});
         } else {
-            @import("log").tick_on_time(.{});
+            std.log.scoped(.tick_on_time).debug("on time: {d} ms behind", .{ms_behind});
         }
-        if (ticks_elapsed > 1) @import("log").lag_spike(.{ticks_elapsed});
+        if (ticks_elapsed > 1) std.log.scoped(.tick_late).warn("lag spike - ticking {} times at once", .{ticks_elapsed});
     }
 };

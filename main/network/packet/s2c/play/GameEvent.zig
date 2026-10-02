@@ -3,7 +3,7 @@ const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
 
-event: Event,
+event: i32,
 data: f32,
 
 comptime handle_on_network_thread: bool = false,
@@ -11,8 +11,11 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+
+    return .{
+        .event = try buffer.read(u8),
+        .data = try buffer.read(f32),
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
@@ -21,6 +24,8 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
     _ = self;
 }
 
+/// Ids handleGameEvent acts on; unknown ids are ignored, so the packet stores
+/// the raw value rather than an enum.
 pub const Event = enum(i32) {
     InvalidBed = 0,
     BeginRaining = 1,
@@ -32,4 +37,5 @@ pub const Event = enum(i32) {
     SetRainDuration = 7,
     SetThunderDuration = 8,
     PlayElderGuardianJumpscare = 10,
+    _,
 };

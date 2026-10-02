@@ -33,6 +33,22 @@ pub fn Box(comptime Element: type) type {
             };
         }
 
+        pub fn feetAt(feet: Vector3(Element), width: Element, height: Element) @This() {
+            const half_width = width / 2.0;
+            return .{
+                .min = .{
+                    .x = feet.x - half_width,
+                    .y = feet.y,
+                    .z = feet.z - half_width,
+                },
+                .max = .{
+                    .x = feet.x + half_width,
+                    .y = feet.y + height,
+                    .z = feet.z + half_width,
+                },
+            };
+        }
+
         pub fn expandUniform(self: @This(), expansion: Element) @This() {
             return self.expand(.{ .x = expansion, .y = expansion, .z = expansion });
         }
@@ -70,6 +86,20 @@ pub fn Box(comptime Element: type) type {
                     .z = if (growth.z > 0) self.max.z + growth.z else self.max.z,
                 },
             };
+        }
+
+        pub fn contract(self: @This(), shrink: Vector3(Element)) @This() {
+            return .{
+                .min = self.min.add(shrink),
+                .max = self.max.sub(shrink),
+            };
+        }
+
+        /// Touching faces do not count as intersecting
+        pub fn intersects(self: @This(), other: @This()) bool {
+            return self.min.x < other.max.x and self.max.x > other.min.x and
+                self.min.y < other.max.y and self.max.y > other.min.y and
+                self.min.z < other.max.z and self.max.z > other.min.z;
         }
 
         pub fn combine(self: @This(), other: @This()) @This() {

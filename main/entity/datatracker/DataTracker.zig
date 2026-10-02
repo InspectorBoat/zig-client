@@ -4,8 +4,8 @@ const ItemStack = root.ItemStack;
 const Vector3 = root.Vector3;
 const Rotation3 = root.Rotation3;
 
-entries: [32]?DataValue = blk: {
-    var result: [32]?DataValue = @splat(null);
+entries: [24]?DataValue = blk: {
+    var result: [24]?DataValue = @splat(null);
     result[0] = .{ .i8 = 0 };
     break :blk result;
 },

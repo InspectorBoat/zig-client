@@ -38,7 +38,7 @@ pub fn readDataEntries(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) ![
         });
         entry_info = try buffer.readPacked(DataTrackerEntryInfo);
     }
-    return entries.toOwnedSlice(allocator);
+    return entries.items;
 }
 
 pub const DataTrackerEntryInfo = packed struct {

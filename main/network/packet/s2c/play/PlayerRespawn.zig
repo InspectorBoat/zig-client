@@ -7,7 +7,7 @@ const Difficulty = root.World.Difficulty;
 const GameMode = root.World.GameMode;
 const GeneratorType = root.World.GeneratorType;
 
-world_height: i32,
+dimension_id: i32,
 difficulty: Difficulty,
 game_mode: GameMode,
 generator_type: GeneratorType,
@@ -17,8 +17,13 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+
+    return .{
+        .dimension_id = try buffer.read(i32),
+        .difficulty = (try buffer.readPacked(packed struct { difficulty: Difficulty, _: u6 })).difficulty,
+        .game_mode = std.enums.fromInt(GameMode, try buffer.read(u8)) orelse .Survival,
+        .generator_type = GeneratorType.keys.get(try buffer.readStringNonAllocating(16)) orelse .Default,
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

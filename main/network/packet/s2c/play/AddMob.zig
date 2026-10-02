@@ -25,11 +25,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     const network_id = try buffer.readVarInt();
     const entity_type = try buffer.read(i8);
-    const pos: ScaledVector(i32, 32.0) = .{
+    const pos: ScaledVector(i32, 32.0) = .{ .raw = .{
         .x = try buffer.read(i32),
         .y = try buffer.read(i32),
         .z = try buffer.read(i32),
-    };
+    } };
     const rotation: ScaledRotation2(i8, 256.0 / 360.0) = .{
         .pitch = try buffer.read(i8),
         .yaw = try buffer.read(i8),
@@ -37,11 +37,11 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const head_yaw: ScaledRotation1(i8, 256.0 / 360.0) = .{
         .head_yaw = try buffer.read(i8),
     };
-    const velocity: ScaledVector(i32, 8000) = .{
+    const velocity: ScaledVector(i32, 8000) = .{ .raw = .{
         .x = try buffer.read(i16),
         .y = try buffer.read(i16),
         .z = try buffer.read(i16),
-    };
+    } };
     const datatracker_entries = undefined;
 
     return .{
@@ -71,7 +71,13 @@ pub fn getEntity(self: *@This()) ?Entity {
             if (!@hasField(SpecificEntity, "living")) {
                 std.debug.panic("{}\n", .{SpecificEntity});
             }
-            return @unionInit(Entity, @tagName(entity_type), SpecificEntity.initLiving(self.network_id, self.pos.normalize(), self.rotation.normalize(), self.head_yaw.normalize()));
+            var specific_entity: SpecificEntity = .initLiving(self.network_id, self.pos.normalize(), self.rotation.normalize());
+            specific_entity.base.server_tracked_pos = self.pos;
+            return @unionInit(
+                Entity,
+                @tagName(entity_type),
+                specific_entity,
+            );
         },
         else => unreachable,
     }

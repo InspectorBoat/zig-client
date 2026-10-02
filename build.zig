@@ -3,7 +3,6 @@ const std = @import("std");
 const ModuleSet = struct {
     root: *std.Build.Module,
     render: *std.Build.Module,
-    logging: *std.Build.Module,
     util: *std.Build.Module,
     quarantine: *std.Build.Module,
 };
@@ -22,9 +21,6 @@ fn createModules(
         .target = target,
         .optimize = optimize,
     });
-    const logging = b.addModule("log", .{
-        .root_source_file = b.path("logging/logging.zig"),
-    });
     const quarantine = b.addModule("llm-code-quarantine", .{
         .root_source_file = b.path("quarantine/quarantine.zig"),
     });
@@ -35,18 +31,15 @@ fn createModules(
         .root_source_file = b.path("render/render.zig"),
     });
 
-    util.addImport("log", logging);
     util.addImport("llm-code-quarantine", quarantine);
 
     render.addImport("zgl", zgl);
     render.addImport("mach-glfw", mach_glfw);
     render.addImport("zalgebra", zalgebra);
     render.addImport("util", util);
-    render.addImport("log", logging);
     render.addImport("llm-code-quarantine", quarantine);
 
     root.addImport("network", network);
-    root.addImport("log", logging);
     root.addImport("render", render);
     root.addImport("util", util);
     root.addImport("llm-code-quarantine", quarantine);
@@ -54,7 +47,6 @@ fn createModules(
     return .{
         .root = root,
         .render = render,
-        .logging = logging,
         .util = util,
         .quarantine = quarantine,
     };
@@ -71,9 +63,14 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const headless = b.option(bool, "headless", "Run without a window") orelse false;
+    const options = b.addOptions();
+    options.addOption(bool, "headless", headless);
+
     {
         // Create main executable
         const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra);
+        mods.root.addOptions("build_options", options);
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.root,
@@ -112,10 +109,10 @@ pub fn build(b: *std.Build) void {
             .use_llvm = true,
         });
         test_main.root_module.addImport("network", network);
-        test_main.root_module.addImport("log", mods.logging);
         test_main.root_module.addImport("render", mods.render);
         test_main.root_module.addImport("util", mods.util);
         test_main.root_module.addImport("llm-code-quarantine", mods.quarantine);
+        test_main.root_module.addOptions("build_options", options);
 
         // Unit tests for render module
         const test_render = b.addTest(.{
@@ -129,7 +126,6 @@ pub fn build(b: *std.Build) void {
         test_render.root_module.addImport("zgl", zgl);
         test_render.root_module.addImport("mach_glfw", mach_glfw);
         test_render.root_module.addImport("zalgebra", zalgebra);
-        test_render.root_module.addImport("log", mods.logging);
         test_render.root_module.addImport("util", mods.util);
         test_render.root_module.addImport("llm-code-quarantine", mods.quarantine);
 
@@ -141,7 +137,6 @@ pub fn build(b: *std.Build) void {
             }),
             .use_llvm = true,
         });
-        test_util.root_module.addImport("log", mods.logging);
 
         // Unit tests for llm generated shim modules
         const test_quarantine = b.addTest(.{

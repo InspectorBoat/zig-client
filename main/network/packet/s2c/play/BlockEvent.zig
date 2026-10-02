@@ -16,8 +16,18 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+
+    const block_pos = try buffer.readBlockPos();
+    const event_type = try buffer.read(u8);
+    const data = try buffer.read(u8);
+    const block = std.enums.fromInt(Block, try buffer.readVarInt() & 4095) orelse return error.InvalidBlockId;
+
+    return .{
+        .block_pos = block_pos,
+        .type = event_type,
+        .data = data,
+        .block = block,
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

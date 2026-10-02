@@ -3,7 +3,7 @@ const ConcreteBlock = @import("block.zig").ConcreteBlock;
 const EnumBoolArray = @import("util").EnumBoolArray;
 
 pub const @"export" = EnumBoolArray(ConcreteBlock).init(.{
-    .air = true,
+    .air = false,
     .stone = true,
     .grass = true,
     .dirt = true,

@@ -12,8 +12,12 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+
+    return .{
+        .level_progress = try buffer.read(f32),
+        .level = try buffer.readVarInt(),
+        .xp = try buffer.readVarInt(),
+    };
 }
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {

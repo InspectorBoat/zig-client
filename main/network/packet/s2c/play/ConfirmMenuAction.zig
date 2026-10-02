@@ -23,7 +23,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
     // simply send the packet back for now, vanilla logic is more complicated
-    @import("log").transaction(.{self});
+    std.log.scoped(.transaction).debug("transaction - {any}", .{self});
     try game.connection_handle.sendPlayPacket(.{ .confirm_menu_action = .{
         .accepted = self.accepted,
         .action_id = self.action_id,

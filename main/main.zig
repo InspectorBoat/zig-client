@@ -27,6 +27,7 @@ pub const Rotation3 = math.Rotation3;
 pub const Vector3 = math.Vector3;
 pub const Vector2xz = math.Vector2xz;
 pub const Vector2xy = math.Vector2xy;
+pub const MathHelper = math.MathHelper;
 
 pub const nbt = @import("nbt/nbt.zig");
 
@@ -60,8 +61,16 @@ const EnumBoolArray = @import("util").EnumBoolArray;
 const std = @import("std");
 const network_lib = @import("network");
 const render = @import("render");
+const build_options = @import("build_options");
 
 pub const opengl_error_handling = .assert;
+
+pub const std_options: std.Options = .{
+    .log_scope_levels = &.{
+        .{ .scope = .tick_late, .level = .warn },
+        .{ .scope = .tick_on_time, .level = .warn },
+    },
+};
 
 pub fn main() !void {
     std.debug.print("\n---------------------\n", .{});
@@ -83,13 +92,15 @@ pub fn main() !void {
 
     defer {
         if (client != .idle) client.disconnect();
-        _ = gpa_impl.detectLeaks();
     }
 
     while (true) {
-        try EventHandler.dispatch(Events.Frame, .{ .client = &client, .input_queue = if (client == .game) &client.game.input_queue else null });
+        try EventHandler.dispatch(Events.Frame, .{
+            .client = &client,
+            .input_queue = if (client == .game) &client.game.input_queue else null,
+        });
 
-        if (client != .idle) try client.tickConnection();
+        if (client == .game and client.game.partial_tick > 0.5) {} else if (client != .idle) try client.tickConnection();
         if (client == .game) try client.updateGame();
 
         if (done) break;
@@ -111,7 +122,10 @@ pub const Events = struct {
 };
 
 pub const EventHandler = struct {
-    pub const listeners = .{exit} ++ @import("render").event_listeners;
+    pub const listeners = if (build_options.headless)
+        .{exit}
+    else
+        .{exit} ++ @import("render").event_listeners;
 
     pub const dispatch = @import("util").events.getDispatcher(Events, listeners).dispatch;
 };
