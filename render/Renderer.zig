@@ -14,7 +14,6 @@ const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
 const Direction = root.Direction;
-const ConcreteBlockState = root.ConcreteBlockState;
 const World = root.World;
 const CompilationTask = @import("terrain/CompilationTask.zig");
 const CompilationResult = @import("terrain/CompilationTask.zig").CompilationResult;

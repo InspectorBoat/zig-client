@@ -360,12 +360,12 @@ pub fn Vector3(comptime Element: type) type {
         }
         pub fn dir(self: @This(), direction: Direction) @This() {
             return switch (direction) {
-                .Down => self.down(),
-                .East => self.east(),
-                .North => self.north(),
-                .South => self.south(),
-                .Up => self.up(),
-                .West => self.west(),
+                .down => self.down(),
+                .east => self.east(),
+                .north => self.north(),
+                .south => self.south(),
+                .up => self.up(),
+                .west => self.west(),
             };
         }
 

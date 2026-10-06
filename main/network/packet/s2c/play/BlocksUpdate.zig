@@ -5,8 +5,6 @@ const Client = root.Client;
 
 const Vector2xz = root.Vector2xz;
 const Vector3 = root.Vector3;
-const RawBlockState = root.RawBlockState;
-const FilteredBlockState = root.FilteredBlockState;
 
 chunk_pos: Vector2xz(i32),
 updates: []const BlockUpdate,
@@ -22,7 +20,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     for (updates) |*update| {
         const pos = try buffer.readPacked(packed struct { y: u8, z: u4, x: u4 });
         update.pos = .{ .x = pos.x, .y = pos.y, .z = pos.z };
-        update.state = @bitCast(@as(u16, @intCast(try buffer.readVarInt())));
+        update.state = @intCast(try buffer.readVarInt());
     }
 
     return .{
@@ -39,7 +37,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
                 .y = update.pos.y,
                 .z = self.chunk_pos.z * 16 + update.pos.z,
             },
-            update.state.toFiltered().toConcrete(),
+            .validateRaw(update.state),
             allocator,
         );
     }
@@ -47,5 +45,5 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
 
 pub const BlockUpdate = struct {
     pos: Vector3(i32),
-    state: RawBlockState,
+    state: u16,
 };

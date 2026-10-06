@@ -70,64 +70,64 @@ pub fn writeBoxFaces(
     sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
     block_light: std.enums.EnumFieldStruct(Direction, u8, null),
 ) !void {
-    if (faces.contains(.Down)) {
+    if (faces.contains(.down)) {
         try self.writeQuad(
-            .Down,
+            .down,
             .{ min.x, min.y, min.z },
             .{ max.x - min.x, max.z - min.z },
             texture,
-            sky_light.Down,
-            block_light.Down,
+            sky_light.down,
+            block_light.down,
         );
     }
-    if (faces.contains(.Up)) {
+    if (faces.contains(.up)) {
         try self.writeQuad(
-            .Up,
+            .up,
             .{ min.x, max.y, min.z },
             .{ max.x - min.x, max.z - min.z },
             texture,
-            sky_light.Up,
-            block_light.Up,
+            sky_light.up,
+            block_light.up,
         );
     }
-    if (faces.contains(.North)) {
+    if (faces.contains(.north)) {
         try self.writeQuad(
-            .North,
+            .north,
             .{ min.x, min.y, min.z },
             .{ max.x - min.x, max.y - min.y },
             texture,
-            sky_light.North,
-            block_light.North,
+            sky_light.north,
+            block_light.north,
         );
     }
-    if (faces.contains(.South)) {
+    if (faces.contains(.south)) {
         try self.writeQuad(
-            .South,
+            .south,
             .{ min.x, min.y, max.z },
             .{ max.x - min.x, max.y - min.y },
             texture,
-            sky_light.South,
-            block_light.South,
+            sky_light.south,
+            block_light.south,
         );
     }
-    if (faces.contains(.West)) {
+    if (faces.contains(.west)) {
         try self.writeQuad(
-            .West,
+            .west,
             .{ min.x, min.y, min.z },
             .{ max.z - min.z, max.y - min.y },
             texture,
-            sky_light.West,
-            block_light.West,
+            sky_light.west,
+            block_light.west,
         );
     }
-    if (faces.contains(.East)) {
+    if (faces.contains(.east)) {
         try self.writeQuad(
-            .East,
+            .east,
             .{ max.x, min.y, min.z },
             .{ max.z - min.z, max.y - min.y },
             texture,
-            sky_light.East,
-            block_light.East,
+            sky_light.east,
+            block_light.east,
         );
     }
 }

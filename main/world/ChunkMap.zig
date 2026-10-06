@@ -130,9 +130,8 @@ pub fn DummyWorld(comptime MapType: type) type {
     return struct {
         chunks: MapType,
         const Section = root.Section;
-        const ConcreteBlock = root.ConcreteBlock;
         const Block = root.Block;
-        const ConcreteBlockState = root.ConcreteBlockState;
+        const FilteredBlockState = root.FilteredState;
         const RawBlockState = root.RawBlockState;
         const Box = root.Box;
         const Vector3 = root.Vector3;
@@ -147,7 +146,7 @@ pub fn DummyWorld(comptime MapType: type) type {
                         const block_pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
                         const block_state = self.getBlockStatePtr(block_pos) orelse continue;
                         // std.mem.doNotOptimizeAway(block_state);
-                        block_state.updateDummy(self, block_pos);
+                        _ = block_state;
                     }
                 }
             }
@@ -165,14 +164,14 @@ pub fn DummyWorld(comptime MapType: type) type {
 
                 for (&section.block_states) |*block_state| {
                     const state: RawBlockState = .{ .block = @intFromEnum(rand.enumValue(Block)), .metadata = rand.int(u4) };
-                    block_state.* = state.toFiltered().toConcrete();
+                    block_state.* = state.toFiltered();
                 }
 
                 chunk.sections[section_y] = section;
             }
             try self.chunks.put(chunk_pos, chunk);
         }
-        pub fn getBlock(self: *@This(), block_pos: Vector3(i32)) ConcreteBlock {
+        pub fn getBlock(self: *@This(), block_pos: Vector3(i32)) Block {
             if (block_pos.y < 0 or block_pos.y > 255) return .air;
 
             const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air;
@@ -184,11 +183,11 @@ pub fn DummyWorld(comptime MapType: type) type {
             };
             return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
         }
-        pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) ConcreteBlockState {
-            if (block_pos.y < 0 or block_pos.y > 255) return ConcreteBlockState.AIR;
+        pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBlockState {
+            if (block_pos.y < 0 or block_pos.y > 255) return FilteredBlockState.AIR;
 
-            const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return ConcreteBlockState.AIR;
-            const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return ConcreteBlockState.AIR;
+            const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return FilteredBlockState.AIR;
+            const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return FilteredBlockState.AIR;
             const section_block_pos = .{
                 .x = @mod(block_pos.x, 16),
                 .y = @mod(block_pos.y, 16),
@@ -197,7 +196,7 @@ pub fn DummyWorld(comptime MapType: type) type {
             return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
         }
 
-        pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*ConcreteBlockState {
+        pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*FilteredBlockState {
             if (block_pos.y < 0 or block_pos.y > 255) return null;
 
             const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;

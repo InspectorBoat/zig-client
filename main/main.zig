@@ -1,11 +1,9 @@
 pub const block = @import("block/block.zig");
 
 pub const Block = block.Block;
-pub const RawBlockState = block.RawBlockState;
-pub const FilteredState = block.FilteredBlockState;
-pub const ConcreteBlock = block.ConcreteBlock;
-pub const ConcreteBlockState = block.ConcreteBlockState;
-pub const StoredBlockProperties = block.StoredBlockProperties;
+pub const PhysicalBlockState = block.PhysicalBlockState;
+pub const VirtualBlockState = block.VirtualBlockState;
+pub const PhysicalBlockProperties = block.PhysicalBlockProperties;
 
 pub const Entity = @import("entity/entity.zig").Entity;
 pub const EntityType = @import("entity/entity.zig").EntityType;

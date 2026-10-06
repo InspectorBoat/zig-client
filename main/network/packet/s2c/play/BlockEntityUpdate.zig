@@ -16,10 +16,13 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     const block_pos = try buffer.readBlockPos();
     const block_entity_type = try buffer.read(u8);
+    // const nbt: NbtCompound = try .read(buffer, allocator);
+    // TODO: Fix nbt decoding
+    const nbt: NbtCompound = try .init(.{}, allocator);
     return .{
         .block_pos = block_pos,
         .type = block_entity_type,
-        .nbt = try NbtCompound.read(buffer, allocator),
+        .nbt = nbt,
     };
 }
 

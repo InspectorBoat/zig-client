@@ -94,27 +94,27 @@ pub const HitResult = union(HitType) {
 
             const dir: Direction = blk: {
                 if (ray_progress.x < ray_progress.y and ray_progress.x < ray_progress.z)
-                    break :blk if (to_block_pos.x > from_block_pos.x) .West else .East
+                    break :blk if (to_block_pos.x > from_block_pos.x) .west else .east
                 else if (ray_progress.y < ray_progress.z)
-                    break :blk if (to_block_pos.y > from_block_pos.y) .Down else .Up
+                    break :blk if (to_block_pos.y > from_block_pos.y) .down else .up
                 else
-                    break :blk if (to_block_pos.z > from_block_pos.z) .North else .South;
+                    break :blk if (to_block_pos.z > from_block_pos.z) .north else .south;
             };
 
             from = switch (dir) {
-                .West, .East => .{ .x = next_grid_pos.x, .y = from.y + delta.y * ray_progress.x, .z = from.z + delta.z * ray_progress.x },
-                .Down, .Up => .{ .x = from.x + delta.x * ray_progress.y, .y = next_grid_pos.y, .z = from.z + delta.z * ray_progress.y },
-                .North, .South => .{ .x = from.x + delta.x * ray_progress.z, .y = from.y + delta.y * ray_progress.z, .z = next_grid_pos.z },
+                .west, .east => .{ .x = next_grid_pos.x, .y = from.y + delta.y * ray_progress.x, .z = from.z + delta.z * ray_progress.x },
+                .down, .up => .{ .x = from.x + delta.x * ray_progress.y, .y = next_grid_pos.y, .z = from.z + delta.z * ray_progress.y },
+                .north, .south => .{ .x = from.x + delta.x * ray_progress.z, .y = from.y + delta.y * ray_progress.z, .z = next_grid_pos.z },
             };
 
             from_block_pos = .{
-                .x = floor(from.x) - if (dir == .East) @as(i32, 1) else 0,
-                .y = floor(from.y) - if (dir == .Up) @as(i32, 1) else 0,
-                .z = floor(from.z) - if (dir == .South) @as(i32, 1) else 0,
+                .x = floor(from.x) - if (dir == .east) @as(i32, 1) else 0,
+                .y = floor(from.y) - if (dir == .up) @as(i32, 1) else 0,
+                .z = floor(from.z) - if (dir == .south) @as(i32, 1) else 0,
             };
 
             const block = world.getBlock(from_block_pos);
-            for (world.getBlockState(from_block_pos).getRaytraceHitbox()) |maybe_hitbox| {
+            for (world.resolveVirtualBlockState(from_block_pos).getRaytraceHitbox()) |maybe_hitbox| {
                 if (maybe_hitbox) |hitbox| {
                     if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
 
@@ -239,14 +239,14 @@ pub const HitResult = union(HitType) {
         if (maybe_clip_min_x) |clip_min_x| {
             if (between(hitbox.min.y, clip_min_x.y, hitbox.max.y) and between(hitbox.min.z, clip_min_x.z, hitbox.max.z)) {
                 hit_pos = clip_min_x;
-                dir = .West;
+                dir = .west;
             }
         }
         if (maybe_clip_min_y) |clip_min_y| {
             if (between(hitbox.min.x, clip_min_y.x, hitbox.max.x) and between(hitbox.min.z, clip_min_y.z, hitbox.max.z)) {
                 if (hit_pos == null or clip_min_y.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_min_y;
-                    dir = .Down;
+                    dir = .down;
                 }
             }
         }
@@ -254,7 +254,7 @@ pub const HitResult = union(HitType) {
             if (between(hitbox.min.x, clip_min_z.x, hitbox.max.x) and between(hitbox.min.y, clip_min_z.y, hitbox.max.y)) {
                 if (hit_pos == null or clip_min_z.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_min_z;
-                    dir = .North;
+                    dir = .north;
                 }
             }
         }
@@ -262,7 +262,7 @@ pub const HitResult = union(HitType) {
             if (between(hitbox.min.y, clip_max_x.y, hitbox.max.y) and between(hitbox.min.z, clip_max_x.z, hitbox.max.z)) {
                 if (hit_pos == null or clip_max_x.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_max_x;
-                    dir = .East;
+                    dir = .east;
                 }
             }
         }
@@ -270,7 +270,7 @@ pub const HitResult = union(HitType) {
             if (between(hitbox.min.x, clip_max_y.x, hitbox.max.x) and between(hitbox.min.z, clip_max_y.z, hitbox.max.z)) {
                 if (hit_pos == null or clip_max_y.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_max_y;
-                    dir = .Up;
+                    dir = .up;
                 }
             }
         }
@@ -278,7 +278,7 @@ pub const HitResult = union(HitType) {
             if (between(hitbox.min.x, clip_max_z.x, hitbox.max.x) and between(hitbox.min.y, clip_max_z.y, hitbox.max.y)) {
                 if (hit_pos == null or clip_max_z.distance(from) < hit_pos.?.distance(from)) {
                     hit_pos = clip_max_z;
-                    dir = .South;
+                    dir = .south;
                 }
             }
         }

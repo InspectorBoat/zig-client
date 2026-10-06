@@ -159,6 +159,7 @@ pub fn build(b: *std.Build) void {
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     {
         const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra);
+        mods.root.addOptions("build_options", options);
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.root,

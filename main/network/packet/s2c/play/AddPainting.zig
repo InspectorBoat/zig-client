@@ -19,7 +19,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     // PaintingEntity.Motive.SKULL_AND_ROSES_LENGTH == "SkullAndRoses".length()
     const painting_identifier = try buffer.readStringAllocating(13, allocator);
     const block_pos = try buffer.readBlockPos();
-    const horizontal_directions: []const Direction = &.{ .South, .West, .North, .East };
+    const horizontal_directions: []const Direction = &.{ .south, .west, .north, .east };
     const facing_id = try buffer.read(u8);
     const facing = horizontal_directions[@intCast(facing_id % horizontal_directions.len)];
 

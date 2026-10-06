@@ -145,7 +145,7 @@ pub fn Box(comptime Element: type) type {
                     // check that this hit is closer
                     if (hit == null or from.distance_squared(min_x_hit) < from.distance_squared(hit.?)) {
                         hit = min_x_hit;
-                        hit_dir = .West;
+                        hit_dir = .west;
                     }
                 }
             }
@@ -155,7 +155,7 @@ pub fn Box(comptime Element: type) type {
                     // check that this hit is closer
                     if (hit == null or from.distance_squared(max_x_hit) < from.distance_squared(hit.?)) {
                         hit = max_x_hit;
-                        hit_dir = .West;
+                        hit_dir = .east;
                     }
                 }
             }
@@ -166,7 +166,7 @@ pub fn Box(comptime Element: type) type {
                     // check that this hit is closer
                     if (hit == null or from.distance_squared(min_y_hit) < from.distance_squared(hit.?)) {
                         hit = min_y_hit;
-                        hit_dir = .Down;
+                        hit_dir = .down;
                     }
                 }
             }
@@ -176,7 +176,7 @@ pub fn Box(comptime Element: type) type {
                     // check that this hit is closer
                     if (hit == null or from.distance_squared(max_y_hit) < from.distance_squared(hit.?)) {
                         hit = max_y_hit;
-                        hit_dir = .Up;
+                        hit_dir = .up;
                     }
                 }
             }
@@ -187,7 +187,7 @@ pub fn Box(comptime Element: type) type {
                     // check that this hit is closer
                     if (hit == null or from.distance_squared(min_z_hit) < from.distance_squared(hit.?)) {
                         hit = min_z_hit;
-                        hit_dir = .North;
+                        hit_dir = .north;
                     }
                 }
             }
@@ -197,12 +197,12 @@ pub fn Box(comptime Element: type) type {
                     // check that this hit is closer
                     if (hit == null or from.distance_squared(max_z_hit) < from.distance_squared(hit.?)) {
                         hit = max_z_hit;
-                        hit_dir = .South;
+                        hit_dir = .south;
                     }
                 }
             }
 
-            return HitResult{
+            return .{
                 .hit_pos = hit,
             };
         }

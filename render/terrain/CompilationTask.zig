@@ -1,16 +1,16 @@
 const std = @import("std");
 const Vector3 = @import("root").Vector3;
 const World = @import("root").World;
-const ConcreteBlockState = @import("root").ConcreteBlockState;
-const ConcreteBlock = @import("root").ConcreteBlock;
 const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 const CompilationResultQueue = @import("CompilationResultQueue.zig");
 const Box = @import("root").Box;
 const Direction = @import("root").Direction;
+const PhysicalBlockState = @import("root").PhysicalBlockState;
+const VirtualBlockState = @import("root").VirtualBlockState;
 const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 section_pos: Vector3(i32),
-block_states: [18 * 18 * 18]ConcreteBlockState,
+block_states: [18 * 18 * 18]VirtualBlockState,
 block_light: PackedNibbleArray(18 * 18 * 18),
 sky_light: PackedNibbleArray(18 * 18 * 18),
 revision: u32,
@@ -39,7 +39,7 @@ pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, all
             for (0..18) |x| {
                 const pos = base_block_pos.add(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
                 const index = (y * 18 * 18) + (z * 18) + (x);
-                task.block_states[index] = world.getBlockState(pos);
+                task.block_states[index] = VirtualBlockState.resolve(world.getBlockState(pos), world, pos);
                 task.block_light.set(index, world.getBlockLight(pos));
                 task.sky_light.set(index, world.getSkyLight(pos));
             }
@@ -82,20 +82,20 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                         };
 
                         const sky_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                            .West = task.sky_light.get(index - 1),
-                            .East = task.sky_light.get(index + 1),
-                            .Down = task.sky_light.get(index - 18 * 18),
-                            .Up = task.sky_light.get(index + 18 * 18),
-                            .North = task.sky_light.get(index - 18),
-                            .South = task.sky_light.get(index + 18),
+                            .west = task.sky_light.get(index - 1),
+                            .east = task.sky_light.get(index + 1),
+                            .down = task.sky_light.get(index - 18 * 18),
+                            .up = task.sky_light.get(index + 18 * 18),
+                            .north = task.sky_light.get(index - 18),
+                            .south = task.sky_light.get(index + 18),
                         };
                         const block_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                            .West = task.block_light.get(index - 1),
-                            .East = task.block_light.get(index + 1),
-                            .Down = task.block_light.get(index - 18 * 18),
-                            .Up = task.block_light.get(index + 18 * 18),
-                            .North = task.block_light.get(index - 18),
-                            .South = task.block_light.get(index + 18),
+                            .west = task.block_light.get(index - 1),
+                            .east = task.block_light.get(index + 1),
+                            .down = task.block_light.get(index - 18 * 18),
+                            .up = task.block_light.get(index + 18 * 18),
+                            .north = task.block_light.get(index - 18),
+                            .south = task.block_light.get(index + 18),
                         };
 
                         if (!box.equals(Box(f64).cube())) {
@@ -112,22 +112,22 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                         const culling_blocks = @import("face_culling_blocks.zig").@"export";
                         var unculled_faces: std.EnumSet(Direction) = .initFull();
                         if (culling_blocks.get(task.block_states[index - 1].block)) {
-                            unculled_faces.remove(.West);
+                            unculled_faces.remove(.west);
                         }
                         if (culling_blocks.get(task.block_states[index + 1].block)) {
-                            unculled_faces.remove(.East);
+                            unculled_faces.remove(.east);
                         }
                         if (culling_blocks.get(task.block_states[index - 18 * 18].block)) {
-                            unculled_faces.remove(.Down);
+                            unculled_faces.remove(.down);
                         }
                         if (culling_blocks.get(task.block_states[index + 18 * 18].block)) {
-                            unculled_faces.remove(.Up);
+                            unculled_faces.remove(.up);
                         }
                         if (culling_blocks.get(task.block_states[index - 18].block)) {
-                            unculled_faces.remove(.North);
+                            unculled_faces.remove(.north);
                         }
                         if (culling_blocks.get(task.block_states[index + 18].block)) {
-                            unculled_faces.remove(.South);
+                            unculled_faces.remove(.south);
                         }
 
                         try staging.writeBoxFaces(

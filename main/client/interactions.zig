@@ -95,13 +95,13 @@ pub fn swingHand(game: *Game) !void {
 
 pub fn dropSingleItem(game: *Game) !void {
     try game.connection_handle.sendPlayPacket(
-        .{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .Down } },
+        .{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .down } },
     );
 }
 
 pub fn dropEntireStack(game: *Game) !void {
     try game.connection_handle.sendPlayPacket(
-        .{ .player_hand_action = .{ .action = .drop_entire_stack, .block_pos = .origin(), .face = .Down } },
+        .{ .player_hand_action = .{ .action = .drop_entire_stack, .block_pos = .origin(), .face = .down } },
     );
 }
 
@@ -157,7 +157,7 @@ pub fn useBlock(game: *Game, player: *LocalPlayer) !bool {
 
 pub fn stopUsingItem(game: *Game, player: *LocalPlayer) !void {
     try game.connection_handle.sendPlayPacket(
-        .{ .player_hand_action = .{ .action = .stop_using_item, .block_pos = .origin(), .face = .Down } },
+        .{ .player_hand_action = .{ .action = .stop_using_item, .block_pos = .origin(), .face = .down } },
     );
     player.item_in_use = null;
     player.item_use_timer = 0;

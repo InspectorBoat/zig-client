@@ -1,8 +1,8 @@
 const std = @import("std");
-const ConcreteBlock = @import("root").ConcreteBlock;
+const Block = @import("root").Block;
 const EnumBoolArray = @import("util").EnumBoolArray;
 
-pub const @"export": EnumBoolArray(ConcreteBlock) = .init(.{
+pub const @"export": EnumBoolArray(Block) = .init(.{
     .air = false,
     .stone = true,
     .grass = true,
@@ -201,19 +201,4 @@ pub const @"export": EnumBoolArray(ConcreteBlock) = .init(.{
     .jungle_door = false,
     .acacia_door = false,
     .dark_oak_door = false,
-
-    .fire_upper = false,
-
-    .redstone_wire_none_flat = false,
-    .redstone_wire_none_upper = false,
-    .redstone_wire_flat_none = false,
-    .redstone_wire_flat_flat = false,
-    .redstone_wire_flat_upper = false,
-    .redstone_wire_upper_none = false,
-    .redstone_wire_upper_flat = false,
-    .redstone_wire_upper_upper = false,
-
-    .cobblestone_wall_upper = false,
-
-    .flower_pot_2 = false,
 });

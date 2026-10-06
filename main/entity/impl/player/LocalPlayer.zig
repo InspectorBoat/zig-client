@@ -209,25 +209,25 @@ pub fn pushAwayFrom(self: *@This(), game: *const Client.Game, x: f64, y: f64, z:
 
         if (canSurvive(game, block_pos.west()) and d < best) {
             best = d;
-            dir = .West;
+            dir = .west;
         }
         if (canSurvive(game, block_pos.east()) and 1.0 - d < best) {
             best = 1.0 - d;
-            dir = .East;
+            dir = .east;
         }
         if (canSurvive(game, block_pos.north()) and e < best) {
             best = e;
-            dir = .North;
+            dir = .north;
         }
         if (canSurvive(game, block_pos.south()) and 1.0 - e < best) {
             best = 1.0 - e;
-            dir = .South;
+            dir = .south;
         }
 
-        if (dir == .West) self.base.velocity.x = -0.1;
-        if (dir == .East) self.base.velocity.x = 0.1;
-        if (dir == .North) self.base.velocity.z = -0.1;
-        if (dir == .South) self.base.velocity.z = 0.1;
+        if (dir == .west) self.base.velocity.x = -0.1;
+        if (dir == .east) self.base.velocity.x = 0.1;
+        if (dir == .north) self.base.velocity.z = -0.1;
+        if (dir == .south) self.base.velocity.z = 0.1;
     }
 }
 
