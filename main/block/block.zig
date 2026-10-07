@@ -278,6 +278,12 @@ pub const PhysicalBlockState = packed struct(u16) {
         std.debug.assert(self.block == block);
         return @field(self.properties, @tagName(block));
     }
+    pub fn maybePayload(self: @This(), comptime block: Block) ?@TypeOf(@field(self.properties, @tagName(block))) {
+        return if (self.block == block)
+            @field(self.properties, @tagName(block))
+        else
+            null;
+    }
 };
 
 const virtual_properties = @import("virtual_properties.zig");
@@ -1997,3 +2003,7 @@ pub const PrismarineVariant = physical_properties.PrismarineVariant;
 pub const HayBlockAxis = physical_properties.HayBlockAxis;
 pub const DoublePlantVariant = physical_properties.DoublePlantVariant;
 pub const DoublePlantHalf = physical_properties.DoublePlantHalf;
+
+comptime {
+    _ = @import("virtual_state.zig");
+}
