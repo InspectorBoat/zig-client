@@ -102,7 +102,7 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                             try staging.writeBox(
                                 box.min.add(pos_vec).floatCast(f32),
                                 box.max.add(pos_vec).floatCast(f32),
-                                @intFromEnum(task.block_states[index].block),
+                                @backingInt(task.block_states[index].block),
                                 sky_light,
                                 block_light,
                             );
@@ -110,7 +110,7 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                         }
 
                         const culling_blocks = @import("face_culling_blocks.zig").@"export";
-                        var unculled_faces: std.EnumSet(Direction) = .initFull();
+                        var unculled_faces: std.EnumSet(Direction) = .full;
                         if (culling_blocks.get(task.block_states[index - 1].block)) {
                             unculled_faces.remove(.west);
                         }
@@ -133,7 +133,7 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                         try staging.writeBoxFaces(
                             box.min.add(pos_vec).floatCast(f32),
                             box.max.add(pos_vec).floatCast(f32),
-                            @intFromEnum(task.block_states[index].block),
+                            @backingInt(task.block_states[index].block),
                             unculled_faces,
                             sky_light,
                             block_light,

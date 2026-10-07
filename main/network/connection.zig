@@ -546,7 +546,7 @@ pub const S2CWrapper = struct {
 pub fn WriteReadFreeQueue(comptime Element: type) type {
     const size = 8192;
     return struct {
-        buffer: [size]Element = .{undefined} ** size,
+        buffer: [size]Element = @splat(undefined),
 
         mutex: @import("llm-code-quarantine").Mutex = .{},
 

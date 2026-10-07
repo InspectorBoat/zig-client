@@ -9,7 +9,6 @@ pub const C2S = union(enum) {
     pub const Handshake = union(enum) {
         pub const Handshake = @import("c2s/handshake/Handshake.zig");
 
-        /// writes a type-erased packet
         pub const write = Mixin(@This()).write;
 
         handshake: @import("c2s/handshake/Handshake.zig"),
@@ -18,7 +17,6 @@ pub const C2S = union(enum) {
         pub const Hello = @import("c2s/login/Hello.zig");
         pub const Key = @import("c2s/login/Key.zig");
 
-        /// writes a type-erased packet
         pub const write = Mixin(@This()).write;
 
         hello: Hello,
@@ -52,7 +50,6 @@ pub const C2S = union(enum) {
         pub const PlayerSpectate = @import("c2s/play/PlayerSpectate.zig");
         pub const ResourcePack = @import("c2s/play/ResourcePack.zig");
 
-        /// writes a type-erased packet
         pub const write = Mixin(@This()).write;
 
         keep_alive: KeepAlive,
@@ -86,7 +83,6 @@ pub const C2S = union(enum) {
         pub const Ping = @import("c2s/status/Ping.zig");
         pub const ServerStatus = @import("c2s/status/ServerStatus.zig");
 
-        /// writes a type-erased packet
         pub const write = Mixin(@This());
 
         ping: Ping,
@@ -100,9 +96,8 @@ pub const C2S = union(enum) {
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
             pub fn write(packet: PacketMixin, buffer: *C2S.WriteBuffer) !void {
-                try buffer.writeVarInt(@intFromEnum(packet));
+                try buffer.writeVarInt(@backingInt(packet));
                 switch (packet) {
-                    // specific packet type must be comptime known, thus inline else is necessary
                     inline else => |specific_packet| {
                         try specific_packet.write(buffer);
                     },
@@ -121,7 +116,6 @@ pub const S2C = union(enum) {
         pub const LoginFail = @import("s2c/login/LoginFail.zig");
         pub const LoginSuccess = @import("s2c/login/LoginSuccess.zig");
 
-        /// decodes a packet buffer into a type-erased packet
         pub const decode = Mixin(@This()).decode;
 
         login_fail: LoginFail,
@@ -205,7 +199,6 @@ pub const S2C = union(enum) {
         pub const ResourcePack = @import("s2c/play/ResourcePack.zig");
         pub const EntitySync = @import("s2c/play/EntitySync.zig");
 
-        /// decodes a packet buffer into a type-erased packet
         pub const decode = Mixin(@This()).decode;
 
         keep_alive: KeepAlive,
@@ -287,7 +280,6 @@ pub const S2C = union(enum) {
         pub const Ping = @import("s2c/status/Ping.zig");
         pub const ServerStatus = @import("s2c/status/ServerStatus.zig");
 
-        /// decodes a packet buffer into a type-erased packet
         pub const decode = Mixin(@This()).decode;
 
         ping: Ping,
@@ -301,37 +293,20 @@ pub const S2C = union(enum) {
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
             pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !PacketMixin {
-                // the amount of packet types in this union
-                const PacketTypeCount = @typeInfo(PacketMixin).@"union".fields.len;
-
-                // read the opcode of the packet from the buffer
+                const packet_type_info = @typeInfo(PacketMixin).@"union";
                 switch (try buffer.readVarInt()) {
-                    // opcode must be comptime known, thus inline is necessary
-                    inline 0...PacketTypeCount - 1 => |opcode| {
-                        // the packet type corresponding to the opcode
-                        const PacketType = typeFromOpcode(opcode);
-                        // the field name of the packet type corresponding to the opcode
-                        const PacketName = comptime nameFromOpcode(opcode);
+                    inline 0...packet_type_info.field_names.len - 1 => |opcode| {
                         return @unionInit(
                             PacketMixin,
-                            PacketName,
-                            // decode packet using decoder
-                            try PacketType.decode(buffer, allocator),
+                            packet_type_info.field_names[opcode],
+                            try .decode(buffer, allocator),
                         );
                     },
-                    // error on invalid opcodes
                     else => |opcode| {
                         std.log.scoped(.net).err("invalid opcode {}", .{opcode});
                         return error.InvalidOpcode;
                     },
                 }
-            }
-
-            pub fn nameFromOpcode(comptime opcode: i32) []const u8 {
-                return @typeInfo(PacketMixin).@"union".fields[opcode].name;
-            }
-            pub fn typeFromOpcode(comptime opcode: i32) type {
-                return @typeInfo(PacketMixin).@"union".fields[opcode].type;
             }
         };
     }

@@ -3,7 +3,7 @@ const Vector2 = @import("root").Vector3;
 const glfw = @import("mach-glfw");
 const gl = @import("zgl");
 pub fn initGlfw() error{GlfwInitFailed}!void {
-    if (!glfw.init(.{})) {
+    if (!glfw.init(.{ .platform = .wayland })) {
         std.log.err("failed to init glfw: {?s}", .{glfw.getErrorString()});
         return error.GlfwInitFailed;
     }
@@ -31,7 +31,7 @@ pub fn glfwErrorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) 
 }
 
 pub fn setGlErrorCallback() void {
-    gl.debugMessageCallback(void{}, glErrorCallback);
+    gl.debugMessageCallback({}, glErrorCallback);
 }
 pub fn glErrorCallback(source: gl.DebugSource, msg_type: gl.DebugMessageType, id: usize, severity: gl.DebugSeverity, message: []const u8) void {
     std.log.err("gl: source: {} msg_type: {} id: {} severity: {} message: {s}", .{
@@ -44,7 +44,7 @@ pub fn glErrorCallback(source: gl.DebugSource, msg_type: gl.DebugMessageType, id
 }
 
 pub fn loadGlPointers() !void {
-    try gl.binding.load(void{}, getProcAddress);
+    try gl.binding.load({}, getProcAddress);
 }
 
 pub fn getProcAddress(_: void, proc: [:0]const u8) ?gl.binding.FunctionPointer {

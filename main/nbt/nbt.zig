@@ -51,7 +51,7 @@ pub const NbtElement = union(NbtElementTag) {
 
     pub fn writeWithName(self: *@This(), buffer: *C2S.WriteBuffer, key: []const u8) NbtWriteError!void {
         std.debug.print("writing {s}\n", .{@tagName(self.*)});
-        try buffer.write(i8, @intFromEnum(self.*));
+        try buffer.write(i8, @backingInt(self.*));
         switch (self.*) {
             .End => {},
             inline else => |*specific_element| {
@@ -127,30 +127,20 @@ pub const NbtElement = union(NbtElementTag) {
 };
 
 pub const NbtEnd = struct {
-    pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
-        _ = self;
-        _ = buffer;
-    }
+    pub fn write(_: *const @This(), _: *C2S.WriteBuffer) NbtWriteError!void {}
 
-    pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
-        _ = allocator;
-        _ = buffer;
+    pub fn read(_: *S2C.ReadBuffer, _: std.mem.Allocator) NbtReadError!@This() {
         return .{};
     }
 
-    pub fn deepEquals(self: *const @This(), other: *const NbtElement) bool {
-        _ = self;
+    pub fn deepEquals(_: *const @This(), other: *const NbtElement) bool {
         return other.* == .End;
     }
 
-    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-        _ = self;
-        _ = allocator;
-    }
+    pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
 
-    pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
-        _ = allocator;
-        return self.*;
+    pub fn dupe(_: *const @This(), _: std.mem.Allocator) !@This() {
+        return .{};
     }
 };
 
@@ -162,33 +152,19 @@ pub fn NbtNumber(comptime Value: type) type {
             try buffer.write(Value, self.value);
         }
 
-        pub fn read(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) NbtReadError!@This() {
-            _ = allocator;
+        pub fn read(buffer: *S2C.ReadBuffer, _: std.mem.Allocator) NbtReadError!@This() {
             return .{
                 .value = try buffer.read(Value),
             };
         }
 
         pub fn deepEquals(self: *const @This(), other: *const NbtElement) bool {
-            if (other.* != tagFromType(@This())) return false;
-            return self.value == @field(other, nameFromType(@This())).value;
-        }
-
-        /// Assumes no duplicate field types
-        pub fn nameFromType(comptime Type: type) []const u8 {
-            for (@typeInfo(NbtElement).@"union".fields) |field| {
-                if (field.type == Type) return field.name;
+            switch (other.*) {
+                inline else => |element| {
+                    if (@TypeOf(element) != @This()) return false;
+                    return element.value == self.value;
+                },
             }
-        }
-
-        /// Assumes no duplicate field types
-        pub fn tagFromType(comptime Type: type) NbtElementTag {
-            inline for (@typeInfo(NbtElementTag).@"enum".fields, @typeInfo(NbtElement).@"union".fields) |tag, field| {
-                if (field.type == Type) {
-                    return @enumFromInt(tag.value);
-                }
-            }
-            unreachable;
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -233,11 +209,7 @@ pub const NbtByteArray = struct {
 
     pub fn deepEquals(self: *const @This(), other: *const NbtElement) bool {
         if (other.* != .ByteArray) return false;
-        if (self.values.len != other.*.ByteArray.values.len) return false;
-        for (self.values, other.*.ByteArray.values) |i, j| {
-            if (i != j) return false;
-        }
-        return true;
+        return std.mem.eql(i8, self.values, other.ByteArray.values);
     }
 
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -264,11 +236,7 @@ pub const NbtString = struct {
 
     pub fn deepEquals(self: *const @This(), other: *const NbtElement) bool {
         if (other.* != .String) return false;
-        if (self.value.len != other.*.String.value.len) return false;
-        for (self.value, other.*.String.value) |i, j| {
-            if (i != j) return false;
-        }
-        return true;
+        return std.mem.eql(u8, self.value, other.String.value);
     }
 
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -303,7 +271,7 @@ pub const NbtList = struct {
     pub fn write(self: *@This(), buffer: *C2S.WriteBuffer) NbtWriteError!void {
         self.element_type = if (self.elements.len == 0) .End else @as(NbtElementTag, self.elements[0]);
 
-        try buffer.write(i8, @intFromEnum(self.element_type));
+        try buffer.write(i8, @backingInt(self.element_type));
         try buffer.write(i32, @intCast(self.elements.len));
 
         for (self.elements) |*element| {
@@ -368,9 +336,9 @@ pub const NbtCompound = struct {
         var compound: @This() = .{
             .elements = .{},
         };
-        inline for (std.meta.fields(@TypeOf(initializer))) |field| {
-            const name = try allocator.dupe(u8, field.name);
-            try compound.elements.put(allocator, name, @field(initializer, field.name));
+        inline for (@typeInfo(@TypeOf(initializer)).@"struct".field_names) |field_name| {
+            const name = try allocator.dupe(u8, field_name);
+            try compound.elements.put(allocator, name, @field(initializer, field_name));
         }
         return compound;
     }
@@ -464,22 +432,8 @@ pub const NbtIntArray = struct {
     }
 
     pub fn deepEquals(self: *const @This(), other: *const NbtElement) bool {
-        if (other.* != .IntArray) {
-            std.debug.print("expected array, found {}\n", .{@as(NbtElementTag, other.*)});
-            return false;
-        }
-        if (self.values.len != other.IntArray.values.len) {
-            std.debug.print("expected length {}, found {}\n", .{ self.values.len, other.IntArray.values.len });
-            return false;
-        }
-        for (self.values, other.IntArray.values, 0..) |v1, v2, index| {
-            if (v1 != v2) {
-                std.debug.print("expected {x} at index {}, found {x}\n", .{ @as(u32, @bitCast(v1)), index, @as(u32, @bitCast(v2)) });
-
-                return false;
-            }
-        }
-        return true;
+        if (other.* != .IntArray) return false;
+        return std.mem.eql(i32, self.values, other.IntArray.values);
     }
 
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -504,8 +458,8 @@ pub fn ReadLimiter(comptime Limit: usize) type {
 
 test "NbtCompound" {
     std.debug.print("\n", .{});
-    var nbt = NbtElement{
-        .Compound = try NbtCompound.init(
+    var nbt: NbtElement = .{
+        .Compound = try .init(
             .{
                 .foo = NbtElement{ .Byte = .{ .value = 121 } },
                 .bar = NbtElement{ .IntArray = try .init(&.{ @bitCast(@as(u32, 0xDEADBEEF)), @bitCast(@as(u32, 0xACAB1312)), @bitCast(@as(u32, 0xCAFEBABE)) }, std.testing.allocator) },

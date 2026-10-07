@@ -70,8 +70,8 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {
     std.log.scoped(.world).debug("loaded new chunk at {}", .{chunk_pos});
 
     const chunk: Chunk = .{
-        .sections = .{null} ** 16,
-        .biomes = .{0} ** 256,
+        .sections = @splat(null),
+        .biomes = @splat(0),
         .chunk_pos = chunk_pos,
     };
 

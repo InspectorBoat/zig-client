@@ -4,7 +4,7 @@ const Entity = root.Entity;
 
 entities: std.AutoHashMap(*Entity, void),
 entities_by_network_id: std.AutoHashMap(i32, *Entity),
-pool: std.heap.MemoryPoolExtra(Entity, .{}),
+pool: std.heap.MemoryPool(Entity),
 entities_to_remove: std.ArrayList(*Entity),
 allocator: std.mem.Allocator,
 
@@ -34,7 +34,7 @@ pub fn addEntity(self: *@This(), entity: Entity) !*Entity {
             break :blk specific_entity.base.network_id;
         },
     };
-    try self.entities.put(new_entity, void{});
+    try self.entities.put(new_entity, {});
     try self.entities_by_network_id.put(network_id, new_entity);
 
     return new_entity;

@@ -21,13 +21,13 @@ fn createModules(
         .target = target,
         .optimize = optimize,
     });
-    const quarantine = b.addModule("llm-code-quarantine", .{
+    const quarantine = b.createModule(.{
         .root_source_file = b.path("quarantine/quarantine.zig"),
     });
-    const util = b.addModule("util", .{
+    const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),
     });
-    const render = b.addModule("render", .{
+    const render = b.createModule(.{
         .root_source_file = b.path("render/render.zig"),
     });
 
@@ -74,8 +74,6 @@ pub fn build(b: *std.Build) void {
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.root,
-            .use_llvm = true,
-            .use_lld = true,
         });
 
         // Install exe
@@ -106,7 +104,6 @@ pub fn build(b: *std.Build) void {
                 .target = target,
                 .optimize = optimize,
             }),
-            .use_llvm = true,
         });
         test_main.root_module.addImport("network", network);
         test_main.root_module.addImport("render", mods.render);
@@ -121,7 +118,6 @@ pub fn build(b: *std.Build) void {
                 .target = target,
                 .optimize = optimize,
             }),
-            .use_llvm = true,
         });
         test_render.root_module.addImport("zgl", zgl);
         test_render.root_module.addImport("mach_glfw", mach_glfw);
@@ -135,7 +131,6 @@ pub fn build(b: *std.Build) void {
                 .target = target,
                 .optimize = optimize,
             }),
-            .use_llvm = true,
         });
 
         // Unit tests for llm generated shim modules
@@ -145,7 +140,6 @@ pub fn build(b: *std.Build) void {
                 .target = target,
                 .optimize = optimize,
             }),
-            .use_llvm = true,
         });
 
         const test_step = b.step("test", "Run unit tests");

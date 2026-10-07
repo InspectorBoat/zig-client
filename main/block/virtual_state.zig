@@ -348,8 +348,8 @@ pub const VirtualState = union(Block) {
 
             inline else => |block| {
                 var properties: @FieldType(VirtualState, @tagName(block)) = undefined;
-                inline for (@typeInfo(@TypeOf(properties)).@"struct".fields) |field| {
-                    @field(properties, field.name) = @field(physical.payload(block), field.name);
+                inline for (@typeInfo(@TypeOf(properties)).@"struct".field_names) |field_name| {
+                    @field(properties, field_name) = @field(physical.payload(block), field_name);
                 }
                 return @unionInit(@This(), @tagName(block), properties);
             },

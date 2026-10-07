@@ -52,7 +52,7 @@ pub fn read(self: *@This(), comptime T: type) error{EndOfBuffer}!T {
     self.read_location += @sizeOf(T);
 
     // use this so we don't have to special case floats
-    const ValueAsInt = std.meta.Int(.unsigned, @bitSizeOf(T));
+    const ValueAsInt = @Int(.unsigned, @bitSizeOf(T));
     const value_as_int = std.mem.bytesToValue(ValueAsInt, value_slice);
     return @bitCast(std.mem.bigToNative(ValueAsInt, value_as_int));
 }
@@ -66,7 +66,7 @@ pub fn readPacked(self: *@This(), comptime T: type) !T {
     if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeInfo(T) ++ ") must have a bit size divisible by 8");
     if (@typeInfo(T) != .@"struct") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be a struct");
     if (@typeInfo(T).@"struct".layout != .@"packed") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be packed");
-    return @bitCast(try self.read(std.meta.Int(.unsigned, @bitSizeOf(T))));
+    return @bitCast(try self.read(@Int(.unsigned, @bitSizeOf(T))));
 }
 
 /// T must be an enum backed by an i32
@@ -152,7 +152,7 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
         item_stack = .{
             .size = try self.read(i8),
             .metadata = try self.read(i16),
-            .item = @enumFromInt(item_id),
+            .item = @fromBackingInt(@intCast(item_id)),
             .nbt = switch (try NbtElement.readDiscardName(self, allocator)) {
                 .Compound => |compound| compound,
                 else => null,

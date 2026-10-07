@@ -3,7 +3,7 @@ const root = @import("root");
 const Vector2xz = root.Vector2xz;
 const Chunk = root.Chunk;
 
-metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = .initEmpty(),
+metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = .empty,
 items: [32 * 32]struct { pos: Vector2xz(i32), chunk: Chunk } = undefined,
 
 pub inline fn toIndex(pos: Vector2xz(i32)) usize {
@@ -155,7 +155,7 @@ pub fn DummyWorld(comptime MapType: type) type {
             var chunk: Chunk = .{
                 .biomes = undefined,
                 .chunk_pos = chunk_pos,
-                .sections = .{null} ** 16,
+                .sections = @splat(null),
             };
 
             for (0..16) |section_y| {
@@ -163,7 +163,7 @@ pub fn DummyWorld(comptime MapType: type) type {
                 errdefer allocator.destroy(section);
 
                 for (&section.block_states) |*block_state| {
-                    const state: RawBlockState = .{ .block = @intFromEnum(rand.enumValue(Block)), .metadata = rand.int(u4) };
+                    const state: RawBlockState = .{ .block = @backingInt(rand.enumValue(Block)), .metadata = rand.int(u4) };
                     block_state.* = state.toFiltered();
                 }
 

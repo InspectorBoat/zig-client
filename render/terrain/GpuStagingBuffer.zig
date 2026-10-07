@@ -36,7 +36,7 @@ pub fn writeQuad(
             .height = @intFromFloat(@max(@round(size[1] * 256 - 1), 1)),
         },
         .texture = texture,
-        .normal = @intCast(@intFromEnum(facing)),
+        .normal = @intCast(@backingInt(facing)),
         .sky_light = sky_light,
         .block_light = block_light,
     };
@@ -55,7 +55,7 @@ pub fn writeBox(
         min,
         max,
         texture,
-        .initFull(),
+        .full,
         sky_light,
         block_light,
     );

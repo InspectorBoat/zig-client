@@ -8,7 +8,7 @@ pub fn getDispatcher(comptime Events: type, comptime listeners: anytype) type {
         pub inline fn dispatch(comptime Event: type, event: Event) !void {
             inline for (listeners) |listener| {
                 const listener_info = @typeInfo(@TypeOf(listener)).@"fn";
-                if (listener_info.params[0].type == Event) {
+                if (listener_info.param_types[0] == Event) {
                     if (@typeInfo(listener_info.return_type.?) == .error_union) {
                         try listener(event);
                     } else {
@@ -28,23 +28,22 @@ fn validate(comptime Events: type, comptime listeners: anytype) void {
             else => @compileError("Event listener must be function, found " ++ @typeName(@TypeOf(listener))),
         };
         if (info.is_generic) @compileError("Event listener cannot be generic, found " ++ @typeName(@TypeOf(listener)));
-        if (info.is_var_args) @compileError("Event listener cannot be varargs, found " ++ @typeName(@TypeOf(listener)));
         if (info.return_type == null or (info.return_type.? != void and !isVoidErrorUnion(info.return_type.?))) {
             @compileError("Event listener must return void or !void, found " ++ @typeName(@TypeOf(listener)));
         }
-        if (info.params.len != 1) @compileError("Event listener must have exactly 1 parameter, found " ++ @typeName(@TypeOf(listener)));
-        if (info.params[0].is_generic) @compileError("Event listener parameter cannot be generic, found " ++ @typeName(@TypeOf(listener)));
+        if (info.param_types.len != 1) @compileError("Event listener must have exactly 1 parameter, found " ++ @typeName(@TypeOf(listener)));
+        if (info.param_types[0] == null) @compileError("Event listener parameter cannot be generic, found " ++ @typeName(@TypeOf(listener)));
         for (declList(Events, type)) |EventType| {
-            if (info.params[0].type.? == EventType) break;
+            if (info.param_types[0].? == EventType) break;
         } else @compileError("Event listener parameter must take Event, found " ++ @typeName(@TypeOf(listener)));
     }
 }
 
 fn declList(comptime Container: type, comptime Decl: type) []const Decl {
-    const decl_names = @typeInfo(Container).@"struct".decls;
+    const decl_names = @typeInfo(Container).@"struct".decl_names;
     comptime var decls: [decl_names.len]Decl = undefined;
     for (decl_names, &decls) |decl_name, *decl| {
-        decl.* = @field(Container, decl_name.name);
+        decl.* = @field(Container, decl_name);
     }
     return &decls;
 }

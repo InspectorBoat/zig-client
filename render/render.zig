@@ -108,6 +108,14 @@ pub fn handleInputIdle(_: *const Client.Idle) void {
                     else => {},
                 }
             },
+            .ContentScale => |content_scale| {
+                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
+            },
+            .FramebufferSize => |_framebuffer_size| {
+                framebuffer_size = _framebuffer_size;
+                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
+                gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
+            },
             else => {},
         }
     }
@@ -121,6 +129,14 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
                     .escape => window_input.window.setShouldClose(true),
                     else => {},
                 }
+            },
+            .ContentScale => |content_scale| {
+                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
+            },
+            .FramebufferSize => |_framebuffer_size| {
+                framebuffer_size = _framebuffer_size;
+                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
+                gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
             else => {},
         }
@@ -164,7 +180,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
 
                     .q => try input_queue.queueOnTick(.{ .hand = .{ .drop = (key.action == .press) } }),
 
-                    .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| try input_queue.queueOnTick(.{ .hand = .{ .hotkey = .{ @intFromEnum(num) - @intFromEnum(glfw.Key.one), key.action == .press } } }),
+                    .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| try input_queue.queueOnTick(.{ .hand = .{ .hotkey = .{ @backingInt(num) - @backingInt(glfw.Key.one), key.action == .press } } }),
                     else => {},
                 }
             },
@@ -176,17 +192,29 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                     else => {},
                 }
             },
-            .Size => |size| {
-                gl.viewport(0, 0, @intCast(size.x), @intCast(size.y));
+            .Size => |_size| {
+                size = _size;
             },
             .CursorPos => |cursor_event| {
                 cursor_delta = cursor_delta.add(cursor_event.delta);
+            },
+            .ContentScale => |content_scale| {
+                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
+            },
+            .FramebufferSize => |_framebuffer_size| {
+                framebuffer_size = _framebuffer_size;
+                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
+                gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
             else => {},
         }
     }
     try input_queue.queueOnFrame(.{ .rotate = cursor_delta.floatToInt(i32) });
 }
+
+var size: Vector2xy(i32) = .{ .x = 1, .y = 1 };
+var framebuffer_size: Vector2xy(u32) = .{ .x = 1, .y = 1 };
+var scale: Vector2xy(f32) = .{ .x = 1, .y = 1 };
 
 test {
     _ = @import("GpuMemoryAllocator.zig");

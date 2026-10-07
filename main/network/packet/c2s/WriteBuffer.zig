@@ -50,7 +50,7 @@ pub fn write(self: *@This(), comptime T: type, value: T) std.mem.Allocator.Error
 
     if (T == bool) return try self.backer.append(self.allocator, @intCast(@intFromBool(value)));
 
-    const ValueAsInt = std.meta.Int(.unsigned, @bitSizeOf(T));
+    const ValueAsInt = @Int(.unsigned, @bitSizeOf(T));
     const value_as_int: ValueAsInt = @bitCast(value);
     const value_slice = std.mem.toBytes(std.mem.nativeToBig(ValueAsInt, value_as_int));
 
@@ -68,7 +68,7 @@ pub fn writePacked(self: *@This(), comptime T: type, value: T) !void {
 pub fn writeEnum(self: *@This(), comptime T: type, value: T) !void {
     if (@typeInfo(T) != .@"enum") @compileError("type to write (" ++ @typeName(T) ++ "must be an enum");
     if (@typeInfo(T).@"enum".tag_type != i32) @compileError("type to write (" ++ @typeName(T) ++ "must be backed by an i32");
-    return try self.writeVarInt(@intFromEnum(value));
+    return try self.writeVarInt(@backingInt(value));
 }
 
 pub fn writeBytes(self: *@This(), b: []const u8) !void {
