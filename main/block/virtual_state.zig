@@ -245,7 +245,7 @@ pub const VirtualState = union(Block) {
             } },
             .double_plant => .{ .double_plant = .{
                 .variant = if (physical.payload(.double_plant).half == .upper) blk: {
-                    break :blk if (world.getBlockState(block_pos.down()).maybePayload(.double_plant)) |other| other.variant else .sunflower;
+                    break :blk if (world.getBlockState(block_pos.down()).maybePayload(.double_plant)) |other| other.variant else .paeonia;
                 } else physical.payload(.double_plant).variant,
                 .half = physical.payload(.double_plant).half,
             } },
@@ -324,11 +324,11 @@ pub const VirtualState = union(Block) {
                     if (physical.payload(block).half == .lower) .{
                         .open = physical.payload(block).other.when_lower.open,
                         .facing = physical.payload(block).other.when_lower.facing,
-                        .hinge_right = if (maybe_neighbor) |neighbor| neighbor.other.when_upper.hinge_right else false,
+                        .hinge_right = if (maybe_neighbor) |neighbor| neighbor.other.when_upper.hinge_right else true,
                         .powered = if (maybe_neighbor) |neighbor| neighbor.other.when_upper.powered else false,
                     } else .{
                         .open = if (maybe_neighbor) |neighbor| neighbor.other.when_lower.open else false,
-                        .facing = if (maybe_neighbor) |neighbor| neighbor.other.when_lower.facing else .north,
+                        .facing = if (maybe_neighbor) |neighbor| neighbor.other.when_lower.facing else .east,
                         .hinge_right = physical.payload(block).other.when_upper.hinge_right,
                         .powered = physical.payload(block).other.when_upper.powered,
                     },
@@ -444,9 +444,9 @@ fn hasSolidTop(block: Block) bool {
 fn stemFacingFor(world: *const World, block_pos: Vector3(i32), self_block: Block) StemFacing {
     const plant: Block = if (self_block == .pumpkin_stem) .melon_block else .pumpkin;
     if (world.getBlock(block_pos.north()) == plant) return .north;
+    if (world.getBlock(block_pos.east()) == plant) return .east;
     if (world.getBlock(block_pos.south()) == plant) return .south;
     if (world.getBlock(block_pos.west()) == plant) return .west;
-    if (world.getBlock(block_pos.east()) == plant) return .east;
     return .up;
 }
 

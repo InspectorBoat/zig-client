@@ -14,6 +14,7 @@ pub fn initGlfwWindow() error{GlfwWindowFailed}!glfw.Window {
         .opengl_profile = .opengl_core_profile,
         .context_version_major = 4,
         .context_version_minor = 6,
+        .maximized = true,
     }) orelse {
         std.log.err("failed to create glfw window: {?s}", .{glfw.getErrorString()});
         return error.GlfwWindowFailed;

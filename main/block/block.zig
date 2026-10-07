@@ -256,9 +256,9 @@ pub const Block = enum(u8) {
 };
 
 pub const PhysicalBlockState = packed struct(u16) {
-    _: u4 = 0,
-    block: Block,
     properties: PhysicalProperties,
+    block: Block,
+    _: u4 = 0,
 
     pub const air_blockstate: @This() = .{
         .block = .air,
@@ -267,7 +267,7 @@ pub const PhysicalBlockState = packed struct(u16) {
 
     pub fn validateRaw(raw: u16) @This() {
         const high_bits: u12 = @intCast(raw >> 4);
-        const block: Block = if (high_bits <= 197) @enumFromInt(high_bits) else return .air_blockstate;
+        const block: Block = if (high_bits <= 197) @fromBackingInt(@intCast(high_bits)) else return .air_blockstate;
         const low_bits: u4 = @intCast(raw & 0b1111);
         if (!@import("valid_metadata_table.zig").@"export".get(block).isSet(low_bits)) {
             return .air_blockstate;
@@ -548,20 +548,20 @@ pub const VirtualBlockState = struct {
                     @tagName(block),
                     if (half == .lower) .{
                         .open = own.other.when_lower.open,
-                        .facing = @enumFromInt(@intFromEnum(own.other.when_lower.facing)),
+                        .facing = @fromBackingInt(@intCast(@backingInt(own.other.when_lower.facing))),
                         .hinge_right = joined and other_props.other.when_upper.hinge_right,
                         .powered = joined and other_props.other.when_upper.powered,
                     } else .{
                         .open = joined and other_props.other.when_lower.open,
-                        .facing = @enumFromInt(@as(u2, if (joined) @intFromEnum(other_props.other.when_lower.facing) else 0)),
+                        .facing = @fromBackingInt(@intCast(@as(u2, if (joined) @backingInt(other_props.other.when_lower.facing) else 0))),
                         .hinge_right = own.other.when_upper.hinge_right,
                         .powered = own.other.when_upper.powered,
                     },
                 );
             },
 
-            .pumpkin_stem => self.virtual = .{ .pumpkin_stem = .{ .facing = @enumFromInt(stemFacingFor(world, block_pos, .pumpkin_stem)) } },
-            .melon_stem => self.virtual = .{ .melon_stem = .{ .facing = @enumFromInt(stemFacingFor(world, block_pos, .melon_stem)) } },
+            .pumpkin_stem => self.virtual = .{ .pumpkin_stem = .{ .facing = @fromBackingInt(@intCast(stemFacingFor(world, block_pos, .pumpkin_stem))) } },
+            .melon_stem => self.virtual = .{ .melon_stem = .{ .facing = @fromBackingInt(@intCast(stemFacingFor(world, block_pos, .melon_stem))) } },
 
             .double_plant => {
                 if (physical.payload(.double_plant).half == .upper) {
