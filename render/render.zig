@@ -218,4 +218,6 @@ var scale: Vector2xy(f32) = .{ .x = 1, .y = 1 };
 
 test {
     _ = @import("GpuMemoryAllocator.zig");
+    // _ = @import("resourcepack/json_map.zig");
+    // _ = @import("resourcepack/resourcepack.zig");
 }

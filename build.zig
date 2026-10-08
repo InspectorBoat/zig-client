@@ -15,6 +15,7 @@ fn createModules(
     mach_glfw: *std.Build.Module,
     zgl: *std.Build.Module,
     zalgebra: *std.Build.Module,
+    zigimg: *std.Build.Module,
 ) ModuleSet {
     const root = b.createModule(.{
         .root_source_file = b.path("main/main.zig"),
@@ -38,6 +39,7 @@ fn createModules(
     render.addImport("zalgebra", zalgebra);
     render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
+    render.addImport("zigimg", zigimg);
 
     root.addImport("network", network);
     root.addImport("render", render);
@@ -58,6 +60,7 @@ pub fn build(b: *std.Build) void {
     const mach_glfw = b.dependency("mach_glfw", .{}).module("mach_glfw");
     const zgl = b.dependency("zgl", .{}).module("zgl");
     const zalgebra = b.dependency("zalgebra", .{}).module("zalgebra");
+    const zigimg = b.dependency("zigimg", .{}).module("zigimg");
 
     // Target & optimize options
     const target = b.standardTargetOptions(.{});
@@ -69,7 +72,7 @@ pub fn build(b: *std.Build) void {
 
     {
         // Create main executable
-        const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra);
+        const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
         mods.root.addOptions("build_options", options);
         const client = b.addExecutable(.{
             .name = "zig-client",
@@ -152,7 +155,7 @@ pub fn build(b: *std.Build) void {
     // Add check step to see if client compiles without doing any codegen
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     {
-        const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra);
+        const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
         mods.root.addOptions("build_options", options);
         const client = b.addExecutable(.{
             .name = "zig-client",

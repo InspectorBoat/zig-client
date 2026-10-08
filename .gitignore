@@ -2,3 +2,5 @@ zig-out
 .zig-cache
 zig-pkg
 test-server
+vanilla-pack
+ornithe-mod-template

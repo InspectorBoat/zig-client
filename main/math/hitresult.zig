@@ -114,7 +114,7 @@ pub const HitResult = union(HitType) {
             };
 
             const block = world.getBlock(from_block_pos);
-            for (world.resolveVirtualBlockState(from_block_pos).getRaytraceHitbox()) |maybe_hitbox| {
+            for (world.resolveVirtualBlockState(from_block_pos).getRaytraceHitboxes()) |maybe_hitbox| {
                 if (maybe_hitbox) |hitbox| {
                     if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
 
@@ -124,14 +124,14 @@ pub const HitResult = union(HitType) {
                     const hit_result = rayTraceHitbox(
                         hitbox,
                         from.sub(.{
-                            .x = @floatFromInt(from_block_pos.x),
-                            .y = @floatFromInt(from_block_pos.y),
-                            .z = @floatFromInt(from_block_pos.z),
+                            .x = from_block_pos.x,
+                            .y = from_block_pos.y,
+                            .z = from_block_pos.z,
                         }),
                         to.sub(.{
-                            .x = @floatFromInt(from_block_pos.x),
-                            .y = @floatFromInt(from_block_pos.y),
-                            .z = @floatFromInt(from_block_pos.z),
+                            .x = from_block_pos.x,
+                            .y = from_block_pos.y,
+                            .z = from_block_pos.z,
                         }),
                     );
                     if (hit_result == .block) {

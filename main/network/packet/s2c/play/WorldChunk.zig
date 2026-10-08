@@ -23,7 +23,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
             .z = try buffer.read(i32),
         },
         .full = try buffer.read(bool),
-        .chunk_data = ChunkData{
+        .chunk_data = .{
             .sections = .{ .mask = try buffer.read(u16) },
             .buffer = .fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
         },
@@ -47,5 +47,5 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
 
 pub const ChunkData = struct {
     buffer: S2C.ReadBuffer,
-    sections: std.bit_set.IntegerBitSet(16),
+    sections: std.bit_set.Integer(16),
 };

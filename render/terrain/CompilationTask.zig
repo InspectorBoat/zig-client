@@ -10,9 +10,9 @@ const VirtualBlockState = @import("root").VirtualBlockState;
 const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 section_pos: Vector3(i32),
-block_states: [18 * 18 * 18]VirtualBlockState,
-block_light: PackedNibbleArray(18 * 18 * 18),
-sky_light: PackedNibbleArray(18 * 18 * 18),
+block_states: [18][18][18]VirtualBlockState,
+block_light: PackedNibbleArray(18, 18, 18),
+sky_light: PackedNibbleArray(18, 18, 18),
 revision: u32,
 
 pub const CompilationResult = struct {
@@ -30,6 +30,8 @@ pub const CompilationResult = struct {
 };
 
 pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !*@This() {
+    @setRuntimeSafety(false);
+
     const task = try allocator.create(@This());
     task.section_pos = section_pos;
     task.revision = revision;
@@ -38,10 +40,9 @@ pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, all
         for (0..18) |z| {
             for (0..18) |x| {
                 const pos = base_block_pos.add(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
-                const index = (y * 18 * 18) + (z * 18) + (x);
-                task.block_states[index] = VirtualBlockState.resolve(world.getBlockState(pos), world, pos);
-                task.block_light.set(index, world.getBlockLight(pos));
-                task.sky_light.set(index, world.getSkyLight(pos));
+                task.block_states[x][y][z] = .resolve(world.getBlockState(pos), world, pos);
+                task.block_light.set(x, y, z, world.getBlockLight(pos));
+                task.sky_light.set(x, y, z, world.getSkyLight(pos));
             }
         }
     }
@@ -61,19 +62,18 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
 }
 
 pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
+    @setRuntimeSafety(false);
+
     // const start: @import("llm-code-quarantine").Timer = .init();
     // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
-    var staging: GpuStagingBuffer = .{
-        .backer = try .initCapacity(allocator, 4096),
-        .allocator = allocator,
-    };
+
+    var staging: GpuStagingBuffer = try .initCapacity(allocator, 4096);
     // place blocks in chunk
     for (1..17) |x| {
         for (1..17) |y| {
             for (1..17) |z| {
-                const index = (y * 18 * 18) + (z * 18) + (x);
                 // TODO: Change this
-                for (task.block_states[index].getRaytraceHitbox()) |maybe_box| {
+                for (task.block_states[x][y][z].getRaytraceHitboxes()) |maybe_box| {
                     if (maybe_box) |box| {
                         const pos_vec: Vector3(f64) = .{
                             .x = @floatFromInt(x - 1),
@@ -82,27 +82,27 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                         };
 
                         const sky_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                            .west = task.sky_light.get(index - 1),
-                            .east = task.sky_light.get(index + 1),
-                            .down = task.sky_light.get(index - 18 * 18),
-                            .up = task.sky_light.get(index + 18 * 18),
-                            .north = task.sky_light.get(index - 18),
-                            .south = task.sky_light.get(index + 18),
+                            .west = task.sky_light.get(x - 1, y, z),
+                            .east = task.sky_light.get(x + 1, y, z),
+                            .down = task.sky_light.get(x, y - 1, z),
+                            .up = task.sky_light.get(x, y + 1, z),
+                            .north = task.sky_light.get(x, y, z - 1),
+                            .south = task.sky_light.get(x, y, z + 1),
                         };
                         const block_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                            .west = task.block_light.get(index - 1),
-                            .east = task.block_light.get(index + 1),
-                            .down = task.block_light.get(index - 18 * 18),
-                            .up = task.block_light.get(index + 18 * 18),
-                            .north = task.block_light.get(index - 18),
-                            .south = task.block_light.get(index + 18),
+                            .west = task.block_light.get(x - 1, y, z),
+                            .east = task.block_light.get(x + 1, y, z),
+                            .down = task.block_light.get(x, y - 1, z),
+                            .up = task.block_light.get(x, y + 1, z),
+                            .north = task.block_light.get(x, y, z - 1),
+                            .south = task.block_light.get(x, y, z + 1),
                         };
 
                         if (!box.equals(Box(f64).cube())) {
                             try staging.writeBox(
                                 box.min.add(pos_vec).floatCast(f32),
                                 box.max.add(pos_vec).floatCast(f32),
-                                @backingInt(task.block_states[index].block),
+                                @backingInt(std.meta.activeTag(task.block_states[x][y][z])),
                                 sky_light,
                                 block_light,
                             );
@@ -111,29 +111,29 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
 
                         const culling_blocks = @import("face_culling_blocks.zig").@"export";
                         var unculled_faces: std.EnumSet(Direction) = .full;
-                        if (culling_blocks.get(task.block_states[index - 1].block)) {
+                        if (culling_blocks.get(task.block_states[x - 1][y][z])) {
                             unculled_faces.remove(.west);
                         }
-                        if (culling_blocks.get(task.block_states[index + 1].block)) {
+                        if (culling_blocks.get(task.block_states[x + 1][y][z])) {
                             unculled_faces.remove(.east);
                         }
-                        if (culling_blocks.get(task.block_states[index - 18 * 18].block)) {
+                        if (culling_blocks.get(task.block_states[x][y - 1][z])) {
                             unculled_faces.remove(.down);
                         }
-                        if (culling_blocks.get(task.block_states[index + 18 * 18].block)) {
+                        if (culling_blocks.get(task.block_states[x][y + 1][z])) {
                             unculled_faces.remove(.up);
                         }
-                        if (culling_blocks.get(task.block_states[index - 18].block)) {
+                        if (culling_blocks.get(task.block_states[x][y][z - 1])) {
                             unculled_faces.remove(.north);
                         }
-                        if (culling_blocks.get(task.block_states[index + 18].block)) {
+                        if (culling_blocks.get(task.block_states[x][y][z + 1])) {
                             unculled_faces.remove(.south);
                         }
 
                         try staging.writeBoxFaces(
                             box.min.add(pos_vec).floatCast(f32),
                             box.max.add(pos_vec).floatCast(f32),
-                            @backingInt(task.block_states[index].block),
+                            @backingInt(task.block_states[x][y][z]),
                             unculled_faces,
                             sky_light,
                             block_light,

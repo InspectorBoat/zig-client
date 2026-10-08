@@ -30,7 +30,7 @@ pub const SectionCompileStatus = struct {
     /// Latest revision of chunk sent to compile thread(s). Null if chunk has never been sent to compile threads.
     /// This can lag behind current_revision if the section is empty
     latest_sent_revision: ?u32 = null,
-    /// Latest reviion of chunk (as mesh data) received from compile thread. Null if chunk has never been received from compile thread.
+    /// Latest revision of chunk (as mesh data) received from compile thread. Null if chunk has never been received from compile thread.
     latest_received_revision: ?u32 = null,
     /// Segment of memory uploaded into VRAM
     render_info: ?SectionRenderInfo = null,

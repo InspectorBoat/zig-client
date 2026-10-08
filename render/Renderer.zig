@@ -60,7 +60,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     const chunk_tracker: ChunkTracker = .init(allocator);
 
     const debug_program = try initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", allocator);
-    const debug_buffer = gl.Buffer.create();
+    const debug_buffer: gl.Buffer = .create();
     debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
     const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
     const @"2d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
@@ -71,6 +71,8 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     vao.elementBuffer(index_buffer);
     @"3d_vao".elementBuffer(index_buffer);
     @"2d_vao".elementBuffer(index_buffer);
+
+    try @import("resourcepack/resourcepack.zig").init(std.Io.Threaded.global_single_threaded.io(), allocator);
 
     return .{
         .allocator = allocator,
@@ -117,40 +119,53 @@ pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8,
     const vertex_shader: gl.Shader = .create(.vertex);
     vertex_shader.source(1, &vertex_shader_source);
     vertex_shader.compile();
-    try logShader("vertex", vertex_shader);
+    try checkShader(allocator, vertex_shader);
 
     const frag_shader: gl.Shader = .create(.fragment);
     frag_shader.source(1, &frag_shader_source);
     frag_shader.compile();
-    try logShader("fragment", frag_shader);
+    try checkShader(allocator, frag_shader);
 
     const program: gl.Program = .create();
     program.attach(vertex_shader);
     program.attach(frag_shader);
     program.link();
-
-    var log_buffer: [8192]u8 = undefined;
-    var fba: std.heap.FixedBufferAllocator = .init(&log_buffer);
-    const compile_log = try program.getCompileLog(fba.allocator());
-    if (compile_log.len > 0) std.debug.print("program link log: {s}\n", .{compile_log});
+    try checkProgram(allocator, program);
 
     return program;
 }
 
-/// Prints the compile status and info log of a single shader stage.
-fn logShader(stage: []const u8, shader: gl.Shader) !void {
-    var log_buffer: [8192]u8 = undefined;
-    var fba: std.heap.FixedBufferAllocator = .init(&log_buffer);
+fn checkShader(allocator: std.mem.Allocator, shader: gl.Shader) !void {
+    const shader_type: gl.ShaderType = @fromBackingInt(@intCast(shader.get(.shader_type)));
+    const compiled = shader.get(.compile_status) == @intFromBool(true);
 
-    const compiled = gl.getShader(shader, .compile_status) != 0;
-    const log = try shader.getCompileLog(fba.allocator());
-    if (!compiled or log.len > 0) {
-        std.debug.print("{s} shader compiled: {}, log: {s}\n", .{ stage, compiled, log });
+    if (!compiled) {
+        std.log.scoped(.compile_shaders).err("{s} shader failed to compile", .{@tagName(shader_type)});
+    }
+    const log = try shader.getCompileLog(allocator);
+    defer allocator.free(log);
+
+    if (log.len > 0) {
+        std.log.scoped(.compile_shaders).info("{s} shader compile log: {s}", .{ @tagName(shader_type), log });
+    }
+}
+
+fn checkProgram(allocator: std.mem.Allocator, program: gl.Program) !void {
+    const linked = program.get(.link_status) == @intFromBool(true);
+
+    if (!linked) {
+        std.log.scoped(.link_program).err("program failed to link", .{});
+    }
+    const log = try program.getCompileLog(allocator);
+    defer allocator.free(log);
+
+    if (log.len > 0) {
+        std.log.scoped(.link_program).info("program compile log: {s}", .{log});
     }
 }
 
 pub fn init3dVao() !gl.VertexArray {
-    const vao = gl.VertexArray.create();
+    const vao: gl.VertexArray = .create();
     vao.enableVertexAttribute(0);
     vao.attribFormat(0, 3, .float, false, 0);
     vao.attribBinding(0, 0);
@@ -159,7 +174,7 @@ pub fn init3dVao() !gl.VertexArray {
 }
 
 pub fn init2dVao() !gl.VertexArray {
-    const vao = gl.VertexArray.create();
+    const vao: gl.VertexArray = .create();
 
     vao.enableVertexAttribute(0);
     vao.attribFormat(0, 3, .float, false, 0);
@@ -187,7 +202,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
             index += 1;
         }
     }
-    const index_buffer = gl.Buffer.create();
+    const index_buffer: gl.Buffer = .create();
     index_buffer.storage(u32, 1024 * 1024 * 8, @ptrCast(indices), .{});
 
     gl.enable(.primitive_restart);

@@ -56,8 +56,7 @@ pub fn init(info: struct {
 }
 
 pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
-    _ = allocator; // autofix
-
+    _ = allocator;
     self.entity_tracker.processEntityRemovals();
     var entity_iter = self.entity_tracker.entities.keyIterator();
     while (entity_iter.next()) |maybe_entity| {
@@ -168,12 +167,12 @@ pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return 15;
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return 15;
-    const section_block_pos: Vector3(i32) = .{
-        .x = @mod(block_pos.x, 16),
-        .y = @mod(block_pos.y, 16),
-        .z = @mod(block_pos.z, 16),
+    const section_block_pos: Vector3(u4) = .{
+        .x = @intCast(@mod(block_pos.x, 16)),
+        .y = @intCast(@mod(block_pos.y, 16)),
+        .z = @intCast(@mod(block_pos.z, 16)),
     };
-    return section.block_light.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0));
+    return section.block_light.get(section_block_pos.x, section_block_pos.y, section_block_pos.z);
 }
 
 pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
@@ -181,12 +180,12 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return 15;
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return 15;
-    const section_block_pos: Vector3(i32) = .{
-        .x = @mod(block_pos.x, 16),
-        .y = @mod(block_pos.y, 16),
-        .z = @mod(block_pos.z, 16),
+    const section_block_pos: Vector3(u4) = .{
+        .x = @intCast(@mod(block_pos.x, 16)),
+        .y = @intCast(@mod(block_pos.y, 16)),
+        .z = @intCast(@mod(block_pos.z, 16)),
     };
-    return section.sky_light.get(@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0));
+    return section.sky_light.get(section_block_pos.x, section_block_pos.y, section_block_pos.z);
 }
 
 pub fn receiveChunk(
@@ -265,7 +264,7 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
-                for (self.resolveVirtualBlockState(.{ .x = x, .y = y, .z = z }).getCollisionHitbox()) |maybe_block_hitbox| {
+                for (self.resolveVirtualBlockState(.{ .x = x, .y = y, .z = z }).getCollisionHitboxes()) |maybe_block_hitbox| {
                     _ = maybe_block_hitbox orelse continue;
                     collisions_count += 1;
                 }
@@ -296,14 +295,15 @@ pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
-                for (self.resolveVirtualBlockState(.{ .x = x, .y = y, .z = z }).getCollisionHitbox()) |maybe_block_hitbox| {
+                const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
+                const virtual: @import("../block/virtual_state.zig").VirtualState = .resolve(
+                    self.getBlockState(pos),
+                    self,
+                    pos,
+                );
+                for (virtual.getCollisionHitboxes()) |maybe_block_hitbox| {
                     const block_hitbox = maybe_block_hitbox orelse continue;
-                    // if (!block_hitbox.intersects(hitbox)) continue;
-                    try collisions.append(allocator, block_hitbox.move(.{
-                        .x = @floatFromInt(x),
-                        .y = @floatFromInt(y),
-                        .z = @floatFromInt(z),
-                    }));
+                    try collisions.append(allocator, block_hitbox.move(.{ .x = x, .y = y, .z = z }));
                 }
             }
         }

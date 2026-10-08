@@ -16,6 +16,13 @@ pub const GpuQuad = packed struct(u128) {
     _: u16 = 0,
 };
 
+pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
+    return .{
+        .backer = try .initCapacity(allocator, num),
+        .allocator = allocator,
+    };
+}
+
 pub fn writeQuad(
     self: *@This(),
     facing: Direction,
@@ -25,6 +32,8 @@ pub fn writeQuad(
     sky_light: u8,
     block_light: u8,
 ) !void {
+    @setRuntimeSafety(false);
+
     const quad: GpuQuad = .{
         .pos = .{
             .x = @intFromFloat(@round(min[0] * 4095.9375)),
@@ -51,6 +60,8 @@ pub fn writeBox(
     sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
     block_light: std.enums.EnumFieldStruct(Direction, u8, null),
 ) !void {
+    @setRuntimeSafety(false);
+
     try self.writeBoxFaces(
         min,
         max,
@@ -70,6 +81,8 @@ pub fn writeBoxFaces(
     sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
     block_light: std.enums.EnumFieldStruct(Direction, u8, null),
 ) !void {
+    @setRuntimeSafety(false);
+
     if (faces.contains(.down)) {
         try self.writeQuad(
             .down,
@@ -133,6 +146,8 @@ pub fn writeBoxFaces(
 }
 
 pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !void {
+    @setRuntimeSafety(false);
+
     const cube = [_]f32{
         min.x, min.y, min.z,
         max.x, min.y, min.z,
@@ -168,6 +183,8 @@ pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !voi
 }
 
 pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)) !void {
+    @setRuntimeSafety(false);
+
     const quad = [_]f32{
         min.x, min.y, @bitCast(@as(u32, 0xffffffff)),
         max.x, min.y, @bitCast(@as(u32, 0xffffffff)),
