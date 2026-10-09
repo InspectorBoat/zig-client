@@ -19,6 +19,8 @@ const CompilationTask = @import("terrain/CompilationTask.zig");
 const CompilationResult = @import("terrain/CompilationTask.zig").CompilationResult;
 const CompilationResultQueue = @import("terrain/CompilationResultQueue.zig");
 const ChunkTracker = @import("terrain/ChunkTracker.zig");
+const Block = root.Block;
+const ResolvedBlockModel = @import("resource_pack/ResolvedBlockModel.zig");
 
 allocator: std.mem.Allocator,
 
@@ -35,6 +37,8 @@ compile_thread_pool: *@import("llm-code-quarantine").ThreadPool,
 compilation_result_queue: CompilationResultQueue,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
 chunk_tracker: ChunkTracker,
+
+lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, ResolvedBlockModel),
 
 // Debug
 debug_program: gl.Program,
@@ -72,7 +76,16 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     @"3d_vao".elementBuffer(index_buffer);
     @"2d_vao".elementBuffer(index_buffer);
 
-    try @import("resourcepack/resourcepack.zig").init(std.Io.Threaded.global_single_threaded.io(), allocator);
+    var arena: std.heap.ArenaAllocator = .init(allocator);
+    defer arena.deinit();
+    const block_models = try @import("resource_pack/block_model.zig").init(std.Io.Threaded.global_single_threaded.io(), arena.allocator());
+    const block_states = try @import("resource_pack/block_state.zig").init(std.Io.Threaded.global_single_threaded.io(), arena.allocator());
+    const lookup_table = try @import("resource_pack/block_model_lookup.zig").createLookupTable(
+        allocator,
+        block_models,
+        block_states,
+    );
+    std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
 
     return .{
         .allocator = allocator,
@@ -86,6 +99,8 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .compile_thread_pool = compile_thread_pool,
         .compilation_result_queue = compilation_result_queue,
         .chunk_tracker = chunk_tracker,
+
+        .lookup_table = lookup_table,
 
         .debug_buffer = debug_buffer,
         .debug_program = debug_program,
@@ -256,9 +271,7 @@ pub fn initTexture() gl.Texture {
 
 pub fn initCompileThreadPool(allocator: std.mem.Allocator) !*@import("llm-code-quarantine").ThreadPool {
     const pool = try allocator.create(@import("llm-code-quarantine").ThreadPool);
-    try pool.init(allocator, .{
-        .n_jobs = 1,
-    });
+    try pool.init(allocator, .{ .n_jobs = 1 });
     return pool;
 }
 
@@ -588,6 +601,20 @@ pub fn deinit(self: *@This()) !void {
     self.gpu_memory_allocator.deinit();
     self.compile_thread_pool.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
+    while (self.compilation_result_queue.pop()) |compilation_result| {
+        switch (compilation_result.result) {
+            .Success => |success| {
+                var buffer = success.buffer;
+                buffer.deinit(self.allocator);
+            },
+            .Error => {},
+        }
+    }
+    var iter = self.lookup_table.iterator();
+    while (iter.next()) |entry| {
+        self.allocator.free(entry.value_ptr.elements);
+    }
+    self.lookup_table.deinit(self.allocator);
 }
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {

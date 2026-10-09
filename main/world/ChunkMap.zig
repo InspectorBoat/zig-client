@@ -3,12 +3,17 @@ const root = @import("root");
 const Vector2xz = root.Vector2xz;
 const Chunk = root.Chunk;
 
-metadata: std.bit_set.ArrayBitSet(usize, 32 * 32) = .empty,
-items: [32 * 32]struct { pos: Vector2xz(i32), chunk: Chunk } = undefined,
+const Entry = struct {
+    pos: Vector2xz(i32),
+    chunk: *Chunk,
+};
+
+metadata: std.bit_set.ArrayBitSet(usize, 64 * 64) = .empty,
+items: [64 * 64]Entry = undefined,
 
 pub inline fn toIndex(pos: Vector2xz(i32)) usize {
     const pos_cast = pos.bitCast(u32);
-    return @intCast(((pos_cast.x & 31) << 5) | ((pos_cast.z & 31) << 0));
+    return @intCast(((pos_cast.x & 63) << 6) | ((pos_cast.z & 63) << 0));
 }
 
 pub inline fn contains(self: *const @This(), pos: Vector2xz(i32)) bool {
@@ -17,15 +22,15 @@ pub inline fn contains(self: *const @This(), pos: Vector2xz(i32)) bool {
 
 pub inline fn get(self: *const @This(), pos: Vector2xz(i32)) ?*const Chunk {
     if (!self.contains(pos)) return null;
-    return &self.items[toIndex(pos)].chunk;
+    return self.items[toIndex(pos)].chunk;
 }
 
 pub inline fn getPtr(self: *@This(), pos: Vector2xz(i32)) ?*Chunk {
     if (!self.contains(pos)) return null;
-    return &self.items[toIndex(pos)].chunk;
+    return self.items[toIndex(pos)].chunk;
 }
 
-pub inline fn put(self: *@This(), pos: Vector2xz(i32), chunk: Chunk) !void {
+pub inline fn put(self: *@This(), pos: Vector2xz(i32), chunk: *Chunk) !void {
     if (self.contains(pos)) {
         if (!self.items[toIndex(pos)].pos.equals(pos)) std.debug.panic("Chunk collision: stored={} new={}", .{ self.items[toIndex(pos)].pos, pos });
         return error.ChunkAlreadyPresent;
@@ -43,7 +48,7 @@ pub inline fn remove(self: *@This(), pos: Vector2xz(i32)) !void {
 pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*Chunk {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
-    return &self.items[toIndex(pos)].chunk;
+    return self.items[toIndex(pos)].chunk;
 }
 
 const Self = @This();
@@ -56,7 +61,7 @@ const Iterator = struct {
 
             if (self.index >= 32 * 32) return null;
             if (self.map.metadata.isSet(self.index)) {
-                return &self.map.items[self.index].chunk;
+                return self.map.items[self.index].chunk;
             }
         }
     }

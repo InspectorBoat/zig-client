@@ -1,31 +1,34 @@
 const std = @import("std");
 
-pub const ParsedBlockModel = @import("ParsedBlockModel.zig");
+const BlockModelTemplate = @import("BlockModelTemplate.zig");
+const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
 
-pub fn init(io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn init(io: std.Io, arena: std.mem.Allocator) !std.StringHashMapUnmanaged(ResolvedBlockModel) {
     const start: @import("llm-code-quarantine").Timer = .init();
-    defer std.log.info("block models parsed in {d} ms\n", .{start.ms()});
+    defer std.log.scoped(.resource_pack).info("block models parsed in {d} ms", .{start.ms()});
 
-    var arena: std.heap.ArenaAllocator = .init(allocator);
-    defer arena.deinit();
+    const parsed_models = try parseAll(io, arena, "/home/inspectorboat/src/zig-client/vanilla-pack/assets/minecraft/models/block");
 
-    const models = try parseAll(io, arena.allocator(), "/home/inspectorboat/src/zig-client/render/resourcepack/vanilla-pack/assets/minecraft/models/block");
-    var iter = models.keyIterator();
+    var resolved_models: std.StringHashMapUnmanaged(ResolvedBlockModel) = .empty;
+    var iter = parsed_models.keyIterator();
     while (iter.next()) |model_name| {
-        resolveBlockModel(arena.allocator(), model_name.*, models) catch |e| switch (e) {
+        const resolved_model = resolveBlockModel(arena, model_name.*, parsed_models) catch |e| switch (e) {
             error.MissingTextureVariableReference => {
-                std.log.debug("incomplete model {s}", .{model_name.*});
+                std.log.scoped(.resource_pack).debug("incomplete model {s}", .{model_name.*});
+                continue;
             },
             else => {
-                std.log.err("{} resolving {s}", .{ e, model_name.* });
+                std.log.scoped(.resource_pack).err("{} resolving {s}", .{ e, model_name.* });
                 return e;
             },
         };
+        try resolved_models.put(arena, model_name.*, resolved_model);
     }
+    return resolved_models;
 }
 
-pub fn parseAll(io: std.Io, arena: std.mem.Allocator, path: []const u8) !std.StringHashMapUnmanaged(ParsedBlockModel) {
-    var models: std.StringHashMapUnmanaged(ParsedBlockModel) = .empty;
+pub fn parseAll(io: std.Io, arena: std.mem.Allocator, path: []const u8) !std.StringHashMapUnmanaged(BlockModelTemplate) {
+    var models: std.StringHashMapUnmanaged(BlockModelTemplate) = .empty;
 
     const dir: std.Io.Dir = try .openDir(.cwd(), io, path, .{ .iterate = true });
     var iter = dir.iterate();
@@ -38,26 +41,33 @@ pub fn parseAll(io: std.Io, arena: std.mem.Allocator, path: []const u8) !std.Str
         var buf: [1024]u8 = undefined;
         var file_reader = file.reader(io, &buf);
 
-        const parsed_model = try parseBlockModel(&file_reader.interface, arena);
+        var reader: std.json.Reader = .init(arena, &file_reader.interface);
+        defer reader.deinit();
 
-        try models.put(
-            arena,
-            try std.fmt.allocPrint(arena, "block/{s}", .{entry.name[0 .. entry.name.len - ".json".len]}),
-            parsed_model,
-        );
+        const parsed_model = try std.json.parseFromTokenSourceLeaky(BlockModelTemplate, arena, &reader, .{});
+        try validate(&parsed_model);
+
+        try models.put(arena, try arena.dupe(u8, entry.name[0 .. entry.name.len - ".json".len]), parsed_model);
     }
     return models;
 }
 
-pub fn resolveBlockModel(arena: std.mem.Allocator, model_name_to_resolve: []const u8, models: std.StringHashMapUnmanaged(ParsedBlockModel)) !void {
-    var maybe_elements: ?[]ParsedBlockModel.Element = null;
+pub fn resolveBlockModel(
+    arena: std.mem.Allocator,
+    model_name_to_resolve: []const u8,
+    models: std.StringHashMapUnmanaged(BlockModelTemplate),
+) !ResolvedBlockModel {
+    var maybe_ambient_occlusion: ?bool = null;
+    var maybe_elements: ?[]BlockModelTemplate.Element = null;
     var texture_variables: std.StringHashMapUnmanaged([]const u8) = .empty;
 
     // first: walk the parent chain and merge texture variable maps and elements
     var maybe_model_name: ?[]const u8 = model_name_to_resolve;
     while (maybe_model_name) |model_name| {
-        const model = models.get(model_name) orelse {
-            std.log.err("{s}", .{model_name});
+        const model = models.get(if (std.mem.startsWith(u8, model_name, "block/"))
+            model_name["block/".len..]
+        else
+            model_name) orelse {
             return if (std.mem.eql(u8, model_name, model_name_to_resolve)) error.NonExistentModel else return error.NonExistentParent;
         };
         defer maybe_model_name = model.parent;
@@ -72,12 +82,14 @@ pub fn resolveBlockModel(arena: std.mem.Allocator, model_name_to_resolve: []cons
 
         // parent element cannot override child element
         if (maybe_elements == null) maybe_elements = model.elements;
+        if (maybe_ambient_occlusion == null) maybe_ambient_occlusion = model.ambientocclusion;
     }
 
     const elements = maybe_elements orelse return error.NoElements;
     if (elements.len == 0) return error.NoElements;
-    const BlockModel = @import("BlockModel.zig");
-    const resolved_elements: []BlockModel.Element = try arena.alloc(BlockModel.Element, elements.len);
+
+    const resolved_elements: []ResolvedBlockModel.Element = try arena.alloc(ResolvedBlockModel.Element, elements.len);
+
     for (elements, resolved_elements) |element, *resolved_element| {
         resolved_element.* = .{
             .from = .{ .x = element.from[0], .y = element.from[1], .z = element.from[2] },
@@ -102,6 +114,11 @@ pub fn resolveBlockModel(arena: std.mem.Allocator, model_name_to_resolve: []cons
             } else null;
         }
     }
+
+    return .{
+        .ambientocclusion = maybe_ambient_occlusion orelse true,
+        .elements = resolved_elements,
+    };
 }
 
 pub fn resolveTextureVariable(texture_variables: std.StringHashMapUnmanaged([]const u8), variable: []const u8) ![]const u8 {
@@ -127,15 +144,7 @@ pub fn resolveTextureVariable(texture_variables: std.StringHashMapUnmanaged([]co
     return error.CyclicVariable;
 }
 
-pub fn parseBlockModel(file_reader: *std.Io.Reader, arena: std.mem.Allocator) !ParsedBlockModel {
-    var reader: std.json.Reader = .init(arena, file_reader);
-    defer reader.deinit();
-    const model = try std.json.parseFromTokenSourceLeaky(ParsedBlockModel, arena, &reader, .{});
-    try validate(&model);
-    return model;
-}
-
-pub fn validate(model: *const ParsedBlockModel) !void {
+pub fn validate(model: *const BlockModelTemplate) !void {
     if (model.elements == null and model.parent == null) return error.NoElementsOrParent;
     if (model.elements != null and model.parent != null) return error.BothElementsAndParent;
 
@@ -158,5 +167,9 @@ pub fn validate(model: *const ParsedBlockModel) !void {
 }
 
 test parseAll {
-    try parseAll(std.testing.io, std.testing.allocator, "/home/inspectorboat/src/zig-client/render/resourcepack/vanilla-pack/assets/minecraft/models/block");
+    try parseAll(std.testing.io, std.testing.allocator, "/home/inspectorboat/src/zig-client/vanilla-pack/assets/minecraft/models/block");
+}
+
+comptime {
+    _ = @import("block_model_lookup.zig");
 }

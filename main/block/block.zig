@@ -254,7 +254,7 @@ pub const Block = enum(u8) {
     pub fn isSolid(self: @This()) bool {
         return self.isFullCube();
     }
-};
 
-pub const VirtualBlockState = @import("virtual_state.zig").VirtualState;
-pub const PhysicalBlockState = @import("physical_state.zig").PhysicalState;
+    pub const VirtualState = @import("virtual_state.zig").VirtualState;
+    pub const PhysicalState = @import("physical_state.zig").PhysicalState;
+};

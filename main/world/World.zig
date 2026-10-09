@@ -7,8 +7,6 @@ const S2C = root.network.packet.S2C;
 const LocalPlayerEntity = root.Entity.LocalPlayer;
 const Entity = root.Entity;
 const Block = root.Block;
-const PhysicalBlockState = root.PhysicalBlockState;
-const VirtualBlockState = root.VirtualBlockState;
 const Box = root.Box;
 const EventHandler = root.EventHandler;
 const Events = root.Events;
@@ -65,10 +63,11 @@ pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !v
     try self.player.tick(game);
 }
 
-pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {
+pub fn loadChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !*Chunk {
     std.log.scoped(.world).debug("loaded new chunk at {}", .{chunk_pos});
 
-    const chunk: Chunk = .{
+    const chunk = try allocator.create(Chunk);
+    chunk.* = .{
         .sections = @splat(null),
         .biomes = @splat(0),
         .chunk_pos = chunk_pos,
@@ -76,10 +75,10 @@ pub fn loadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !*Chunk {
 
     try self.chunks.put(chunk_pos, chunk);
 
-    return self.chunks.getPtr(chunk_pos).?;
+    return chunk;
 }
 
-pub fn unloadChunk(self: *@This(), chunk_pos: Vector2xz(i32), allocator: std.mem.Allocator) !void {
+pub fn unloadChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !void {
     std.log.scoped(.world).debug("unloaded chunk at {}", .{chunk_pos});
 
     (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
@@ -97,7 +96,7 @@ pub fn isValidBlockPos(block_pos: Vector3(i32)) bool {
     return block_pos.x >= -30000000 and block_pos.z >= -30000000 and block_pos.x < 30000000 and block_pos.z < 30000000 and block_pos.y >= 0 and block_pos.y < 256;
 }
 
-pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) PhysicalBlockState {
+pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.PhysicalState {
     if (block_pos.y < 0 or block_pos.y > 255) return .air_blockstate;
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air_blockstate;
@@ -111,11 +110,11 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) PhysicalBloc
 }
 
 /// Virtual properties are computed on demand; this is the only entry point for them.
-pub fn resolveVirtualBlockState(self: *const @This(), block_pos: Vector3(i32)) VirtualBlockState {
-    return VirtualBlockState.resolve(self.getBlockState(block_pos), self, block_pos);
+pub fn resolveVirtualBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.VirtualState {
+    return .resolve(self.getBlockState(block_pos), self, block_pos);
 }
 
-pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*PhysicalBlockState {
+pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*Block.PhysicalState {
     if (block_pos.y < 0 or block_pos.y > 255) return null;
 
     const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;
@@ -141,7 +140,7 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
     return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
 }
 
-pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: PhysicalBlockState, allocator: std.mem.Allocator) !void {
+pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: Block.PhysicalState, allocator: std.mem.Allocator) !void {
     const chunk: *Chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
         std.log.scoped(.world).warn("attempted to set block in missing chunk {any}!", .{.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
         return;

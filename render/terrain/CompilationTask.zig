@@ -5,12 +5,12 @@ const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 const CompilationResultQueue = @import("CompilationResultQueue.zig");
 const Box = @import("root").Box;
 const Direction = @import("root").Direction;
-const PhysicalBlockState = @import("root").PhysicalBlockState;
-const VirtualBlockState = @import("root").VirtualBlockState;
+const PhysicalState = @import("root").Block.PhysicalState;
+const VirtualState = @import("root").Block.VirtualState;
 const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 section_pos: Vector3(i32),
-block_states: [18][18][18]VirtualBlockState,
+block_states: [18][18][18]VirtualState,
 block_light: PackedNibbleArray(18, 18, 18),
 sky_light: PackedNibbleArray(18, 18, 18),
 revision: u32,
@@ -72,73 +72,61 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
     for (1..17) |x| {
         for (1..17) |y| {
             for (1..17) |z| {
-                // TODO: Change this
-                for (task.block_states[x][y][z].getRaytraceHitboxes()) |maybe_box| {
-                    if (maybe_box) |box| {
-                        const pos_vec: Vector3(f64) = .{
-                            .x = @floatFromInt(x - 1),
-                            .y = @floatFromInt(y - 1),
-                            .z = @floatFromInt(z - 1),
-                        };
+                const model = @import("../render.zig").renderer.lookup_table.get(task.block_states[x][y][z]) orelse continue;
 
-                        const sky_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                            .west = task.sky_light.get(x - 1, y, z),
-                            .east = task.sky_light.get(x + 1, y, z),
-                            .down = task.sky_light.get(x, y - 1, z),
-                            .up = task.sky_light.get(x, y + 1, z),
-                            .north = task.sky_light.get(x, y, z - 1),
-                            .south = task.sky_light.get(x, y, z + 1),
-                        };
-                        const block_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                            .west = task.block_light.get(x - 1, y, z),
-                            .east = task.block_light.get(x + 1, y, z),
-                            .down = task.block_light.get(x, y - 1, z),
-                            .up = task.block_light.get(x, y + 1, z),
-                            .north = task.block_light.get(x, y, z - 1),
-                            .south = task.block_light.get(x, y, z + 1),
-                        };
+                for (model.elements) |element| {
+                    const pos_vec: Vector3(f32) = .{
+                        .x = @floatFromInt(x - 1),
+                        .y = @floatFromInt(y - 1),
+                        .z = @floatFromInt(z - 1),
+                    };
 
-                        if (!box.equals(Box(f64).cube())) {
-                            try staging.writeBox(
-                                box.min.add(pos_vec).floatCast(f32),
-                                box.max.add(pos_vec).floatCast(f32),
-                                @backingInt(std.meta.activeTag(task.block_states[x][y][z])),
-                                sky_light,
-                                block_light,
-                            );
-                            continue;
-                        }
+                    const sky_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
+                        .west = task.sky_light.get(x - 1, y, z),
+                        .east = task.sky_light.get(x + 1, y, z),
+                        .down = task.sky_light.get(x, y - 1, z),
+                        .up = task.sky_light.get(x, y + 1, z),
+                        .north = task.sky_light.get(x, y, z - 1),
+                        .south = task.sky_light.get(x, y, z + 1),
+                    };
+                    const block_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
+                        .west = task.block_light.get(x - 1, y, z),
+                        .east = task.block_light.get(x + 1, y, z),
+                        .down = task.block_light.get(x, y - 1, z),
+                        .up = task.block_light.get(x, y + 1, z),
+                        .north = task.block_light.get(x, y, z - 1),
+                        .south = task.block_light.get(x, y, z + 1),
+                    };
 
-                        const culling_blocks = @import("face_culling_blocks.zig").@"export";
-                        var unculled_faces: std.EnumSet(Direction) = .full;
-                        if (culling_blocks.get(task.block_states[x - 1][y][z])) {
-                            unculled_faces.remove(.west);
-                        }
-                        if (culling_blocks.get(task.block_states[x + 1][y][z])) {
-                            unculled_faces.remove(.east);
-                        }
-                        if (culling_blocks.get(task.block_states[x][y - 1][z])) {
-                            unculled_faces.remove(.down);
-                        }
-                        if (culling_blocks.get(task.block_states[x][y + 1][z])) {
-                            unculled_faces.remove(.up);
-                        }
-                        if (culling_blocks.get(task.block_states[x][y][z - 1])) {
-                            unculled_faces.remove(.north);
-                        }
-                        if (culling_blocks.get(task.block_states[x][y][z + 1])) {
-                            unculled_faces.remove(.south);
-                        }
-
-                        try staging.writeBoxFaces(
-                            box.min.add(pos_vec).floatCast(f32),
-                            box.max.add(pos_vec).floatCast(f32),
-                            @backingInt(task.block_states[x][y][z]),
-                            unculled_faces,
-                            sky_light,
-                            block_light,
-                        );
+                    const culling_blocks = @import("face_culling_blocks.zig").@"export";
+                    var visible_faces: std.EnumSet(Direction) = .full;
+                    if (culling_blocks.get(task.block_states[x - 1][y][z])) {
+                        visible_faces.remove(.west);
                     }
+                    if (culling_blocks.get(task.block_states[x + 1][y][z])) {
+                        visible_faces.remove(.east);
+                    }
+                    if (culling_blocks.get(task.block_states[x][y - 1][z])) {
+                        visible_faces.remove(.down);
+                    }
+                    if (culling_blocks.get(task.block_states[x][y + 1][z])) {
+                        visible_faces.remove(.up);
+                    }
+                    if (culling_blocks.get(task.block_states[x][y][z - 1])) {
+                        visible_faces.remove(.north);
+                    }
+                    if (culling_blocks.get(task.block_states[x][y][z + 1])) {
+                        visible_faces.remove(.south);
+                    }
+
+                    try staging.writeBoxFaces(
+                        .add(pos_vec, .scaleUniform(element.from, 1.0 / 16.0)),
+                        .add(pos_vec, .scaleUniform(element.to, 1.0 / 16.0)),
+                        @backingInt(task.block_states[x][y][z]),
+                        visible_faces,
+                        sky_light,
+                        block_light,
+                    );
                 }
             }
         }

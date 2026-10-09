@@ -1,9 +1,6 @@
 pub const block = @import("block/block.zig");
 
 pub const Block = block.Block;
-pub const PhysicalBlockState = block.PhysicalBlockState;
-pub const VirtualBlockState = block.VirtualBlockState;
-pub const PhysicalBlockProperties = block.PhysicalBlockProperties;
 
 pub const Entity = @import("entity/entity.zig").Entity;
 pub const EntityType = @import("entity/entity.zig").EntityType;
@@ -74,6 +71,9 @@ pub const std_options: std.Options = .{
         .{ .scope = .entity, .level = .warn },
         .{ .scope = .local_player_moved, .level = .warn },
         .{ .scope = .player, .level = .warn },
+        .{ .scope = .net, .level = .err },
+        .{ .scope = .resource_pack_states, .level = .err },
+        .{ .scope = .resource_pack, .level = .info },
     },
 };
 

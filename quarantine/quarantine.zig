@@ -11,6 +11,7 @@ pub const ThreadPool = @import("ThreadPool.zig").ThreadPool;
 pub const Mutex = @import("Mutex.zig").Mutex;
 pub const Condition = @import("Mutex.zig").Condition;
 pub const Timer = @import("Timer.zig").Timer;
+pub const MathHelper = @import("MathHelper.zig");
 pub const monotonicNanos = @import("Timer.zig").monotonicNanos;
 
 test {

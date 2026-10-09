@@ -48,7 +48,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
     for (self.chunk_positions, self.chunk_datas) |chunk_pos, *chunk_data| {
-        _ = try game.world.loadChunk(chunk_pos);
+        _ = try game.world.loadChunk(allocator, chunk_pos);
         try game.world.receiveChunk(chunk_pos, chunk_data, true, true, allocator);
     }
 }

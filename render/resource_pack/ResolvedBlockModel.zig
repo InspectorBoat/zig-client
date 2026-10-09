@@ -1,6 +1,8 @@
+/// BlockModelTemplate, but we walked the parent chain and resolved
+/// all texture references, ambient occlusion, and elements
 const Vector3 = @import("root").Vector3;
 const Vector2 = @import("root").Vector2;
-const ParsedBlockModel = @import("ParsedBlockModel.zig");
+const BlockModelTemplate = @import("BlockModelTemplate.zig");
 
 elements: []Element,
 ambientocclusion: ?bool,
@@ -24,15 +26,15 @@ pub const Element = struct {
         uv: [4]f32,
         texture: []const u8,
         tintindex: ?i32,
-        cullface: ?ParsedBlockModel.Element.Face.CullFace,
-        rotation: ParsedBlockModel.Element.Face.TextureRotation,
+        cullface: ?BlockModelTemplate.Element.Face.CullFace,
+        rotation: BlockModelTemplate.Element.Face.TextureRotation,
         cull: ?bool,
     };
 
     pub const Rotation = struct {
         origin: Vector3(f32),
-        axis: ParsedBlockModel.Element.Rotation.Axis,
-        angle: ParsedBlockModel.Element.Rotation.Angle,
+        axis: BlockModelTemplate.Element.Rotation.Axis,
+        angle: BlockModelTemplate.Element.Rotation.Angle,
         rescale: bool,
     };
 };

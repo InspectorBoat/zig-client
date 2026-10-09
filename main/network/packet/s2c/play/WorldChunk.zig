@@ -36,10 +36,10 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
     // otherwise load new chunk
     if (self.full) {
         if (self.chunk_data.sections.count() == 0) {
-            game.world.unloadChunk(self.chunk_pos, allocator) catch {}; // TODO: Figure out why this happens
+            game.world.unloadChunk(allocator, self.chunk_pos) catch {}; // TODO: Figure out why this happens
             return;
         } else {
-            _ = game.world.loadChunk(self.chunk_pos) catch {}; // TODO: Figure out why this happens
+            _ = game.world.loadChunk(allocator, self.chunk_pos) catch {}; // TODO: Figure out why this happens
         }
     }
     try game.world.receiveChunk(self.chunk_pos, &self.chunk_data, self.full, true, allocator);

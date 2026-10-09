@@ -69,6 +69,14 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
         .data = "vanilla",
     } });
 
+    try connecting.connection_handle.sendPlayPacket(.{ .client_settings = .{
+        .language = "English",
+        .view_distance = 2,
+        .chat_visibility = .Full,
+        .chat_colors = true,
+        .skin_layers = .{},
+    } });
+
     @as(*Client, @fieldParentPtr("connecting", connecting)).* = .{ .game = .{
         .connection_handle = connecting.connection_handle,
         .gpa = connecting.gpa,

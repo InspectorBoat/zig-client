@@ -42,7 +42,7 @@ pub const VirtualState = union(Block) {
     tallgrass: packed struct { variant: PhysicalState.TallGrassVariant },
     deadbush: packed struct {},
     piston: packed struct { facing: PhysicalState.Facing, extended: bool },
-    piston_head: packed struct { facing: PhysicalState.Facing, sticky: bool },
+    piston_head: packed struct { facing: PhysicalState.Facing, type: PhysicalState.PistonType, short: bool },
     wool: packed struct { color: PhysicalState.Color },
     piston_extension: packed struct { facing: PhysicalState.Facing, sticky: bool },
     yellow_flower: packed struct {},
@@ -59,7 +59,7 @@ pub const VirtualState = union(Block) {
     mossy_cobblestone: packed struct {},
     obsidian: packed struct {},
     torch: packed struct { facing: PhysicalState.TorchFacing },
-    fire: packed struct { age: u4, flip: bool, alt: bool, north: bool, east: bool, south: bool, west: bool },
+    fire: packed struct { age: u4, flip: bool, alt: bool, north: bool, east: bool, south: bool, west: bool, upper: enum(u2) { @"0", @"1", @"2" } },
     mob_spawner: packed struct {},
     oak_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
     chest: packed struct { facing: PhysicalState.HorizontalFacing },
@@ -72,21 +72,21 @@ pub const VirtualState = union(Block) {
     furnace: packed struct { facing: PhysicalState.HorizontalFacing },
     lit_furnace: packed struct { facing: PhysicalState.HorizontalFacing },
     standing_sign: packed struct { rotation: u4 },
-    wooden_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    wooden_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
     ladder: packed struct { facing: PhysicalState.HorizontalFacing },
     rail: packed struct { shape: PhysicalState.CurveableRailShape },
     stone_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
     wall_sign: packed struct { facing: PhysicalState.HorizontalFacing },
     lever: packed struct { facing: PhysicalState.LeverFacing, powered: bool },
     stone_pressure_plate: packed struct { powered: bool },
-    iron_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    iron_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
     wooden_pressure_plate: packed struct { powered: bool },
     redstone_ore: packed struct {},
     lit_redstone_ore: packed struct {},
     unlit_redstone_torch: packed struct { facing: PhysicalState.TorchFacing },
     redstone_torch: packed struct { facing: PhysicalState.TorchFacing },
     stone_button: packed struct { facing: PhysicalState.ButtonFacing, powered: bool },
-    snow_layer: packed struct { layers: u3 },
+    snow_layer: packed struct { layers: PhysicalState.SnowLayers },
     ice: packed struct {},
     snow: packed struct {},
     cactus: packed struct { age: u4 },
@@ -100,9 +100,9 @@ pub const VirtualState = union(Block) {
     glowstone: packed struct {},
     portal: packed struct { axis: PhysicalState.PortalAxis },
     lit_pumpkin: packed struct { facing: PhysicalState.PackedHorizontalFacing },
-    cake: packed struct { bites: u3 },
-    unpowered_repeater: packed struct { facing: PhysicalState.PackedHorizontalFacing, delay: PhysicalState.RepeaterDelay },
-    powered_repeater: packed struct { facing: PhysicalState.PackedHorizontalFacing, delay: PhysicalState.RepeaterDelay },
+    cake: packed struct { bites: PhysicalState.CakeBites },
+    unpowered_repeater: packed struct { facing: PhysicalState.PackedHorizontalFacing, delay: PhysicalState.RepeaterDelay, locked: bool },
+    powered_repeater: packed struct { facing: PhysicalState.PackedHorizontalFacing, delay: PhysicalState.RepeaterDelay, locked: bool },
     stained_glass: packed struct { color: PhysicalState.Color },
     trapdoor: packed struct { facing: PhysicalState.PackedHorizontalFacing, open: bool, half: PhysicalState.Half },
     monster_egg: packed struct { variant: PhysicalState.MonsterEggVariant },
@@ -123,7 +123,7 @@ pub const VirtualState = union(Block) {
     nether_brick: packed struct {},
     nether_brick_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
     nether_brick_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
-    nether_wart: packed struct { age: PhysicalState.NetherWartAge },
+    nether_wart: packed struct { age: u2 },
     enchanting_table: packed struct {},
     brewing_stand: packed struct { has_bottle_0: bool, has_bottle_1: bool, has_bottle_2: bool },
     cauldron: packed struct { level: u2 },
@@ -135,7 +135,7 @@ pub const VirtualState = union(Block) {
     lit_redstone_lamp: packed struct {},
     double_wooden_slab: packed struct { variant: PhysicalState.WoodVariant },
     wooden_slab: packed struct { variant: PhysicalState.WoodVariant, half: PhysicalState.Half },
-    cocoa: packed struct { facing: PhysicalState.PackedHorizontalFacing, age: u2 },
+    cocoa: packed struct { facing: PhysicalState.PackedHorizontalFacing, age: PhysicalState.Age02 },
     sandstone_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
     emerald_ore: packed struct {},
     ender_chest: packed struct { facing: PhysicalState.HorizontalFacing },
@@ -153,16 +153,16 @@ pub const VirtualState = union(Block) {
     potatoes: packed struct { age: u3 },
     wooden_button: packed struct { facing: PhysicalState.ButtonFacing, powered: bool },
     skull: packed struct { facing: PhysicalState.Facing, nodrop: bool },
-    anvil: packed struct { facing: PhysicalState.PackedHorizontalFacing, damage: u2 },
+    anvil: packed struct { facing: PhysicalState.PackedHorizontalFacing, damage: PhysicalState.Age02 },
     trapped_chest: packed struct { facing: PhysicalState.HorizontalFacing },
     light_weighted_pressure_plate: packed struct { power: u4 },
     heavy_weighted_pressure_plate: packed struct { power: u4 },
-    unpowered_comparator: packed struct { facing: PhysicalState.PackedHorizontalFacing, subtract: bool, powered: bool },
-    powered_comparator: packed struct { facing: PhysicalState.PackedHorizontalFacing, subtract: bool, powered: bool },
+    unpowered_comparator: packed struct { facing: PhysicalState.PackedHorizontalFacing, mode: PhysicalState.ComparatorMode, powered: bool },
+    powered_comparator: packed struct { facing: PhysicalState.PackedHorizontalFacing, mode: PhysicalState.ComparatorMode, powered: bool },
     daylight_detector: packed struct { power: u4 },
     redstone_block: packed struct {},
     quartz_ore: packed struct {},
-    hopper: packed struct { facing: PhysicalState.HopperFacing, disabled: bool },
+    hopper: packed struct { facing: PhysicalState.HopperFacing, enabled: bool },
     quartz_block: packed struct { variant: PhysicalState.QuartzBlockVariant },
     quartz_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
     activator_rail: packed struct { shape: PhysicalState.StraightRailShape, powered: bool },
@@ -201,11 +201,11 @@ pub const VirtualState = union(Block) {
     jungle_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
     dark_oak_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
     acacia_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
-    spruce_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    birch_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    jungle_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    acacia_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    dark_oak_door: packed struct { hinge_right: bool, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    spruce_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    birch_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    jungle_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    acacia_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    dark_oak_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
 
     pub fn resolve(physical: PhysicalState, world: *const World, block_pos: Vector3(i32)) @This() {
         return switch (physical.block) {
@@ -264,6 +264,7 @@ pub const VirtualState = union(Block) {
                 .east = false,
                 .south = false,
                 .west = false,
+                .upper = .@"0",
             } },
             .redstone_wire => .{ .redstone_wire = .{
                 .power = physical.payload(.redstone_wire).power,
@@ -312,6 +313,11 @@ pub const VirtualState = union(Block) {
                     .west = tripwireShouldConnectTo(world, block_pos, suspended, .west),
                 } };
             },
+            inline .powered_repeater, .unpowered_repeater => |block| @unionInit(VirtualState, @tagName(block), .{
+                .facing = physical.payload(block).facing,
+                .delay = physical.payload(block).delay,
+                .locked = false,
+            }),
             inline .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => |block| @unionInit(@This(), @tagName(block), .{
                 .facing = physical.payload(block).facing,
                 .open = physical.payload(block).open,
@@ -329,14 +335,16 @@ pub const VirtualState = union(Block) {
                     @This(),
                     @tagName(block),
                     if (physical.payload(block).half == .lower) .{
+                        .half = physical.payload(block).half,
                         .open = physical.payload(block).other.when_lower.open,
                         .facing = physical.payload(block).other.when_lower.facing,
-                        .hinge_right = if (maybe_neighbor) |neighbor| neighbor.other.when_upper.hinge_right else true,
+                        .hinge = if (maybe_neighbor) |neighbor| neighbor.other.when_upper.hinge else .right,
                         .powered = if (maybe_neighbor) |neighbor| neighbor.other.when_upper.powered else false,
                     } else .{
+                        .half = physical.payload(block).half,
                         .open = if (maybe_neighbor) |neighbor| neighbor.other.when_lower.open else false,
                         .facing = if (maybe_neighbor) |neighbor| neighbor.other.when_lower.facing else .east,
-                        .hinge_right = physical.payload(block).other.when_upper.hinge_right,
+                        .hinge = physical.payload(block).other.when_upper.hinge,
                         .powered = physical.payload(block).other.when_upper.powered,
                     },
                 );
@@ -352,7 +360,11 @@ pub const VirtualState = union(Block) {
                 .half = physical.payload(block).half,
                 .shape = resolveStairShape(world, block_pos),
             }),
-
+            .piston_head => .{ .piston_head = .{
+                .facing = physical.payload(.piston_head).facing,
+                .type = physical.payload(.piston_head).type,
+                .short = false,
+            } },
             inline else => |block| {
                 var properties: @FieldType(VirtualState, @tagName(block)) = undefined;
                 inline for (@typeInfo(@TypeOf(properties)).@"struct".field_names) |field_name| {
@@ -398,7 +410,7 @@ pub const VirtualState = union(Block) {
             .piston_head => |s| piston_head_collisions(&c, s.facing),
 
             inline .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => |s| {
-                c.add(door_collision(s.facing, s.open, s.hinge_right));
+                c.add(door_collision(s.facing, s.open, s.hinge));
             },
 
             inline .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => |s| {
@@ -461,7 +473,7 @@ pub const VirtualState = union(Block) {
             .stone_slab2 => |s| return ray(slab_collision(s.half)),
             .double_stone_slab, .double_wooden_slab, .double_stone_slab2 => return ray(full_cube),
 
-            .snow_layer => |s| return ray(collision_box(0, 0, 0, 1, (@as(f64, s.layers) + 1) / 8.0, 1)),
+            .snow_layer => |s| return ray(collision_box(0, 0, 0, 1, (@as(f64, @backingInt(s.layers)) + 1) / 8.0, 1)),
             .cake => |s| return ray(cake_collision(s.bites)),
             .melon_stem => |s| return ray(stem_ray(s.age)),
             .pumpkin_stem => |s| return ray(stem_ray(s.age)),
@@ -475,7 +487,7 @@ pub const VirtualState = union(Block) {
             .piston_head => |s| return ray(piston_head_collision(s.facing)),
 
             inline .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => |s| {
-                return ray(door_collision(s.facing, s.open, s.hinge_right));
+                return ray(door_collision(s.facing, s.open, s.hinge));
             },
 
             inline .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => |s| {
@@ -911,12 +923,12 @@ fn slab_collision(half: PhysicalState.Half) Box(f64) {
         collision_box(0, 0, 0, 1, 0.5, 1);
 }
 
-fn snow_layer_collision(layers: u3) Box(f64) {
-    return collision_box(0, 0, 0, 1, @as(f64, layers) / 8.0, 1);
+fn snow_layer_collision(layers: PhysicalState.SnowLayers) Box(f64) {
+    return collision_box(0, 0, 0, 1, @as(f64, @backingInt(layers)) / 8.0, 1);
 }
 
-fn cake_collision(bites: u3) Box(f64) {
-    return collision_box((@as(f64, bites) * 2.0 + 1.0) / 16.0, 0, 0.0625, 0.9375, 0.5, 0.9375);
+fn cake_collision(bites: PhysicalState.CakeBites) Box(f64) {
+    return collision_box((@as(f64, @backingInt(bites)) * 2.0 + 1.0) / 16.0, 0, 0.0625, 0.9375, 0.5, 0.9375);
 }
 
 fn ladder_collision(facing: PhysicalState.HorizontalFacing) Box(f64) {
@@ -943,9 +955,9 @@ fn trapdoor_collision(half: PhysicalState.Half, open: bool, facing: PhysicalStat
     };
 }
 
-fn cocoa_collision(facing: PhysicalState.PackedHorizontalFacing, age: u2) Box(f64) {
-    const j = 4.0 + @as(f64, age) * 2.0;
-    const k = 5.0 + @as(f64, age) * 2.0;
+fn cocoa_collision(facing: PhysicalState.PackedHorizontalFacing, age: PhysicalState.Age02) Box(f64) {
+    const j = 4.0 + @as(f64, @backingInt(age)) * 2.0;
+    const k = 5.0 + @as(f64, @backingInt(age)) * 2.0;
     const w = j / 2.0;
     const y0 = (12.0 - k) / 16.0;
     return switch (facing) {
@@ -999,13 +1011,13 @@ fn piston_head_collisions(c: *Collisions, facing: PhysicalState.Facing) void {
     });
 }
 
-fn door_collision(facing: PhysicalState.PackedHorizontalFacing, open: bool, hinge_right: bool) Box(f64) {
+fn door_collision(facing: PhysicalState.PackedHorizontalFacing, open: bool, hinge: PhysicalState.DoorHinge) Box(f64) {
     const t: f64 = 0.1875;
     if (open) return switch (facing) {
-        .east => if (hinge_right) collision_box(0, 0, 1 - t, 1, 1, 1) else collision_box(0, 0, 0, 1, 1, t),
-        .south => if (hinge_right) collision_box(0, 0, 0, t, 1, 1) else collision_box(1 - t, 0, 0, 1, 1, 1),
-        .west => if (hinge_right) collision_box(0, 0, 0, 1, 1, t) else collision_box(0, 0, 1 - t, 1, 1, 1),
-        .north => if (hinge_right) collision_box(1 - t, 0, 0, 1, 1, 1) else collision_box(0, 0, 0, t, 1, 1),
+        .east => if (hinge == .right) collision_box(0, 0, 1 - t, 1, 1, 1) else collision_box(0, 0, 0, 1, 1, t),
+        .south => if (hinge == .right) collision_box(0, 0, 0, t, 1, 1) else collision_box(1 - t, 0, 0, 1, 1, 1),
+        .west => if (hinge == .right) collision_box(0, 0, 0, 1, 1, t) else collision_box(0, 0, 1 - t, 1, 1, 1),
+        .north => if (hinge == .right) collision_box(1 - t, 0, 0, 1, 1, 1) else collision_box(0, 0, 0, t, 1, 1),
     };
     return switch (facing) {
         .east => collision_box(0, 0, 0, t, 1, 1),

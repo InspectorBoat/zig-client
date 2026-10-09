@@ -1,7 +1,8 @@
-const JsonStringMap = @import("JsonStringMap.zig");
+/// Pretty much directly parsed from json
+const JsonMap = @import("json_map.zig").JsonMap;
 
 parent: ?[]const u8 = null,
-textures: ?JsonStringMap = null,
+textures: ?JsonMap([]const u8) = null,
 elements: ?[]Element = null,
 ambientocclusion: ?bool = null,
 display: ?Display = null,
