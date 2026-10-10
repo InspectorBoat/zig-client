@@ -61,12 +61,14 @@ pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator:
     }) catch std.debug.panic("TODO!", .{});
 }
 
+const Renderer = @import("../Renderer.zig");
+
 pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
     @setRuntimeSafety(false);
 
     // const start: @import("llm-code-quarantine").Timer = .init();
     // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
-
+    var total: usize = 0;
     var staging: GpuStagingBuffer = try .initCapacity(allocator, 4096);
     // place blocks in chunk
     for (1..17) |x| {
@@ -74,65 +76,53 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
             for (1..17) |z| {
                 const model = @import("../render.zig").renderer.lookup_table.get(task.block_states[x][y][z]) orelse continue;
 
-                for (model.elements) |element| {
+                for (model.faces) |face| {
                     const pos_vec: Vector3(f32) = .{
                         .x = @floatFromInt(x - 1),
                         .y = @floatFromInt(y - 1),
                         .z = @floatFromInt(z - 1),
                     };
 
-                    const sky_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                        .west = task.sky_light.get(x - 1, y, z),
-                        .east = task.sky_light.get(x + 1, y, z),
-                        .down = task.sky_light.get(x, y - 1, z),
-                        .up = task.sky_light.get(x, y + 1, z),
-                        .north = task.sky_light.get(x, y, z - 1),
-                        .south = task.sky_light.get(x, y, z + 1),
-                    };
-                    const block_light: std.enums.EnumFieldStruct(Direction, u8, null) = .{
-                        .west = task.block_light.get(x - 1, y, z),
-                        .east = task.block_light.get(x + 1, y, z),
-                        .down = task.block_light.get(x, y - 1, z),
-                        .up = task.block_light.get(x, y + 1, z),
-                        .north = task.block_light.get(x, y, z - 1),
-                        .south = task.block_light.get(x, y, z + 1),
-                    };
+                    const sky_light = if (face.cullface) |cullface| switch (cullface) {
+                        .west => task.sky_light.get(x - 1, y, z),
+                        .east => task.sky_light.get(x + 1, y, z),
+                        .down => task.sky_light.get(x, y - 1, z),
+                        .up => task.sky_light.get(x, y + 1, z),
+                        .north => task.sky_light.get(x, y, z - 1),
+                        .south => task.sky_light.get(x, y, z + 1),
+                    } else task.sky_light.get(x, y, z);
 
-                    const culling_blocks = @import("face_culling_blocks.zig").@"export";
-                    var visible_faces: std.EnumSet(Direction) = .full;
-                    if (culling_blocks.get(task.block_states[x - 1][y][z])) {
-                        visible_faces.remove(.west);
-                    }
-                    if (culling_blocks.get(task.block_states[x + 1][y][z])) {
-                        visible_faces.remove(.east);
-                    }
-                    if (culling_blocks.get(task.block_states[x][y - 1][z])) {
-                        visible_faces.remove(.down);
-                    }
-                    if (culling_blocks.get(task.block_states[x][y + 1][z])) {
-                        visible_faces.remove(.up);
-                    }
-                    if (culling_blocks.get(task.block_states[x][y][z - 1])) {
-                        visible_faces.remove(.north);
-                    }
-                    if (culling_blocks.get(task.block_states[x][y][z + 1])) {
-                        visible_faces.remove(.south);
+                    const block_light = if (face.cullface) |cullface| switch (cullface) {
+                        .west => task.block_light.get(x - 1, y, z),
+                        .east => task.block_light.get(x + 1, y, z),
+                        .down => task.block_light.get(x, y - 1, z),
+                        .up => task.block_light.get(x, y + 1, z),
+                        .north => task.block_light.get(x, y, z - 1),
+                        .south => task.block_light.get(x, y, z + 1),
+                    } else task.block_light.get(x, y, z);
+
+                    if (face.cullface) |cullface| {
+                        const culling_blocks = @import("face_culling_blocks.zig").@"export";
+                        switch (cullface) {
+                            .west => if (culling_blocks.get(task.block_states[x - 1][y][z])) continue,
+                            .east => if (culling_blocks.get(task.block_states[x + 1][y][z])) continue,
+                            .down => if (culling_blocks.get(task.block_states[x][y - 1][z])) continue,
+                            .up => if (culling_blocks.get(task.block_states[x][y + 1][z])) continue,
+                            .north => if (culling_blocks.get(task.block_states[x][y][z - 1])) continue,
+                            .south => if (culling_blocks.get(task.block_states[x][y][z + 1])) continue,
+                        }
                     }
 
-                    try staging.writeBoxFaces(
-                        .add(pos_vec, .scaleUniform(element.from, 1.0 / 16.0)),
-                        .add(pos_vec, .scaleUniform(element.to, 1.0 / 16.0)),
-                        @backingInt(task.block_states[x][y][z]),
-                        visible_faces,
-                        sky_light,
-                        block_light,
-                    );
+                    for (face.pos, face.uv) |vertex_pos, _| {
+                        try staging.writeVertex(pos_vec.add(vertex_pos), block_light, sky_light, face.texture);
+                    }
+                    total += 1;
                 }
             }
         }
     }
     return .{
         .buffer = staging.backer,
-        .quads = staging.backer.items.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
+        .quads = total,
     };
 }

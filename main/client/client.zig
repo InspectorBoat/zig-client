@@ -236,7 +236,7 @@ pub const Client = union(enum) {
         const late_tick_threshold_ms: f64 = 10.0;
         const ms_behind = partial_tick * 50.0;
         if (ms_behind > late_tick_threshold_ms) {
-            std.log.scoped(.tick_late).warn("late tick: {d} ms behind", .{ms_behind});
+            std.log.scoped(.tick_late).info("late tick: {d} ms behind", .{ms_behind});
         } else {
             std.log.scoped(.tick_on_time).debug("on time: {d} ms behind", .{ms_behind});
         }

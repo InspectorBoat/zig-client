@@ -3,73 +3,45 @@
 layout(location = 0) uniform mat4 transform;
 layout(location = 1) uniform vec3 chunk_pos;
 
-out vec2 uv;
-flat out uint texture_id;
-flat out uint sky_light;
-flat out uint block_light;
-
 layout(std430, binding = 0) restrict readonly buffer geometry {
     uint data[];
 };
 
-const mat3[] size_transforms = {
-        mat3(
-        1, 0, 0,
-        0, 0, 0,
-        0, 1, 0
-        ),
-        mat3(
-        1, 0, 0,
-        0, 0, 0,
-        0, 1, 0
-        ),
-        mat3(
-        1, 0, 0,
-        0, 1, 0,
-        0, 0, 0
-        ),
-        mat3(
-        1, 0, 0,
-        0, 1, 0,
-        0, 0, 0
-        ),
-        mat3(
-        0, 0, 0,
-        0, 1, 0,
-        1, 0, 0
-        ),
-        mat3(
-        0, 0, 0,
-        0, 1, 0,
-        1, 0, 0
-        )
-};
-
+out vec2 uv;
+flat out uint texture_id;
+flat out uint light_level;
 
 void main() {
-    uint base_offset = gl_VertexID / 4 * 4;
+    uint base = gl_VertexID * 4;
 
     vec3 vertex_pos = vec3(
-           uvec3(data[base_offset + 0], data[base_offset + 0], data[base_offset + 1])
-        >> uvec3(0, 16, 0)
-        &  0xFFFF
-    ) / 4095.9375;
-    vec2 size = vec2(
-          (uvec2(data[base_offset + 1], data[base_offset + 1])
-        >> uvec2(16, 24)
-        &  0xFF)
-        +  1
-    ) / 255;
-    uint normal = data[base_offset + 2] >> 0 & 0xFF;
+        uintBitsToFloat(data[base + 0]),
+        uintBitsToFloat(data[base + 1]),
+        uintBitsToFloat(data[base + 2])
+    );
 
-    vec3 offset = vec3(size * vec2(gl_VertexID & 1, (gl_VertexID & 2) >> 1), 0) * size_transforms[normal];
+    // packed is a keyword or something, apparently
+    uint texture = data[base + 3] & 0xFFFF;
+    uint light = (data[base + 3] >> 16) & 0xFF;
 
-    gl_Position = vec4(vertex_pos + offset + chunk_pos * 16, 1) * transform;
+    gl_Position = vec4(vertex_pos + chunk_pos * 16, 1) * transform;
 
-    texture_id = (data[base_offset + 2] >> 16) & 0xFFFF;
+    texture_id = texture;
+    light_level = light;
 
-    uv = vec2(gl_VertexID & 1, (gl_VertexID & 2) >> 1);
-
-    sky_light = data[base_offset + 3] & 0xFF;
-    block_light = data[base_offset + 3] >> 8 & 0xFF;
+    int corner = gl_VertexID % 4;
+    switch (corner) {
+        case 0:
+            uv = vec2(0, 1);
+            break;
+        case 1:
+            uv = vec2(1, 1);
+            break;
+        case 2:
+            uv = vec2(1, 0);
+            break;
+        case 3:
+            uv = vec2(0, 0);
+            break;
+    }
 }

@@ -48,6 +48,7 @@ pub fn onStartup(_: Events.Startup) !void {
 
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
+        if (true) std.process.exit(0);
         try EventHandler.dispatch(Events.Exit, .{});
         return;
     }

@@ -1,40 +1,49 @@
 /// BlockModelTemplate, but we walked the parent chain and resolved
 /// all texture references, ambient occlusion, and elements
 const Vector3 = @import("root").Vector3;
-const Vector2 = @import("root").Vector2;
+const Vector2xy = @import("root").Vector2xy;
 const BlockModelTemplate = @import("BlockModelTemplate.zig");
+const TextureHandle = @import("../Renderer.zig").TextureHandle;
 
 elements: []Element,
-ambientocclusion: ?bool,
+ambientocclusion: bool,
 
 pub const Element = struct {
     from: Vector3(f32),
     to: Vector3(f32),
 
-    faces: struct {
+    faces: Faces,
+    rotation: ?Rotation,
+    shade: bool,
+
+    pub const Faces = struct {
         north: ?Face,
         south: ?Face,
         west: ?Face,
         east: ?Face,
         up: ?Face,
         down: ?Face,
-    },
-    rotation: ?Rotation,
-    shade: bool,
+    };
 
     pub const Face = struct {
         uv: [4]f32,
-        texture: []const u8,
+        texture: TextureHandle,
         tintindex: ?i32,
-        cullface: ?BlockModelTemplate.Element.Face.CullFace,
-        rotation: BlockModelTemplate.Element.Face.TextureRotation,
+        cullface: ?CullFace,
+        rotation: TextureRotation,
         cull: ?bool,
+
+        pub const CullFace = BlockModelTemplate.Element.Face.CullFace;
+        pub const TextureRotation = BlockModelTemplate.Element.Face.TextureRotation;
     };
 
     pub const Rotation = struct {
         origin: Vector3(f32),
-        axis: BlockModelTemplate.Element.Rotation.Axis,
-        angle: BlockModelTemplate.Element.Rotation.Angle,
+        axis: Axis,
+        angle: Angle,
         rescale: bool,
+
+        pub const Axis = BlockModelTemplate.Element.Rotation.Axis;
+        pub const Angle = BlockModelTemplate.Element.Rotation.Angle;
     };
 };

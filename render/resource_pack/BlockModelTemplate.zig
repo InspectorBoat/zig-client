@@ -1,5 +1,6 @@
 /// Pretty much directly parsed from json
 const JsonMap = @import("json_map.zig").JsonMap;
+const Direction = @import("root").Direction;
 
 parent: ?[]const u8 = null,
 textures: ?JsonMap([]const u8) = null,
@@ -36,7 +37,7 @@ pub const Element = struct {
         cull: ?bool = null,
 
         pub const TextureRotation = enum { @"0", @"90", @"180", @"270" };
-        pub const CullFace = enum { north, east, south, west, up, down };
+        pub const CullFace = Direction;
     };
 
     pub const Rotation = struct {

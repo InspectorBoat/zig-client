@@ -20,7 +20,9 @@ const CompilationResult = @import("terrain/CompilationTask.zig").CompilationResu
 const CompilationResultQueue = @import("terrain/CompilationResultQueue.zig");
 const ChunkTracker = @import("terrain/ChunkTracker.zig");
 const Block = root.Block;
-const ResolvedBlockModel = @import("resource_pack/ResolvedBlockModel.zig");
+const BakedModel = @import("resource_pack/BakedModel.zig");
+
+pub const TextureHandle = enum(u16) { _ };
 
 allocator: std.mem.Allocator,
 
@@ -38,7 +40,7 @@ compilation_result_queue: CompilationResultQueue,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
 chunk_tracker: ChunkTracker,
 
-lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, ResolvedBlockModel),
+lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
 
 // Debug
 debug_program: gl.Program,
@@ -51,13 +53,12 @@ draw_mode: gl.DrawMode = .fill,
 
 pub fn init(allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
-    // gl.enable(.cull_face);
+    gl.enable(.cull_face);
 
     const terrain_program = try initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", allocator);
     const index_buffer = try initIndexBuffer(allocator);
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
-    const texture = initTexture();
 
     const compile_thread_pool = try initCompileThreadPool(allocator);
     const compilation_result_queue: CompilationResultQueue = .init(allocator);
@@ -76,17 +77,19 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     @"3d_vao".elementBuffer(index_buffer);
     @"2d_vao".elementBuffer(index_buffer);
 
+    const io = std.Io.Threaded.global_single_threaded.io();
+
     var arena: std.heap.ArenaAllocator = .init(allocator);
     defer arena.deinit();
-    const block_models = try @import("resource_pack/block_model.zig").init(std.Io.Threaded.global_single_threaded.io(), arena.allocator());
-    const block_states = try @import("resource_pack/block_state.zig").init(std.Io.Threaded.global_single_threaded.io(), arena.allocator());
-    const lookup_table = try @import("resource_pack/block_model_lookup.zig").createLookupTable(
+    const blockstate_to_model_lookup_table, const named_block_textures = try @import("resource_pack/resource_pack.zig").init(
+        io,
         allocator,
-        block_models,
-        block_states,
+        arena.allocator(),
+        try .openDirAbsolute(io, "/home/inspectorboat/src/zig-client/vanilla-pack", .{}),
     );
-    std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
+    const texture = initTexture(allocator, named_block_textures);
 
+    std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
     return .{
         .allocator = allocator,
 
@@ -100,7 +103,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
         .compilation_result_queue = compilation_result_queue,
         .chunk_tracker = chunk_tracker,
 
-        .lookup_table = lookup_table,
+        .lookup_table = blockstate_to_model_lookup_table,
 
         .debug_buffer = debug_buffer,
         .debug_program = debug_program,
@@ -226,37 +229,91 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
     return index_buffer;
 }
 
-pub fn initTexture() gl.Texture {
+const zigimg = @import("zigimg");
+
+/// Uploads every decoded sprite as one layer of a 2D array texture.
+///
+/// Layer N is `named_block_textures.values()[N]`, which is the same index
+/// `ResolvedBlockModel.Element.Face.TextureHandle` resolves to.
+pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array_hash_map.String(zigimg.Image)) gl.Texture {
     const texture: gl.Texture = .create(.@"2d_array");
 
-    const texture_size = 1;
-    const color_channels = 4;
-    const texture_count = 256;
+    // every block sprite is 16x16; anything else is truncated to its top-left
+    // corner for now. Animation strips land here too and lose every frame but
+    // the first.
+    const layer_size = 16;
+    const channels = 4;
+    const layer_count = named_block_textures.count();
+    const bytes_per_layer = layer_size * layer_size * channels;
 
-    texture.storage3D(1, .rgba8, texture_size, texture_size, texture_count);
+    texture.storage3D(1, .rgba8, layer_size, layer_size, layer_count);
+    if (layer_count == 0) {
+        texture.bindTo(0);
+        return texture;
+    }
 
-    var texture_data: [texture_count * texture_size * texture_size * color_channels]u8 = undefined;
-    var rand_impl: std.Random.DefaultPrng = .init(155215);
-    const rand = rand_impl.random();
-    for (0..texture_count) |i| {
-        const block = texture_data[i * texture_size * texture_size * color_channels ..][0 .. texture_size * texture_size * color_channels];
-        for (0..texture_size * texture_size) |j| {
-            const color: [color_channels]u8 = .{ rand.int(u8), rand.int(u8), rand.int(u8), 255 };
-            @memcpy(block[j * color_channels ..][0..color_channels], &color);
+    // build the whole array contiguously so it uploads in one call
+    const texture_data = allocator.alloc(u8, bytes_per_layer * layer_count) catch @panic("out of memory");
+    defer allocator.free(texture_data);
+    @memset(texture_data, 0);
+
+    var truncated: usize = 0;
+    var converted: usize = 0;
+    var failed: usize = 0;
+
+    for (named_block_textures.keys(), named_block_textures.values(), 0..) |name, *image, layer| {
+        if (image.width != layer_size or image.height != layer_size) truncated += 1;
+
+        // most sprites decode straight to rgba8; anything else (rgb24,
+        // palette, greyscale) goes through zigimg's converter
+        var owned_storage: ?zigimg.color.PixelStorage = null;
+        defer if (owned_storage) |s| s.deinit(allocator);
+
+        if (std.meta.activeTag(image.pixels) != .rgba32) {
+            owned_storage = zigimg.PixelFormatConverter.convert(allocator, &image.pixels, .rgba32) catch {
+                std.log.scoped(.resource_pack).warn("could not convert {s} to rgba8, leaving it blank", .{name});
+                failed += 1;
+                continue;
+            };
+            converted += 1;
+        }
+
+        const pixels = switch (image.pixels) {
+            .rgba32 => |p| p,
+            else => owned_storage.?.rgba32,
+        };
+
+        const dst = texture_data[layer * bytes_per_layer ..][0..bytes_per_layer];
+        const rows = @min(image.height, layer_size);
+        const cols = @min(image.width, layer_size);
+        for (0..rows) |y| {
+            for (0..cols) |x| {
+                const color = pixels[y * image.width + x];
+                const out = (y * layer_size + x) * channels;
+                dst[out + 0] = color.r;
+                dst[out + 1] = color.g;
+                dst[out + 2] = color.b;
+                dst[out + 3] = color.a;
+            }
         }
     }
+
+    std.log.scoped(.resource_pack).debug(
+        "{d} sprite layers: {d} truncated to {d}x{d}, {d} converted, {d} failed",
+        .{ layer_count, truncated, layer_size, layer_size, converted, failed },
+    );
 
     texture.subImage3D(
         0,
         0,
         0,
         0,
-        texture_size,
-        texture_size,
-        texture_count,
+        layer_size,
+        layer_size,
+        layer_count,
         .rgba,
         .unsigned_byte,
-        &texture_data,
+        texture_data.ptr,
     );
     texture.bindTo(0);
     texture.parameter(.wrap_s, .repeat);
@@ -325,7 +382,7 @@ pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTr
 
     // draw chunk
     gl.drawElements(
-        .triangle_strip,
+        .triangle_fan,
         // count includes primitive restart indices, thus there are actually 5 indices per quad
         section.quads * 5,
         .unsigned_int,
@@ -555,7 +612,7 @@ pub fn uploadCompilationResults(self: *@This()) !void {
                     const segment = try self.gpu_memory_allocator.alloc(buffer_data.len);
                     self.gpu_memory_allocator.subData(segment, buffer_data);
                     render_info = .{
-                        .quads = buffer_data.len / (@bitSizeOf(GpuStagingBuffer.GpuQuad) / 8),
+                        .quads = compiled_section.quads,
                         .segment = segment,
                     };
                 }

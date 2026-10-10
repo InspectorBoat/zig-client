@@ -228,11 +228,11 @@ pub fn Vector3(comptime Element: type) type {
         z: Element,
 
         pub fn origin() @This() {
-            return .{
-                .x = 0,
-                .y = 0,
-                .z = 0,
-            };
+            return .{ .x = 0, .y = 0, .z = 0 };
+        }
+
+        pub fn splat(n: Element) @This() {
+            return .{ .x = n, .y = n, .z = n };
         }
 
         pub fn add(self: @This(), other: @This()) @This() {

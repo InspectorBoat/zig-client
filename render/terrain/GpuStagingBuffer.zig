@@ -6,14 +6,11 @@ const Direction = @import("root").Direction;
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,
 
-pub const GpuQuad = packed struct(u128) {
-    pos: packed struct(u48) { x: u16, y: u16, z: u16 },
-    size: packed struct(u16) { width: u8, height: u8 },
-    normal: u16,
-    texture: u16,
-    sky_light: u8,
-    block_light: u8,
-    _: u16 = 0,
+pub const TerrainVertex = extern struct {
+    pos: extern struct { x: f32, y: f32, z: f32 },
+    texture: Renderer.TextureHandle, // uvs unimplemented for now
+    light: u8, // sky << 4 | block
+    _: u8 = 0,
 };
 
 pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
@@ -23,127 +20,22 @@ pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
     };
 }
 
-pub fn writeQuad(
+pub fn writeVertex(
     self: *@This(),
-    facing: Direction,
-    min: struct { f32, f32, f32 }, // x y z
-    size: struct { f32, f32 }, // width height
-    texture: u16,
-    sky_light: u8,
+    vertex_pos: Vector3(f32),
     block_light: u8,
+    sky_light: u8,
+    texture: Renderer.TextureHandle,
 ) !void {
-    @setRuntimeSafety(false);
-
-    const quad: GpuQuad = .{
-        .pos = .{
-            .x = @intFromFloat(@round(min[0] * 4095.9375)),
-            .y = @intFromFloat(@round(min[1] * 4095.9375)),
-            .z = @intFromFloat(@round(min[2] * 4095.9375)),
-        },
-        .size = .{
-            .width = @intFromFloat(@max(@round(size[0] * 256 - 1), 1)),
-            .height = @intFromFloat(@max(@round(size[1] * 256 - 1), 1)),
-        },
+    const vertex: TerrainVertex = .{
+        .pos = .{ .x = vertex_pos.x, .y = vertex_pos.y, .z = vertex_pos.z },
         .texture = texture,
-        .normal = @intCast(@backingInt(facing)),
-        .sky_light = sky_light,
-        .block_light = block_light,
+        .light = sky_light << 4 | block_light,
     };
-    try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
+    try self.backer.appendSlice(self.allocator, std.mem.asBytes(&vertex));
 }
 
-pub fn writeBox(
-    self: *@This(),
-    min: Vector3(f32),
-    max: Vector3(f32),
-    texture: u8,
-    sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
-    block_light: std.enums.EnumFieldStruct(Direction, u8, null),
-) !void {
-    @setRuntimeSafety(false);
-
-    try self.writeBoxFaces(
-        min,
-        max,
-        texture,
-        .full,
-        sky_light,
-        block_light,
-    );
-}
-
-pub fn writeBoxFaces(
-    self: *@This(),
-    min: Vector3(f32),
-    max: Vector3(f32),
-    texture: u8,
-    faces: std.EnumSet(Direction),
-    sky_light: std.enums.EnumFieldStruct(Direction, u8, null),
-    block_light: std.enums.EnumFieldStruct(Direction, u8, null),
-) !void {
-    @setRuntimeSafety(false);
-
-    if (faces.contains(.down)) {
-        try self.writeQuad(
-            .down,
-            .{ min.x, min.y, min.z },
-            .{ max.x - min.x, max.z - min.z },
-            texture,
-            sky_light.down,
-            block_light.down,
-        );
-    }
-    if (faces.contains(.up)) {
-        try self.writeQuad(
-            .up,
-            .{ min.x, max.y, min.z },
-            .{ max.x - min.x, max.z - min.z },
-            texture,
-            sky_light.up,
-            block_light.up,
-        );
-    }
-    if (faces.contains(.north)) {
-        try self.writeQuad(
-            .north,
-            .{ min.x, min.y, min.z },
-            .{ max.x - min.x, max.y - min.y },
-            texture,
-            sky_light.north,
-            block_light.north,
-        );
-    }
-    if (faces.contains(.south)) {
-        try self.writeQuad(
-            .south,
-            .{ min.x, min.y, max.z },
-            .{ max.x - min.x, max.y - min.y },
-            texture,
-            sky_light.south,
-            block_light.south,
-        );
-    }
-    if (faces.contains(.west)) {
-        try self.writeQuad(
-            .west,
-            .{ min.x, min.y, min.z },
-            .{ max.z - min.z, max.y - min.y },
-            texture,
-            sky_light.west,
-            block_light.west,
-        );
-    }
-    if (faces.contains(.east)) {
-        try self.writeQuad(
-            .east,
-            .{ max.x, min.y, min.z },
-            .{ max.z - min.z, max.y - min.y },
-            texture,
-            sky_light.east,
-            block_light.east,
-        );
-    }
-}
+const Renderer = @import("../Renderer.zig");
 
 pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !void {
     @setRuntimeSafety(false);

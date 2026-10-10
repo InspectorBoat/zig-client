@@ -57,14 +57,9 @@ const ModelVariants = union(enum) {
 
 pub const ModelVariant = struct {
     model: []const u8,
-    y: Rotation = .@"0",
-    x: Rotation = .@"0",
+    y: Angle = .@"0",
+    x: Angle = .@"0",
     uvlock: bool = false,
 
-    const Rotation = enum {
-        @"0",
-        @"90",
-        @"180",
-        @"270",
-    };
+    pub const Angle = enum { @"0", @"90", @"180", @"270" };
 };
