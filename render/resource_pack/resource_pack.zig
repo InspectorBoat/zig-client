@@ -225,7 +225,7 @@ pub fn createLookupTable(
             };
             const resolved_block_model = resolved_block_models.get(model_variant.model) orelse return error.ModelNotFound;
 
-            const baked_model: BakedModel = try .bake(gpa, resolved_block_model, model_variant.y);
+            const baked_model: BakedModel = try .bake(gpa, resolved_block_model, model_variant.x, model_variant.y);
 
             try lookup_table.put(gpa, @unionInit(Block.VirtualState, @tagName(block), properties), baked_model);
 
