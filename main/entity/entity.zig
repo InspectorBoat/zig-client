@@ -212,7 +212,7 @@ pub const Entity = union(EntityType) {
         switch (self.*) {
             .removed => return,
             inline else => |*specific_entity| {
-                specific_entity.base.pos = specific_entity.base.pos.add(delta);
+                specific_entity.base.pos = .add(specific_entity.base.pos, delta);
                 std.log.scoped(.entity).debug("entity {any} moved to {any}", .{ self, specific_entity.base.pos });
             },
         }

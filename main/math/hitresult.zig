@@ -35,7 +35,7 @@ pub const HitResult = union(HitType) {
         comptime options: RayTraceOptions,
     ) @This() {
         var from = origin;
-        const to = origin.add(rotationToVec(rotation).mul(.splat(range)));
+        const to: Vector3(f64) = .add(origin, .mul(rotationToVec(rotation), .splat(range)));
 
         if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
@@ -80,7 +80,7 @@ pub const HitResult = union(HitType) {
                     999.0,
             };
 
-            const delta = to.sub(from);
+            const delta: Vector3(f64) = .sub(to, from);
 
             var ray_progress: Vector3(f64) = .{
                 .x = if (from_block_pos.x != to_block_pos.x) (next_grid_pos.x - from.x) / delta.x else 999.0,
@@ -123,12 +123,12 @@ pub const HitResult = union(HitType) {
 
                     const hit_result = rayTraceHitbox(
                         hitbox,
-                        from.sub(.{
+                        .sub(from, .{
                             .x = from_block_pos.x,
                             .y = from_block_pos.y,
                             .z = from_block_pos.z,
                         }),
-                        to.sub(.{
+                        .sub(to, .{
                             .x = from_block_pos.x,
                             .y = from_block_pos.y,
                             .z = from_block_pos.z,
@@ -156,7 +156,7 @@ pub const HitResult = union(HitType) {
         rotation: Rotation2(f32),
         range: f64,
     ) @This() {
-        const to = origin.add(rotationToVec(rotation).mul(.splat(range)));
+        const to: Vector3(f64) = .add(origin, .mul(rotationToVec(rotation), .splat(range)));
         var closest_hit_distance: f64 = std.math.inf(f64);
         var hit_result: @This() = .miss;
 
@@ -169,12 +169,12 @@ pub const HitResult = union(HitType) {
                 .removed => continue,
                 inline else => |specific_entity| blk: {
                     const pos: Vector3(f64) = specific_entity.base.pos;
-                    const min = pos.sub(.{
+                    const min: Vector3(f64) = .sub(pos, .{
                         .x = specific_entity.base.width * 0.5,
                         .y = 0,
                         .z = specific_entity.base.width * 0.5,
                     });
-                    const max = pos.add(.{
+                    const max: Vector3(f64) = .add(pos, .{
                         .x = specific_entity.base.width * 0.5,
                         .y = specific_entity.base.height,
                         .z = specific_entity.base.width * 0.5,
@@ -185,7 +185,7 @@ pub const HitResult = union(HitType) {
 
             switch (rayTraceHitbox(hitbox, origin, to)) {
                 .block => |hit| {
-                    const dist = hit.pos.distance_squared(origin);
+                    const dist = hit.pos.distanceSquared(origin);
                     if (dist < closest_hit_distance) {
                         closest_hit_distance = dist;
                         hit_result = .{ .entity = .{
@@ -211,11 +211,11 @@ pub const HitResult = union(HitType) {
         const block_hit_result = rayTraceBlocks(world, origin, rotation, range, options);
         const entity_hit_result = rayTraceEntities(world, origin, rotation, range);
         const block_hit_distance = switch (block_hit_result) {
-            .block => |hit| hit.pos.distance_squared(origin),
+            .block => |hit| hit.pos.distanceSquared(origin),
             else => std.math.inf(f64),
         };
         const entity_hit_distance = switch (entity_hit_result) {
-            .entity => |hit| hit.pos.distance_squared(origin),
+            .entity => |hit| hit.pos.distanceSquared(origin),
             else => std.math.inf(f64),
         };
         return if (block_hit_distance < entity_hit_distance) block_hit_result else entity_hit_result;
@@ -292,7 +292,7 @@ pub const HitResult = union(HitType) {
     }
 
     pub fn interpolateToTargetX(from: Vector3(f64), to: Vector3(f64), x_plane: f64) ?Vector3(f64) {
-        const delta = to.sub(from);
+        const delta: Vector3(f64) = .sub(to, from);
 
         if (delta.x * delta.x < @as(f32, 0.0000001)) return null;
 
@@ -300,10 +300,10 @@ pub const HitResult = union(HitType) {
         if (ray_progress < 0.0 or ray_progress > 1.0) {
             return null;
         }
-        return from.add(delta.mul(.splat(ray_progress)));
+        return .add(from, .mul(delta, .splat(ray_progress)));
     }
     pub fn interpolateToTargetY(from: Vector3(f64), to: Vector3(f64), y_plane: f64) ?Vector3(f64) {
-        const delta = to.sub(from);
+        const delta: Vector3(f64) = .sub(to, from);
         if (delta.y * delta.y < @as(f32, 0.0000001)) {
             return null;
         } else {
@@ -311,11 +311,11 @@ pub const HitResult = union(HitType) {
             if (ray_progress < 0.0 or ray_progress > 1.0) {
                 return null;
             }
-            return from.add(delta.mul(.splat(ray_progress)));
+            return .add(from, .mul(delta, .splat(ray_progress)));
         }
     }
     pub fn interpolateToTargetZ(from: Vector3(f64), to: Vector3(f64), z_plane: f64) ?Vector3(f64) {
-        const delta = to.sub(from);
+        const delta: Vector3(f64) = .sub(to, from);
         if (delta.z * delta.z < @as(f32, 0.0000001)) {
             return null;
         } else {
@@ -323,7 +323,7 @@ pub const HitResult = union(HitType) {
             if (ray_progress < 0.0 or ray_progress > 1.0) {
                 return null;
             }
-            return from.add(delta.mul(.splat(ray_progress)));
+            return .add(from, .mul(delta, .splat(ray_progress)));
         }
     }
 

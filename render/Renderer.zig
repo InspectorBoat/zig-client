@@ -404,17 +404,17 @@ pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !v
                         .splat(partial_tick),
                     ),
                 );
-                const min = pos.sub(.{
+                const min: Vector3(f64) = .sub(pos, .{
                     .x = specific_entity.base.width * 0.5,
                     .y = 0,
                     .z = specific_entity.base.width * 0.5,
                 });
-                const max = pos.add(.{
+                const max: Vector3(f64) = .add(pos, .{
                     .x = specific_entity.base.width * 0.5,
                     .y = specific_entity.base.height,
                     .z = specific_entity.base.width * 0.5,
                 });
-                try self.@"3d_debug_staging_buffer".writeDebugCube(min.floatCast(f32), max.floatCast(f32));
+                try self.@"3d_debug_staging_buffer".writeDebugCube(.floatCast(min), .floatCast(max));
             },
         }
     }
@@ -422,15 +422,18 @@ pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !v
 
 pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
     switch (world.player.crosshair) {
-        .block => |block| try self.@"3d_debug_staging_buffer".writeDebugCube(
-            block.block_pos.intToFloat(f32),
-            block.block_pos.add(.{ .x = 1, .y = 1, .z = 1 }).intToFloat(f32),
-        ),
+        .block => |block| {
+            const pos: Vector3(f32) = .floatFromInt(block.block_pos);
+            try self.@"3d_debug_staging_buffer".writeDebugCube(
+                pos,
+                .add(pos, .{ .x = 1, .y = 1, .z = 1 }),
+            );
+        },
         .entity => |entity| {
             _ = entity;
             // try self.@"3d_debug_staging_buffer".writeDebugCube(
-            //     entity.pos.floatCast(f32).sub(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
-            //     entity.pos.floatCast(f32).add(.{ .x = 0.25, .y = 0.25, .z = 0.25 }),
+            //     .sub(.floatCast(entity.pos), .{ .x = 0.25, .y = 0.25, .z = 0.25 }),
+            //     .add(.floatCast(entity.pos), .{ .x = 0.25, .y = 0.25, .z = 0.25 }),
             // );
         },
         .miss => return,
@@ -487,7 +490,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
         @floatCast(-eye_pos.z),
     ));
 
-    return projection.mul(view.mul(model));
+    return .mul(projection, .mul(view, model));
 }
 
 pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {

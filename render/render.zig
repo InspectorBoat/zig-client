@@ -197,7 +197,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                 size = _size;
             },
             .CursorPos => |cursor_event| {
-                cursor_delta = cursor_delta.add(cursor_event.delta);
+                cursor_delta = .add(cursor_delta, cursor_event.delta);
             },
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
@@ -210,7 +210,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             else => {},
         }
     }
-    try input_queue.queueOnFrame(.{ .rotate = cursor_delta.floatToInt(i32) });
+    try input_queue.queueOnFrame(.{ .rotate = .intFromFloat(cursor_delta) });
 }
 
 var size: Vector2xy(i32) = .{ .x = 1, .y = 1 };

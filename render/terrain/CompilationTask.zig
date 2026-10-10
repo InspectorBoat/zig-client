@@ -117,7 +117,7 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                     }
 
                     for (face.pos, face.uv) |vertex_pos, _| {
-                        try staging.writeVertex(pos_vec.add(vertex_pos), block_light, sky_light, face.texture);
+                        try staging.writeVertex(.add(pos_vec, vertex_pos), block_light, sky_light, face.texture);
                     }
                     total += 1;
                 }

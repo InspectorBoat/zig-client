@@ -12,7 +12,7 @@ metadata: std.bit_set.ArrayBitSet(usize, 64 * 64) = .empty,
 items: [64 * 64]Entry = undefined,
 
 pub inline fn toIndex(pos: Vector2xz(i32)) usize {
-    const pos_cast = pos.bitCast(u32);
+    const pos_cast: Vector2xz(u32) = .bitCast(pos);
     return @intCast(((pos_cast.x & 63) << 6) | ((pos_cast.z & 63) << 0));
 }
 

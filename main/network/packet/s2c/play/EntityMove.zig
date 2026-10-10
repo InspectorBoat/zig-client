@@ -54,7 +54,7 @@ pub const Position = struct {
                 specific_entity.base.server_tracked_pos = .{
                     .raw = .add(
                         specific_entity.base.server_tracked_pos.raw,
-                        self.delta_pos.raw.intCast(i32),
+                        .cast(self.delta_pos.raw),
                     ),
                 };
                 try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world, allocator);
@@ -130,7 +130,7 @@ pub const PositionAndAngles = struct {
                 specific_entity.base.server_tracked_pos = .{
                     .raw = .add(
                         specific_entity.base.server_tracked_pos.raw,
-                        self.delta_pos.raw.intCast(i32),
+                        .cast(self.delta_pos.raw),
                     ),
                 };
                 try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), self.rotation.normalize(), 3, &game.world, allocator);

@@ -180,7 +180,7 @@ pub fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
         return;
     };
     const pos: Vector2xy(f64) = .{ .x = xpos, .y = ypos };
-    const delta: Vector2xy(f64) = if (window_input.mouse_pos) |prev_pos| prev_pos.sub(pos) else .{ .x = 0, .y = 0 };
+    const delta: Vector2xy(f64) = if (window_input.mouse_pos) |prev_pos| .sub(prev_pos, pos) else .{ .x = 0, .y = 0 };
 
     window_input.events.pushBack(window_input.allocator, .{
         .CursorPos = .{ .pos = pos, .delta = delta },

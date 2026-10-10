@@ -28,8 +28,8 @@ pub fn Box(comptime Element: type) type {
 
         pub fn move(self: @This(), delta: Vector3(Element)) @This() {
             return .{
-                .min = self.min.add(delta),
-                .max = self.max.add(delta),
+                .min = .add(self.min, delta),
+                .max = .add(self.max, delta),
             };
         }
 
@@ -55,8 +55,8 @@ pub fn Box(comptime Element: type) type {
 
         pub fn expand(self: @This(), expansion: Vector3(Element)) @This() {
             return .{
-                .min = self.min.sub(expansion),
-                .max = self.max.add(expansion),
+                .min = .sub(self.min, expansion),
+                .max = .add(self.max, expansion),
             };
         }
 
@@ -90,8 +90,8 @@ pub fn Box(comptime Element: type) type {
 
         pub fn contract(self: @This(), shrink: Vector3(Element)) @This() {
             return .{
-                .min = self.min.add(shrink),
-                .max = self.max.sub(shrink),
+                .min = .add(self.min, shrink),
+                .max = .sub(self.max, shrink),
             };
         }
 
@@ -225,7 +225,7 @@ pub fn Box(comptime Element: type) type {
         pub fn traceToPlane(from: Vector3(Element), to: Vector3(Element), comptime axis: enum { x, y, z }, pos: Element) ?Vector3(Element) {
             if (@typeInfo(Element) != .float) @compileError("Box.traceToPlane is only available for floating point numbers!");
 
-            const delta = from.sub(to);
+            const delta: Vector3(Element) = .sub(from, to);
             const ray_progress = switch (axis) {
                 .x => x: {
                     if (delta.x * delta.x < 0.0001 * 0.0001) {
@@ -250,7 +250,7 @@ pub fn Box(comptime Element: type) type {
                 },
             };
             if (ray_progress < 0 or ray_progress > 1) return null;
-            return from.add(delta.mul(.splat(ray_progress)));
+            return .add(from, .mul(delta, .splat(ray_progress)));
         }
 
         /// `@param mover:` the box that is moving

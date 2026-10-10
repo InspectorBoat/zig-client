@@ -94,7 +94,7 @@ pub fn tick(self: *@This(), game: *Client.Game) !void {
 
     // set steer from input
     const inputs = &game.active_inputs;
-    var steer = inputs.movement.steer();
+    var steer: Vector2xz(f32) = inputs.movement.steer();
     self.sneaking = inputs.movement.sneak;
     // apply slowdown
     if (inputs.movement.sneak) {
@@ -139,7 +139,7 @@ pub fn tick(self: *@This(), game: *Client.Game) !void {
         inputs.movement.back, inputs.movement.forward, inputs.movement.left, inputs.movement.right, inputs.movement.jump = .{ false, false, false, false, false };
         steer = .origin();
     } else {
-        steer = steer.mul(.splat(0.98));
+        steer = .mul(steer, .splat(0.98));
     }
 
     // attempt to jump or float
@@ -188,7 +188,7 @@ pub fn tick(self: *@This(), game: *Client.Game) !void {
 
 fn canSurvive(game: *const Client.Game, pos: Vector3(i32)) bool {
     const block = game.world.getBlock(pos);
-    const above = game.world.getBlock(pos.add(.{ .x = 0, .y = 1, .z = 0 }));
+    const above = game.world.getBlock(.add(pos, .{ .x = 0, .y = 1, .z = 0 }));
     return !block.isSolid() and !above.isSolid();
 }
 
@@ -296,7 +296,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Client.Game) !void {
 
     // if (!self.isCamera()) return;
     const send_movement = self.server_movement_status.ticks_since_sent_movement >= 20 or
-        self.server_movement_status.pos.distance_squared(self.base.pos) > 0.0009;
+        self.server_movement_status.pos.distanceSquared(self.base.pos) > 0.0009;
     const send_rotation = self.base.rotation.pitch != self.server_movement_status.rotation.pitch or
         self.base.rotation.yaw != self.server_movement_status.rotation.yaw;
 
@@ -357,7 +357,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *cons
     const friction = self.nonLiquidFriction(game);
     const traction = try self.nonLiquidTraction(friction);
     const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
-    self.base.velocity = self.base.velocity.add(.{
+    self.base.velocity = .add(self.base.velocity, .{
         .x = @floatCast(acceleration.x),
         .y = 0,
         .z = @floatCast(acceleration.z),
@@ -427,7 +427,7 @@ pub fn getAccelerationFromSteer(steer: Vector2xz(f32), traction: f32, yaw: f32) 
     const sin = MathHelper.sin(yaw_radians);
     const cos = MathHelper.cos(yaw_radians);
 
-    const scaled_steer = steer.mul(.splat(traction / @max(steer.magnitude(), 1.0)));
+    const scaled_steer: Vector2xz(f32) = .mul(steer, .splat(traction / @max(steer.magnitude(), 1.0)));
 
     return .{
         .x = scaled_steer.x * cos - scaled_steer.z * sin,
@@ -474,7 +474,7 @@ pub fn jump(self: *@This()) !void {
 }
 
 pub fn getEyePos(self: @This()) Vector3(f64) {
-    return self.base.pos.add(.{ .x = 0, .y = if (self.isSneaking()) 1.54 else 1.62, .z = 0 });
+    return .add(self.base.pos, .{ .x = 0, .y = if (self.isSneaking()) 1.54 else 1.62, .z = 0 });
 }
 
 pub fn getInterpolatedEyePos(self: @This(), partial_tick: f64, interpolationFn: fn (f64, f64, f64) f64) Vector3(f64) {
