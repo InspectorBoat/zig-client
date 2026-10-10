@@ -399,7 +399,10 @@ pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !v
             inline else => |specific_entity| {
                 const pos: Vector3(f64) = .add(
                     specific_entity.base.prev_pos,
-                    .scaleUniform(.sub(specific_entity.base.pos, specific_entity.base.prev_pos), partial_tick),
+                    .mul(
+                        .sub(specific_entity.base.pos, specific_entity.base.prev_pos),
+                        .splat(partial_tick),
+                    ),
                 );
                 const min = pos.sub(.{
                     .x = specific_entity.base.width * 0.5,

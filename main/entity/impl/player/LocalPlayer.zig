@@ -139,7 +139,7 @@ pub fn tick(self: *@This(), game: *Client.Game) !void {
         inputs.movement.back, inputs.movement.forward, inputs.movement.left, inputs.movement.right, inputs.movement.jump = .{ false, false, false, false, false };
         steer = .origin();
     } else {
-        steer = steer.scaleUniform(0.98);
+        steer = steer.mul(.splat(0.98));
     }
 
     // attempt to jump or float
@@ -427,7 +427,7 @@ pub fn getAccelerationFromSteer(steer: Vector2xz(f32), traction: f32, yaw: f32) 
     const sin = MathHelper.sin(yaw_radians);
     const cos = MathHelper.cos(yaw_radians);
 
-    const scaled_steer = steer.scaleUniform(traction / @max(steer.magnitude(), 1.0));
+    const scaled_steer = steer.mul(.splat(traction / @max(steer.magnitude(), 1.0)));
 
     return .{
         .x = scaled_steer.x * cos - scaled_steer.z * sin,

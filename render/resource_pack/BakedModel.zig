@@ -3,6 +3,8 @@ const Vector3 = @import("root").Vector3;
 const Vector2xy = @import("root").Vector2xy;
 const Renderer = @import("../Renderer.zig");
 const za = @import("zalgebra");
+const Mat4 = za.Mat4; // Mat4x4(f32)
+const Vec3 = za.Vec3; // GenericVector(3, f32)
 const Direction = @import("root").Direction;
 const std = @import("std");
 const StateToModelMap = @import("StateToModelMap.zig");
@@ -221,26 +223,31 @@ fn negateAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) ResolvedBlockMo
 }
 
 pub fn bakeElement(baked_faces: *std.ArrayList(Face), element: ResolvedBlockModel.Element) void {
-    const anchor = transformAnchor(element.rotation, element.from);
-    const basis = getBasis(element.rotation);
+    // model units are 0..16 per block,
+    // but world space is 0..1 per block
+    const model_to_world_scale: f32 = 1.0 / 16.0;
+
+    const transform = elementTransform(element.rotation);
     const size: Vector3(f32) = .sub(element.to, element.from);
 
-    const scaled_anchor: Vector3(f32) = anchor.scaleUniform(1.0 / 16.0);
-    const scaled_basis: Vector3(Vector3(f32)) = .{
-        .x = basis.x.scaleUniform(size.x).scaleUniform(1.0 / 16.0),
-        .y = basis.y.scaleUniform(size.y).scaleUniform(1.0 / 16.0),
-        .z = basis.z.scaleUniform(size.z).scaleUniform(1.0 / 16.0),
+    // anchor is the origin corner (element.from) mapped through transform
+    const anchor: Vector3(f32) = fromZa(transform.mulByVec3(toZa(element.from))).mul(.splat(model_to_world_scale));
+    // the basis is its columns scaled by each edge's length
+    const basis: Vector3(Vector3(f32)) = .{
+        .x = column(transform, 0).mul(.splat(size.x * model_to_world_scale)),
+        .y = column(transform, 1).mul(.splat(size.y * model_to_world_scale)),
+        .z = column(transform, 2).mul(.splat(size.z * model_to_world_scale)),
     };
 
     // zig fmt: off
-    const @"000" = scaled_anchor                                                            ;
-    const @"001" = scaled_anchor                                        .add(scaled_basis.z);
-    const @"010" = scaled_anchor                    .add(scaled_basis.y)                    ;
-    const @"011" = scaled_anchor                    .add(scaled_basis.y).add(scaled_basis.z);
-    const @"100" = scaled_anchor.add(scaled_basis.x)                                        ;
-    const @"101" = scaled_anchor.add(scaled_basis.x)                    .add(scaled_basis.z);
-    const @"110" = scaled_anchor.add(scaled_basis.x).add(scaled_basis.y)                    ;
-    const @"111" = scaled_anchor.add(scaled_basis.x).add(scaled_basis.y).add(scaled_basis.z);
+    const @"000" = anchor                                                             ;
+    const @"001" = anchor                                             .add(basis.z)    ;
+    const @"010" = anchor                             .add(basis.y)                    ;
+    const @"011" = anchor                             .add(basis.y).add(basis.z)        ;
+    const @"100" = anchor.add(basis.x)                                                   ;
+    const @"101" = anchor.add(basis.x)                                 .add(basis.z)    ;
+    const @"110" = anchor.add(basis.x).add(basis.y)                                     ;
+    const @"111" = anchor.add(basis.x).add(basis.y).add(basis.z)                        ;
 
     if (element.faces.west)  |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"000", @"001", @"011", @"010" }, face));
     if (element.faces.south) |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"001", @"101", @"111", @"011" }, face));
@@ -251,52 +258,43 @@ pub fn bakeElement(baked_faces: *std.ArrayList(Face), element: ResolvedBlockMode
     // zig fmt: on
 }
 
-pub fn transformAnchor(maybe_rotation: ?ResolvedBlockModel.Element.Rotation, anchor: Vector3(f32)) Vector3(f32) {
-    const rotation = maybe_rotation orelse return anchor;
+/// An element's rotation as one affine matrix
+fn elementTransform(maybe_rotation: ?ResolvedBlockModel.Element.Rotation) Mat4 {
+    const rotation = maybe_rotation orelse return .identity();
 
-    const rotation_axis: za.Vec3_f64 = rotationAxis(rotation.axis);
-    const rotation_angle: f64 = rotationAngle(rotation.angle);
-    const rescale = rescaleFactor(rotation);
-    const rotation_matrix: za.Mat3_f64 = .fromRotation(rotation_angle, rotation_axis);
+    const angle = rotationAngle(rotation.angle);
 
-    const delta_to_origin = anchor.sub(rotation.origin);
+    // 1 along the axis it spins about, 1/cos(angle) along the other two
+    const stretch_factor: f32 = if (rotation.rescale) 1.0 / @cos(angle * std.math.pi / 180.0) else 1.0;
+    const stretch: Vec3 = .new(
+        if (rotation.axis == .x) 1.0 else stretch_factor,
+        if (rotation.axis == .y) 1.0 else stretch_factor,
+        if (rotation.axis == .z) 1.0 else stretch_factor,
+    );
 
-    const rotated_delta = rotation_matrix.mulByVec3(.new(delta_to_origin.x, delta_to_origin.y, delta_to_origin.z));
+    const origin: Vec3 = .new(rotation.origin.x, rotation.origin.y, rotation.origin.z);
+    const back: Vec3 = .new(-origin.x(), -origin.y(), -origin.z());
 
-    const new_anchor = (Vector3(f64){ .x = rotated_delta.x(), .y = rotated_delta.y(), .z = rotated_delta.z() })
-        .floatCast(f32)
-        .scale(.{
-            .x = if (rotation.axis != .x) rescale else 1,
-            .y = if (rotation.axis != .y) rescale else 1,
-            .z = if (rotation.axis != .z) rescale else 1,
-        })
-        .add(rotation.origin);
-    return new_anchor;
+    var m: Mat4 = .fromTranslate(origin);
+    m = .mul(m, .fromScale(stretch));
+    m = .mul(m, .fromRotation(angle, rotationAxis(rotation.axis)));
+    m = .mul(m, .fromTranslate(back));
+    return m;
 }
 
-/// Linear algebra is my passion
-pub fn getBasis(maybe_rotation: ?ResolvedBlockModel.Element.Rotation) Vector3(Vector3(f32)) {
-    const rotation = maybe_rotation orelse return .{
-        .x = .{ .x = 1, .y = 0, .z = 0 },
-        .y = .{ .x = 0, .y = 1, .z = 0 },
-        .z = .{ .x = 0, .y = 0, .z = 1 },
-    };
-    const rotation_axis: za.Vec3_f64 = rotationAxis(rotation.axis);
-    const rotation_angle: f64 = rotationAngle(rotation.angle);
-    const rescale = rescaleFactor(rotation);
-    const rotation_matrix: za.Mat3_f64 = .fromRotation(rotation_angle, rotation_axis);
-
-    const x = rotation_matrix.mulByVec3(.new(if (rotation.axis != .x) rescale else 1, 0, 0));
-    const y = rotation_matrix.mulByVec3(.new(0, if (rotation.axis != .y) rescale else 1, 0));
-    const z = rotation_matrix.mulByVec3(.new(0, 0, if (rotation.axis != .z) rescale else 1));
-    return .{
-        .x = .{ .x = @floatCast(x.x()), .y = @floatCast(x.y()), .z = @floatCast(x.z()) },
-        .y = .{ .x = @floatCast(y.x()), .y = @floatCast(y.y()), .z = @floatCast(y.z()) },
-        .z = .{ .x = @floatCast(z.x()), .y = @floatCast(z.y()), .z = @floatCast(z.z()) },
-    };
+fn column(m: Mat4, i: usize) Vector3(f32) {
+    return .{ .x = m.data[i][0], .y = m.data[i][1], .z = m.data[i][2] };
 }
 
-fn rotationAxis(axis: ResolvedBlockModel.Element.Rotation.Axis) za.Vec3_f64 {
+fn toZa(v: Vector3(f32)) Vec3 {
+    return .new(v.x, v.y, v.z);
+}
+
+fn fromZa(v: Vec3) Vector3(f32) {
+    return .{ .x = v.x(), .y = v.y(), .z = v.z() };
+}
+
+fn rotationAxis(axis: ResolvedBlockModel.Element.Rotation.Axis) Vec3 {
     return switch (axis) {
         .x => .new(1, 0, 0),
         .y => .new(0, 1, 0),
@@ -304,7 +302,7 @@ fn rotationAxis(axis: ResolvedBlockModel.Element.Rotation.Axis) za.Vec3_f64 {
     };
 }
 
-fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f64 {
+fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f32 {
     return switch (angle) {
         .@"-45" => -45,
         .@"-22.5" => -22.5,
@@ -312,15 +310,6 @@ fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f64 {
         .@"22.5" => 22.5,
         .@"45" => 45,
     };
-}
-
-fn rescaleFactor(rotation: ResolvedBlockModel.Element.Rotation) f32 {
-    return if (rotation.rescale) switch (rotation.angle) {
-        //  1/cos(angle)
-        .@"-45", .@"45" => 1.41421356237,
-        .@"-22.5", .@"22.5" => 1.08239220029,
-        else => 1.0,
-    } else 1.0;
 }
 
 fn fromFace(corners: [4]Vector3(f32), f: ResolvedBlockModel.Element.Face) Face {

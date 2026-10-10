@@ -35,14 +35,17 @@ pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, all
     const task = try allocator.create(@This());
     task.section_pos = section_pos;
     task.revision = revision;
-    const base_block_pos = section_pos.scaleUniform(16).sub(.{ .x = 1, .y = 1, .z = 1 });
+    const base_block_pos: Vector3(i32) = .sub(
+        .mul(section_pos, .splat(16)),
+        .{ .x = 1, .y = 1, .z = 1 },
+    );
     for (0..18) |y| {
         for (0..18) |z| {
             for (0..18) |x| {
-                const pos = base_block_pos.add(.{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
-                task.block_states[x][y][z] = .resolve(world.getBlockState(pos), world, pos);
-                task.block_light.set(x, y, z, world.getBlockLight(pos));
-                task.sky_light.set(x, y, z, world.getSkyLight(pos));
+                const block_pos: Vector3(i32) = .add(base_block_pos, .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
+                task.block_states[x][y][z] = .resolve(world.getBlockState(block_pos), world, block_pos);
+                task.block_light.set(x, y, z, world.getBlockLight(block_pos));
+                task.sky_light.set(x, y, z, world.getSkyLight(block_pos));
             }
         }
     }

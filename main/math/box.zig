@@ -250,7 +250,7 @@ pub fn Box(comptime Element: type) type {
                 },
             };
             if (ray_progress < 0 or ray_progress > 1) return null;
-            return from.add(delta.scaleUniform(ray_progress));
+            return from.add(delta.mul(.splat(ray_progress)));
         }
 
         /// `@param mover:` the box that is moving

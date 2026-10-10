@@ -38,7 +38,7 @@ pub fn tick(self: *@This(), game: *const Client.Game) !void {
         game.world.getBlock(pos).getFriction() * 0.98
     else
         0.98;
-    self.base.velocity = self.base.velocity.scale(.{ .x = friction, .y = 0.98, .z = friction });
+    self.base.velocity = self.base.velocity.mul(.{ .x = friction, .y = 0.98, .z = friction });
     if (self.base.colliding.on_ground) self.base.velocity.y *= -0.5;
     // TODO: check water
 }

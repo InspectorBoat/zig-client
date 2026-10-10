@@ -35,7 +35,7 @@ pub const HitResult = union(HitType) {
         comptime options: RayTraceOptions,
     ) @This() {
         var from = origin;
-        const to = origin.add(rotationToVec(rotation).scaleUniform(range));
+        const to = origin.add(rotationToVec(rotation).mul(.splat(range)));
 
         if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
@@ -156,7 +156,7 @@ pub const HitResult = union(HitType) {
         rotation: Rotation2(f32),
         range: f64,
     ) @This() {
-        const to = origin.add(rotationToVec(rotation).scaleUniform(range));
+        const to = origin.add(rotationToVec(rotation).mul(.splat(range)));
         var closest_hit_distance: f64 = std.math.inf(f64);
         var hit_result: @This() = .miss;
 
@@ -300,7 +300,7 @@ pub const HitResult = union(HitType) {
         if (ray_progress < 0.0 or ray_progress > 1.0) {
             return null;
         }
-        return from.add(delta.scaleUniform(ray_progress));
+        return from.add(delta.mul(.splat(ray_progress)));
     }
     pub fn interpolateToTargetY(from: Vector3(f64), to: Vector3(f64), y_plane: f64) ?Vector3(f64) {
         const delta = to.sub(from);
@@ -311,7 +311,7 @@ pub const HitResult = union(HitType) {
             if (ray_progress < 0.0 or ray_progress > 1.0) {
                 return null;
             }
-            return from.add(delta.scaleUniform(ray_progress));
+            return from.add(delta.mul(.splat(ray_progress)));
         }
     }
     pub fn interpolateToTargetZ(from: Vector3(f64), to: Vector3(f64), z_plane: f64) ?Vector3(f64) {
@@ -323,7 +323,7 @@ pub const HitResult = union(HitType) {
             if (ray_progress < 0.0 or ray_progress > 1.0) {
                 return null;
             }
-            return from.add(delta.scaleUniform(ray_progress));
+            return from.add(delta.mul(.splat(ray_progress)));
         }
     }
 

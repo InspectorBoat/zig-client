@@ -76,7 +76,7 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
     _ = start_pos;
     // handle cobweb
     var initial_velocity = if (self.colliding.in_cobweb)
-        velocity.scale(.{ .x = 0.25, .y = 0.05, .z = 0.25 })
+        velocity.mul(.{ .x = 0.25, .y = 0.05, .z = 0.25 })
     else
         velocity;
     if (self.colliding.in_cobweb) self.velocity = .{ .x = 0, .y = 0, .z = 0 };

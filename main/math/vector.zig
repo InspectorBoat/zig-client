@@ -26,13 +26,6 @@ pub fn Vector2xy(comptime Element: type) type {
                 .y = self.y - other.y,
             };
         }
-        pub fn scaleUniform(self: @This(), factor: Element) @This() {
-            return .{
-                .x = self.x * factor,
-                .y = self.y * factor,
-            };
-        }
-
         pub fn negate(self: @This()) @This() {
             return .{
                 .x = -self.x,
@@ -136,10 +129,14 @@ pub fn Vector2xz(comptime Element: type) type {
                 .z = self.z - other.z,
             };
         }
-        pub fn scaleUniform(self: @This(), factor: Element) @This() {
+        pub fn splat(n: Element) @This() {
+            return .{ .x = n, .z = n };
+        }
+
+        pub fn mul(self: @This(), factor: @This()) @This() {
             return .{
-                .x = self.x * factor,
-                .z = self.z * factor,
+                .x = self.x * factor.x,
+                .z = self.z * factor.z,
             };
         }
 
@@ -251,15 +248,7 @@ pub fn Vector3(comptime Element: type) type {
             };
         }
 
-        pub fn scaleUniform(self: @This(), factor: Element) @This() {
-            return .{
-                .x = self.x * factor,
-                .y = self.y * factor,
-                .z = self.z * factor,
-            };
-        }
-
-        pub fn scale(self: @This(), factor: @This()) @This() {
+        pub fn mul(self: @This(), factor: @This()) @This() {
             return .{
                 .x = self.x * factor.x,
                 .y = self.y * factor.y,
@@ -272,14 +261,6 @@ pub fn Vector3(comptime Element: type) type {
                 .x = self.x / divisor.x,
                 .y = self.y / divisor.y,
                 .z = self.z / divisor.z,
-            };
-        }
-
-        pub fn divUniform(self: @This(), divisor: Element) @This() {
-            return .{
-                .x = self.x / divisor,
-                .y = self.y / divisor,
-                .z = self.z / divisor,
             };
         }
 
