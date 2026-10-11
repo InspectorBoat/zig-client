@@ -2,11 +2,13 @@ const std = @import("std");
 
 const Renderer = @import("../Renderer.zig");
 const Block = @import("root").Block;
+const Direction = @import("root").Direction;
 const allValues = @import("util").allValues;
 const BlockModelTemplate = @import("BlockModelTemplate.zig");
 const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
 const StateToModelMap = @import("StateToModelMap.zig");
 const BakedModel = @import("BakedModel.zig");
+const Vector3 = @import("root").Vector3;
 
 // Takes ownership of resource_pack_dir
 pub fn init(
@@ -57,7 +59,7 @@ pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io
 
         var reader: std.json.Reader = .init(arena, &file_reader.interface);
         defer reader.deinit();
-        const parsed_model = try std.json.parseFromTokenSourceLeaky(T, arena, &reader, .{});
+        const parsed_model = try std.json.parseFromTokenSourceLeaky(T, arena, &reader, .{ .ignore_unknown_fields = true });
 
         try states.put(arena, try arena.dupe(u8, std.fs.path.stem(entry.name)), parsed_model);
     }
@@ -144,16 +146,16 @@ pub fn resolveBlockModel(
             } else null,
             .shade = element.shade,
         };
-        inline for (.{ "north", "south", "west", "east", "up", "down" }) |direction| {
-            if (@field(element.faces, direction)) |face| {
+        inline for (.{ .north, .south, .west, .east, .up, .down }) |direction| {
+            if (@field(element.faces, @tagName(direction))) |face| {
                 // TODO: All this stem stripping is a shitty hack, we should figure out how vanilla actually does it
                 const texture_name = (try resolveTextureVariable(texture_variables, face.texture))["blocks/".len..];
                 const texture_handle: Renderer.TextureHandle = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse {
                     std.log.scoped(.resource_pack).err("model {s} references nonexistent texture {s}", .{ model_name_to_resolve, texture_name });
                     return error.MissingTexture;
                 }));
-                @field(resolved_element.faces, direction) = .{
-                    .uv = face.uv orelse .{ 0, 0, 16, 16 },
+                @field(resolved_element.faces, @tagName(direction)) = .{
+                    .uv = face.uv orelse try computeAutoUv(resolved_element.from, resolved_element.to, direction),
                     .texture = texture_handle,
                     .tintindex = face.tintindex,
                     .cullface = face.cullface,
@@ -194,6 +196,23 @@ pub fn resolveTextureVariable(texture_variables: std.StringHashMapUnmanaged([]co
     // There are only N elements, so if the walk takes more than N steps,
     // we must have revisited a node and have entered a cycle
     return error.CyclicVariable;
+}
+
+pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction) ![4]f32 {
+    std.log.scoped(.resource_pack_uv).debug("computing auto uvs", .{});
+    // zig fmt: off
+    if (from.x < 0 or from.y < 0 or from.z < 0 or from.x > 16 or from.y > 16 or from.z > 16) return error.FailedUvMapping;
+    if (  to.x < 0 or   to.y < 0 or   to.z < 0 or   to.x > 16 or   to.y > 16 or   to.z > 16) return error.FailedUvMapping;
+    return switch (direction) {
+        .up =>    .{    from.x,    from.z, to.x,               to.z },
+        .down =>  .{    from.x, 16 - to.z, to.x,        16 - from.z },
+        .west =>  .{    from.z, 16 - to.y, to.z,        16 - from.y },
+        .south => .{    from.x, 16 - to.y, to.x,        16 - from.y },
+        .east =>  .{ 16 - to.x, 16 - to.y, 16 - from.x, 16 - from.y },
+        .north => .{ 16 - to.x, 16 - to.y, 16 - from.x, 16 - from.y },
+
+    };
+    // zig fmt: on
 }
 
 /// Create a lookup table mapping from Block.VirtualState -> BakedBlockModel

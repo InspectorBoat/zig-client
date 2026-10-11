@@ -2,7 +2,6 @@
 
 flat in uint texture_id;
 in vec2 uv;
-flat in uint light_level;
 
 out vec4 color;
 
@@ -10,8 +9,5 @@ layout(location = 2) uniform sampler2DArray block_texture;
 
 void main() {
     color = texture(block_texture, vec3(uv, texture_id));
-    // light packs sky << 4 | block
-    uint sky_light = (light_level >> 4) & 0xF;
-    color.rgb *= float(sky_light + 5) / 20;
     if (color.a == 0) discard;
 }

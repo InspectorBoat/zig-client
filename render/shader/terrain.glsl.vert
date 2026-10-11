@@ -9,9 +9,10 @@ layout(std430, binding = 0) restrict readonly buffer geometry {
 
 out vec2 uv;
 flat out uint texture_id;
-flat out uint light_level;
 
 void main() {
+    // one TerrainVertex is 16 bytes = 4 uints; the index buffer holds 0,1,2,3
+    // per quad, so gl_VertexID is already the vertex index
     uint base = gl_VertexID * 4;
 
     vec3 vertex_pos = vec3(
@@ -20,28 +21,12 @@ void main() {
         uintBitsToFloat(data[base + 2])
     );
 
-    // packed is a keyword or something, apparently
-    uint texture = data[base + 3] & 0xFFFF;
-    uint light = (data[base + 3] >> 16) & 0xFF;
+    // the last uint is texture | u << 16 | v << 24
+    uint last = data[base + 3];
 
     gl_Position = vec4(vertex_pos + chunk_pos * 16, 1) * transform;
 
-    texture_id = texture;
-    light_level = light;
-
-    int corner = gl_VertexID % 4;
-    switch (corner) {
-        case 0:
-            uv = vec2(0, 1);
-            break;
-        case 1:
-            uv = vec2(1, 1);
-            break;
-        case 2:
-            uv = vec2(1, 0);
-            break;
-        case 3:
-            uv = vec2(0, 0);
-            break;
-    }
+    texture_id = last & 0xFFFF;
+    // uv is quantized out of the model's 0..16 texture space
+    uv = vec2(float((last >> 16) & 0xFF), float((last >> 24) & 0xFF)) / 16.0;
 }

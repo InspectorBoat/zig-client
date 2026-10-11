@@ -11,6 +11,4 @@ pub const Direction = enum(i8) {
             inline else => |tag| return @field(@This(), @tagName(tag)),
         }
     }
-
-    pub const names: []const []const u8 = &.{ "down", "up", "north", "south", "west", "east" };
 };

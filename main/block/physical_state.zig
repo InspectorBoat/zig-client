@@ -240,7 +240,7 @@ pub const PhysicalState = packed struct(u16) {
     pub const StairFacing = enum(u2) { east = 0, west = 1, south = 2, north = 3 };
     pub const Facing = enum(u3) { down = 0, up = 1, north = 2, south = 3, west = 4, east = 5 };
     pub const HorizontalFacing = enum(u3) { north = 2, south = 3, west = 4, east = 5 };
-    pub const PackedHorizontalFacing = enum(u2) { north = 0, south = 1, west = 2, east = 3 };
+    pub const PackedHorizontalFacing = enum(u2) { south = 0, west = 1, north = 2, east = 3 };
     pub const TorchFacing = enum(u3) { east = 1, west = 2, south = 3, north = 4, up = 5 };
     pub const ButtonFacing = enum(u3) { down = 0, east = 1, west = 2, south = 3, north = 4, up = 5 };
     pub const LeverFacing = enum(u3) { down_x, east, west, south, north, up_z, up_x, down_z };

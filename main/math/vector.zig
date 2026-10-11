@@ -350,6 +350,22 @@ pub fn Vector3(comptime Element: type) type {
             };
         }
 
+        pub fn cmp(lhs: @This(), op: std.math.CompareOperator, rhs: @This()) Vector3(bool) {
+            return .{
+                .x = std.math.compare(lhs.x, op, rhs.x),
+                .y = std.math.compare(lhs.y, op, rhs.y),
+                .z = std.math.compare(lhs.z, op, rhs.z),
+            };
+        }
+
+        pub fn any(self: @This()) bool {
+            return self.x or self.y or self.z;
+        }
+
+        pub fn all(self: @This()) bool {
+            return self.x and self.y and self.z;
+        }
+
         // for safe coercions
         pub fn cast(vec: anytype) @This() {
             return .{

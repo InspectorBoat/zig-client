@@ -8,9 +8,8 @@ allocator: std.mem.Allocator,
 
 pub const TerrainVertex = extern struct {
     pos: extern struct { x: f32, y: f32, z: f32 },
-    texture: Renderer.TextureHandle, // uvs unimplemented for now
-    light: u8, // sky << 4 | block
-    _: u8 = 0,
+    texture: Renderer.TextureHandle,
+    uv: extern struct { u: u8, v: u8 },
 };
 
 pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
@@ -26,11 +25,16 @@ pub fn writeVertex(
     block_light: u8,
     sky_light: u8,
     texture: Renderer.TextureHandle,
+    uv: Vector2xy(f32),
 ) !void {
+    _ = block_light;
+    _ = sky_light;
+    const quantized_uv: Vector2xy(u8) = .intFromFloat(uv);
     const vertex: TerrainVertex = .{
         .pos = .{ .x = vertex_pos.x, .y = vertex_pos.y, .z = vertex_pos.z },
         .texture = texture,
-        .light = sky_light << 4 | block_light,
+        // .light = sky_light << 4 | block_light,
+        .uv = .{ .u = quantized_uv.x, .v = quantized_uv.y },
     };
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&vertex));
 }
