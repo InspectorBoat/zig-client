@@ -16,6 +16,192 @@ const Face = struct {
     cullface: ?Direction,
 };
 
+/// Intermediate representation
+const IntermediateFace = struct {
+    facing: Direction,
+
+    // coordinates local to the face's `facing`
+    xy: [2]Vector2xy(f32),
+    z: f32,
+
+    uv: [2]Vector2xy(f32),
+
+    cullface: ?Direction,
+    texture_rotation: ResolvedBlockModel.Element.Face.TextureRotation,
+    texture: Renderer.TextureHandle,
+    flip_winding: bool = false,
+
+    /// Rotates clockwise around the +X axis going through the center of the model
+    fn rotateX(self: *@This()) void {
+        switch (self.facing) {
+            .east => {
+                const xy = self.xy;
+                self.xy = .{
+                    .{ .x = xy[0].y, .y = 16 - xy[0].x },
+                    .{ .x = xy[1].y, .y = 16 - xy[1].x },
+                };
+                self.flip_winding = !self.flip_winding;
+            },
+            .west => {
+                const xy = self.xy;
+                self.xy = .{
+                    .{ .x = 16 - xy[0].y, .y = xy[0].x },
+                    .{ .x = 16 - xy[1].y, .y = xy[1].x },
+                };
+                self.flip_winding = !self.flip_winding;
+            },
+
+            .up => {
+                self.facing = .north;
+                const xy = self.xy;
+                self.xy = .{
+                    .{ .x = 16 - xy[0].x, .y = 16 - xy[0].y },
+                    .{ .x = 16 - xy[1].x, .y = 16 - xy[1].y },
+                };
+            },
+            .north => {
+                self.facing = .down;
+                const xy = self.xy;
+                self.xy = .{
+                    .{ .x = 16 - xy[0].x, .y = 16 - xy[0].y },
+                    .{ .x = 16 - xy[1].x, .y = 16 - xy[1].y },
+                };
+            },
+            .down => {
+                self.facing = .south;
+            },
+            .south => {
+                self.facing = .up;
+            },
+        }
+        self.cullface = if (self.cullface) |c| spinX(c) else null;
+    }
+
+    /// Rotates clockwise around the +Y axis going through the center of the model
+    fn rotateY(self: *@This()) void {
+        switch (self.facing) {
+            .up => {
+                const xy = self.xy;
+                self.xy = .{
+                    .{ .x = xy[0].y, .y = 16 - xy[0].x },
+                    .{ .x = xy[1].y, .y = 16 - xy[1].x },
+                };
+                self.flip_winding = !self.flip_winding;
+            },
+            .down => {
+                const xy = self.xy;
+                self.xy = .{
+                    .{ .x = 16 - xy[0].y, .y = xy[0].x },
+                    .{ .x = 16 - xy[1].y, .y = xy[1].x },
+                };
+                self.flip_winding = !self.flip_winding;
+            },
+            .north => {
+                self.facing = .east;
+            },
+            .east => {
+                self.facing = .south;
+            },
+            .south => {
+                self.facing = .west;
+            },
+            .west => {
+                self.facing = .north;
+            },
+        }
+
+        self.cullface = if (self.cullface) |c| spinY(c) else null;
+    }
+
+    fn fromWorld(pos: Vector3(f32), facing: Direction) Vector3(f32) {
+        // zig fmt: off
+        return switch (facing) {
+            .down  => .{ .x =      pos.x, .y =      pos.z, .z =      pos.y },
+            .up    => .{ .x =      pos.x, .y = 16 - pos.z, .z = 16 - pos.y },
+            .south => .{ .x =      pos.x, .y =      pos.y, .z = 16 - pos.z },
+            .north => .{ .x = 16 - pos.x, .y =      pos.y, .z =      pos.z },
+            .west  => .{ .x =      pos.z, .y =      pos.y, .z =      pos.x },
+            .east  => .{ .x = 16 - pos.z, .y =      pos.y, .z = 16 - pos.x },
+        };
+        // zig fmt: on
+    }
+
+    fn toLocal(from: Vector3(f32), to: Vector3(f32), facing: Direction) struct { Vector2xy(f32), Vector2xy(f32), f32 } {
+        // zig fmt: off
+        return switch (facing) {
+            .down  => .{ .{ .x =    from.x, .y =    from.z }, .{ .x =        to.x, .y =        to.z },    from.y },
+            .up    => .{ .{ .x =    from.x, .y = 16 - to.z }, .{ .x =        to.x, .y = 16 - from.z }, 16 - to.y },
+            .south => .{ .{ .x =    from.x, .y =    from.y }, .{ .x =        to.x, .y =        to.y }, 16 - to.z },
+            .north => .{ .{ .x = 16 - to.x, .y =    from.y }, .{ .x = 16 - from.x, .y =        to.y },    from.z },
+            .west  => .{ .{ .x =    from.z, .y =    from.y }, .{ .x =        to.z, .y =        to.y },    from.x },
+            .east  => .{ .{ .x = 16 - to.z, .y =    from.y }, .{ .x = 16 - from.z, .y =        to.y }, 16 - to.x },
+        };
+        // zig fmt: on
+    }
+
+    fn facePlane(from: Vector3(f32), to: Vector3(f32), facing: Direction) f32 {
+        // zig fmt: off
+        return switch (facing) {
+            .down  =>    from.y,
+            .up    => 16 - to.y,
+            .south => 16 - to.z,
+            .north =>    from.z,
+            .west  =>    from.x,
+            .east  => 16 - to.x,
+        };
+        // zig fmt: on
+    }
+
+    /// Places a point from the face's own frame back into model space
+    fn toWorld(facing: Direction, x: f32, y: f32, z: f32) Vector3(f32) {
+        // zig fmt: off
+        return switch (facing) {
+            .down  => .{ .x =      x, .y =      z, .z =      y },
+            .up    => .{ .x =      x, .y = 16 - z, .z = 16 - y },
+            .south => .{ .x =      x, .y =      y, .z = 16 - z },
+            .north => .{ .x = 16 - x, .y =      y, .z =      z },
+            .west  => .{ .x =      z, .y =      y, .z =      x },
+            .east  => .{ .x = 16 - z, .y =      y, .z = 16 - x },
+        };
+        // zig fmt: on
+    }
+
+    fn bake(self: @This()) Face {
+        const model_to_world_scale: f32 = 1.0 / 16.0;
+
+        var uv: [4]Vector2xy(f32) = .{
+            .{ .x = self.uv[0].x, .y = self.uv[1].y },
+            .{ .x = self.uv[1].x, .y = self.uv[1].y },
+            .{ .x = self.uv[1].x, .y = self.uv[0].y },
+            .{ .x = self.uv[0].x, .y = self.uv[0].y },
+        };
+        for (0..@backingInt(self.texture_rotation)) |_| {
+            const prev = uv;
+            uv = .{ prev[1], prev[2], prev[3], prev[0] };
+        }
+
+        var pos: [4]Vector3(f32) = .{
+            .mul(toWorld(self.facing, self.xy[0].x, self.xy[0].y, self.z), .splat(model_to_world_scale)),
+            .mul(toWorld(self.facing, self.xy[1].x, self.xy[0].y, self.z), .splat(model_to_world_scale)),
+            .mul(toWorld(self.facing, self.xy[1].x, self.xy[1].y, self.z), .splat(model_to_world_scale)),
+            .mul(toWorld(self.facing, self.xy[0].x, self.xy[1].y, self.z), .splat(model_to_world_scale)),
+        };
+
+        if (self.flip_winding) {
+            const tmp = pos[1];
+            pos[1] = pos[3];
+            pos[3] = tmp;
+        }
+
+        return .{
+            .pos = pos,
+            .uv = uv,
+            .texture = self.texture,
+            .cullface = self.cullface,
+        };
+    }
+};
+
 pub fn bake(
     gpa: std.mem.Allocator,
     model: ResolvedBlockModel,
@@ -32,201 +218,63 @@ pub fn bake(
     var faces: std.ArrayList(Face) = try .initCapacity(gpa, face_count);
 
     for (model.elements) |element| {
-        _ = &y_rotation;
-        bakeElement(&faces, rotateElementY(rotateElementX(element, x_rotation), y_rotation));
+        decomposeElement(&faces, element, x_rotation, y_rotation);
     }
-    return .{ .faces = faces.toOwnedSliceAssert() };
+
+    return .{ .faces = try faces.toOwnedSlice(gpa) };
 }
 
-/// Rotates the element around the y axis
-pub fn rotateElementY(element: ResolvedBlockModel.Element, angle: StateToModelMap.ModelVariant.Angle) ResolvedBlockModel.Element {
-    var element_mut = element;
-    for (0..@backingInt(angle)) |_| {
-        const from = element_mut.from;
-        const to = element_mut.to;
+/// Decompose into faces, then apply transforms and bake
+pub fn decomposeElement(
+    baked_faces: *std.ArrayList(Face),
+    element: ResolvedBlockModel.Element,
+    x_rotation: StateToModelMap.ModelVariant.Angle,
+    y_rotation: StateToModelMap.ModelVariant.Angle,
+) void {
+    inline for (std.enums.values(Direction)) |dir| {
+        // runtime `if` rather than `continue`: continue would be comptime
+        // control flow in an inline loop
+        if (@field(element.faces, @tagName(dir))) |face| {
+            const xy0, const xy1, const z = IntermediateFace.toLocal(element.from, element.to, dir);
 
-        // A quarter turn about y is (x, y, z) -> (16 - z, y, x) in 0..16 model units.
-        // from and to trade their z values too, otherwise each face would come out wound
-        // the wrong way and vanish under back-face culling.
+            var ir: IntermediateFace = .{
+                .facing = dir,
+                .xy = .{ xy0, xy1 },
+                .z = z,
+                .uv = .{ .{ .x = face.uv[0], .y = face.uv[1] }, .{ .x = face.uv[2], .y = face.uv[3] } },
+                .cullface = face.cullface,
+                .texture_rotation = face.rotation,
+                .texture = face.texture,
+            };
 
-        const new_from: Vector3(f32) = .{ .x = 16 - from.z, .y = from.y, .z = to.x };
-        const new_to: Vector3(f32) = .{ .x = 16 - to.z, .y = to.y, .z = from.x };
+            for (0..@backingInt(x_rotation)) |_| ir.rotateX();
+            for (0..@backingInt(y_rotation)) |_| ir.rotateY();
 
-        const new_faces: ResolvedBlockModel.Element.Faces = .{
-            .north = permuteCullY(element_mut.faces.east),
-            .east = permuteCullY(element_mut.faces.south),
-            .south = permuteCullY(element_mut.faces.west),
-            .west = permuteCullY(element_mut.faces.north),
-            .up = spinFace(element_mut.faces.up, -1),
-            .down = spinFace(element_mut.faces.down, 1),
-        };
-
-        const new_rotation: ?ResolvedBlockModel.Element.Rotation = if (element_mut.rotation) |rotation| .{
-            .origin = .{ .x = 16 - rotation.origin.z, .y = rotation.origin.y, .z = rotation.origin.x },
-            .axis = switch (rotation.axis) {
-                .x => .z,
-                .z => .x,
-                .y => .y,
-            },
-            .angle = rotation.angle,
-            .rescale = rotation.rescale,
-        } else null;
-
-        element_mut = .{
-            .from = new_from,
-            .to = new_to,
-            .faces = new_faces,
-            .rotation = new_rotation,
-            .shade = element_mut.shade,
-        };
-    }
-
-    // The block's spin carries the element's own tilt axis along with it. When
-    // the axis lands pointing the opposite way ("+X" versus "-X" are the same
-    // line, but leaning around them tilts opposite ways), the tilt has to
-    // reverse; when it lands on a different axis in the same direction, it
-    // doesn't. An axis along y is never disturbed by a spin about y.
-    //
-    //     tilt about | 90 | 180 | 270
-    //     -----------+-----+-----+-----
-    //     y          |  -  |  -  |  -
-    //     z          | rev | rev |  -
-    //     x          |  -  | rev | rev
-    //
-    // Read the axis off the ORIGINAL rotation: the loop above has already
-    // swapped x and z once per quarter turn.
-    const reverse_tilt: bool = if (element.rotation) |original| switch (original.axis) {
-        .y => false,
-        .z => angle == .@"90" or angle == .@"180",
-        .x => angle == .@"180" or angle == .@"270",
-    } else false;
-
-    if (reverse_tilt) {
-        if (element_mut.rotation) |*rotation| {
-            rotation.angle = negateAngle(rotation.angle);
+            baked_faces.appendAssumeCapacity(ir.bake());
         }
     }
-
-    return element_mut;
 }
 
-/// A face records the direction it culls against, and that has to travel with
-/// it when the element spins
-fn permuteCullY(maybe_face: ?ResolvedBlockModel.Element.Face) ?ResolvedBlockModel.Element.Face {
-    var face = maybe_face orelse return null;
-    if (face.cullface) |*cullface| {
-        cullface.* = switch (cullface.*) {
-            .north => .east,
-            .east => .south,
-            .south => .west,
-            .west => .north,
-
-            .up, .down => |dir| dir,
-        };
-    }
-    return face;
+/// Clockwise around +X. The four faces square to the axis cycle through each
+/// other; east and west only turn about their own normal, so they hold still.
+fn spinX(dir: Direction) Direction {
+    return switch (dir) {
+        .east, .west => dir,
+        .up => .north,
+        .north => .down,
+        .down => .south,
+        .south => .up,
+    };
 }
 
-/// Rotates the element around the x axis
-pub fn rotateElementX(element: ResolvedBlockModel.Element, angle: StateToModelMap.ModelVariant.Angle) ResolvedBlockModel.Element {
-    var element_mut = element;
-    for (0..@backingInt(angle)) |_| {
-        const from = element_mut.from;
-        const to = element_mut.to;
-
-        // A quarter turn about x is (x, y, z) -> (x, z, 16 - y) in 0..16 model units.
-        // from and to trade their y values too, otherwise each face would come out wound
-        // the wrong way and vanish under back-face culling.
-
-        const new_from: Vector3(f32) = .{ .x = to.x, .y = from.z, .z = 16 - from.y };
-        const new_to: Vector3(f32) = .{ .x = from.x, .y = to.z, .z = 16 - to.y };
-
-        const new_faces: ResolvedBlockModel.Element.Faces = .{
-            .up = permuteCullX(element_mut.faces.south),
-            .south = permuteCullX(element_mut.faces.down),
-            .down = permuteCullX(element_mut.faces.north),
-            .north = permuteCullX(element_mut.faces.up),
-
-            .west = spinFace(element_mut.faces.west, -1),
-            .east = spinFace(element_mut.faces.east, 0),
-        };
-
-        const new_rotation: ?ResolvedBlockModel.Element.Rotation = if (element_mut.rotation) |rotation| .{
-            .origin = .{ .x = rotation.origin.x, .y = rotation.origin.z, .z = 16 - rotation.origin.y },
-            .axis = switch (rotation.axis) {
-                .y => .z,
-                .z => .y,
-                .x => .x,
-            },
-            .angle = rotation.angle,
-            .rescale = rotation.rescale,
-        } else null;
-
-        element_mut = .{
-            .from = new_from,
-            .to = new_to,
-            .faces = new_faces,
-            .rotation = new_rotation,
-            .shade = element_mut.shade,
-        };
-    }
-
-    const reverse_tilt: bool = if (element.rotation) |original| switch (original.axis) {
-        .x => false,
-        .y => angle != .@"0",
-        .z => angle == .@"180",
-    } else false;
-
-    if (reverse_tilt) {
-        if (element_mut.rotation) |*rotation| {
-            rotation.angle = negateAngle(rotation.angle);
-        }
-    }
-    if (angle == .@"90" or angle == .@"270") {
-        // element_mut.faces.north = spinFace(element_mut.faces.north, 2);
-    }
-    return element_mut;
-}
-
-/// Same job as spinFaceY for a turn about x: up, north, down and south cycle
-/// through each other, east and west stay put.
-fn permuteCullX(maybe_face: ?ResolvedBlockModel.Element.Face) ?ResolvedBlockModel.Element.Face {
-    var face = maybe_face orelse return null;
-    if (face.cullface) |*cullface| {
-        cullface.* = switch (cullface.*) {
-            .north => .down,
-            .down => .south,
-            .south => .up,
-            .up => .north,
-
-            .east, .west => |dir| dir,
-        };
-    }
-    return face;
-}
-
-fn spinFace(maybe_face: ?ResolvedBlockModel.Element.Face, clockwise_spins: comptime_int) ?ResolvedBlockModel.Element.Face {
-    var face = maybe_face orelse return null;
-    const uv = face.uv;
-    face.uv = .{ uv[2], uv[3], uv[0], uv[1] };
-    for (0..@mod(clockwise_spins, 4)) |_| {
-        face.rotation = switch (face.rotation) {
-            .@"0" => .@"90",
-            .@"90" => .@"180",
-            .@"180" => .@"270",
-            .@"270" => .@"0",
-        };
-    }
-    return face;
-}
-
-fn negateAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) ResolvedBlockModel.Element.Rotation.Angle {
-    return switch (angle) {
-        .@"-45" => .@"45",
-        .@"-22.5" => .@"22.5",
-        .@"0" => .@"0",
-        .@"22.5" => .@"-22.5",
-        .@"45" => .@"-45",
+/// Clockwise around +Y, the same idea with up and down holding still.
+fn spinY(dir: Direction) Direction {
+    return switch (dir) {
+        .up, .down => dir,
+        .north => .east,
+        .east => .south,
+        .south => .west,
+        .west => .north,
     };
 }
 
