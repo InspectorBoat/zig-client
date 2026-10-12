@@ -74,7 +74,13 @@ const IntermediateFace = struct {
                 self.facing = .up;
             },
         }
-        self.cullface = if (self.cullface) |c| spinX(c) else null;
+        self.cullface = if (self.cullface) |cullface| switch (cullface) {
+            .east, .west => cullface,
+            .up => .north,
+            .north => .down,
+            .down => .south,
+            .south => .up,
+        } else null;
     }
 
     /// Rotates clockwise around the +Y axis going through the center of the model
@@ -110,23 +116,18 @@ const IntermediateFace = struct {
             },
         }
 
-        self.cullface = if (self.cullface) |c| spinY(c) else null;
+        self.cullface = if (self.cullface) |cullface| switch (cullface) {
+            .up, .down => cullface,
+            .north => .east,
+            .east => .south,
+            .south => .west,
+            .west => .north,
+        } else null;
     }
 
-    fn fromWorld(pos: Vector3(f32), facing: Direction) Vector3(f32) {
-        // zig fmt: off
-        return switch (facing) {
-            .down  => .{ .x =      pos.x, .y =      pos.z, .z =      pos.y },
-            .up    => .{ .x =      pos.x, .y = 16 - pos.z, .z = 16 - pos.y },
-            .south => .{ .x =      pos.x, .y =      pos.y, .z = 16 - pos.z },
-            .north => .{ .x = 16 - pos.x, .y =      pos.y, .z =      pos.z },
-            .west  => .{ .x =      pos.z, .y =      pos.y, .z =      pos.x },
-            .east  => .{ .x = 16 - pos.z, .y =      pos.y, .z = 16 - pos.x },
-        };
-        // zig fmt: on
-    }
-
-    fn toLocal(from: Vector3(f32), to: Vector3(f32), facing: Direction) struct { Vector2xy(f32), Vector2xy(f32), f32 } {
+    /// Takes a pair of element points from model space and a direction and returns
+    /// xy0, xy1, and z in that direction's frame
+    fn toLocal(facing: Direction, from: Vector3(f32), to: Vector3(f32)) struct { Vector2xy(f32), Vector2xy(f32), f32 } {
         // zig fmt: off
         return switch (facing) {
             .down  => .{ .{ .x =    from.x, .y =    from.z }, .{ .x =        to.x, .y =        to.z },    from.y },
@@ -139,20 +140,7 @@ const IntermediateFace = struct {
         // zig fmt: on
     }
 
-    fn facePlane(from: Vector3(f32), to: Vector3(f32), facing: Direction) f32 {
-        // zig fmt: off
-        return switch (facing) {
-            .down  =>    from.y,
-            .up    => 16 - to.y,
-            .south => 16 - to.z,
-            .north =>    from.z,
-            .west  =>    from.x,
-            .east  => 16 - to.x,
-        };
-        // zig fmt: on
-    }
-
-    /// Places a point from the face's own frame back into model space
+    /// Places a point from a directional frame back into model space
     fn toWorld(facing: Direction, x: f32, y: f32, z: f32) Vector3(f32) {
         // zig fmt: off
         return switch (facing) {
@@ -232,10 +220,8 @@ pub fn decomposeElement(
     y_rotation: StateToModelMap.ModelVariant.Angle,
 ) void {
     inline for (std.enums.values(Direction)) |dir| {
-        // runtime `if` rather than `continue`: continue would be comptime
-        // control flow in an inline loop
         if (@field(element.faces, @tagName(dir))) |face| {
-            const xy0, const xy1, const z = IntermediateFace.toLocal(element.from, element.to, dir);
+            const xy0, const xy1, const z = IntermediateFace.toLocal(dir, element.from, element.to);
 
             var ir: IntermediateFace = .{
                 .facing = dir,
@@ -253,29 +239,6 @@ pub fn decomposeElement(
             baked_faces.appendAssumeCapacity(ir.bake());
         }
     }
-}
-
-/// Clockwise around +X. The four faces square to the axis cycle through each
-/// other; east and west only turn about their own normal, so they hold still.
-fn spinX(dir: Direction) Direction {
-    return switch (dir) {
-        .east, .west => dir,
-        .up => .north,
-        .north => .down,
-        .down => .south,
-        .south => .up,
-    };
-}
-
-/// Clockwise around +Y, the same idea with up and down holding still.
-fn spinY(dir: Direction) Direction {
-    return switch (dir) {
-        .up, .down => dir,
-        .north => .east,
-        .east => .south,
-        .south => .west,
-        .west => .north,
-    };
 }
 
 pub fn bakeElement(baked_faces: *std.ArrayList(Face), element: ResolvedBlockModel.Element) void {
