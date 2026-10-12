@@ -123,6 +123,7 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                             sky_light,
                             face.texture,
                             uv,
+                            face.cullface,
                         );
                     }
                     total += 1;

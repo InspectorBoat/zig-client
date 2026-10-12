@@ -24,12 +24,23 @@ const IntermediateFace = struct {
     xy: [2]Vector2xy(f32),
     z: f32,
 
+    geometry_rotation: ?Rotation,
+
     uv: [2]Vector2xy(f32),
 
     cullface: ?Direction,
     texture_rotation: ResolvedBlockModel.Element.Face.TextureRotation,
+
     texture: Renderer.TextureHandle,
     flip_winding: bool = false,
+    flip_uv_winding: bool = false,
+
+    const Rotation = struct {
+        origin: Vector3(f32),
+        axis: Direction,
+        angle: f32,
+        rescale: bool,
+    };
 
     /// Rotates clockwise around the +X axis going through the center of the model
     fn rotateX(self: *@This()) void {
@@ -67,20 +78,31 @@ const IntermediateFace = struct {
                     .{ .x = 16 - xy[1].x, .y = 16 - xy[1].y },
                 };
             },
-            .down => {
-                self.facing = .south;
-            },
-            .south => {
-                self.facing = .up;
-            },
+            .down => self.facing = .south,
+            .south => self.facing = .up,
         }
-        self.cullface = if (self.cullface) |cullface| switch (cullface) {
-            .east, .west => cullface,
-            .up => .north,
-            .north => .down,
-            .down => .south,
-            .south => .up,
-        } else null;
+
+        if (self.cullface) |cullface| {
+            switch (cullface) {
+                .east, .west => {},
+                .up => self.cullface = .north,
+                .north => self.cullface = .down,
+                .down => self.cullface = .south,
+                .south => self.cullface = .up,
+            }
+        }
+
+        if (self.geometry_rotation) |*rotation| {
+            switch (rotation.axis) {
+                .@"+x", .@"-x" => {},
+                .@"+y" => self.cullface = .@"+z",
+                .@"-z" => self.cullface = .@"+y",
+                .@"-y" => self.cullface = .@"-z",
+                .@"+z" => self.cullface = .@"-y",
+            }
+            const origin = rotation.origin;
+            rotation.origin = .{ .x = origin.x, .y = origin.z, .z = 16 - origin.y };
+        }
     }
 
     /// Rotates clockwise around the +Y axis going through the center of the model
@@ -102,27 +124,33 @@ const IntermediateFace = struct {
                 };
                 self.flip_winding = !self.flip_winding;
             },
-            .north => {
-                self.facing = .east;
-            },
-            .east => {
-                self.facing = .south;
-            },
-            .south => {
-                self.facing = .west;
-            },
-            .west => {
-                self.facing = .north;
-            },
+            .north => self.facing = .east,
+            .east => self.facing = .south,
+            .south => self.facing = .west,
+            .west => self.facing = .north,
         }
 
-        self.cullface = if (self.cullface) |cullface| switch (cullface) {
-            .up, .down => cullface,
-            .north => .east,
-            .east => .south,
-            .south => .west,
-            .west => .north,
-        } else null;
+        if (self.cullface) |cullface| {
+            switch (cullface) {
+                .up, .down => {},
+                .north => self.cullface = .east,
+                .east => self.cullface = .south,
+                .south => self.cullface = .west,
+                .west => self.cullface = .north,
+            }
+        }
+
+        if (self.geometry_rotation) |*rotation| {
+            switch (rotation.axis) {
+                .@"-y", .@"+y" => {},
+                .@"-z" => rotation.axis = .@"+x",
+                .@"+x" => rotation.axis = .@"+z",
+                .@"+z" => rotation.axis = .@"-x",
+                .@"-x" => rotation.axis = .@"-z",
+            }
+            const origin = rotation.origin;
+            rotation.origin = .{ .x = 16 - origin.z, .y = origin.y, .z = origin.x };
+        }
     }
 
     /// Takes a pair of element points from model space and a direction and returns
@@ -163,17 +191,26 @@ const IntermediateFace = struct {
             .{ .x = self.uv[1].x, .y = self.uv[0].y },
             .{ .x = self.uv[0].x, .y = self.uv[0].y },
         };
+        if (self.flip_uv_winding) {
+            const tmp = uv[1];
+            uv[1] = uv[3];
+            uv[3] = tmp;
+        }
         for (0..@backingInt(self.texture_rotation)) |_| {
             const prev = uv;
             uv = .{ prev[1], prev[2], prev[3], prev[0] };
         }
 
         var pos: [4]Vector3(f32) = .{
-            .mul(toWorld(self.facing, self.xy[0].x, self.xy[0].y, self.z), .splat(model_to_world_scale)),
-            .mul(toWorld(self.facing, self.xy[1].x, self.xy[0].y, self.z), .splat(model_to_world_scale)),
-            .mul(toWorld(self.facing, self.xy[1].x, self.xy[1].y, self.z), .splat(model_to_world_scale)),
-            .mul(toWorld(self.facing, self.xy[0].x, self.xy[1].y, self.z), .splat(model_to_world_scale)),
+            toWorld(self.facing, self.xy[0].x, self.xy[0].y, self.z),
+            toWorld(self.facing, self.xy[1].x, self.xy[0].y, self.z),
+            toWorld(self.facing, self.xy[1].x, self.xy[1].y, self.z),
+            toWorld(self.facing, self.xy[0].x, self.xy[1].y, self.z),
         };
+
+        const transform = rotationTransform(self.geometry_rotation);
+        const scale: Vector3(f32) = .splat(model_to_world_scale);
+        for (&pos) |*p| p.* = .mul(fromZa(transform.mulByVec3(toZa(p.*))), scale);
 
         if (self.flip_winding) {
             const tmp = pos[1];
@@ -195,6 +232,7 @@ pub fn bake(
     model: ResolvedBlockModel,
     x_rotation: StateToModelMap.ModelVariant.Angle,
     y_rotation: StateToModelMap.ModelVariant.Angle,
+    uvlock: bool,
 ) !@This() {
     var face_count: usize = 0;
     for (model.elements) |element| {
@@ -206,18 +244,19 @@ pub fn bake(
     var faces: std.ArrayList(Face) = try .initCapacity(gpa, face_count);
 
     for (model.elements) |element| {
-        decomposeElement(&faces, element, x_rotation, y_rotation);
+        bakeElement(&faces, element, x_rotation, y_rotation, uvlock);
     }
 
     return .{ .faces = try faces.toOwnedSlice(gpa) };
 }
 
 /// Decompose into faces, then apply transforms and bake
-pub fn decomposeElement(
+pub fn bakeElement(
     baked_faces: *std.ArrayList(Face),
     element: ResolvedBlockModel.Element,
     x_rotation: StateToModelMap.ModelVariant.Angle,
     y_rotation: StateToModelMap.ModelVariant.Angle,
+    uvlock: bool,
 ) void {
     inline for (std.enums.values(Direction)) |dir| {
         if (@field(element.faces, @tagName(dir))) |face| {
@@ -227,6 +266,16 @@ pub fn decomposeElement(
                 .facing = dir,
                 .xy = .{ xy0, xy1 },
                 .z = z,
+                .geometry_rotation = if (element.rotation) |rotation| .{
+                    .origin = rotation.origin,
+                    .axis = switch (rotation.axis) {
+                        .z => .@"+z",
+                        .x => .@"+x",
+                        .y => .@"+y",
+                    },
+                    .angle = rotationAngle(rotation.angle),
+                    .rescale = rotation.rescale,
+                } else null,
                 .uv = .{ .{ .x = face.uv[0], .y = face.uv[1] }, .{ .x = face.uv[2], .y = face.uv[3] } },
                 .cullface = face.cullface,
                 .texture_rotation = face.rotation,
@@ -236,76 +285,44 @@ pub fn decomposeElement(
             for (0..@backingInt(x_rotation)) |_| ir.rotateX();
             for (0..@backingInt(y_rotation)) |_| ir.rotateY();
 
+            if (uvlock) {
+                // ir.uv = .{
+                //     .{ .x = @max(ir.xy[0].x, ir.xy[1].x), .y = @max(ir.xy[0].y, ir.xy[1].y) },
+                //     .{ .x = @min(ir.xy[0].x, ir.xy[1].x), .y = @min(ir.xy[0].y, ir.xy[1].y) },
+                // };
+                if (ir.flip_winding) ir.flip_uv_winding = true;
+                ir.uv = .{
+                    .{ .x = ir.xy[0].x, .y = ir.xy[0].y },
+                    .{ .x = ir.xy[1].x, .y = ir.xy[1].y },
+                };
+                // ir.texture_rotation = .@"90";
+            }
+
             baked_faces.appendAssumeCapacity(ir.bake());
         }
     }
 }
 
-pub fn bakeElement(baked_faces: *std.ArrayList(Face), element: ResolvedBlockModel.Element) void {
-    // model units are 0..16 per block,
-    // but world space is 0..1 per block
-    const model_to_world_scale: f32 = 1.0 / 16.0;
-
-    const transform = elementTransform(element.rotation);
-    const size: Vector3(f32) = .sub(element.to, element.from);
-
-    // anchor is the origin corner (element.from) mapped through transform
-    const anchor: Vector3(f32) = .mul(
-        fromZa(transform.mulByVec3(toZa(element.from))),
-        .splat(model_to_world_scale),
-    );
-    // the basis is its columns scaled by each edge's length
-    const basis: Vector3(Vector3(f32)) = .{
-        .x = .mul(column(transform, 0), .splat(size.x * model_to_world_scale)),
-        .y = .mul(column(transform, 1), .splat(size.y * model_to_world_scale)),
-        .z = .mul(column(transform, 2), .splat(size.z * model_to_world_scale)),
-    };
-
-    // zig fmt: off
-    const @"000" = anchor                                       ;
-    const @"001" = anchor                          .add(basis.z);
-    const @"010" = anchor             .add(basis.y)             ;
-    const @"011" = anchor             .add(basis.y).add(basis.z);
-    const @"100" = anchor.add(basis.x)                          ;
-    const @"101" = anchor.add(basis.x)             .add(basis.z);
-    const @"110" = anchor.add(basis.x).add(basis.y)             ;
-    const @"111" = anchor.add(basis.x).add(basis.y).add(basis.z);
-
-    if (element.faces.west)  |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"000", @"001", @"011", @"010" }, face));
-    if (element.faces.east)  |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"101", @"100", @"110", @"111" }, face));
-    if (element.faces.south) |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"001", @"101", @"111", @"011" }, face));
-    if (element.faces.north) |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"100", @"000", @"010", @"110" }, face));
-    if (element.faces.up)    |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"011", @"111", @"110", @"010" }, face));
-    if (element.faces.down)  |face| baked_faces.appendAssumeCapacity(fromFace(.{ @"000", @"100", @"101", @"001" }, face));
-    // zig fmt: on
-}
-
 /// An element's rotation as one affine matrix
-fn elementTransform(maybe_rotation: ?ResolvedBlockModel.Element.Rotation) za.Mat4 {
+fn rotationTransform(maybe_rotation: ?IntermediateFace.Rotation) za.Mat4 {
     const rotation = maybe_rotation orelse return .identity();
 
-    const angle = rotationAngle(rotation.angle);
-
     // 1 along the axis it spins about, 1/cos(angle) along the other two
-    const stretch_factor: f32 = if (rotation.rescale) 1.0 / @cos(angle * std.math.pi / 180.0) else 1.0;
-    const stretch: za.Vec3 = .new(
-        if (rotation.axis == .x) 1.0 else stretch_factor,
-        if (rotation.axis == .y) 1.0 else stretch_factor,
-        if (rotation.axis == .z) 1.0 else stretch_factor,
-    );
+    const stretch_factor: f32 = if (rotation.rescale) 1.0 / @cos(rotation.angle * std.math.pi / 180.0) else 1.0;
+    const stretch: za.Vec3 = switch (rotation.axis) {
+        .@"+x", .@"-x" => .new(1, stretch_factor, stretch_factor),
+        .@"+y", .@"-y" => .new(stretch_factor, 1, stretch_factor),
+        .@"+z", .@"-z" => .new(stretch_factor, stretch_factor, 1),
+    };
 
     const origin: za.Vec3 = .new(rotation.origin.x, rotation.origin.y, rotation.origin.z);
-    const back: za.Vec3 = .new(-origin.x(), -origin.y(), -origin.z());
+    const back: za.Vec3 = .new(-rotation.origin.x, -rotation.origin.y, -rotation.origin.z);
 
     var m: za.Mat4 = .fromTranslate(origin);
     m = .mul(m, .fromScale(stretch));
-    m = .mul(m, .fromRotation(angle, rotationAxis(rotation.axis)));
+    m = .mul(m, .fromRotation(rotation.angle, rotationAxis(rotation.axis)));
     m = .mul(m, .fromTranslate(back));
     return m;
-}
-
-fn column(m: za.Mat4, i: usize) Vector3(f32) {
-    return .{ .x = m.data[i][0], .y = m.data[i][1], .z = m.data[i][2] };
 }
 
 fn toZa(v: Vector3(f32)) za.Vec3 {
@@ -316,12 +333,17 @@ fn fromZa(v: za.Vec3) Vector3(f32) {
     return .{ .x = v.x(), .y = v.y(), .z = v.z() };
 }
 
-fn rotationAxis(axis: ResolvedBlockModel.Element.Rotation.Axis) za.Vec3 {
+fn rotationAxis(axis: Direction) za.Vec3 {
+    // zig fmt: off
     return switch (axis) {
-        .x => .new(1, 0, 0),
-        .y => .new(0, 1, 0),
-        .z => .new(0, 0, 1),
+        .@"+x" => .new( 1,  0,  0),
+        .@"+y" => .new( 0,  1,  0),
+        .@"+z" => .new( 0,  0,  1),
+        .@"-x" => .new(-1,  0,  0),
+        .@"-y" => .new( 0, -1,  0),
+        .@"-z" => .new( 0,  0, -1),
     };
+    // zig fmt: on
 }
 
 fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f32 {
@@ -331,25 +353,5 @@ fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f32 {
         .@"0" => 0,
         .@"22.5" => 22.5,
         .@"45" => 45,
-    };
-}
-
-fn fromFace(corners: [4]Vector3(f32), f: ResolvedBlockModel.Element.Face) Face {
-    var uvs: [4]Vector2xy(f32) = .{
-        .{ .x = f.uv[0], .y = f.uv[3] },
-        .{ .x = f.uv[2], .y = f.uv[3] },
-        .{ .x = f.uv[2], .y = f.uv[1] },
-        .{ .x = f.uv[0], .y = f.uv[1] },
-    };
-    for (0..@backingInt(f.rotation)) |_| {
-        // beware of rls!
-        const uvs_const = uvs;
-        uvs = .{ uvs_const[1], uvs_const[2], uvs_const[3], uvs_const[0] };
-    }
-    return .{
-        .pos = corners,
-        .texture = f.texture,
-        .cullface = f.cullface,
-        .uv = uvs,
     };
 }

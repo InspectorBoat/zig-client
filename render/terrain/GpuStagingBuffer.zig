@@ -6,10 +6,14 @@ const Direction = @import("root").Direction;
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,
 
-pub const TerrainVertex = extern struct {
-    pos: extern struct { x: f32, y: f32, z: f32 },
+pub const TerrainVertex = packed struct {
+    pos: packed struct { x: u16, y: u16, z: u16 },
+    sky_light: u4,
+    block_light: u4,
+    shade: i8,
+    _: u32 = 0,
     texture: Renderer.TextureHandle,
-    uv: extern struct { u: u8, v: u8 },
+    uv: packed struct { u: u8, v: u8 },
 };
 
 pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
@@ -22,18 +26,23 @@ pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
 pub fn writeVertex(
     self: *@This(),
     vertex_pos: Vector3(f32),
-    block_light: u8,
-    sky_light: u8,
+    block_light: u4,
+    sky_light: u4,
     texture: Renderer.TextureHandle,
     uv: Vector2xy(f32),
+    cullface: ?Direction,
 ) !void {
-    _ = block_light;
-    _ = sky_light;
     const quantized_uv: Vector2xy(u8) = .intFromFloat(uv);
     const vertex: TerrainVertex = .{
-        .pos = .{ .x = vertex_pos.x, .y = vertex_pos.y, .z = vertex_pos.z },
+        .pos = .{
+            .x = @round((vertex_pos.x + 8) * 2048),
+            .y = @round((vertex_pos.y + 8) * 2048),
+            .z = @round((vertex_pos.z + 8) * 2048),
+        },
+        .sky_light = sky_light,
+        .block_light = block_light,
         .texture = texture,
-        // .light = sky_light << 4 | block_light,
+        .shade = if (cullface) |c| @backingInt(c) else 7,
         .uv = .{ .u = quantized_uv.x, .v = quantized_uv.y },
     };
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&vertex));

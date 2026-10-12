@@ -349,6 +349,16 @@ pub fn Vector3(comptime Element: type) type {
                 .west => self.west(),
             };
         }
+        pub fn fromDir(direction: Direction) @This() {
+            return switch (direction) {
+                .@"+x" => .{ .x = 1, .y = 0, .z = 0 },
+                .@"+y" => .{ .x = 0, .y = 1, .z = 0 },
+                .@"+z" => .{ .x = 0, .y = 0, .z = 1 },
+                .@"-x" => .{ .x = -1, .y = 0, .z = 0 },
+                .@"-y" => .{ .x = 0, .y = -1, .z = 0 },
+                .@"-z" => .{ .x = 0, .y = 0, .z = -1 },
+            };
+        }
 
         pub fn cmp(lhs: @This(), op: std.math.CompareOperator, rhs: @This()) Vector3(bool) {
             return .{

@@ -199,7 +199,6 @@ pub fn resolveTextureVariable(texture_variables: std.StringHashMapUnmanaged([]co
 }
 
 pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction) ![4]f32 {
-    std.log.scoped(.resource_pack_uv).debug("computing auto uvs", .{});
     // zig fmt: off
     if (from.x < 0 or from.y < 0 or from.z < 0 or from.x > 16 or from.y > 16 or from.z > 16) return error.FailedUvMapping;
     if (  to.x < 0 or   to.y < 0 or   to.z < 0 or   to.x > 16 or   to.y > 16 or   to.z > 16) return error.FailedUvMapping;
@@ -244,7 +243,7 @@ pub fn createLookupTable(
             };
             const resolved_block_model = resolved_block_models.get(model_variant.model) orelse return error.ModelNotFound;
 
-            const baked_model: BakedModel = try .bake(gpa, resolved_block_model, model_variant.x, model_variant.y);
+            const baked_model: BakedModel = try .bake(gpa, resolved_block_model, model_variant.x, model_variant.y, model_variant.uvlock);
 
             try lookup_table.put(gpa, @unionInit(Block.VirtualState, @tagName(block), properties), baked_model);
 

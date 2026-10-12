@@ -9,6 +9,9 @@ layout(std430, binding = 0) restrict readonly buffer geometry {
 
 out vec2 uv;
 flat out uint texture_id;
+flat out uint block_light;
+flat out uint sky_light;
+flat out uint shade;
 
 void main() {
     // one TerrainVertex is 16 bytes = 4 uints; the index buffer holds 0,1,2,3
@@ -16,10 +19,14 @@ void main() {
     uint base = gl_VertexID * 4;
 
     vec3 vertex_pos = vec3(
-        uintBitsToFloat(data[base + 0]),
-        uintBitsToFloat(data[base + 1]),
-        uintBitsToFloat(data[base + 2])
+        float(data[base + 0] & 0xFFFF) / 2048.0 - 8.0,
+        float(data[base + 0] >>    16) / 2048.0 - 8.0,
+        float(data[base + 1] & 0xFFFF) / 2048.0 - 8.0
     );
+
+    sky_light = (data[base + 1] >> 16) & 0xF;
+    block_light = (data[base + 1] >> 20) & 0xF;
+    shade = (data[base + 1] >> 24) & 0xFF;
 
     // the last uint is texture | u << 16 | v << 24
     uint last = data[base + 3];
