@@ -74,12 +74,11 @@ pub const std_options: std.Options = .{
         .{ .scope = .net, .level = .err },
         .{ .scope = .resource_pack_states, .level = .err },
         .{ .scope = .resource_pack, .level = .info },
+        .{ .scope = .section_revision, .level = .warn },
     },
 };
 
-pub fn main() !void {
-    std.debug.print("\n---------------------\n", .{});
-
+pub fn main(init: std.process.Init) !void {
     try EventHandler.dispatch(Events.Startup, .{});
 
     var gpa_impl: std.heap.DebugAllocator(.{}) = .{};
@@ -88,7 +87,10 @@ pub fn main() !void {
     try network_lib.init();
     defer network_lib.deinit();
 
-    var client: Client = .{ .idle = .{ .gpa = gpa } };
+    var client: Client = .{ .idle = .{
+        .gpa = gpa,
+        .io = init.io,
+    } };
 
     var c2s_packet_alloc_impl: std.heap.DebugAllocator(.{}) = .{};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();

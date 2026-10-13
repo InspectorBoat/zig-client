@@ -9,32 +9,22 @@ const PhysicalState = @import("root").Block.PhysicalState;
 const VirtualState = @import("root").Block.VirtualState;
 const PackedNibbleArray = @import("util").PackedNibbleArray;
 
-section_pos: Vector3(i32),
 block_states: [18][18][18]VirtualState,
 block_light: PackedNibbleArray(18, 18, 18),
 sky_light: PackedNibbleArray(18, 18, 18),
-revision: u32,
 
-pub const CompilationResult = struct {
-    section_pos: Vector3(i32),
-    revision: u32,
-    result: union(enum) {
-        Success: CompiledSection,
-        Error: error{OutOfMemory},
-    },
+pub const Error = error{ Canceled, OutOfMemory };
 
-    pub const CompiledSection = struct {
-        quads: usize,
-        buffer: std.ArrayList(u8),
-    };
+pub const Result = struct {
+    quads: usize,
+    buffer: std.ArrayList(u8),
 };
 
-pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !*@This() {
+pub fn create(section_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !*@This() {
     @setRuntimeSafety(false);
 
     const task = try allocator.create(@This());
-    task.section_pos = section_pos;
-    task.revision = revision;
+
     const base_block_pos: Vector3(i32) = .sub(
         .mul(section_pos, .splat(16)),
         .{ .x = 1, .y = 1, .z = 1 },
@@ -52,29 +42,20 @@ pub fn create(section_pos: Vector3(i32), world: *const World, revision: u32, all
     return task;
 }
 
-pub fn runTask(task: *@This(), result_queue: *CompilationResultQueue, allocator: std.mem.Allocator) void {
-    defer allocator.destroy(task);
-    result_queue.add(.{
-        .section_pos = task.section_pos,
-        .revision = task.revision,
-        .result = if (compile(task, allocator)) |compiled_section|
-            .{ .Success = compiled_section }
-        else |e|
-            .{ .Error = e },
-    }) catch std.debug.panic("TODO!", .{});
-}
+pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, result_queue: *CompilationResultQueue, result_token: *std.SinglyLinkedList.Node) Error!Result {
+    defer {
+        result_queue.addCompleted(io, result_token);
+        allocator.destroy(task);
+    }
 
-const Renderer = @import("../Renderer.zig");
-
-pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.CompiledSection {
-    @setRuntimeSafety(false);
-
-    // const start: @import("llm-code-quarantine").Timer = .init();
-    // defer std.debug.print("section compiled in {d} ms\n", .{start.ms()});
-    var total: usize = 0;
     var staging: GpuStagingBuffer = try .initCapacity(allocator, 4096);
-    // place blocks in chunk
+    errdefer staging.backer.deinit(allocator);
+
+    var quads: usize = 0;
+
     for (1..17) |x| {
+        try io.checkCancel();
+
         for (1..17) |y| {
             for (1..17) |z| {
                 const model = @import("../render.zig").renderer.lookup_table.get(task.block_states[x][y][z]) orelse continue;
@@ -126,13 +107,13 @@ pub fn compile(task: *@This(), allocator: std.mem.Allocator) !CompilationResult.
                             face.cullface,
                         );
                     }
-                    total += 1;
+                    quads += 1;
                 }
             }
         }
     }
     return .{
         .buffer = staging.backer,
-        .quads = total,
+        .quads = quads,
     };
 }

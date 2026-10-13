@@ -9,12 +9,18 @@ const World = root.World;
 pub const Client = union(enum) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
+        io: std.Io,
 
         pub fn initConnection(self: *@This(), name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
+            const gpa = self.gpa;
+            const io = self.io;
+
             var connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
             const client: *Client = @fieldParentPtr("idle", self);
             client.* = .{ .connecting = .{
-                .gpa = self.gpa,
+                .gpa = gpa,
+                .io = io,
+
                 .connection_handle = connection_handle,
             } };
             try connection_handle.sendLoginSequence(player_name);
@@ -22,11 +28,16 @@ pub const Client = union(enum) {
     };
     pub const Connecting = struct {
         gpa: std.mem.Allocator,
+        io: std.Io,
+
         connection_handle: ConnectionHandle,
     };
     pub const Game = struct {
         gpa: std.mem.Allocator,
+        io: std.Io,
+
         connection_handle: ConnectionHandle,
+
         world: World,
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
@@ -213,19 +224,27 @@ pub const Client = union(enum) {
     pub fn disconnect(self: *@This()) void {
         switch (self.*) {
             .game => |*game| {
+                const gpa = game.gpa;
+                const io = game.io;
+
                 std.log.scoped(.client).debug("total delay: {d} ms", .{game.tick_delay});
                 std.log.scoped(.client).info("main thread terminating connection", .{});
                 game.connection_handle.disconnect(game.gpa);
                 game.world.deinit(game.gpa);
                 self.* = .{ .idle = .{
-                    .gpa = game.gpa,
+                    .gpa = gpa,
+                    .io = io,
                 } };
             },
             .connecting => |*connecting| {
+                const gpa = connecting.gpa;
+                const io = connecting.io;
+
                 std.log.scoped(.client).info("main thread terminating connection", .{});
                 connecting.connection_handle.disconnect(connecting.gpa);
                 self.* = .{ .idle = .{
-                    .gpa = connecting.gpa,
+                    .gpa = gpa,
+                    .io = io,
                 } };
             },
             else => unreachable,

@@ -66,8 +66,8 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (client.*) {
         .game => |*game| {
             try handleInputIngame(frame.input_queue.?);
-            try renderer.updateAndDispatchDirtySections(&game.world, gpa_impl.allocator());
-            try renderer.uploadCompilationResults();
+            try renderer.updateAndDispatchDirtySections(game.io, &game.world, gpa_impl.allocator());
+            try renderer.uploadCompilationResults(game.io);
             try renderer.renderFrame(game);
         },
         .connecting => |*connecting_game| {

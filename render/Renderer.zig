@@ -61,7 +61,7 @@ pub fn init(allocator: std.mem.Allocator) !@This() {
     const vao: gl.VertexArray = .create();
 
     const compile_thread_pool = try initCompileThreadPool(allocator);
-    const compilation_result_queue: CompilationResultQueue = .init(allocator);
+    const compilation_result_queue: CompilationResultQueue = try .init(allocator, 1024);
     const chunk_tracker: ChunkTracker = .init(allocator);
 
     const debug_program = try initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", allocator);
@@ -504,7 +504,7 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
     try self.chunk_tracker.markBlockPosDirty(block_pos);
 }
 
-pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, allocator: std.mem.Allocator) !void {
+pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, world: *const World, allocator: std.mem.Allocator) !void {
     const start: @import("llm-code-quarantine").Timer = .init();
 
     var iter = self.chunk_tracker.chunks.iterator();
@@ -524,10 +524,11 @@ pub fn updateAndDispatchDirtySections(self: *@This(), world: *const World, alloc
                     if (maybe_section) |_| {
                         // Send recompilation request if section is non-null
                         try self.dispatchCompilationTask(
-                            .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
-                            world,
-                            section_info.current_revision,
+                            io,
                             allocator,
+                            world,
+                            .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
+                            section_info.current_revision,
                         );
                         section_info.alertCompilationDispatch();
                     } else {
@@ -567,65 +568,62 @@ pub fn recompileAllChunks(self: *@This()) !void {
     self.gpu_memory_allocator = try .init(self.allocator, 1024 * 1024 * 1024 * 2 - 1);
 }
 
-pub fn dispatchCompilationTask(self: *@This(), section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !void {
-    try self.compile_thread_pool.spawn(
-        CompilationTask.runTask,
+pub fn dispatchCompilationTask(
+    self: *@This(),
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    world: *const World,
+    section_pos: Vector3(i32),
+    revision: u32,
+) !void {
+    const entry = try self.compilation_result_queue.take(section_pos, revision);
+    entry.future = io.async(
+        CompilationTask.compile,
         .{
-            try CompilationTask.create(section_pos, world, revision, allocator),
-            &self.compilation_result_queue,
+            try .create(section_pos, world, allocator),
+            io,
             allocator,
+            &self.compilation_result_queue,
+            &entry.next_completed,
         },
     );
 }
 
-pub fn dispatchCompilationTaskSync(self: *@This(), section_pos: Vector3(i32), world: *const World, revision: u32, allocator: std.mem.Allocator) !void {
-    CompilationTask.runTask(
-        try CompilationTask.create(section_pos, world, revision, allocator),
-        &self.compilation_result_queue,
-        allocator,
-    );
-}
-
-pub fn uploadCompilationResults(self: *@This()) !void {
-    if (self.compilation_result_queue.sections.first == null) return;
-
+pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
     const start: @import("llm-code-quarantine").Timer = .init();
 
-    while (self.compilation_result_queue.pop()) |compilation_result| {
-        switch (compilation_result.result) {
-            .Success => |section| {
-                var compiled_section = section;
-                defer compiled_section.buffer.deinit(self.allocator);
+    while (self.compilation_result_queue.popCompleted(io)) |result| {
+        if (result.result) |mesh_const| {
+            var mesh = mesh_const;
+            defer mesh.buffer.deinit(self.allocator);
 
-                const chunk_pos: Vector2xz(i32) = .{ .x = compilation_result.section_pos.x, .z = compilation_result.section_pos.z };
-                const section_y: usize = @intCast(compilation_result.section_pos.y);
+            const chunk_pos: Vector2xz(i32) = .{ .x = result.section_pos.x, .z = result.section_pos.z };
+            const section_y: usize = @intCast(result.section_pos.y);
 
-                // Return if chunk is no longer being tracked
-                const section_compile_info = &(self.chunk_tracker.chunks.getPtr(chunk_pos) orelse continue).rendering[section_y];
+            // Return if chunk is no longer being tracked
+            const section_compile_info = &(self.chunk_tracker.chunks.getPtr(chunk_pos) orelse continue).rendering[section_y];
 
-                // Notify compile tracker
-                section_compile_info.alertCompilationRecieved(compilation_result.revision) catch |e| switch (e) {
-                    error.DuplicateRevision => std.debug.panic("duplicate revision recieved: {}\n", .{compilation_result.revision}),
-                    // Return if revision is outdated
-                    error.OutdatedRevision => continue,
+            // Notify compile tracker
+            section_compile_info.alertCompilationRecieved(result.revision) catch |e| switch (e) {
+                error.DuplicateRevision => std.debug.panic("duplicate revision recieved for {}", .{result.section_pos}),
+                // Return if revision is outdated
+                error.OutdatedRevision => std.log.scoped(.section_revision).warn("recieved outdated revision {} for {}", .{ result.revision, result.section_pos }),
+            };
+            std.log.scoped(.section_revision).debug("recieved revision {} for {}", .{ result.revision, result.section_pos });
+            const buffer_data = mesh.buffer.items;
+            var render_info: ?ChunkTracker.SectionRenderInfo = null;
+            if (buffer_data.len > 0) {
+                // Store rendering info
+                // Allocate gpu memory and upload segment
+                const segment = try self.gpu_memory_allocator.alloc(buffer_data.len);
+                self.gpu_memory_allocator.subData(segment, buffer_data);
+                render_info = .{
+                    .quads = mesh.quads,
+                    .segment = segment,
                 };
-
-                const buffer_data = compiled_section.buffer.items;
-                var render_info: ?ChunkTracker.SectionRenderInfo = null;
-                if (buffer_data.len > 0) {
-                    // Store rendering info
-                    // Allocate gpu memory and upload segment
-                    const segment = try self.gpu_memory_allocator.alloc(buffer_data.len);
-                    self.gpu_memory_allocator.subData(segment, buffer_data);
-                    render_info = .{
-                        .quads = compiled_section.quads,
-                        .segment = segment,
-                    };
-                }
-                try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
-            },
-            .Error => |e| std.debug.print("Error meshing section at {}: {}", .{ compilation_result.section_pos, e }),
-        }
+            }
+            try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
+        } else |e| std.log.err("Error meshing section at {}: {}", .{ result.section_pos, e });
         if (start.ms() > 3) return;
     }
 }

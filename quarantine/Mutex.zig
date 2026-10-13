@@ -17,7 +17,7 @@ pub const Mutex = struct {
 
     pub fn lock(self: *Mutex) void {
         while (!self.tryLock()) {
-            std.Thread.yield() catch {};
+            std.atomic.spinLoopHint();
         }
     }
 

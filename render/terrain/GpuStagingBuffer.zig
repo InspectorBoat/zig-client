@@ -23,6 +23,10 @@ pub fn initCapacity(allocator: std.mem.Allocator, num: usize) !@This() {
     };
 }
 
+pub fn deinit(self: *@This()) void {
+    self.backer.deinit(self.allocator);
+}
+
 pub fn writeVertex(
     self: *@This(),
     vertex_pos: Vector3(f32),
