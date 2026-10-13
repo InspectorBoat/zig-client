@@ -16,7 +16,7 @@ pub const Client = union(enum) {
             const io = self.io;
 
             var connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
-            const client: *Client = @fieldParentPtr("idle", self);
+            const client: *Client = @alignCast(@fieldParentPtr("idle", self));
             client.* = .{ .connecting = .{
                 .gpa = gpa,
                 .io = io,
@@ -164,7 +164,7 @@ pub const Client = union(enum) {
             .game => |*game| {
                 game.handleInputOnFrame();
 
-                const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance();
+                const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance(game.io);
                 if (ticks_elapsed == 0) return;
 
                 // Do logging

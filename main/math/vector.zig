@@ -264,6 +264,30 @@ pub fn Vector3(comptime Element: type) type {
             };
         }
 
+        pub fn divFloor(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divFloor(self.x, divisor.x),
+                .y = @divFloor(self.y, divisor.y),
+                .z = @divFloor(self.z, divisor.z),
+            };
+        }
+
+        pub fn divCeil(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divCeil(self.x, divisor.x),
+                .y = @divCeil(self.y, divisor.y),
+                .z = @divCeil(self.z, divisor.z),
+            };
+        }
+
+        pub fn divTrunc(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divTrunc(self.x, divisor.x),
+                .y = @divTrunc(self.y, divisor.y),
+                .z = @divTrunc(self.z, divisor.z),
+            };
+        }
+
         pub fn negate(self: @This()) @This() {
             return .{
                 .x = -self.x,

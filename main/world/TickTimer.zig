@@ -2,14 +2,15 @@ const std = @import("std");
 const monotonicNanos = @import("llm-code-quarantine").monotonicNanos;
 
 tps: f32 = 20.0,
-tps_scale: f32 = 1.0,
-start: u64 = 0,
+start: std.Io.Timestamp,
+last: std.Io.Timestamp,
 total_ticks: usize = 0,
-last_nanos: u64 = 0,
 
-pub fn init() !@This() {
+pub fn init(io: std.Io) !@This() {
+    const now: std.Io.Timestamp = .now(io, .awake);
     return .{
-        .start = monotonicNanos(),
+        .start = now,
+        .last = now,
     };
 }
 
@@ -17,52 +18,32 @@ pub const TicksElapsed = usize;
 pub const PartialTick = f64;
 
 /// Returns the amount of ticks elapsed since the last time `advance` was called and the progress from the last tick to the next
-pub fn advance(self: *@This()) struct { TicksElapsed, PartialTick } {
-    const current_nanos = monotonicNanos();
-    // the amount of ticks elapsed since the last time advance was called
-    var ticks_elapsed: usize = 0;
+pub fn advance(self: *@This(), io: std.Io) struct { TicksElapsed, PartialTick } {
+    const now: std.Io.Timestamp = .now(io, .awake);
+    defer self.last = now;
 
-    // this variable is stepped through each instant at which a tick occurs
-    var nanos = self.last_nanos;
-    while (true) {
-        const next_tick_nanos = self.nextTickNanos(nanos);
-        if (current_nanos < next_tick_nanos) {
-            break;
-        }
-        nanos = next_tick_nanos;
-        ticks_elapsed += 1;
-    }
-    const last_tick_nanos = self.lastTickNanos(nanos);
-    const nanos_since_last_tick = current_nanos - last_tick_nanos;
-    const partial_tick = @as(f64, @floatFromInt(nanos_since_last_tick)) / @as(f64, @floatFromInt(self.nanosPerTick()));
-    self.last_nanos = current_nanos;
+    const last_tick_ordinal = tickOrdinal(self.last, self.tps);
+    const current_tick_ordinal = tickOrdinal(now, self.tps);
 
-    if (ticks_elapsed > 10) ticks_elapsed = 10;
-    self.total_ticks += ticks_elapsed;
+    const ticks_elapsed: usize = @intCast(current_tick_ordinal - last_tick_ordinal);
 
-    return .{ ticks_elapsed, partial_tick };
+    const last_tick = lastTick(now, self.tps);
+    const partial_tick = std.math.lossyCast(f64, last_tick.durationTo(now).nanoseconds) / std.time.ns_per_s * self.tps;
+    return .{ @min(ticks_elapsed, 10), partial_tick };
 }
 
-/// Calculates the amount of nanoseconds between each tick
-pub fn nanosPerTick(self: @This()) u64 {
-    const scaled_tps = self.tps * self.tps_scale;
-    return @intFromFloat(@as(f32, std.time.ns_per_s) / scaled_tps);
+pub fn nanosPerTick(tps: f32) i96 {
+    return @intFromFloat(@as(f32, std.time.ns_per_s) / tps);
 }
 
-/// Given the current time in nanoseconds, returns the last time in nanoseconds at which a tick occurred
-pub fn lastTickNanos(self: *@This(), time: u64) u64 {
-    const nanos_per_tick = self.nanosPerTick();
+pub fn tickOrdinal(timestamp: std.Io.Timestamp, tps: f32) i96 {
+    const nanos_per_tick: i96 = nanosPerTick(tps);
 
-    const last_tick_ordinal = time / nanos_per_tick;
-    return last_tick_ordinal * nanos_per_tick;
+    return @divFloor(timestamp.nanoseconds, nanos_per_tick);
 }
 
-/// Given the current time in nanoseconds, returns the next time in nanoseconds at which a tick will occur
-pub fn nextTickNanos(self: @This(), time: u64) u64 {
-    const nanos_per_tick = self.nanosPerTick();
+pub fn lastTick(timestamp: std.Io.Timestamp, tps: f32) std.Io.Timestamp {
+    const nanos_per_tick: i96 = nanosPerTick(tps);
 
-    const last_tick_ordinal = time / nanos_per_tick;
-    const next_tick_ordinal = last_tick_ordinal + 1;
-
-    return next_tick_ordinal * nanos_per_tick;
+    return .{ .nanoseconds = @divFloor(timestamp.nanoseconds, nanos_per_tick) * nanos_per_tick };
 }

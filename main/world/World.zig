@@ -37,14 +37,15 @@ mining_state: ?struct {
     face: Direction,
 } = null,
 
-pub fn init(info: struct {
-    difficulty: Difficulty,
-    dimension: i8,
-    hardcore: bool,
-}, player: LocalPlayerEntity, allocator: std.mem.Allocator) !@This() {
+pub fn init(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    info: struct { difficulty: Difficulty, dimension: i8, hardcore: bool },
+    player: LocalPlayerEntity,
+) !@This() {
     return .{
         .entity_tracker = try .init(allocator),
-        .tick_timer = try .init(),
+        .tick_timer = try .init(io),
         .difficulty = info.difficulty,
         .dimension = info.dimension,
         .hardcore = info.hardcore,
@@ -197,7 +198,6 @@ pub fn receiveChunk(
 ) !void {
     std.log.scoped(.world).debug("updating chunk at {}", .{chunk_pos});
 
-    const start = @import("llm-code-quarantine").monotonicNanos();
     const chunk = self.chunks.getPtr(chunk_pos).?;
     // copy block state data
     for (0..16) |section_y| {
@@ -241,7 +241,6 @@ pub fn receiveChunk(
         @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
     }
 
-    std.log.scoped(.world).debug("decoded chunk in {d} ms", .{@as(f64, @floatFromInt((@import("llm-code-quarantine").monotonicNanos() - start))) / @as(f64, std.time.ns_per_ms)});
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
 
@@ -352,6 +351,7 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
 
     self.entity_tracker.deinit();
 
-    const milliseconds_elapsed = @as(f64, @floatFromInt(@import("llm-code-quarantine").monotonicNanos() - self.tick_timer.start)) / std.time.ns_per_ms;
+    // TODO
+    const milliseconds_elapsed: f64 = 0;
     std.log.scoped(.world).info("average ms/tick: {d} ms", .{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
 }

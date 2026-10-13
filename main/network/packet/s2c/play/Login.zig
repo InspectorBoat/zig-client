@@ -52,6 +52,8 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
     const connection_handle = connecting.connection_handle;
 
     var world: World = try .init(
+        connecting.io,
+        allocator,
         .{
             .difficulty = self.difficulty,
             .dimension = self.dimension,
@@ -64,7 +66,6 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
             },
             .abilities = undefined,
         },
-        allocator,
     );
     errdefer world.deinit(allocator);
 
@@ -82,7 +83,7 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
         .skin_layers = .{},
     } });
 
-    const client: *Client = @fieldParentPtr("connecting", connecting);
+    const client: *Client = @alignCast(@fieldParentPtr("connecting", connecting));
     client.* = .{ .game = .{
         .gpa = gpa,
         .io = io,

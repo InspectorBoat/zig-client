@@ -489,11 +489,14 @@ pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
 }
 
 pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
-    try self.chunk_tracker.markBlockPosDirty(block_pos);
+    try self.chunk_tracker.markAreaDirty(
+        .sub(block_pos, .splat(1)),
+        .add(block_pos, .splat(1)),
+    );
 }
 
 pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, world: *const World, allocator: std.mem.Allocator) !void {
-    const start: @import("llm-code-quarantine").Timer = .init();
+    const start: std.Io.Clock.Timestamp = .now(io, .real);
 
     var iter = self.chunk_tracker.chunks.iterator();
 
@@ -537,7 +540,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, world: *const 
             }
         }
 
-        if (start.ms() > 3) return;
+        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
     }
 }
 
@@ -583,7 +586,7 @@ pub fn dispatchCompilationTask(
 }
 
 pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
-    const start: @import("llm-code-quarantine").Timer = .init();
+    const start: std.Io.Clock.Timestamp = .now(io, .real);
 
     while (self.compilation_tracker.popCompleted(io)) |completed| {
         if (completed.mesh) |mesh_const| {
@@ -617,7 +620,7 @@ pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
             }
             try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
         } else |e| std.log.scoped(.section_revision).err("error meshing section at {}: {}", .{ completed.section_pos, e });
-        if (start.ms() > 3) return;
+        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
     }
 }
 

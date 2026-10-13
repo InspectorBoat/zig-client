@@ -121,6 +121,27 @@ pub fn markBlockPosDirty(self: *@This(), block_pos: Vector3(i32)) !void {
     }
 }
 
+pub fn markAreaDirty(self: *@This(), block_pos_min: Vector3(i32), block_pos_max: Vector3(i32)) !void {
+    const min_section_pos: Vector3(i32) = .divFloor(block_pos_min, .splat(16));
+    const max_section_pos: Vector3(i32) = .divFloor(block_pos_max, .splat(16));
+    var x: i32 = min_section_pos.x;
+    var y: i32 = min_section_pos.y;
+    var z: i32 = min_section_pos.z;
+    while (x <= max_section_pos.x) : (x += 1) {
+        while (y <= max_section_pos.y) : (y += 1) {
+            while (z <= max_section_pos.z) : (z += 1) {
+                const chunk = self.chunks.getPtr(.{ .x = x, .z = z }) orelse return;
+                switch (chunk.*) {
+                    .rendering => |*sections| {
+                        sections[@intCast(y)].markDirty();
+                    },
+                    .waiting => return,
+                }
+            }
+        }
+    }
+}
+
 pub fn removeChunk(self: *@This(), chunk_pos: Vector2xz(i32)) void {
     std.debug.assert(self.chunks.remove(chunk_pos));
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = -1 }))) |north| {
