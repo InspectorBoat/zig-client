@@ -59,7 +59,7 @@ const Iterator = struct {
         while (true) {
             defer self.index += 1;
 
-            if (self.index >= 32 * 32) return null;
+            if (self.index >= self.map.metadata.capacity()) return null;
             if (self.map.metadata.isSet(self.index)) {
                 return self.map.items[self.index].chunk;
             }

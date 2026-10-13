@@ -2,7 +2,7 @@ const std = @import("std");
 const Vector3 = @import("root").Vector3;
 const World = @import("root").World;
 const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
-const CompilationResultQueue = @import("CompilationResultQueue.zig");
+const CompilationTracker = @import("CompilationTracker.zig");
 const Box = @import("root").Box;
 const Direction = @import("root").Direction;
 const PhysicalState = @import("root").Block.PhysicalState;
@@ -15,7 +15,7 @@ sky_light: PackedNibbleArray(18, 18, 18),
 
 pub const Error = error{ Canceled, OutOfMemory };
 
-pub const Result = struct {
+pub const Mesh = struct {
     quads: usize,
     buffer: std.ArrayList(u8),
 };
@@ -42,14 +42,14 @@ pub fn create(section_pos: Vector3(i32), world: *const World, allocator: std.mem
     return task;
 }
 
-pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, result_queue: *CompilationResultQueue, result_token: *std.SinglyLinkedList.Node) Error!Result {
+pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker: *CompilationTracker, completion_token: *std.SinglyLinkedList.Node) Error!Mesh {
     defer {
-        result_queue.addCompleted(io, result_token);
+        tracker.addCompleted(io, completion_token);
         allocator.destroy(task);
     }
 
     var staging: GpuStagingBuffer = try .initCapacity(allocator, 4096);
-    errdefer staging.backer.deinit(allocator);
+    errdefer staging.deinit();
 
     var quads: usize = 0;
 

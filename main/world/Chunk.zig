@@ -14,4 +14,5 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
             allocator.destroy(section);
         }
     }
+    allocator.destroy(self);
 }

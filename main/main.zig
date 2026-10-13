@@ -79,23 +79,20 @@ pub const std_options: std.Options = .{
 };
 
 pub fn main(init: std.process.Init) !void {
-    try EventHandler.dispatch(Events.Startup, .{});
-
-    var gpa_impl: std.heap.DebugAllocator(.{}) = .{};
-    const gpa = gpa_impl.allocator();
+    try EventHandler.dispatch(Events.Startup, .{ .gpa = init.gpa, .io = init.io });
 
     try network_lib.init();
     defer network_lib.deinit();
 
     var client: Client = .{ .idle = .{
-        .gpa = gpa,
+        .gpa = init.gpa,
         .io = init.io,
     } };
 
     var c2s_packet_alloc_impl: std.heap.DebugAllocator(.{}) = .{};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
-    try client.idle.initConnection("127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
+    try client.idle.initConnection("127.0.0.1", 25565, "baz", init.gpa, c2s_packet_alloc);
 
     defer {
         if (client != .idle) client.disconnect();
@@ -120,7 +117,7 @@ pub fn exit(_: Events.Exit) void {
 }
 
 pub const Events = struct {
-    pub const Startup = struct {};
+    pub const Startup = struct { gpa: std.mem.Allocator, io: std.Io };
     pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const Chunk, world: *const World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };

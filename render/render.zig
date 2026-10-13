@@ -10,7 +10,6 @@ const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
 const Vector2xy = root.Vector2xy;
 
-var gpa_impl: std.heap.DebugAllocator(.{ .thread_safe = true, .stack_trace_frames = 50 }) = .{};
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
 
@@ -23,8 +22,8 @@ pub const event_listeners = .{
     onExit,
 };
 
-pub fn onStartup(_: Events.Startup) !void {
-    const gpa = gpa_impl.allocator();
+pub fn onStartup(startup: Events.Startup) !void {
+    const gpa = startup.gpa;
 
     // innitialize glfw
     glfw_helper.setGlfwErrorCallback();
@@ -43,12 +42,11 @@ pub fn onStartup(_: Events.Startup) !void {
     window_input.setGlfwInputCallbacks();
 
     // initialize renderer
-    renderer = try .init(gpa);
+    renderer = try .init(startup.io, gpa);
 }
 
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
-        if (true) std.process.exit(0);
         try EventHandler.dispatch(Events.Exit, .{});
         return;
     }
@@ -66,7 +64,7 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (client.*) {
         .game => |*game| {
             try handleInputIngame(frame.input_queue.?);
-            try renderer.updateAndDispatchDirtySections(game.io, &game.world, gpa_impl.allocator());
+            try renderer.updateAndDispatchDirtySections(game.io, &game.world, game.gpa);
             try renderer.uploadCompilationResults(game.io);
             try renderer.renderFrame(game);
         },
@@ -95,8 +93,6 @@ pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
 pub fn onExit(_: Events.Exit) !void {
     try renderer.deinit();
     window_input.deinit();
-    gpa_impl.allocator().destroy(renderer.compile_thread_pool);
-    _ = gpa_impl.detectLeaks();
     std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }
 
@@ -167,8 +163,8 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                         std.log.scoped(.render).info("reloading shaders", .{});
                         renderer.terrain_program.delete();
                         renderer.debug_program.delete();
-                        renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", gpa_impl.allocator());
-                        renderer.debug_program = try Renderer.initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", gpa_impl.allocator());
+                        renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", renderer.allocator);
+                        renderer.debug_program = try Renderer.initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", renderer.allocator);
                     },
 
                     .w => try input_queue.queueOnTick(.{ .movement = .{ .forward = (key.action == .press) } }),
