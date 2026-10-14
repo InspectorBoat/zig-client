@@ -177,29 +177,23 @@ pub const Client = union(enum) {
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     /// Disconnects if connection is closed
     pub fn tickConnection(self: *@This(), io: std.Io) !void {
-        const gpa, const connection_handle, const s2c_packet_queue, const c2s_packet_queue = switch (self.*) {
+        const gpa, const connection_handle, const s2c_packet_queue = switch (self.*) {
             inline .game, .connecting => |client_state| .{
                 client_state.gpa,
                 client_state.connection_handle,
                 client_state.connection_handle.s2c_packet_queue,
-                client_state.connection_handle.c2s_packet_queue,
             },
             else => unreachable,
         };
 
         // Read and handle incoming s2c packets
         while (true) {
-            const s2c_packet_wrapper = s2c_packet_queue.claim(io) orelse break;
-            defer {
-                s2c_packet_queue.release(io);
-                Connection.ringbuffer.freeFromTail(s2c_packet_wrapper.tail_mark);
-            }
+            var s2c_packet, const tail_mark = s2c_packet_queue.pop() orelse break;
+            defer Connection.ringbuffer.freeFromTail(tail_mark);
 
-            std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
+            std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet))});
 
-            var s2c_play_packet = s2c_packet_wrapper.packet;
-
-            switch (s2c_play_packet) {
+            switch (s2c_packet) {
                 // Specific packet type must be comptime known, thus inline else is necessary
                 inline else => |*specific_packet| {
                     // Eliminate packets at comptime to prevent a compile error
@@ -215,9 +209,6 @@ pub const Client = union(enum) {
                 },
             }
         }
-
-        // Free c2s packets already sent by the network thread
-        while (c2s_packet_queue.reclaim(io)) |_| {}
 
         if (connection_handle.wants_disconnect.load(.acquire)) {
             self.disconnect(io);

@@ -49,8 +49,8 @@ pub fn usedBytes(self: *const @This()) usize {
 
 pub fn alloc(self: *@This(), n: usize, alignment: std.mem.Alignment) ![*]u8 {
     // reset state if we couldn't allocate
-    const initial_state = self.*;
-    errdefer self.* = initial_state;
+    const initial_logical_alloc_index = self.logical_alloc_index;
+    errdefer self.logical_alloc_index = initial_logical_alloc_index;
 
     const ptr_align = alignment.toByteUnits();
 
@@ -86,7 +86,7 @@ pub fn beginRewind(self: *@This()) RewindMark {
 }
 
 // Run it back
-pub fn undoAllocations(self: *@This(), mark: RewindMark) usize {
+pub fn undoAllocations(self: *@This(), mark: RewindMark) void {
     std.debug.assert(self.safety.active_rewind_index != null);
     std.debug.assert(mark.index == self.safety.active_rewind_index.?);
     // if you trigger this check, it's probably the RingBuffer that has a bug,
@@ -94,12 +94,8 @@ pub fn undoAllocations(self: *@This(), mark: RewindMark) usize {
     // counterfeit Marks)
     std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
 
-    const freed = self.logical_alloc_index - mark.index;
-
     self.logical_alloc_index = mark.index;
     self.safety.active_rewind_index = null;
-
-    return freed;
 }
 
 // I got this blade in my hand for your punishment
@@ -120,9 +116,7 @@ pub fn freeFromTail(self: *@This(), mark: TailMark) void {
     // if you trigger this check, it's probably the RingBuffer that has a bug,
     // not the consuming code (unless it does something really stupid like forging
     // counterfeit Marks)
-    std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
-
-    // std.log.scoped(.ring_buffer).debug("freed {} bytes, now {}", .{ mark.index - self.logical_free_index, self.usedBytes() });
+    std.debug.assert(mark.index >= self.logical_free_index);
 
     self.logical_free_index = mark.index;
     self.safety.oldest_tail_serial += 1;
