@@ -23,7 +23,6 @@ const BakedModel = @import("resource_pack/BakedModel.zig");
 
 pub const TextureHandle = enum(u16) { _ };
 
-io: std.Io,
 allocator: std.mem.Allocator,
 vao: gl.VertexArray,
 terrain_program: gl.Program,
@@ -85,7 +84,6 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
     std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
     return .{
-        .io = io,
         .allocator = allocator,
 
         .vao = vao,
@@ -653,11 +651,11 @@ pub fn unloadAllChunks(self: *@This()) !void {
     self.chunk_tracker.chunks.clearAndFree();
 }
 
-pub fn deinit(self: *@This()) !void {
+pub fn deinit(self: *@This(), io: std.Io) !void {
     try self.unloadAllChunks();
     self.gpu_memory_allocator.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
-    self.compilation_tracker.deinit(self.io);
+    self.compilation_tracker.deinit(io);
     var iter = self.lookup_table.iterator();
     while (iter.next()) |entry| {
         self.allocator.free(entry.value_ptr.faces);

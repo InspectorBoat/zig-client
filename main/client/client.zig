@@ -9,17 +9,14 @@ const World = root.World;
 pub const Client = union(enum) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
-        io: std.Io,
 
-        pub fn initConnection(self: *@This(), name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
+        pub fn initConnection(self: *@This(), io: std.Io, name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
             const gpa = self.gpa;
-            const io = self.io;
 
             var connection_handle = try root.network.connection.initConnection(io, name, port, allocator, c2s_packet_allocator);
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
             client.* = .{ .connecting = .{
                 .gpa = gpa,
-                .io = io,
 
                 .connection_handle = connection_handle,
             } };
@@ -28,13 +25,11 @@ pub const Client = union(enum) {
     };
     pub const Connecting = struct {
         gpa: std.mem.Allocator,
-        io: std.Io,
 
         connection_handle: ConnectionHandle,
     };
     pub const Game = struct {
         gpa: std.mem.Allocator,
-        io: std.Io,
 
         connection_handle: ConnectionHandle,
 
@@ -62,7 +57,7 @@ pub const Client = union(enum) {
             }
         }
 
-        pub fn handleInputOnTick(self: *@This()) !void {
+        pub fn handleInputOnTick(self: *@This(), io: std.Io) !void {
             const interactions = @import("interactions.zig");
             const player = &self.world.player;
             const inputs = &self.active_inputs;
@@ -75,18 +70,18 @@ pub const Client = union(enum) {
                     .hand => |hand| {
                         switch (hand) {
                             .drop => |drop| switch (drop) {
-                                true => if (inputs.movement.sprint) try interactions.dropEntireStack(self) else try interactions.dropSingleItem(self),
+                                true => if (inputs.movement.sprint) try interactions.dropEntireStack(io, self) else try interactions.dropSingleItem(io, self),
                                 false => {},
                             },
                             .main => |main| switch (main) {
                                 true => {
                                     inputs.hand.main = true;
                                     if (player.item_in_use != null or released_use_item) continue;
-                                    try interactions.swingHand(self);
+                                    try interactions.swingHand(io, self);
                                     switch (player.crosshair) {
                                         .miss => {},
-                                        .block => if (self.world.mining_state == null) try interactions.startMiningBlock(self, player),
-                                        .entity => |entity| try interactions.attackEntity(self, entity.entity_network_id),
+                                        .block => if (self.world.mining_state == null) try interactions.startMiningBlock(io, self, player),
+                                        .entity => |entity| try interactions.attackEntity(io, self, entity.entity_network_id),
                                     }
                                 },
                                 false => inputs.hand.main = false,
@@ -94,7 +89,7 @@ pub const Client = union(enum) {
                             .use => |use| switch (use) {
                                 true => {
                                     if (player.item_in_use != null or released_use_item) continue;
-                                    try interactions.use(self, player);
+                                    try interactions.use(io, self, player);
                                 },
                                 false => if (player.item_in_use != null) {
                                     released_use_item = true;
@@ -120,9 +115,9 @@ pub const Client = union(enum) {
             }
 
             if (inputs.hand.main) {
-                try interactions.updateBlockMining(self, player);
+                try interactions.updateBlockMining(io, self, player);
             } else if (self.world.mining_state != null) {
-                try interactions.stopMiningBlock(self);
+                try interactions.stopMiningBlock(io, self);
             }
         }
 
@@ -159,20 +154,20 @@ pub const Client = union(enum) {
     game: Game,
 
     ///Handle inputs, and tick world if necessary
-    pub fn updateGame(self: *@This()) !void {
+    pub fn updateGame(self: *@This(), io: std.Io) !void {
         switch (self.*) {
             .game => |*game| {
                 game.handleInputOnFrame();
 
-                const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance(game.io);
+                const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance(io);
                 if (ticks_elapsed == 0) return;
 
                 // Do logging
                 logTickStatistics(game.partial_tick, ticks_elapsed);
 
-                try game.handleInputOnTick();
+                try game.handleInputOnTick(io);
                 for (0..ticks_elapsed) |_| {
-                    try game.world.tick(game, game.gpa);
+                    try game.world.tick(io, game, game.gpa);
                 }
             },
             else => unreachable,
@@ -181,11 +176,10 @@ pub const Client = union(enum) {
 
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     /// Disconnects if connection is closed
-    pub fn tickConnection(self: *@This()) !void {
-        const gpa, const io, const connection_handle, const s2c_packet_queue, const c2s_packet_queue = switch (self.*) {
+    pub fn tickConnection(self: *@This(), io: std.Io) !void {
+        const gpa, const connection_handle, const s2c_packet_queue, const c2s_packet_queue = switch (self.*) {
             inline .game, .connecting => |client_state| .{
                 client_state.gpa,
-                client_state.io,
                 client_state.connection_handle,
                 client_state.connection_handle.s2c_packet_queue,
                 client_state.connection_handle.c2s_packet_queue,
@@ -212,6 +206,7 @@ pub const Client = union(enum) {
                             specific_packet.required_client_state => |*client_state| client_state,
                             else => std.debug.panic("expected {}", .{specific_packet.required_client_state}),
                         },
+                        io,
                         gpa,
                     );
                 },
@@ -223,35 +218,31 @@ pub const Client = union(enum) {
         while (c2s_packet_queue.reclaim(io)) |_| {}
 
         if (connection_handle.wants_disconnect.load(.acquire)) {
-            self.disconnect();
+            self.disconnect(io);
         }
     }
 
     /// Calling this if self is .game or .connecting is always safe, because it can only be called once
-    pub fn disconnect(self: *@This()) void {
+    pub fn disconnect(self: *@This(), io: std.Io) void {
         switch (self.*) {
             .game => |*game| {
                 const gpa = game.gpa;
-                const io = game.io;
 
                 std.log.scoped(.client).debug("total delay: {d} ms", .{game.tick_delay});
                 std.log.scoped(.client).info("main thread terminating connection", .{});
-                game.connection_handle.disconnect(game.io, game.gpa);
-                game.world.deinit(game.gpa);
+                game.connection_handle.disconnect(io, gpa);
+                game.world.deinit(gpa);
                 self.* = .{ .idle = .{
                     .gpa = gpa,
-                    .io = io,
                 } };
             },
             .connecting => |*connecting| {
                 const gpa = connecting.gpa;
-                const io = connecting.io;
 
                 std.log.scoped(.client).info("main thread terminating connection", .{});
                 connecting.connection_handle.disconnect(io, gpa);
                 self.* = .{ .idle = .{
                     .gpa = gpa,
-                    .io = io,
                 } };
             },
             else => unreachable,

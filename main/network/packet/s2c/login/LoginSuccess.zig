@@ -17,7 +17,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnNetworkThread(self: *@This(), connection: *Connection) !void {
+pub fn handleOnNetworkThread(self: *@This(), connection: *Connection, io: std.Io) !void {
+    _ = io;
+
     _ = self;
     std.debug.assert(connection.protocol == .Login);
     connection.switchProtocol(.Play);

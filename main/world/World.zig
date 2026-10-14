@@ -54,14 +54,14 @@ pub fn init(
     };
 }
 
-pub fn tick(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn tick(self: *@This(), io: std.Io, game: *Client.Game, allocator: std.mem.Allocator) !void {
     _ = allocator;
     self.entity_tracker.processEntityRemovals();
     var entity_iter = self.entity_tracker.entities.keyIterator();
     while (entity_iter.next()) |maybe_entity| {
-        try maybe_entity.*.tick(game);
+        try maybe_entity.*.tick(io, game);
     }
-    try self.player.tick(game);
+    try self.player.tick(io, game);
 }
 
 pub fn loadChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !*Chunk {

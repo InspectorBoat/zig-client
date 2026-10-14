@@ -14,6 +14,6 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnNetworkThread(self: *@This(), server_connection: *Connection) !void {
-    try server_connection.sendPlayPacket(.{ .keep_alive = .{ .time_millis = self.time_millis } });
+pub fn handleOnNetworkThread(self: *@This(), server_connection: *Connection, io: std.Io) !void {
+    try server_connection.sendPlayPacket(io, .{ .keep_alive = .{ .time_millis = self.time_millis } });
 }

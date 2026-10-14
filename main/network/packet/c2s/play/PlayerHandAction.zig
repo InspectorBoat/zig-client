@@ -11,7 +11,7 @@ action: Action,
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writeEnum(Action, self.action);
     try buffer.writeBlockPos(self.block_pos);
-    try buffer.write(i8, @intFromEnum(self.face));
+    try buffer.write(i8, @backingInt(self.face));
 }
 
 pub const Action = enum(i32) {

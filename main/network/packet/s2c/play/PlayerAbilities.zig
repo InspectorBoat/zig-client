@@ -32,7 +32,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    _ = io;
+
     _ = allocator;
     game.world.player.abilities = .{
         .is_invulnerable = self.is_invulnerable,

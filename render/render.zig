@@ -47,7 +47,7 @@ pub fn onStartup(startup: Events.Startup) !void {
 
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
-        try EventHandler.dispatch(Events.Exit, .{});
+        try EventHandler.dispatch(Events.Exit, .{ .io = frame.io });
         return;
     }
     const client = frame.client;
@@ -64,8 +64,8 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (client.*) {
         .game => |*game| {
             try handleInputIngame(frame.input_queue.?);
-            try renderer.updateAndDispatchDirtySections(game.io, &game.world, game.gpa);
-            try renderer.uploadCompilationResults(game.io);
+            try renderer.updateAndDispatchDirtySections(frame.io, &game.world, game.gpa);
+            try renderer.uploadCompilationResults(frame.io);
             try renderer.renderFrame(game);
         },
         .connecting => |*connecting_game| {
@@ -90,8 +90,8 @@ pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
     try renderer.onBlockUpdate(block_update.block_pos);
 }
 
-pub fn onExit(_: Events.Exit) !void {
-    try renderer.deinit();
+pub fn onExit(exit: Events.Exit) !void {
+    try renderer.deinit(exit.io);
     window_input.deinit();
     std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }

@@ -29,7 +29,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
     _ = allocator;
     std.log.scoped(.local_player_moved).debug("teleported to pos: {any} | rot: {any} | rel: {any}", .{ self.pos, self.rotation, self.relative_arguments });
 
@@ -66,7 +66,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
         },
     );
     try game.connection_handle.sendPlayPacket(
-        game.io,
+        io,
         .{ .player_move_position_and_angles = .{
             .on_ground = false,
             .pos = player.base.pos,
@@ -75,7 +75,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
     );
     // Temporary hack for respawning
     try game.connection_handle.sendPlayPacket(
-        game.io,
+        io,
         .{ .client_status = .{
             .status = .PerformRespawn,
         } },

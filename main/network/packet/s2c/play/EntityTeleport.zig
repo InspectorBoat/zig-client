@@ -35,7 +35,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         .rotation = rotation,
     };
 }
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    _ = io;
+
     const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
     switch (entity.*) {
         .removed => {},

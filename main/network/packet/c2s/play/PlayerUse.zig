@@ -12,7 +12,7 @@ offset: Vector3(f32),
 
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writeBlockPos(self.block_pos);
-    try buffer.write(i8, @intFromEnum(self.face));
+    try buffer.write(i8, @backingInt(self.face));
     try buffer.writeItemStack(self.stack);
     try buffer.write(i8, @intFromFloat(self.offset.x * 16.0));
     try buffer.write(i8, @intFromFloat(self.offset.y * 16.0));

@@ -15,7 +15,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    _ = io;
+
     _ = allocator;
     if (self.slot >= 0 and self.slot <= 8) {
         game.world.player.hotbar_slot = @intCast(self.slot);

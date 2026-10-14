@@ -14,11 +14,13 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 
     return .{
         .network_id = try buffer.readVarInt(),
-        .action = @enumFromInt(try buffer.read(u8)),
+        .action = @fromBackingInt(@intCast(try buffer.read(u8))),
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    _ = io;
+
     _ = allocator;
     _ = game;
     _ = self;

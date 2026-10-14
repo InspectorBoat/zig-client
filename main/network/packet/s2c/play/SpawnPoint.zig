@@ -18,7 +18,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 }
 
 /// Spawn point doesn't do anything for the client, so this is currently unimplemented
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    _ = io;
+
     _ = allocator;
     _ = game;
     _ = self;

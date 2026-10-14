@@ -45,14 +45,13 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, io: std.Io, allocator: std.mem.Allocator) !void {
     const gpa = connecting.gpa;
-    const io = connecting.io;
 
     const connection_handle = connecting.connection_handle;
 
     var world: World = try .init(
-        connecting.io,
+        io,
         allocator,
         .{
             .difficulty = self.difficulty,
@@ -86,7 +85,6 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
     const client: *Client = @alignCast(@fieldParentPtr("connecting", connecting));
     client.* = .{ .game = .{
         .gpa = gpa,
-        .io = io,
 
         .connection_handle = connection_handle,
 

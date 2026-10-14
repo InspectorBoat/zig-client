@@ -132,7 +132,7 @@ pub const Connection = struct {
                     inline else => |*specific_packet| {
                         std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
                         if (specific_packet.handle_on_network_thread) {
-                            try specific_packet.handleOnNetworkThread(self);
+                            try specific_packet.handleOnNetworkThread(self, io);
                             // free immediately
                             if (self.s2c_packet_ring_alloc.logical_alloc_index != initial_alloc_index) {
                                 try self.s2c_packet_ring_alloc.undoAllocations(initial_alloc_index);

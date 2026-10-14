@@ -93,26 +93,26 @@ pub fn main(init: std.process.Init) !void {
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
-        .io = init.io,
     } };
 
     var c2s_packet_alloc_impl: std.heap.DebugAllocator(.{}) = .{};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
-    try client.idle.initConnection("127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
+    try client.idle.initConnection(init.io, "127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
 
     defer {
-        if (client != .idle) client.disconnect();
+        if (client != .idle) client.disconnect(init.io);
     }
 
     while (true) {
         try EventHandler.dispatch(Events.Frame, .{
             .client = &client,
             .input_queue = if (client == .game) &client.game.input_queue else null,
+            .io = init.io,
         });
 
-        if (client == .game and client.game.partial_tick > 0.5) {} else if (client != .idle) try client.tickConnection();
-        if (client == .game) try client.updateGame();
+        if (client == .game and client.game.partial_tick > 0.5) {} else if (client != .idle) try client.tickConnection(init.io);
+        if (client == .game) try client.updateGame(init.io);
 
         if (done) break;
     }
@@ -128,8 +128,8 @@ pub const Events = struct {
     pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const Chunk, world: *const World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
-    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue };
-    pub const Exit = struct {};
+    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io };
+    pub const Exit = struct { io: std.Io };
 };
 
 pub const EventHandler = struct {
