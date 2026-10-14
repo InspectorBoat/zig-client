@@ -190,7 +190,10 @@ pub const Client = union(enum) {
         // Read and handle incoming s2c packets
         while (true) {
             const s2c_packet_wrapper = s2c_packet_queue.claim(io) orelse break;
-            defer s2c_packet_queue.release(io);
+            defer {
+                s2c_packet_queue.release(io);
+                Connection.ringbuffer.freeFromTail(s2c_packet_wrapper.tail_mark);
+            }
 
             std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
 
@@ -211,7 +214,6 @@ pub const Client = union(enum) {
                     );
                 },
             }
-            break;
         }
 
         // Free c2s packets already sent by the network thread

@@ -1,10 +1,43 @@
 const std = @import("std");
 
+const RingBuffer = @This();
+
+pub const TailMark = struct {
+    index: usize,
+    /// TODO: actually you *can* move a ring buffer (just like how you can move an arraylist)
+    /// so it would have to be a sentinel but i'm lazy
+    owner: void = {},
+    serial: usize,
+};
+
+pub const RewindMark = struct {
+    index: usize,
+    /// TODO: actually you *can* move a ring buffer (just like how you can move an arraylist)
+    /// so it would have to be a sentinel but i'm lazy
+    owner: void = {},
+    // no serial, because you can only ever have one out at a time anyways
+};
+
+const Safety = struct {
+    /// serial of the next tail mark that will get freed
+    oldest_tail_serial: usize = 0,
+    /// serial of the next tail mark that we will pass out
+    next_tail_serial: usize = 0,
+
+    active_rewind_index: ?usize = null,
+};
+
 buffer: []u8,
 /// The next allocation can start at this byte
 logical_alloc_index: usize = 0,
 /// Bytes before this index are free
 logical_free_index: usize = 0,
+
+safety: Safety = .{},
+
+pub fn initBuffer(buffer: []u8) @This() {
+    return .{ .buffer = buffer };
+}
 
 pub fn toPhysicalIndex(self: *const @This(), logical_index: usize) usize {
     return logical_index % self.buffer.len;
@@ -17,9 +50,7 @@ pub fn usedBytes(self: *const @This()) usize {
 pub fn alloc(self: *@This(), n: usize, alignment: std.mem.Alignment) ![*]u8 {
     // reset state if we couldn't allocate
     const initial_state = self.*;
-    errdefer {
-        self.* = initial_state;
-    }
+    errdefer self.* = initial_state;
 
     const ptr_align = alignment.toByteUnits();
 
@@ -47,26 +78,54 @@ pub fn rawAlloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usi
     return self.alloc(n, alignment) catch null;
 }
 
-pub fn freeFromTail(self: *@This(), mark: usize) !void {
-    if (mark < self.logical_free_index or mark > self.logical_alloc_index) return error.InvalidFree;
-
-    self.logical_free_index = mark;
-
-    if (self.usedBytes() == 0) {
-        self.logical_alloc_index = 0;
-        self.logical_free_index = 0;
-    }
+// I keep on shattering time
+pub fn beginRewind(self: *@This()) RewindMark {
+    std.debug.assert(self.safety.active_rewind_index == null);
+    self.safety.active_rewind_index = self.logical_alloc_index;
+    return .{ .index = self.logical_alloc_index };
 }
 
-pub fn undoAllocations(self: *@This(), mark: usize) !void {
-    if (mark < self.logical_free_index or mark > self.logical_alloc_index) return error.InvalidFree;
+// Run it back
+pub fn undoAllocations(self: *@This(), mark: RewindMark) usize {
+    std.debug.assert(self.safety.active_rewind_index != null);
+    std.debug.assert(mark.index == self.safety.active_rewind_index.?);
+    // if you trigger this check, it's probably the RingBuffer that has a bug,
+    // not the consuming code (unless it does something really stupid like forging
+    // counterfeit Marks)
+    std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
 
-    self.logical_alloc_index = mark;
+    const freed = self.logical_alloc_index - mark.index;
 
-    if (self.usedBytes() == 0) {
-        self.logical_alloc_index = 0;
-        self.logical_free_index = 0;
-    }
+    self.logical_alloc_index = mark.index;
+    self.safety.active_rewind_index = null;
+
+    return freed;
+}
+
+// I got this blade in my hand for your punishment
+pub fn commit(self: *@This(), mark: RewindMark) TailMark {
+    std.debug.assert(self.safety.active_rewind_index != null);
+    std.debug.assert(mark.index == self.safety.active_rewind_index.?);
+    // if you trigger this check, it's probably the RingBuffer that has a bug,
+    // not the consuming code (unless it does something really stupid like forging
+    // counterfeit Marks)
+    std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
+    self.safety.active_rewind_index = null;
+    defer self.safety.next_tail_serial += 1;
+    return .{ .index = self.logical_alloc_index, .serial = self.safety.next_tail_serial };
+}
+
+pub fn freeFromTail(self: *@This(), mark: TailMark) void {
+    std.debug.assert(mark.serial == self.safety.oldest_tail_serial);
+    // if you trigger this check, it's probably the RingBuffer that has a bug,
+    // not the consuming code (unless it does something really stupid like forging
+    // counterfeit Marks)
+    std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
+
+    // std.log.scoped(.ring_buffer).debug("freed {} bytes, now {}", .{ mark.index - self.logical_free_index, self.usedBytes() });
+
+    self.logical_free_index = mark.index;
+    self.safety.oldest_tail_serial += 1;
 }
 
 // tries to consume bytes, clamping at the end of the buffer without erroring

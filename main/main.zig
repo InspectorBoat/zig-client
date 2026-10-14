@@ -75,6 +75,7 @@ pub const std_options: std.Options = .{
         .{ .scope = .resource_pack_states, .level = .err },
         .{ .scope = .resource_pack, .level = .info },
         .{ .scope = .section_revision, .level = .warn },
+        .{ .scope = .ring_buffer, .level = .warn },
     },
 };
 
@@ -111,7 +112,7 @@ pub fn main(init: std.process.Init) !void {
             .io = init.io,
         });
 
-        if (client == .game and client.game.partial_tick > 0.5) {} else if (client != .idle) try client.tickConnection(init.io);
+        if (client != .idle) try client.tickConnection(init.io);
         if (client == .game) try client.updateGame(init.io);
 
         if (done) break;
