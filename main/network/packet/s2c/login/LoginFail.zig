@@ -7,13 +7,13 @@ reason: []const u8,
 
 comptime handle_on_network_thread: bool = true,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     _ = buffer;
     return undefined;
 }
 
-pub fn handleOnNetworkThread(self: *@This(), connection: *Connection, io: std.Io) !void {
+pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
     _ = io;
 
     _ = connection;

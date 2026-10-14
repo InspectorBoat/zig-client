@@ -28,7 +28,7 @@ pub fn tick(self: *@This(), game: *const Client.Game) !void {
     self.base.tick();
     self.base.velocity.y -= @as(f32, 0.04);
     // TODO: pushAwayFrom
-    try self.base.move(self.base.velocity, false, game);
+    try self.base.move(game, self.base.velocity, false);
     const pos: Vector3(i32) = .{
         .x = @intFromFloat(@floor(self.base.pos.x)),
         .y = @intFromFloat(@floor(self.base.pos.y - 1)),

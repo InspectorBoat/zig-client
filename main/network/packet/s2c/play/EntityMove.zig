@@ -11,14 +11,14 @@ network_id: i32,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     return .{
         .network_id = try buffer.readVarInt(),
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;
@@ -34,7 +34,7 @@ pub const Position = struct {
     comptime handle_on_network_thread: bool = false,
     comptime required_client_state: Client.State = .game,
 
-    pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+    pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         _ = allocator;
 
         return .{
@@ -48,7 +48,7 @@ pub const Position = struct {
         };
     }
 
-    pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
         _ = io;
 
         const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
@@ -61,7 +61,7 @@ pub const Position = struct {
                         .cast(self.delta_pos.raw),
                     ),
                 };
-                try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world, allocator);
+                try entity.interpolateOrSnap(allocator, specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world);
             },
         }
     }
@@ -75,7 +75,7 @@ pub const Angles = struct {
     comptime handle_on_network_thread: bool = false,
     comptime required_client_state: Client.State = .game,
 
-    pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+    pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         _ = allocator;
 
         return .{
@@ -88,14 +88,14 @@ pub const Angles = struct {
         };
     }
 
-    pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
         _ = io;
 
         const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
         switch (entity.*) {
             .removed => {},
             inline else => |*specific_entity| {
-                try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world, allocator);
+                try entity.interpolateOrSnap(allocator, specific_entity.base.server_tracked_pos.normalize(), specific_entity.base.rotation, 3, &game.world);
             },
         }
     }
@@ -110,7 +110,7 @@ pub const PositionAndAngles = struct {
     comptime handle_on_network_thread: bool = false,
     comptime required_client_state: Client.State = .game,
 
-    pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+    pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         _ = allocator;
 
         return .{
@@ -128,7 +128,7 @@ pub const PositionAndAngles = struct {
         };
     }
 
-    pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+    pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
         _ = io;
 
         const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
@@ -141,7 +141,7 @@ pub const PositionAndAngles = struct {
                         .cast(self.delta_pos.raw),
                     ),
                 };
-                try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), self.rotation.normalize(), 3, &game.world, allocator);
+                try entity.interpolateOrSnap(allocator, specific_entity.base.server_tracked_pos.normalize(), self.rotation.normalize(), 3, &game.world);
             },
         }
     }

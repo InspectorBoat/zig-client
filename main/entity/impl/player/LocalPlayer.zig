@@ -44,7 +44,7 @@ sneaking: bool = false,
 hotbar_slot: u8 = 0,
 
 pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
-    self.crosshair = HitResult.rayTraceWorld(game.world, self.getEyePos(), self.base.rotation, 30, .{});
+    self.crosshair = HitResult.rayTraceWorld(.{}, game.world, self.getEyePos(), self.base.rotation, 30);
 
     // tick spectator onground and noclip
     if (self.player.isSpectator(game)) {
@@ -158,12 +158,12 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
         const prev_air_speed = self.air_speed;
         self.air_speed = self.abilities.fly_speed;
 
-        try self.moveWithSteer(steer, game);
+        try self.moveWithSteer(game, steer);
 
         self.base.velocity.y = prev_y_velocity * 0.6;
         self.air_speed = prev_air_speed;
     } else {
-        try self.moveWithSteer(steer, game);
+        try self.moveWithSteer(game, steer);
     }
 
     // update air speed according to sprinting status
@@ -333,27 +333,27 @@ pub fn sendMovementPackets(self: *@This(), io: std.Io, game: *Client.Game) !void
     }
 }
 
-pub fn moveWithSteer(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) !void {
+pub fn moveWithSteer(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) !void {
     if (self.inWater() and !self.abilities.is_flying) {
-        self.moveWithSteerInWater(steer, game);
+        self.moveWithSteerInWater(game, steer);
     } else if (self.inLava() and !self.abilities.is_flying) {
-        self.moveWithSteerInLava(steer, game);
+        self.moveWithSteerInLava(game, steer);
     } else {
-        try self.moveWithSteerNonLiquid(steer, game);
+        try self.moveWithSteerNonLiquid(game, steer);
     }
 }
 
-pub fn moveWithSteerInWater(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) void {
+pub fn moveWithSteerInWater(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) void {
     _ = self;
     _ = steer;
     _ = game;
 }
-pub fn moveWithSteerInLava(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) void {
+pub fn moveWithSteerInLava(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) void {
     _ = self;
     _ = steer;
     _ = game;
 }
-pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *const Client.Game) !void {
+pub fn moveWithSteerNonLiquid(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) !void {
     const friction = self.nonLiquidFriction(game);
     const traction = try self.nonLiquidTraction(friction);
     const acceleration = getAccelerationFromSteer(steer, traction, self.base.rotation.yaw);
@@ -371,7 +371,7 @@ pub fn moveWithSteerNonLiquid(self: *@This(), steer: Vector2xz(f32), game: *cons
     }
 
     const should_safe_walk = self.base.colliding.on_ground and self.isSneaking();
-    try self.base.move(self.base.velocity, should_safe_walk, game);
+    try self.base.move(game, self.base.velocity, should_safe_walk);
 
     if (self.base.colliding.horizontal and self.isClimbing(game)) {
         self.base.velocity.y = 0.2;

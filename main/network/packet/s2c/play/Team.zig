@@ -18,9 +18,9 @@ flags: i8,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     var packet: @This() = .{
-        .name = try buffer.readStringAllocating(16, allocator),
+        .name = try buffer.readStringAllocating(allocator, 16),
         .action = try buffer.read(i8),
         .display_name = "",
         .prefix = "",
@@ -32,9 +32,9 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 
     if (packet.action == 0 or packet.action == 2) {
-        packet.display_name = try buffer.readStringAllocating(32, allocator);
-        packet.prefix = try buffer.readStringAllocating(16, allocator);
-        packet.suffix = try buffer.readStringAllocating(16, allocator);
+        packet.display_name = try buffer.readStringAllocating(allocator, 32);
+        packet.prefix = try buffer.readStringAllocating(allocator, 16);
+        packet.suffix = try buffer.readStringAllocating(allocator, 16);
         packet.flags = try buffer.read(i8);
         packet.name_tag_visibility = visibilityFromKey(try buffer.readStringNonAllocating(32));
         packet.color = try buffer.read(i8);
@@ -45,7 +45,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         var members: std.ArrayList([]const u8) = .empty;
         try members.ensureTotalCapacity(allocator, @intCast(member_count));
         for (0..@intCast(member_count)) |_| {
-            try members.append(allocator, try buffer.readStringAllocating(40, allocator));
+            try members.append(allocator, try buffer.readStringAllocating(allocator, 40));
         }
         packet.members = members.items;
     }
@@ -61,7 +61,7 @@ fn visibilityFromKey(key: []const u8) NametagVisibility {
     return .Always;
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

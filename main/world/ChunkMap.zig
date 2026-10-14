@@ -99,7 +99,7 @@ test "performance" {
     const rand = rand_impl.random();
     var hash_map_world: DummyWorld(std.AutoHashMap(Vector2xz(i32), Chunk)) = .{ .chunks = .init(gpa) };
     for (0..8) |x| for (0..8) |z| {
-        try hash_map_world.makeChunk(.{ .x = @intCast(x), .z = @intCast(z) }, rand, gpa);
+        try hash_map_world.makeChunk(gpa, .{ .x = @intCast(x), .z = @intCast(z) }, rand);
     };
     {
         const start = try std.time.Instant.now();
@@ -116,7 +116,7 @@ test "performance" {
 
     var chunk_map_world: DummyWorld(@This()) = .{ .chunks = .{} };
     for (0..8) |x| for (0..8) |z| {
-        try chunk_map_world.makeChunk(.{ .x = @intCast(x), .z = @intCast(z) }, rand, gpa);
+        try chunk_map_world.makeChunk(gpa, .{ .x = @intCast(x), .z = @intCast(z) }, rand);
     };
     {
         const start = try std.time.Instant.now();
@@ -156,7 +156,7 @@ pub fn DummyWorld(comptime MapType: type) type {
                 }
             }
         }
-        pub fn makeChunk(self: *@This(), chunk_pos: Vector2xz(i32), rand: std.Random, allocator: std.mem.Allocator) !void {
+        pub fn makeChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32), rand: std.Random) !void {
             var chunk: Chunk = .{
                 .biomes = undefined,
                 .chunk_pos = chunk_pos,

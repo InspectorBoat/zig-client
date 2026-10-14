@@ -22,7 +22,7 @@ reduced_debug_info: bool,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .connecting,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     const network_id = try buffer.read(i32);
     const i = try buffer.read(u8);
@@ -45,7 +45,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, connecting: *Client.Connecting) !void {
     const gpa = connecting.gpa;
 
     const connection_handle = connecting.connection_handle;

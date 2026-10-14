@@ -11,13 +11,13 @@ lines: []const []const u8,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const pos = try buffer.readBlockPos();
 
     var lines: std.ArrayList([]const u8) = .empty;
     try lines.ensureTotalCapacity(allocator, 4);
     for (0..4) |_| {
-        try lines.append(allocator, try buffer.readStringAllocating(32767, allocator));
+        try lines.append(allocator, try buffer.readStringAllocating(allocator, 32767));
     }
 
     return .{
@@ -26,7 +26,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

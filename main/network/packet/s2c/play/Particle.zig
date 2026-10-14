@@ -17,7 +17,7 @@ parameters: []const i32,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const raw_type = try buffer.read(i32);
     const ignore_distance = try buffer.read(bool);
     const pos: Vector3(f32) = .{
@@ -57,7 +57,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

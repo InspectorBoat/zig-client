@@ -10,14 +10,14 @@ entries: []const Entry,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const network_id = try buffer.readVarInt();
     const entry_count = try buffer.read(i32);
 
     var entries: std.ArrayList(Entry) = .empty;
     try entries.ensureTotalCapacity(allocator, @intCast(entry_count));
     for (0..@intCast(entry_count)) |_| {
-        const id = try buffer.readStringAllocating(64, allocator);
+        const id = try buffer.readStringAllocating(allocator, 64);
         const base_value = try buffer.read(f64);
 
         const modifier_count = try buffer.readVarInt();
@@ -43,7 +43,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

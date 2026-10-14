@@ -70,7 +70,7 @@ pub fn teleport(self: *@This(), new_pos: Vector3(f64), new_rotation: Rotation2(f
     self.setRotation(self.rotation);
 }
 
-pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *const Client.Game) !void {
+pub fn move(self: *@This(), game: *const Client.Game, velocity: Vector3(f64), safe_walk: bool) !void {
     // TODO: handle noclip
     const start_pos = self.pos;
     _ = start_pos;
@@ -137,7 +137,7 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
 
     const initial_hitbox = self.hitbox;
     // handle collisions
-    const possible_collisions = try game.world.getCollisions(self.hitbox.grow(initial_velocity), game.gpa);
+    const possible_collisions = try game.world.getCollisions(game.gpa, self.hitbox.grow(initial_velocity));
     defer game.gpa.free(possible_collisions);
     // move and collide on the y axis
     for (possible_collisions) |blocking_hitbox| {
@@ -171,7 +171,7 @@ pub fn move(self: *@This(), velocity: Vector3(f64), safe_walk: bool, game: *cons
         const step_x = initial_velocity.x;
         const step_y = self.step_height;
         const step_z = initial_velocity.z;
-        const step_collisions = try game.world.getCollisions(self.hitbox.grow(.{ .x = step_x, .y = step_y, .z = step_z }), game.gpa);
+        const step_collisions = try game.world.getCollisions(game.gpa, self.hitbox.grow(.{ .x = step_x, .y = step_y, .z = step_z }));
         defer game.gpa.free(step_collisions);
 
         // y movement uses a box expanded in the direction of the step, so a ceiling over the

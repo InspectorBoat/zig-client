@@ -182,7 +182,9 @@ const IntermediateFace = struct {
         // zig fmt: on
     }
 
-    fn bake(self: @This()) Face {
+    fn bake(
+        self: @This(),
+    ) Face {
         const model_to_world_scale: f32 = 1.0 / 16.0;
 
         var uv: [4]Vector2xy(f32) = .{

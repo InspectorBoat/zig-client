@@ -9,14 +9,14 @@ display_name: []const u8,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
-    const name = try buffer.readStringAllocating(16, allocator);
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
+    const name = try buffer.readStringAllocating(allocator, 16);
 
     const action = try buffer.read(i8);
 
     var display_name: []const u8 = "";
     if (action == 0 or action == 2) {
-        display_name = try buffer.readStringAllocating(32, allocator);
+        display_name = try buffer.readStringAllocating(allocator, 32);
         _ = try buffer.readStringNonAllocating(16);
     }
 
@@ -26,7 +26,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

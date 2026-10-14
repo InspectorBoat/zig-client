@@ -7,13 +7,13 @@ time_millis: i32,
 
 comptime handle_on_network_thread: bool = true,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     return .{
         .time_millis = try buffer.readVarInt(),
     };
 }
 
-pub fn handleOnNetworkThread(self: *@This(), server_connection: *Connection, io: std.Io) !void {
+pub fn handleOnNetworkThread(self: *@This(), io: std.Io, server_connection: *Connection) !void {
     try server_connection.sendPlayPacket(io, .{ .keep_alive = .{ .time_millis = self.time_millis } });
 }

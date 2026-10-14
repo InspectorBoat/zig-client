@@ -14,7 +14,7 @@ comptime required_client_state: Client.State = .game,
 
 pub const ChunkData = S2C.Play.WorldChunk.ChunkData;
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const has_sky_light = try buffer.read(bool);
     const chunk_count: usize = @intCast(try buffer.readVarInt());
     std.debug.assert(chunk_count >= 0);
@@ -46,12 +46,12 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     for (self.chunk_positions, self.chunk_datas) |chunk_pos, *chunk_data| {
         _ = try game.world.loadChunk(allocator, chunk_pos);
-        try game.world.receiveChunk(chunk_pos, chunk_data, true, true, allocator);
+        try game.world.receiveChunk(allocator, chunk_pos, chunk_data, true, true);
     }
 }
 

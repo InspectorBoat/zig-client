@@ -38,7 +38,7 @@ pub fn onStartup(startup: Events.Startup) !void {
     glfw_helper.setGlErrorCallback();
 
     // initialize window_input
-    window_input = .init(window, gpa);
+    window_input = .init(gpa, window);
     window_input.setGlfwInputCallbacks();
 
     // initialize renderer
@@ -64,7 +64,7 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (client.*) {
         .game => |*game| {
             try handleInputIngame(frame.input_queue.?);
-            try renderer.updateAndDispatchDirtySections(frame.io, &game.world, game.gpa);
+            try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
             try renderer.uploadCompilationResults(frame.io);
             try renderer.renderFrame(game);
         },
@@ -163,8 +163,8 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                         std.log.scoped(.render).info("reloading shaders", .{});
                         renderer.terrain_program.delete();
                         renderer.debug_program.delete();
-                        renderer.terrain_program = try Renderer.initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", renderer.allocator);
-                        renderer.debug_program = try Renderer.initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", renderer.allocator);
+                        renderer.terrain_program = try Renderer.initProgram(renderer.allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
+                        renderer.debug_program = try Renderer.initProgram(renderer.allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
                     },
 
                     .w => try input_queue.queueOnTick(.{ .movement = .{ .forward = (key.action == .press) } }),

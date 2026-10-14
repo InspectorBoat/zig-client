@@ -11,15 +11,15 @@ entries: []const DataTrackerEntry,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const network_id = try buffer.readVarInt();
     return .{
         .network_id = network_id,
-        .entries = try readDataEntries(buffer, allocator),
+        .entries = try readDataEntries(allocator, buffer),
     };
 }
 
-pub fn readDataEntries(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) ![]const DataTrackerEntry {
+pub fn readDataEntries(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ![]const DataTrackerEntry {
     var entries: std.ArrayList(DataTrackerEntry) = .empty;
     var entry_info = try buffer.readPacked(DataTrackerEntryInfo);
     while (@as(u8, @bitCast(entry_info)) != DataTrackerEntryInfo.Stop) {
@@ -30,7 +30,7 @@ pub fn readDataEntries(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) ![
                 .i16 => .{ .i16 = try buffer.read(i16) },
                 .i32 => .{ .i32 = try buffer.read(i32) },
                 .f32 => .{ .f32 = try buffer.read(f32) },
-                .String => .{ .String = try buffer.readStringAllocating(32767, allocator) },
+                .String => .{ .String = try buffer.readStringAllocating(allocator, 32767) },
                 .ItemStack => .{ .ItemStack = try buffer.readItemStackAllocating(allocator) },
                 .BlockPos => .{ .BlockPos = .{ .x = try buffer.read(i32), .y = try buffer.read(i32), .z = try buffer.read(i32) } },
                 .Rotation => .{ .Rotation = .{ .yaw = try buffer.read(f32), .pitch = try buffer.read(f32), .roll = try buffer.read(f32) } },
@@ -53,7 +53,7 @@ pub const DataTrackerEntry = struct {
     value: DataTracker.DataValue,
 };
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

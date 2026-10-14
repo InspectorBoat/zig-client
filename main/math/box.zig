@@ -129,12 +129,12 @@ pub fn Box(comptime Element: type) type {
         pub fn rayTrace(self: *@This(), from: Vector3(Element), to: Vector3(Element)) ?HitResult {
             if (@typeInfo(Element) != .float) @compileError("Box.rayTrace is only available for floating point numbers!");
 
-            const min_x_pos = @This().traceToPlane(from, to, .x, self.min.x);
-            const max_x_pos = @This().traceToPlane(from, to, .x, self.max.x);
-            const min_y_pos = @This().traceToPlane(from, to, .y, self.min.y);
-            const max_y_pos = @This().traceToPlane(from, to, .y, self.max.y);
-            const min_z_pos = @This().traceToPlane(from, to, .z, self.min.z);
-            const max_z_pos = @This().traceToPlane(from, to, .z, self.max.z);
+            const min_x_pos = @This().traceToPlane(.x, from, to, self.min.x);
+            const max_x_pos = @This().traceToPlane(.x, from, to, self.max.x);
+            const min_y_pos = @This().traceToPlane(.y, from, to, self.min.y);
+            const max_y_pos = @This().traceToPlane(.y, from, to, self.max.y);
+            const min_z_pos = @This().traceToPlane(.z, from, to, self.min.z);
+            const max_z_pos = @This().traceToPlane(.z, from, to, self.max.z);
 
             var hit: ?Vector3(Element) = null;
             var hit_dir: Direction = null;
@@ -222,7 +222,7 @@ pub fn Box(comptime Element: type) type {
         /// Given an origin vector3 and a target vector3, travels
         /// from the origin vector3 to the target vector3 until
         /// colliding with the given plane
-        pub fn traceToPlane(from: Vector3(Element), to: Vector3(Element), comptime axis: enum { x, y, z }, pos: Element) ?Vector3(Element) {
+        pub fn traceToPlane(comptime axis: enum { x, y, z }, from: Vector3(Element), to: Vector3(Element), pos: Element) ?Vector3(Element) {
             if (@typeInfo(Element) != .float) @compileError("Box.traceToPlane is only available for floating point numbers!");
 
             const delta: Vector3(Element) = .sub(from, to);

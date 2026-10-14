@@ -12,7 +12,7 @@ fade_out: i32,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     var packet: @This() = .{
         .type = .Clear,
         .text = "",
@@ -23,7 +23,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
 
     packet.type = try buffer.readEnum(Type) orelse return error.InvalidTitleType;
     switch (packet.type) {
-        .Title, .Subtitle => packet.text = try buffer.readStringAllocating(32767, allocator),
+        .Title, .Subtitle => packet.text = try buffer.readStringAllocating(allocator, 32767),
         .Times => {
             packet.fade_in = try buffer.read(i32);
             packet.duration = try buffer.read(i32);
@@ -35,7 +35,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     return packet;
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

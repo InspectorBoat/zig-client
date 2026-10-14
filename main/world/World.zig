@@ -50,11 +50,11 @@ pub fn init(
         .dimension = info.dimension,
         .hardcore = info.hardcore,
         .player = player,
-        .player_inventory_menu = try .init(0, 45, allocator),
+        .player_inventory_menu = try .init(allocator, 0, 45),
     };
 }
 
-pub fn tick(self: *@This(), io: std.Io, game: *Client.Game, allocator: std.mem.Allocator) !void {
+pub fn tick(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = allocator;
     self.entity_tracker.processEntityRemovals();
     var entity_iter = self.entity_tracker.entities.keyIterator();
@@ -141,7 +141,7 @@ pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
     return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
 }
 
-pub fn setBlockState(self: *@This(), block_pos: Vector3(i32), state: Block.PhysicalState, allocator: std.mem.Allocator) !void {
+pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Vector3(i32), state: Block.PhysicalState) !void {
     const chunk: *Chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse {
         std.log.scoped(.world).warn("attempted to set block in missing chunk {any}!", .{.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }});
         return;
@@ -190,11 +190,11 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
 
 pub fn receiveChunk(
     self: *@This(),
+    allocator: std.mem.Allocator,
     chunk_pos: Vector2xz(i32),
     chunk_data: *S2C.Play.WorldChunk.ChunkData,
     full: bool,
     has_sky_light: bool,
-    allocator: std.mem.Allocator,
 ) !void {
     std.log.scoped(.world).debug("updating chunk at {}", .{chunk_pos});
 
@@ -275,7 +275,7 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
     return collisions_count;
 }
 
-pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.Allocator) ![]const Box(f64) {
+pub fn getCollisions(self: *const @This(), allocator: std.mem.Allocator, hitbox: Box(f64)) ![]const Box(f64) {
     var collisions: std.ArrayList(Box(f64)) = .empty;
     const min_pos: Vector3(i32) = .{
         .x = @floor(hitbox.min.x),
@@ -311,7 +311,7 @@ pub fn getCollisions(self: *const @This(), hitbox: Box(f64), allocator: std.mem.
 }
 
 /// returns intersecting hitboxes originating from blocks
-pub fn getIntersectingBlockHitboxes(self: *@This(), hitbox: Box(f64), allocator: std.mem.Allocator) []const Box(f64) {
+pub fn getIntersectingBlockHitboxes(self: *@This(), allocator: std.mem.Allocator, hitbox: Box(f64)) []const Box(f64) {
     const min_pos = Vector3(i32){
         .x = @intFromFloat(hitbox.min.x),
         .y = @intFromFloat(hitbox.min.y),

@@ -99,7 +99,7 @@ pub fn readBytesNonAllocating(self: *@This(), count: usize) ![]const u8 {
 }
 
 /// return value is not backed by the buffer
-pub fn readBytesAllocating(self: *@This(), count: usize, allocator: std.mem.Allocator) ![]const u8 {
+pub fn readBytesAllocating(self: *@This(), allocator: std.mem.Allocator, count: usize) ![]const u8 {
     const direct_slice = try self.readBytesNonAllocating(count);
     const slice = try allocator.alloc(u8, count);
     @memcpy(slice, direct_slice);
@@ -115,7 +115,7 @@ pub fn readByteSliceNonAllocating(self: *@This()) ![]const u8 {
 /// return value is not backed by the buffer
 pub fn readByteSliceAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
     const byte_length = try self.readVarInt();
-    return try self.readBytesAllocating(@intCast(byte_length), allocator);
+    return try self.readBytesAllocating(allocator, @intCast(byte_length));
 }
 
 /// returns a slice view of the unread bytes (starting at read_location and continuing to the end)
@@ -124,7 +124,7 @@ pub fn readRemainingBytesNonAllocating(self: *@This()) []const u8 {
 }
 
 pub fn readRemainingBytesAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
-    return try self.readBytesAllocating(self.remainingBytes(), allocator);
+    return try self.readBytesAllocating(allocator, self.remainingBytes());
 }
 
 /// return value is backed by the buffer
@@ -138,7 +138,7 @@ pub fn readStringNonAllocating(self: *@This(), max_code_points: usize) ![]const 
 }
 
 /// return value is not backed by the buffer
-pub fn readStringAllocating(self: *@This(), max_code_points: usize, allocator: std.mem.Allocator) ![]const u8 {
+pub fn readStringAllocating(self: *@This(), allocator: std.mem.Allocator, max_code_points: usize) ![]const u8 {
     const direct_string = try self.readStringNonAllocating(max_code_points);
     const string = try allocator.alloc(u8, direct_string.len);
     @memcpy(string, direct_string);
@@ -153,7 +153,7 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
             .size = try self.read(i8),
             .metadata = try self.read(i16),
             .item = @fromBackingInt(@intCast(item_id)),
-            .nbt = switch (try NbtElement.readDiscardName(self, allocator)) {
+            .nbt = switch (try NbtElement.readDiscardName(allocator, self)) {
                 .Compound => |compound| compound,
                 else => null,
             },
@@ -165,7 +165,7 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
 /// Uses an i32 and java's """""""""slight  modification""""""""" of utf8
 pub fn readJavaUtfAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
     const length = try self.read(i32);
-    return try self.readBytesAllocating(@intCast(length), allocator);
+    return try self.readBytesAllocating(allocator, @intCast(length));
 }
 
 /// Uses an i32 and java's """""""""slight  modification""""""""" of utf8

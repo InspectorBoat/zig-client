@@ -16,7 +16,7 @@ comptime required_client_state: Client.State = .game,
 
 pub const AbilityFlags = C2S.Play.PlayerAbilities.AbilityFlags;
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     const ability_flags = try buffer.readPacked(AbilityFlags);
     const fly_speed = try buffer.read(f32);
@@ -32,7 +32,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

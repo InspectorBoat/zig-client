@@ -11,7 +11,7 @@ pub fn deinitItemStacks(self: *@This(), allocator: std.mem.Allocator) void {
     }
 }
 
-pub fn init(network_id: i32, size: usize, allocator: std.mem.Allocator) !@This() {
+pub fn init(allocator: std.mem.Allocator, network_id: i32, size: usize) !@This() {
     const stacks = try allocator.alloc(?ItemStack, size);
     @memset(stacks, null);
     return .{

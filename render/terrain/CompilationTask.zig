@@ -20,7 +20,7 @@ pub const Mesh = struct {
     buffer: std.ArrayList(u8),
 };
 
-pub fn create(section_pos: Vector3(i32), world: *const World, allocator: std.mem.Allocator) !*@This() {
+pub fn create(allocator: std.mem.Allocator, section_pos: Vector3(i32), world: *const World) !*@This() {
     @setRuntimeSafety(false);
 
     const task = try allocator.create(@This());

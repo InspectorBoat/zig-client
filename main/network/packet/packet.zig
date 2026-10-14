@@ -292,14 +292,14 @@ pub const S2C = union(enum) {
 
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
-            pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !PacketMixin {
+            pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !PacketMixin {
                 const packet_type_info = @typeInfo(PacketMixin).@"union";
                 switch (try buffer.readVarInt()) {
                     inline 0...packet_type_info.field_names.len - 1 => |opcode| {
                         return @unionInit(
                             PacketMixin,
                             packet_type_info.field_names[opcode],
-                            try .decode(buffer, allocator),
+                            try .decode(allocator, buffer),
                         );
                     },
                     else => |opcode| {

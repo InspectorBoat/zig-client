@@ -51,7 +51,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     gl.enable(.cull_face);
 
-    const terrain_program = try initProgram("shader/terrain.glsl.vert", "shader/terrain.glsl.frag", allocator);
+    const terrain_program = try initProgram(allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
     const index_buffer = try initIndexBuffer(allocator);
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
@@ -59,7 +59,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const compilation_tracker: CompilationTracker = try .init(allocator, 4);
     const chunk_tracker: ChunkTracker = .init(allocator);
 
-    const debug_program = try initProgram("shader/debug.glsl.vert", "shader/debug.glsl.frag", allocator);
+    const debug_program = try initProgram(allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
     const debug_buffer: gl.Buffer = .create();
     debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
     const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
@@ -106,7 +106,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn initProgram(vertex_shader_path: []const u8, frag_shader_path: []const u8, allocator: std.mem.Allocator) !gl.Program {
+pub fn initProgram(allocator: std.mem.Allocator, vertex_shader_path: []const u8, frag_shader_path: []const u8) !gl.Program {
     var threaded: std.Io.Threaded = .init_single_threaded;
     const io = threaded.io();
 
@@ -493,7 +493,7 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
     );
 }
 
-pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, world: *const World, allocator: std.mem.Allocator) !void {
+pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std.mem.Allocator, world: *const World) !void {
     const start: std.Io.Clock.Timestamp = .now(io, .real);
 
     var iter = self.chunk_tracker.chunks.iterator();
@@ -574,7 +574,7 @@ pub fn dispatchCompilationTask(
     slot.future = io.async(
         CompilationTask.compile,
         .{
-            try .create(section_pos, world, allocator),
+            try .create(allocator, section_pos, world),
             io,
             allocator,
             &self.compilation_tracker,

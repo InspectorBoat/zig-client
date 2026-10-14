@@ -132,7 +132,7 @@ pub const Connection = struct {
                     inline else => |*specific_packet| {
                         std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
                         if (specific_packet.handle_on_network_thread) {
-                            try specific_packet.handleOnNetworkThread(self, io);
+                            try specific_packet.handleOnNetworkThread(io, self);
                             // free immediately
                             if (self.s2c_packet_ring_alloc.logical_alloc_index != initial_alloc_index) {
                                 try self.s2c_packet_ring_alloc.undoAllocations(initial_alloc_index);
@@ -216,7 +216,7 @@ pub const Connection = struct {
                 // this does not occur in a normal connection
                 .Status => unreachable,
                 .Login => {
-                    const login = S2C.Login.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch |err| switch (err) {
+                    const login = S2C.Login.decode(self.s2c_packet_ring_alloc.allocator(), &buffer) catch |err| switch (err) {
                         error.OutOfMemory => {
                             if (self.wants_disconnect.load(.acquire)) return null;
                             try self.handleOom(io, &buffer, initial_buffer_mark, initial_allocator_mark);
@@ -227,7 +227,7 @@ pub const Connection = struct {
                     return .{ .login = login };
                 },
                 .Play => {
-                    const play = S2C.Play.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch |err| switch (err) {
+                    const play = S2C.Play.decode(self.s2c_packet_ring_alloc.allocator(), &buffer) catch |err| switch (err) {
                         error.OutOfMemory => {
                             if (self.wants_disconnect.load(.acquire)) return null;
                             try self.handleOom(io, &buffer, initial_buffer_mark, initial_allocator_mark);
@@ -306,7 +306,7 @@ pub const Connection = struct {
     }
 
     /// takes ownership of uncompressed_buffer
-    pub fn compressBuffer(self: *@This(), uncompressed_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
+    pub fn compressBuffer(self: *@This(), allocator: std.mem.Allocator, uncompressed_buffer: *C2S.WriteBuffer) !C2S.WriteBuffer {
         defer uncompressed_buffer.deinit();
 
         var compressed_bytes: std.ArrayList(u8) = .empty;
@@ -338,7 +338,7 @@ pub const Connection = struct {
     }
 
     /// takes ownership of original_buffer
-    pub fn prependLength(original_buffer: *C2S.WriteBuffer, allocator: std.mem.Allocator) !C2S.WriteBuffer {
+    pub fn prependLength(allocator: std.mem.Allocator, original_buffer: *C2S.WriteBuffer) !C2S.WriteBuffer {
         defer original_buffer.deinit();
 
         var out_buffer: C2S.WriteBuffer = .init(allocator);
@@ -381,10 +381,10 @@ pub const Connection = struct {
 
         // compress packet
         if (self.compression_threshold >= 0) {
-            packet_buffer = try self.compressBuffer(&packet_buffer, packet_encode_alloc);
+            packet_buffer = try self.compressBuffer(packet_encode_alloc, &packet_buffer);
         }
 
-        packet_buffer = try prependLength(&packet_buffer, packet_encode_alloc);
+        packet_buffer = try prependLength(packet_encode_alloc, &packet_buffer);
         var buf: [1024]u8 = undefined;
         var writer = self.stream.writer(io, &buf);
         std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len});
@@ -413,7 +413,11 @@ pub const ConnectionHandle = struct {
     /// by the network thread
     disconnect_event: *std.Io.Event,
 
-    pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) !void {
+    pub fn sendPacket(
+        self: *@This(),
+        io: std.Io,
+        packet: C2S,
+    ) !void {
         try self.c2s_packet_queue.write(io, packet);
     }
 
@@ -465,13 +469,13 @@ pub const ConnectionHandle = struct {
 /// Spawns a new thread and initializes a new connection in that thread, then returns a handle to that connection
 pub fn initConnection(
     io: std.Io,
-    name: []const u8,
-    port: u16,
     /// This allocator will be used to allocate the ring buffers used for passing packets between threads,
     /// also also duplicate name
     allocator: std.mem.Allocator,
     /// This allocator will be used to allocate memory for c2s packets and nothing else
     c2s_packet_allocator: std.mem.Allocator,
+    name: []const u8,
+    port: u16,
 ) !ConnectionHandle {
     const c2s_packet_queue: *WriteReadFreeQueue(C2S) = try allocator.create(WriteReadFreeQueue(C2S));
     const s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper) = try allocator.create(WriteReadFreeQueue(S2CWrapper));

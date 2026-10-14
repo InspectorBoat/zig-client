@@ -12,7 +12,7 @@ updates: []const BlockUpdate,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const chunk_pos: Vector2xz(i32) = .{ .x = try buffer.read(i32), .z = try buffer.read(i32) };
     const updates = try allocator.alloc(BlockUpdate, @intCast(try buffer.readVarInt()));
     errdefer allocator.free(updates);
@@ -29,18 +29,18 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     for (self.updates) |update| {
         try game.world.setBlockState(
+            allocator,
             .{
                 .x = self.chunk_pos.x * 16 + update.pos.x,
                 .y = update.pos.y,
                 .z = self.chunk_pos.z * 16 + update.pos.z,
             },
             .validateRaw(update.state),
-            allocator,
         );
     }
 }

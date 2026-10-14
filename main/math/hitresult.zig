@@ -28,11 +28,11 @@ pub const HitResult = union(HitType) {
     };
 
     pub fn rayTraceBlocks(
+        comptime options: RayTraceOptions,
         world: World,
         origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,
-        comptime options: RayTraceOptions,
     ) @This() {
         var from = origin;
         const to: Vector3(f64) = .add(origin, .mul(rotationToVec(rotation), .splat(range)));
@@ -202,13 +202,13 @@ pub const HitResult = union(HitType) {
     }
 
     pub fn rayTraceWorld(
+        comptime options: RayTraceOptions,
         world: World,
         origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,
-        comptime options: RayTraceOptions,
     ) @This() {
-        const block_hit_result = rayTraceBlocks(world, origin, rotation, range, options);
+        const block_hit_result = rayTraceBlocks(options, world, origin, rotation, range);
         const entity_hit_result = rayTraceEntities(world, origin, rotation, range);
         const block_hit_distance = switch (block_hit_result) {
             .block => |hit| hit.pos.distanceSquared(origin),

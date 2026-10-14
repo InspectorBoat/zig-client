@@ -166,11 +166,11 @@ pub const Entity = union(EntityType) {
 
     pub fn interpolateOrSnap(
         self: *@This(),
+        allocator: std.mem.Allocator,
         pos: Vector3(f64),
         rot: Rotation2(f32),
         steps: i32,
         world: *const World,
-        allocator: std.mem.Allocator,
     ) !void {
         switch (self.*) {
             .removed => return,
@@ -183,7 +183,7 @@ pub const Entity = union(EntityType) {
 
                     // lifts the entity out of blocks
                     const contracted = specific_entity.base.hitbox.contract(.{ .x = 0.03125, .y = 0.0, .z = 0.03125 });
-                    const collisions = try world.getCollisions(contracted, allocator);
+                    const collisions = try world.getCollisions(allocator, contracted);
                     defer allocator.free(collisions);
 
                     var highest: f64 = 0.0;

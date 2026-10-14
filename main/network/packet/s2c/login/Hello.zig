@@ -9,15 +9,15 @@ nonce: []const u8,
 
 comptime handle_on_network_thread: bool = true,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
-        .key = try buffer.readStringAllocating(20, allocator),
+        .key = try buffer.readStringAllocating(allocator, 20),
         .public_key = try buffer.readByteSliceAllocating(allocator),
         .nonce = try buffer.readByteSliceAllocating(allocator),
     };
 }
 
-pub fn handleOnNetworkThread(self: *@This(), connection: *Connection, io: std.Io) !void {
+pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
     _ = io;
 
     _ = self;

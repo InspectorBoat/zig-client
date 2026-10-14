@@ -13,12 +13,12 @@ nbt: NbtCompound,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const block_pos = try buffer.readBlockPos();
     const block_entity_type = try buffer.read(u8);
-    // const nbt: NbtCompound = try .read(buffer, allocator);
+    // const nbt: NbtCompound = try .read(allocator, buffer);
     // TODO: Fix nbt decoding
-    const nbt: NbtCompound = try .init(.{}, allocator);
+    const nbt: NbtCompound = try .init(allocator, .{});
     return .{
         .block_pos = block_pos,
         .type = block_entity_type,
@@ -26,7 +26,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

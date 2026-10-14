@@ -31,7 +31,7 @@ pub const Event = union(enum) {
     Drop: struct { paths: [][*:0]const u8 },
 };
 
-pub fn init(window: glfw.Window, allocator: std.mem.Allocator) @This() {
+pub fn init(allocator: std.mem.Allocator, window: glfw.Window) @This() {
     return .{
         .window = window,
         .events = .empty,

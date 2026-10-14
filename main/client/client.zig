@@ -10,10 +10,10 @@ pub const Client = union(enum) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
 
-        pub fn initConnection(self: *@This(), io: std.Io, name: []const u8, port: u16, player_name: []const u8, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator) !void {
+        pub fn initConnection(self: *@This(), io: std.Io, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator, name: []const u8, port: u16, player_name: []const u8) !void {
             const gpa = self.gpa;
 
-            var connection_handle = try root.network.connection.initConnection(io, name, port, allocator, c2s_packet_allocator);
+            var connection_handle = try root.network.connection.initConnection(io, allocator, c2s_packet_allocator, name, port);
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
             client.* = .{ .connecting = .{
                 .gpa = gpa,
@@ -167,7 +167,7 @@ pub const Client = union(enum) {
 
                 try game.handleInputOnTick(io);
                 for (0..ticks_elapsed) |_| {
-                    try game.world.tick(io, game, game.gpa);
+                    try game.world.tick(io, game.gpa, game);
                 }
             },
             else => unreachable,
@@ -202,12 +202,12 @@ pub const Client = union(enum) {
                     // Eliminate packets at comptime to prevent a compile error
                     if (specific_packet.handle_on_network_thread) unreachable;
                     try specific_packet.handleOnMainThread(
+                        io,
+                        gpa,
                         switch (self.*) {
                             specific_packet.required_client_state => |*client_state| client_state,
                             else => std.debug.panic("expected {}", .{specific_packet.required_client_state}),
                         },
-                        io,
-                        gpa,
                     );
                 },
             }

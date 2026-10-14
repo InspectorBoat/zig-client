@@ -226,12 +226,12 @@ pub fn createLookupTable(
     inline for (std.enums.values(Block)) |block| {
         const all_states = allValues(@FieldType(Block.VirtualState, @tagName(block)));
         for (all_states) |properties| {
-            const block_name_key = getNameString(gpa, block, properties) catch |e| switch (e) {
+            const block_name_key = getNameString(block, gpa, properties) catch |e| switch (e) {
                 error.NoModel => continue,
                 else => return e,
             };
             defer gpa.free(block_name_key);
-            const properties_key = try getPropertiesString(gpa, block, properties);
+            const properties_key = try getPropertiesString(block, gpa, properties);
             defer gpa.free(properties_key);
 
             const state_to_model_map = state_to_model_maps.get(block_name_key) orelse return error.MapNotFound;
@@ -255,8 +255,8 @@ pub fn createLookupTable(
 }
 
 pub fn getNameString(
-    gpa: std.mem.Allocator,
     comptime block: Block,
+    gpa: std.mem.Allocator,
     properties: @FieldType(Block.VirtualState, @tagName(block)),
 ) (error{NoModel} || std.mem.Allocator.Error)![]const u8 {
     var string: std.ArrayList(u8) = .empty;
@@ -324,8 +324,8 @@ pub fn getNameString(
 }
 
 pub fn getPropertiesString(
-    gpa: std.mem.Allocator,
     comptime block: Block,
+    gpa: std.mem.Allocator,
     properties: @FieldType(Block.VirtualState, @tagName(block)),
 ) ![]const u8 {
     var string: std.ArrayList(u8) = .empty;
@@ -340,7 +340,7 @@ pub fn getPropertiesString(
     }.lessThan);
     // TODO: seamless slabs
     inline for (field_names) |field_name| {
-        if (!skipField(block, properties, field_name)) {
+        if (!skipField(block, field_name, properties)) {
             if (string.items.len > 0) try string.append(gpa, ',');
             try string.appendSlice(gpa, field_name);
             try string.append(gpa, '=');
@@ -358,7 +358,7 @@ pub fn getPropertiesString(
     return string.toOwnedSlice(gpa);
 }
 
-pub fn skipField(comptime block: Block, properties: @FieldType(Block.VirtualState, @tagName(block)), comptime field_name: []const u8) bool {
+pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState, @tagName(block))) bool {
     if (block == .dirt and properties.variant != .podzol and std.mem.eql(u8, field_name, "snowy")) return true;
     if ((block == .leaves or block == .leaves2) and (std.mem.eql(u8, field_name, "not_decayable") or std.mem.eql(u8, field_name, "check_decay"))) return true;
     if ((block == .double_stone_slab or block == .double_stone_slab2) and std.mem.eql(u8, field_name, "seamless")) return true;

@@ -13,7 +13,7 @@ rotation: ScaledRotation2(i32, 256.0 / 360.0),
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
 
     const network_id = try buffer.readVarInt();
@@ -35,7 +35,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
         .rotation = rotation,
     };
 }
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
@@ -43,7 +43,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, alloca
         .removed => {},
         inline else => |*specific_entity| {
             specific_entity.base.server_tracked_pos = self.pos;
-            try entity.interpolateOrSnap(specific_entity.base.server_tracked_pos.normalize(), self.rotation.normalize(), 3, &game.world, allocator);
+            try entity.interpolateOrSnap(allocator, specific_entity.base.server_tracked_pos.normalize(), self.rotation.normalize(), 3, &game.world);
         },
     }
 }

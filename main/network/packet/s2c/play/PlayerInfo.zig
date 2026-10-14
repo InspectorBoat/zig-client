@@ -12,7 +12,7 @@ entries: []const Entry,
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
-pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
+pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const action = try buffer.readEnum(Action) orelse return error.InvalidPlayerInfo;
     const entry_count = try buffer.readVarInt();
     var entries: std.ArrayList(Entry) = .empty;
@@ -21,18 +21,18 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
             .AddPlayer => .{
                 .game_profile = .{
                     .uuid = try buffer.readUuid(),
-                    .name = try buffer.readStringAllocating(16, allocator),
+                    .name = try buffer.readStringAllocating(allocator, 16),
                     .properties = get_properties: {
                         var properties: std.StringHashMapUnmanaged(GameProfile.Property) = .empty;
 
                         const property_count = try buffer.readVarInt();
                         for (0..@intCast(property_count)) |_| {
-                            const name = try buffer.readStringAllocating(32767, allocator);
+                            const name = try buffer.readStringAllocating(allocator, 32767);
 
                             try properties.put(allocator, name, .{
                                 .name = name,
-                                .value = try buffer.readStringAllocating(32767, allocator),
-                                .signature = if (try buffer.read(bool)) try buffer.readStringAllocating(32767, allocator) else null,
+                                .value = try buffer.readStringAllocating(allocator, 32767),
+                                .signature = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
                             });
                         }
 
@@ -41,7 +41,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
                 },
                 .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
                 .ping = try buffer.readVarInt(),
-                .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(32767, allocator) else null,
+                .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
             },
             .UpdateGameMode => .{
                 .game_profile = .{
@@ -59,7 +59,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
                 .game_profile = .{
                     .uuid = try buffer.readUuid(),
                 },
-                .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(32767, allocator) else null,
+                .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
             },
             .RemovePlayer => .{
                 .game_profile = .{
@@ -75,7 +75,7 @@ pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn handleOnMainThread(self: *@This(), game: *Client.Game, io: std.Io, allocator: std.mem.Allocator) !void {
+pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
     _ = allocator;

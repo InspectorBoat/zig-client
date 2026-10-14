@@ -98,7 +98,7 @@ pub fn main(init: std.process.Init) !void {
     var c2s_packet_alloc_impl: std.heap.DebugAllocator(.{}) = .{};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
-    try client.idle.initConnection(init.io, "127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
+    try client.idle.initConnection(init.io, gpa, c2s_packet_alloc, "127.0.0.1", 25565, "baz");
 
     defer {
         if (client != .idle) client.disconnect(init.io);
