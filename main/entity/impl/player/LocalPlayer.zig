@@ -278,7 +278,7 @@ pub fn updateSprinting(self: *@This(), inputs: Client.Game.ActiveInputs, steer: 
 
 pub fn sendMovementPackets(self: *@This(), game: *Client.Game) !void {
     if (try self.base.isSprinting() != self.server_movement_status.sprinting) {
-        try game.connection_handle.sendPlayPacket(.{ .player_movement_action = .{
+        try game.connection_handle.sendPlayPacket(game.io, .{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
@@ -286,7 +286,7 @@ pub fn sendMovementPackets(self: *@This(), game: *Client.Game) !void {
         self.server_movement_status.sprinting = try self.base.isSprinting();
     }
     if (self.isSneaking() != self.server_movement_status.sneaking) {
-        try game.connection_handle.sendPlayPacket(.{ .player_movement_action = .{
+        try game.connection_handle.sendPlayPacket(game.io, .{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
             .action = if (self.isSneaking()) .StartSneaking else .StopSneaking,
@@ -301,23 +301,23 @@ pub fn sendMovementPackets(self: *@This(), game: *Client.Game) !void {
         self.base.rotation.yaw != self.server_movement_status.rotation.yaw;
 
     if (send_movement and send_rotation) {
-        try game.connection_handle.sendPlayPacket(.{ .player_move_position_and_angles = .{
+        try game.connection_handle.sendPlayPacket(game.io, .{ .player_move_position_and_angles = .{
             .on_ground = self.base.colliding.on_ground,
             .pos = self.base.pos,
             .rotation = self.base.rotation,
         } });
     } else if (send_movement) {
-        try game.connection_handle.sendPlayPacket(.{ .player_move_position = .{
+        try game.connection_handle.sendPlayPacket(game.io, .{ .player_move_position = .{
             .on_ground = self.base.colliding.on_ground,
             .pos = self.base.pos,
         } });
     } else if (send_rotation) {
-        try game.connection_handle.sendPlayPacket(.{ .player_move_angles = .{
+        try game.connection_handle.sendPlayPacket(game.io, .{ .player_move_angles = .{
             .on_ground = self.base.colliding.on_ground,
             .rotation = self.base.rotation,
         } });
     } else {
-        try game.connection_handle.sendPlayPacket(.{ .player_move = .{
+        try game.connection_handle.sendPlayPacket(game.io, .{ .player_move = .{
             .on_ground = self.base.colliding.on_ground,
         } });
     }

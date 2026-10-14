@@ -70,12 +70,12 @@ pub fn handleOnMainThread(self: *@This(), connecting: *Client.Connecting, alloca
     errdefer world.deinit(allocator);
 
     // send brand packet
-    try connecting.connection_handle.sendPlayPacket(.{ .custom_payload = .{
+    try connecting.connection_handle.sendPlayPacket(io, .{ .custom_payload = .{
         .channel = "MC|Brand",
         .data = "vanilla",
     } });
 
-    try connecting.connection_handle.sendPlayPacket(.{ .client_settings = .{
+    try connecting.connection_handle.sendPlayPacket(io, .{ .client_settings = .{
         .language = "English",
         .view_distance = 2,
         .chat_visibility = .Full,

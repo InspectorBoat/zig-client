@@ -71,7 +71,7 @@ pub const std_options: std.Options = .{
         .{ .scope = .entity, .level = .warn },
         .{ .scope = .local_player_moved, .level = .warn },
         .{ .scope = .player, .level = .warn },
-        .{ .scope = .net, .level = .err },
+        .{ .scope = .net, .level = .info },
         .{ .scope = .resource_pack_states, .level = .err },
         .{ .scope = .resource_pack, .level = .info },
         .{ .scope = .section_revision, .level = .warn },
@@ -79,20 +79,27 @@ pub const std_options: std.Options = .{
 };
 
 pub fn main(init: std.process.Init) !void {
-    try EventHandler.dispatch(Events.Startup, .{ .gpa = init.gpa, .io = init.io });
+    // var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{
+    //     .stack_trace_frames = 15,
+    // });
+    // const gpa = gpa_impl.allocator();
+    // defer _ = gpa_impl.deinit();
+    const gpa = init.gpa;
+
+    try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = init.io });
 
     try network_lib.init();
     defer network_lib.deinit();
 
     var client: Client = .{ .idle = .{
-        .gpa = init.gpa,
+        .gpa = gpa,
         .io = init.io,
     } };
 
     var c2s_packet_alloc_impl: std.heap.DebugAllocator(.{}) = .{};
     const c2s_packet_alloc = c2s_packet_alloc_impl.allocator();
 
-    try client.idle.initConnection("127.0.0.1", 25565, "baz", init.gpa, c2s_packet_alloc);
+    try client.idle.initConnection("127.0.0.1", 25565, "baz", gpa, c2s_packet_alloc);
 
     defer {
         if (client != .idle) client.disconnect();

@@ -14,19 +14,15 @@ pub const Connection = struct {
     name: []const u8,
     port: u16,
 
-    /// Either thread can set this to true.
-    /// Main thread polls to know when to disconnect,
-    /// then calls connection_handle.disconnect to notify network thread
-    disconnected: *std.atomic.Value(bool),
+    /// If either thread sets this flag to true, the network thread will wait on disconnect_event then halt
+    wants_disconnect: *std.atomic.Value(bool),
+    /// Network thread will wait for main thread to set this before stopping
+    /// This is because the network thread holds memory that the main thread reads from (in s2c_packet_ring_alloc)
+    /// The main thread setting this signals that it is done reading from any memory owned
+    /// by the network thread
+    disconnect_event: *std.Io.Event,
 
-    /// Held by the main thread until it calls disconnect()
-    /// Queued packets point into this thread's stack (the
-    /// s2c ring buffer and queued_bytes), so the network thread
-    /// blocks on it before exiting so it doesn't pull the rug
-    /// out from under the main thread.
-    lifetime_mutex: *std.atomic.Mutex,
-
-    socket: network_lib.Socket,
+    stream: std.Io.net.Stream,
 
     protocol: Protocol = .Login,
 
@@ -45,26 +41,23 @@ pub const Connection = struct {
     s2c_packet_ring_alloc: RingBuffer,
 
     pub fn networkThreadImpl(
+        io: std.Io,
         name: []const u8,
         port: u16,
-        disconnect_ptr: *std.atomic.Value(bool),
-        lifetime_mutex: *std.atomic.Mutex,
+        wants_disconnect: *std.atomic.Value(bool),
+        disconnect_event: *std.Io.Event,
         c2s_packet_queue: *WriteReadFreeQueue(C2S),
         s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
     ) !void {
-        var ring_alloc_buffer: [1024 * 1024 * 8]u8 = undefined;
+        var ring_alloc_buffer: [1024 * 1024]u8 = undefined;
         var connection: Connection = .{
             .name = name,
             .port = port,
 
-            .disconnected = disconnect_ptr,
+            .wants_disconnect = wants_disconnect,
+            .disconnect_event = disconnect_event,
 
-            .lifetime_mutex = lifetime_mutex,
-
-            .socket = connectSocket(name, port) catch {
-                disconnect_ptr.store(true, .release);
-                return;
-            },
+            .stream = try connectSocket(io, name, port),
 
             .c2s_packet_queue = c2s_packet_queue,
             .s2c_packet_queue = s2c_packet_queue,
@@ -75,46 +68,48 @@ pub const Connection = struct {
         };
 
         while (true) {
-            connection.tick() catch {
-                if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
-                connection.disconnected.store(true, .release);
+            connection.tick(io) catch |e| switch (e) {
+                error.Canceled => {
+                    std.log.scoped(.net).info("network thread cancelled", .{});
+                    return e;
+                },
+                else => {
+                    if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
+                    std.log.scoped(.net).info("{}, stopping network thread", .{e});
+                    wants_disconnect.store(true, .release);
+                    disconnect_event.waitUncancelable(io);
+                    return;
+                },
             };
-            if (connection.disconnected.load(.acquire)) {
-                // Wait for the main thread to signal safety
-                while (!lifetime_mutex.tryLock()) std.atomic.spinLoopHint();
-                lifetime_mutex.unlock();
-                connection.socket.close();
-                std.log.scoped(.net).info("stopping network thread", .{});
-                return;
-            }
         }
     }
 
-    pub fn tick(self: *@This()) !void {
+    pub fn tick(self: *@This(), io: std.Io) !void {
         // read from socket
-        try self.readIncomingBytes();
+        try self.readIncomingBytes(io);
 
         // decode and dispatch
         while (true) {
             // keep track of whether we actually allocated any bytes
             const initial_alloc_index = self.s2c_packet_ring_alloc.logical_alloc_index;
-            const maybe_packet = try self.decodeQueuedBytes();
-            if (self.disconnected.load(.acquire)) return;
+
+            const maybe_packet = try self.decodeQueuedBytes(io);
+            if (self.wants_disconnect.load(.acquire)) return;
             if (maybe_packet) |packet| {
-                try self.dispatchS2CPacket(packet, initial_alloc_index);
-                if (self.disconnected.load(.acquire)) return;
+                try self.dispatchS2CPacket(io, packet, initial_alloc_index);
+                if (self.wants_disconnect.load(.acquire)) return;
             } else break;
         }
 
         // free handled s2c packets
-        try self.freeS2CPackets();
+        try self.freeS2CPackets(io);
 
         // encode and send
-        try self.sendC2SPackets();
+        try self.sendC2SPackets(io);
     }
 
-    pub fn freeS2CPackets(self: *@This()) !void {
-        while (self.s2c_packet_queue.reclaim()) |s2c_packet_wrapper| {
+    pub fn freeS2CPackets(self: *@This(), io: std.Io) !void {
+        while (self.s2c_packet_queue.reclaim(io)) |s2c_packet_wrapper| {
             // only free if packet actually allocated any memory
             if (s2c_packet_wrapper.alloc_index) |alloc_index| {
                 try self.s2c_packet_ring_alloc.freeFromTail(alloc_index);
@@ -122,14 +117,14 @@ pub const Connection = struct {
         }
     }
 
-    pub fn sendC2SPackets(self: *@This()) !void {
-        while (self.c2s_packet_queue.claim()) |packet| {
-            defer self.c2s_packet_queue.release();
-            try self.sendPacket(packet);
+    pub fn sendC2SPackets(self: *@This(), io: std.Io) !void {
+        while (self.c2s_packet_queue.claim(io)) |packet| {
+            defer self.c2s_packet_queue.release(io);
+            try self.sendPacket(io, packet);
         }
     }
 
-    pub fn dispatchS2CPacket(self: *@This(), packet: S2C, initial_alloc_index: usize) !void {
+    pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, initial_alloc_index: usize) !void {
         var packet_mut = packet;
         switch (packet_mut) {
             inline else => |*specific_protocol| {
@@ -148,7 +143,7 @@ pub const Connection = struct {
                                 self.s2c_packet_ring_alloc.logical_alloc_index
                             else
                                 null;
-                            try self.s2c_packet_queue.write(.{ .packet = packet.play, .alloc_index = alloc_index });
+                            try self.s2c_packet_queue.write(io, .{ .packet = packet.play, .alloc_index = alloc_index });
                         }
                     },
                 }
@@ -156,63 +151,31 @@ pub const Connection = struct {
         }
     }
 
-    pub fn connectSocket(name: []const u8, port: u16) !network_lib.Socket {
-        var buffer: [8192]u8 = undefined;
-        var fba_impl: std.heap.FixedBufferAllocator = .init(&buffer);
-
-        const socket = try network_lib.connectToHost(fba_impl.allocator(), name, port, .tcp);
-        errdefer socket.close();
-
-        try makeSocketNonBlocking(socket);
-
-        return socket;
+    pub fn connectSocket(io: std.Io, name: []const u8, port: u16) !std.Io.net.Stream {
+        const ip: std.Io.net.IpAddress = try .parseIp4(name, port);
+        const stream = try ip.connect(io, .{
+            .mode = .stream,
+            .protocol = .tcp,
+        });
+        return stream;
     }
 
-    /// https://stackoverflow.com/a/1549344/20084105
-    pub fn makeSocketNonBlocking(socket: network_lib.Socket) !void {
-        if (@import("builtin").os.tag == .windows) {
-            const mode: u32 = 1;
-            if (try std.os.windows.WSAIoctl(
-                socket.internal,
-                @bitCast(@as(i32, std.os.windows.ws2_32.FIONBIO)),
-                std.mem.asBytes(&mode),
-                undefined,
-                null,
-                null,
-            ) != 0) return error.FailedOperation;
-        } else {
-            const F_SETFL = 4;
-
-            const get_flags_rc = std.os.linux.fcntl(socket.internal, F_SETFL, 0);
-            const flags: u32 = switch (std.os.linux.errno(get_flags_rc)) {
-                .SUCCESS => @intCast(get_flags_rc),
-                else => return error.FailedOperation,
-            };
-
-            const set_flags_rc = std.os.linux.fcntl(
-                socket.internal,
-                F_SETFL,
-                flags | std.posix.SOCK.NONBLOCK,
-            );
-            if (std.os.linux.errno(set_flags_rc) != .SUCCESS) return error.FailedOperation;
-        }
-    }
-
-    pub fn readIncomingBytes(self: *@This()) !void {
-        // read available bytes
+    pub fn readIncomingBytes(self: *@This(), io: std.Io) !void {
         var read_buffer: [262144]u8 = undefined;
-        const read_bytes = self.socket.receive(&read_buffer) catch |err| switch (err) {
-            // no available bytes
-            error.WouldBlock => return,
+        // Stream.read is unimplemented, so we just use this for now
+        const read_bytes = self.stream.socket.receiveTimeout(
+            io,
+            &read_buffer,
+            .{ .duration = .{ .raw = .fromMilliseconds(10), .clock = .real } },
+        ) catch |err| switch (err) {
+            error.Timeout => return,
             else => return err,
         };
-        // add to buffer
-        try self.queued_bytes.write(read_buffer[0..read_bytes]);
+        std.log.scoped(.net).debug("read {} bytes", .{read_bytes.data.len});
+        try self.queued_bytes.write(read_bytes.data);
     }
 
-    pub fn decodeQueuedBytes(
-        self: *@This(),
-    ) !?S2C {
+    pub fn decodeQueuedBytes(self: *@This(), io: std.Io) !?S2C {
         var buffer: S2C.ReadBuffer = .fromOwnedSlice(self.queued_bytes.readableSlice());
         const packet_body_size, const packet_header_size = buffer.readVarIntExtra(3) catch |err| switch (err) {
             error.VarIntTooBig => return err,
@@ -255,8 +218,8 @@ pub const Connection = struct {
                 .Login => {
                     const login = S2C.Login.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch |err| switch (err) {
                         error.OutOfMemory => {
-                            if (self.disconnected.load(.acquire)) return null;
-                            try self.handleOom(&buffer, initial_buffer_mark, initial_allocator_mark);
+                            if (self.wants_disconnect.load(.acquire)) return null;
+                            try self.handleOom(io, &buffer, initial_buffer_mark, initial_allocator_mark);
                             continue;
                         },
                         else => |fatal| return fatal,
@@ -266,8 +229,8 @@ pub const Connection = struct {
                 .Play => {
                     const play = S2C.Play.decode(&buffer, self.s2c_packet_ring_alloc.allocator()) catch |err| switch (err) {
                         error.OutOfMemory => {
-                            if (self.disconnected.load(.acquire)) return null;
-                            try self.handleOom(&buffer, initial_buffer_mark, initial_allocator_mark);
+                            if (self.wants_disconnect.load(.acquire)) return null;
+                            try self.handleOom(io, &buffer, initial_buffer_mark, initial_allocator_mark);
                             continue;
                         },
                         else => |fatal| return fatal,
@@ -278,21 +241,25 @@ pub const Connection = struct {
         }
     }
 
+    var oom_count: usize = 0;
+
     pub fn handleOom(
         self: *@This(),
+        io: std.Io,
         buffer: *S2C.ReadBuffer,
         initial_buffer_mark: usize,
         initial_allocator_mark: usize,
     ) !void {
-        std.log.scoped(.net).warn("ring buffer ran out of memory, waiting", .{});
+        if (oom_count % 5000 == 0) std.log.scoped(.net).warn("ring buffer out of memory ({})", .{oom_count});
+        oom_count += 1;
         // undo allocations and reads
         buffer.read_location = initial_buffer_mark;
         try self.s2c_packet_ring_alloc.undoAllocations(initial_allocator_mark);
 
         // free handled s2c packets to clear up memory
-        try self.freeS2CPackets();
+        try self.freeS2CPackets(io);
         // send c2s packets to prevent a deadlock
-        try self.sendC2SPackets();
+        try self.sendC2SPackets(io);
     }
 
     /// check if the buffer needs to be decompressed
@@ -381,20 +348,21 @@ pub const Connection = struct {
         return out_buffer;
     }
 
-    pub fn sendHandshakePacket(self: *@This(), packet: C2S.Handshake) !void {
-        try self.sendPacket(.{ .handshake = packet });
+    pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) !void {
+        try self.sendPacket(io, .{ .handshake = packet });
     }
 
-    pub fn sendLoginPacket(self: *@This(), packet: C2S.Login) !void {
-        try self.sendPacket(.{ .login = packet });
+    pub fn sendLoginPacket(self: *@This(), io: std.Io, packet: C2S.Login) !void {
+        try self.sendPacket(io, .{ .login = packet });
     }
 
-    pub fn sendPlayPacket(self: *@This(), packet: C2S.Play) !void {
-        try self.sendPacket(.{ .play = packet });
+    pub fn sendPlayPacket(self: *@This(), io: std.Io, packet: C2S.Play) !void {
+        try self.sendPacket(io, .{ .play = packet });
     }
 
     pub fn sendPacket(
         self: *@This(),
+        io: std.Io,
         packet: C2S,
     ) !void {
         var packet_encode_buffer: [1024 * 1024]u8 = undefined;
@@ -417,14 +385,18 @@ pub const Connection = struct {
         }
 
         packet_buffer = try prependLength(&packet_buffer, packet_encode_alloc);
-        _ = try self.socket.send(packet_buffer.backer.items);
+        var buf: [1024]u8 = undefined;
+        var writer = self.stream.writer(io, &buf);
+        std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len});
+        _ = try writer.interface.write(packet_buffer.backer.items);
+        try writer.interface.flush();
     }
 };
 
 pub const ConnectionHandle = struct {
     name: []const u8,
     port: u16,
-    network_thread: std.Thread,
+    network_task: std.Io.Future(@typeInfo(@TypeOf(network.connection.Connection.networkThreadImpl)).@"fn".return_type.?),
     /// The main thread submits to this queue, network thread encodes and sends them
     /// The main thread should periodically poll and free already sent packets
     c2s_packet_queue: *WriteReadFreeQueue(C2S),
@@ -433,32 +405,31 @@ pub const ConnectionHandle = struct {
     s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper),
     /// This allocator should be used to allocate memory for c2s packets and *nothing else*
     c2s_packet_allocator: std.mem.Allocator,
-    /// If either thread sets this flag to true, the network thread will disconnect and halt
-    disconnected: *std.atomic.Value(bool),
-    /// Held by the main thread until it calls disconnect()
-    /// Queued packets point into this thread's stack (the
-    /// s2c ring buffer and queued_bytes), so the network thread
-    /// blocks on it before exiting so it doesn't pull the rug
-    /// out from under the main thread.
-    lifetime_mutex: *std.atomic.Mutex,
+    /// If either thread sets this flag to true, the network thread will wait on disconnect_event then halt
+    wants_disconnect: *std.atomic.Value(bool),
+    /// Network thread will wait for main thread to set this before stopping
+    /// This is because the network thread holds memory that the main thread reads from (in s2c_packet_ring_alloc)
+    /// The main thread setting this signals that it is done reading from any memory owned
+    /// by the network thread
+    disconnect_event: *std.Io.Event,
 
-    pub fn sendPacket(self: *@This(), packet: C2S) !void {
-        try self.c2s_packet_queue.write(packet);
+    pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) !void {
+        try self.c2s_packet_queue.write(io, packet);
     }
 
-    pub fn sendHandshakePacket(self: *@This(), packet: C2S.Handshake) !void {
-        try self.sendPacket(.{ .handshake = packet });
+    pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) !void {
+        try self.sendPacket(io, .{ .handshake = packet });
     }
 
-    pub fn sendLoginPacket(self: *@This(), packet: C2S.Login) !void {
-        try self.sendPacket(.{ .login = packet });
+    pub fn sendLoginPacket(self: *@This(), io: std.Io, packet: C2S.Login) !void {
+        try self.sendPacket(io, .{ .login = packet });
     }
 
-    pub fn sendPlayPacket(self: *@This(), packet: C2S.Play) !void {
-        try self.sendPacket(.{ .play = packet });
+    pub fn sendPlayPacket(self: *@This(), io: std.Io, packet: C2S.Play) !void {
+        try self.sendPacket(io, .{ .play = packet });
     }
 
-    pub fn sendLoginSequence(self: *@This(), player_name: []const u8) !void {
+    pub fn sendLoginSequence(self: *@This(), io: std.Io, player_name: []const u8) !void {
         const handshake_packet: C2S.Handshake.Handshake = .{
             .version = 47,
             .address = self.name,
@@ -468,32 +439,32 @@ pub const ConnectionHandle = struct {
         const hello_packet: C2S.Login.Hello = .{
             .player_name = player_name,
         };
-        try self.sendHandshakePacket(.{ .handshake = handshake_packet });
-        try self.sendLoginPacket(.{ .hello = hello_packet });
+        try self.sendHandshakePacket(io, .{ .handshake = handshake_packet });
+        try self.sendLoginPacket(io, .{ .hello = hello_packet });
     }
 
     pub fn disconnect(
         self: *@This(),
+        io: std.Io,
         /// This should be the allocator that was passed to initConnection
         /// and was used to allocate the ring buffers used to pass packets
         allocator: std.mem.Allocator,
     ) void {
-        self.disconnected.store(true, .release);
-        // Release the session lock before joining: the network thread is parked on it
-        // and cannot return until we do. After this point we must not touch either
-        // queue's contents - the network thread's backing memory is about to go away.
-        self.lifetime_mutex.unlock();
-        self.network_thread.join();
+        std.debug.assert(self.wants_disconnect.load(.acquire));
+        std.log.scoped(.net).info("sending cancel to network thread", .{});
+        self.disconnect_event.set(io);
+        self.network_task.cancel(io) catch {};
         allocator.destroy(self.c2s_packet_queue);
         allocator.destroy(self.s2c_packet_queue);
-        allocator.destroy(self.disconnected);
-        allocator.destroy(self.lifetime_mutex);
+        allocator.destroy(self.wants_disconnect);
+        allocator.destroy(self.disconnect_event);
         allocator.free(self.name);
     }
 };
 
 /// Spawns a new thread and initializes a new connection in that thread, then returns a handle to that connection
 pub fn initConnection(
+    io: std.Io,
     name: []const u8,
     port: u16,
     /// This allocator will be used to allocate the ring buffers used for passing packets between threads,
@@ -504,29 +475,39 @@ pub fn initConnection(
 ) !ConnectionHandle {
     const c2s_packet_queue: *WriteReadFreeQueue(C2S) = try allocator.create(WriteReadFreeQueue(C2S));
     const s2c_packet_queue: *WriteReadFreeQueue(S2CWrapper) = try allocator.create(WriteReadFreeQueue(S2CWrapper));
-    const disconnect_ptr = try allocator.create(std.atomic.Value(bool));
-    const lifetime_mutex = try allocator.create(std.atomic.Mutex);
+
+    const disconnect_event = try allocator.create(std.Io.Event);
+    const wants_disconnect = try allocator.create(std.atomic.Value(bool));
+
     const name_dupe = try allocator.dupe(u8, name);
 
     c2s_packet_queue.* = .{};
     s2c_packet_queue.* = .{};
-    disconnect_ptr.* = .init(false);
-    // main thread owns the session until it releases it with disconnect()
-    // this prevents the network thread from shutting down while the main
-    // thread is still reading memory
-    lifetime_mutex.* = .locked;
+    disconnect_event.* = .unset;
+    wants_disconnect.*.raw = false;
 
-    const thread: std.Thread = try .spawn(.{ .stack_size = 16 * 1024 * 1024 }, Connection.networkThreadImpl, .{ name_dupe, port, disconnect_ptr, lifetime_mutex, c2s_packet_queue, s2c_packet_queue });
+    const network_task = try io.concurrent(
+        Connection.networkThreadImpl,
+        .{
+            io,
+            name_dupe,
+            port,
+            wants_disconnect,
+            disconnect_event,
+            c2s_packet_queue,
+            s2c_packet_queue,
+        },
+    );
 
     return .{
         .name = name_dupe,
         .port = port,
-        .network_thread = thread,
+        .network_task = network_task,
         .c2s_packet_queue = c2s_packet_queue,
         .s2c_packet_queue = s2c_packet_queue,
         .c2s_packet_allocator = c2s_packet_allocator,
-        .disconnected = disconnect_ptr,
-        .lifetime_mutex = lifetime_mutex,
+        .wants_disconnect = wants_disconnect,
+        .disconnect_event = disconnect_event,
     };
 }
 
@@ -548,7 +529,7 @@ pub fn WriteReadFreeQueue(comptime Element: type) type {
     return struct {
         buffer: [size]Element = @splat(undefined),
 
-        mutex: @import("llm-code-quarantine").Mutex = .{},
+        mutex: std.Io.Mutex = .init,
 
         /// The next element written will go to this index
         write_index: usize = 0,
@@ -575,9 +556,9 @@ pub fn WriteReadFreeQueue(comptime Element: type) type {
         }
 
         /// Producer: appends an element. Fails if every slot is still in use.
-        pub fn write(self: *@This(), element: Element) !void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+        pub fn write(self: *@This(), io: std.Io, element: Element) !void {
+            self.mutex.lockUncancelable(io);
+            defer self.mutex.unlock(io);
 
             if (self.unread() + self.held() + self.released() >= size) return error.WouldOverflow;
 
@@ -588,9 +569,9 @@ pub fn WriteReadFreeQueue(comptime Element: type) type {
         /// Consumer: holds the next element for processing.
         /// Element stays reserved until `release` is called.
         /// Can only claim one element at a time.
-        pub fn claim(self: *@This()) ?Element {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+        pub fn claim(self: *@This(), io: std.Io) ?Element {
+            self.mutex.lockUncancelable(io);
+            defer self.mutex.unlock(io);
 
             std.debug.assert(self.held() == 0);
 
@@ -605,9 +586,9 @@ pub fn WriteReadFreeQueue(comptime Element: type) type {
         }
 
         /// Consumer: release the claimed element.
-        pub fn release(self: *@This()) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+        pub fn release(self: *@This(), io: std.Io) void {
+            self.mutex.lockUncancelable(io);
+            defer self.mutex.unlock(io);
 
             std.debug.assert(self.held() == 1);
 
@@ -616,9 +597,9 @@ pub fn WriteReadFreeQueue(comptime Element: type) type {
 
         /// Producer: takes back an element the consumer has
         /// finished processing so its slot can be reused
-        pub fn reclaim(self: *@This()) ?Element {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+        pub fn reclaim(self: *@This(), io: std.Io) ?Element {
+            self.mutex.lockUncancelable(io);
+            defer self.mutex.unlock(io);
 
             // the main thread has not released anything new
             if (self.released() == 0) return null;

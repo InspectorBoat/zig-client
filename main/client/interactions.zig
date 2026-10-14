@@ -14,8 +14,8 @@ pub fn startMiningBlock(game: *Game, player: *LocalPlayer) !void {
 
     if (game.world.getBlock(player.crosshair.block.block_pos) == .air) return;
 
-    try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
-    try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+    try game.connection_handle.sendPlayPacket(game.io, .{ .hand_swing = .{} });
+    try game.connection_handle.sendPlayPacket(game.io, .{ .player_hand_action = .{
         .action = .start_breaking_block,
         .block_pos = player.crosshair.block.block_pos,
         .face = player.crosshair.block.dir,
@@ -32,7 +32,7 @@ pub fn startMiningBlock(game: *Game, player: *LocalPlayer) !void {
 // Caller is responsible for making sure we are mining a block
 pub fn stopMiningBlock(game: *Game) !void {
     std.debug.assert(game.world.mining_state != null);
-    try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+    try game.connection_handle.sendPlayPacket(game.io, .{ .player_hand_action = .{
         .action = .cancel_breaking_block,
         .block_pos = game.world.mining_state.?.target_block_pos,
         .face = game.world.mining_state.?.face,
@@ -60,7 +60,7 @@ pub fn updateBlockMining(game: *Game, player: *LocalPlayer) !void {
                 if (block.block_pos.equals(mining_state.target_block_pos)) {
                     mining_state.ticks += 1;
                     if (mining_state.ticks >= 10) { // TODO: Calculate block breaking time
-                        try game.connection_handle.sendPlayPacket(.{ .player_hand_action = .{
+                        try game.connection_handle.sendPlayPacket(game.io, .{ .player_hand_action = .{
                             .action = .finish_breaking_block,
                             .block_pos = mining_state.target_block_pos,
                             .face = mining_state.face,
@@ -82,25 +82,27 @@ pub fn updateBlockMining(game: *Game, player: *LocalPlayer) !void {
 }
 
 pub fn attackEntity(game: *Game, entity_network_id: i32) !void {
-    try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
-    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+    try game.connection_handle.sendPlayPacket(game.io, .{ .hand_swing = .{} });
+    try game.connection_handle.sendPlayPacket(game.io, .{ .player_interact_entity = .{
         .action = .attack,
         .target_network_id = entity_network_id,
     } });
 }
 
 pub fn swingHand(game: *Game) !void {
-    try game.connection_handle.sendPlayPacket(.{ .hand_swing = .{} });
+    try game.connection_handle.sendPlayPacket(game.io, .{ .hand_swing = .{} });
 }
 
 pub fn dropSingleItem(game: *Game) !void {
     try game.connection_handle.sendPlayPacket(
+        game.io,
         .{ .player_hand_action = .{ .action = .drop_single_item, .block_pos = .origin(), .face = .down } },
     );
 }
 
 pub fn dropEntireStack(game: *Game) !void {
     try game.connection_handle.sendPlayPacket(
+        game.io,
         .{ .player_hand_action = .{ .action = .drop_entire_stack, .block_pos = .origin(), .face = .down } },
     );
 }
@@ -129,7 +131,7 @@ pub fn useItem(game: *Game, player: *LocalPlayer) !void {
 
 /// TODO
 pub fn interactEntityAt(game: *Game, player: *LocalPlayer) !bool {
-    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+    try game.connection_handle.sendPlayPacket(game.io, .{ .player_interact_entity = .{
         .action = .{ .interact_at = player.crosshair.entity.pos },
         .target_network_id = player.crosshair.entity.entity_network_id,
     } });
@@ -138,7 +140,7 @@ pub fn interactEntityAt(game: *Game, player: *LocalPlayer) !bool {
 
 /// TODO
 pub fn interactEntity(game: *Game, player: *LocalPlayer) !bool {
-    try game.connection_handle.sendPlayPacket(.{ .player_interact_entity = .{
+    try game.connection_handle.sendPlayPacket(game.io, .{ .player_interact_entity = .{
         .action = .interact,
         .target_network_id = player.crosshair.entity.entity_network_id,
     } });

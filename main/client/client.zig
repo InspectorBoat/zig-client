@@ -15,7 +15,7 @@ pub const Client = union(enum) {
             const gpa = self.gpa;
             const io = self.io;
 
-            var connection_handle = try root.network.connection.initConnection(name, port, allocator, c2s_packet_allocator);
+            var connection_handle = try root.network.connection.initConnection(io, name, port, allocator, c2s_packet_allocator);
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
             client.* = .{ .connecting = .{
                 .gpa = gpa,
@@ -23,7 +23,7 @@ pub const Client = union(enum) {
 
                 .connection_handle = connection_handle,
             } };
-            try connection_handle.sendLoginSequence(player_name);
+            try connection_handle.sendLoginSequence(io, player_name);
         }
     };
     pub const Connecting = struct {
@@ -182,15 +182,21 @@ pub const Client = union(enum) {
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     /// Disconnects if connection is closed
     pub fn tickConnection(self: *@This()) !void {
-        const connection_handle, const s2c_packet_queue, const c2s_packet_queue, const allocator = switch (self.*) {
-            inline .game, .connecting => |client_state| .{ client_state.connection_handle, client_state.connection_handle.s2c_packet_queue, client_state.connection_handle.c2s_packet_queue, client_state.gpa },
+        const gpa, const io, const connection_handle, const s2c_packet_queue, const c2s_packet_queue = switch (self.*) {
+            inline .game, .connecting => |client_state| .{
+                client_state.gpa,
+                client_state.io,
+                client_state.connection_handle,
+                client_state.connection_handle.s2c_packet_queue,
+                client_state.connection_handle.c2s_packet_queue,
+            },
             else => unreachable,
         };
 
         // Read and handle incoming s2c packets
         while (true) {
-            const s2c_packet_wrapper = s2c_packet_queue.claim() orelse break;
-            defer s2c_packet_queue.release();
+            const s2c_packet_wrapper = s2c_packet_queue.claim(io) orelse break;
+            defer s2c_packet_queue.release(io);
 
             std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet_wrapper.packet))});
 
@@ -206,16 +212,17 @@ pub const Client = union(enum) {
                             specific_packet.required_client_state => |*client_state| client_state,
                             else => std.debug.panic("expected {}", .{specific_packet.required_client_state}),
                         },
-                        allocator,
+                        gpa,
                     );
                 },
             }
+            break;
         }
 
         // Free c2s packets already sent by the network thread
-        while (c2s_packet_queue.reclaim()) |_| {}
+        while (c2s_packet_queue.reclaim(io)) |_| {}
 
-        if (connection_handle.disconnected.load(.acquire)) {
+        if (connection_handle.wants_disconnect.load(.acquire)) {
             self.disconnect();
         }
     }
@@ -229,7 +236,7 @@ pub const Client = union(enum) {
 
                 std.log.scoped(.client).debug("total delay: {d} ms", .{game.tick_delay});
                 std.log.scoped(.client).info("main thread terminating connection", .{});
-                game.connection_handle.disconnect(game.gpa);
+                game.connection_handle.disconnect(game.io, game.gpa);
                 game.world.deinit(game.gpa);
                 self.* = .{ .idle = .{
                     .gpa = gpa,
@@ -241,7 +248,7 @@ pub const Client = union(enum) {
                 const io = connecting.io;
 
                 std.log.scoped(.client).info("main thread terminating connection", .{});
-                connecting.connection_handle.disconnect(connecting.gpa);
+                connecting.connection_handle.disconnect(io, gpa);
                 self.* = .{ .idle = .{
                     .gpa = gpa,
                     .io = io,

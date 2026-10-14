@@ -67,6 +67,8 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const headless = b.option(bool, "headless", "Run without a window") orelse false;
+    const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
+
     const options = b.addOptions();
     options.addOption(bool, "headless", headless);
 
@@ -74,6 +76,7 @@ pub fn build(b: *std.Build) void {
         // Create main executable
         const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
         mods.root.addOptions("build_options", options);
+        mods.root.single_threaded = single_threaded;
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.root,

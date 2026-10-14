@@ -16,12 +16,12 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(buffer: *S2C.ReadBuffer, allocator: std.mem.Allocator) !@This() {
     _ = allocator;
     return .{
-        .pos = Vector3(f64){
+        .pos = .{
             .x = try buffer.read(f64),
             .y = try buffer.read(f64),
             .z = try buffer.read(f64),
         },
-        .rotation = Rotation2(f32){
+        .rotation = .{
             .yaw = try buffer.read(f32),
             .pitch = try buffer.read(f32),
         },
@@ -40,7 +40,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
     if (self.relative_arguments.z == .Absolute) player.base.velocity.z = 0;
 
     player.base.teleport(
-        Vector3(f64){
+        .{
             .x = switch (self.relative_arguments.x) {
                 .Absolute => self.pos.x,
                 .Relative => self.pos.x + player.base.pos.x,
@@ -54,7 +54,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
                 .Relative => self.pos.z + player.base.pos.z,
             },
         },
-        Rotation2(f32){
+        .{
             .yaw = switch (self.relative_arguments.yaw) {
                 .Absolute => self.rotation.yaw,
                 .Relative => self.rotation.yaw + player.base.rotation.yaw,
@@ -66,6 +66,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
         },
     );
     try game.connection_handle.sendPlayPacket(
+        game.io,
         .{ .player_move_position_and_angles = .{
             .on_ground = false,
             .pos = player.base.pos,
@@ -74,6 +75,7 @@ pub fn handleOnMainThread(self: *@This(), game: *Client.Game, allocator: std.mem
     );
     // Temporary hack for respawning
     try game.connection_handle.sendPlayPacket(
+        game.io,
         .{ .client_status = .{
             .status = .PerformRespawn,
         } },
