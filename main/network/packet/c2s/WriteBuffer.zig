@@ -9,24 +9,17 @@ const Uuid = @import("util").Uuid;
 
 /// A buffer to write packet data (c2s)
 backer: std.ArrayList(u8),
-allocator: std.mem.Allocator,
 
-pub fn init(allocator: std.mem.Allocator) @This() {
+pub fn initBuffer(buffer: []u8) @This() {
     return .{
-        .backer = .empty,
-        .allocator = allocator,
+        .backer = .initBuffer(buffer),
     };
 }
 
-pub fn initCapacity(allocator: std.mem.Allocator, bytes: usize) !@This() {
+pub fn fromOwnedSlice(backer: []u8) @This() {
     return .{
-        .backer = try .initCapacity(allocator, bytes),
-        .allocator = allocator,
+        .backer = .fromOwnedSlice(backer),
     };
-}
-
-pub fn deinit(self: *@This()) void {
-    self.backer.deinit(self.allocator);
 }
 
 /// resets the buffer
@@ -36,7 +29,7 @@ pub fn clear(self: *@This()) void {
 
 /// Returns a read buffer view of this buffer without copying.
 pub fn toReadBuffer(self: *@This()) ReadPacketBuffer {
-    return ReadPacketBuffer{
+    return .{
         .backer = self.backer.items,
         .read_location = 0,
     };
@@ -48,20 +41,20 @@ pub fn write(self: *@This(), comptime T: type, value: T) std.mem.Allocator.Error
     if (T != bool and @sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
     if (@sizeOf(T) == 0) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must not be zero-sized");
 
-    if (T == bool) return try self.backer.append(self.allocator, @intCast(@intFromBool(value)));
+    if (T == bool) return try self.backer.appendBounded(@intCast(@intFromBool(value)));
 
     const ValueAsInt = @Int(.unsigned, @bitSizeOf(T));
     const value_as_int: ValueAsInt = @bitCast(value);
     const value_slice = std.mem.toBytes(std.mem.nativeToBig(ValueAsInt, value_as_int));
 
-    try self.backer.appendSlice(self.allocator, &value_slice);
+    try self.backer.appendSliceBounded(&value_slice);
 }
 
 pub fn writePacked(self: *@This(), comptime T: type, value: T) !void {
     if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to write (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
     if (@sizeOf(T) != 1) @compileError("type to write (" ++ @typeName(T) ++ ") must have a byte size of 1");
 
-    try self.backer.append(self.allocator, @bitCast(value));
+    try self.backer.appendBounded(@bitCast(value));
 }
 
 /// T must be an enum backed by an i32
@@ -72,7 +65,7 @@ pub fn writeEnum(self: *@This(), comptime T: type, value: T) !void {
 }
 
 pub fn writeBytes(self: *@This(), b: []const u8) !void {
-    try self.backer.appendSlice(self.allocator, b);
+    try self.backer.appendSliceBounded(b);
 }
 
 pub fn writeByteSlice(self: *@This(), b: []const u8) !void {
@@ -143,6 +136,21 @@ pub fn writeVarInt(self: *@This(), i: i32) std.mem.Allocator.Error!void {
     }
 }
 
+pub fn getVarIntSize(i: i32) usize {
+    // cast value to unsigned version to avoid shifting in 1s
+    var u: u32 = @bitCast(i);
+    var bytes: usize = 0;
+    for (0..5) |_| {
+        u >>= 7;
+
+        bytes += 1;
+
+        const has_more_bytes = u != 0;
+        if (!has_more_bytes) break;
+    }
+    return bytes;
+}
+
 pub fn fromOwnedArrayList(allocator: std.mem.Allocator, array_list: std.ArrayList(u8)) @This() {
     return .{
         .backer = array_list,
@@ -152,8 +160,8 @@ pub fn fromOwnedArrayList(allocator: std.mem.Allocator, array_list: std.ArrayLis
 
 test writeVarInt {
     std.debug.print("\n", .{});
-    var buffer = init(std.testing.allocator);
-    defer buffer.deinit();
+    var buffer: @This() = .initBuffer(std.testing.allocator);
+    defer buffer.backer.deinit(std.testing.allocator);
 
     try buffer.writeVarInt(0);
     try std.testing.expectEqualSlices(u8, &[_]u8{0x00}, buffer.backer.items);

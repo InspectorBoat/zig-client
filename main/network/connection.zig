@@ -56,7 +56,7 @@ pub const Connection = struct {
             disconnect_event.waitUncancelable(io);
         }
 
-        var ring_alloc_buffer: [1024 * 1024 * 8]u8 = undefined;
+        var ring_alloc_buffer: [1024 * 1024]u8 = undefined;
 
         const stream = try connectStream(io, name, port);
         defer stream.close(io);
@@ -102,7 +102,16 @@ pub const Connection = struct {
         // decode and dispatch
         while (true) {
             if (self.wants_disconnect.load(.acquire)) return;
-            const packet, const rewind_mark = (try self.decodeQueuedBytes(io)) orelse break;
+            const packet, const rewind_mark = (self.decodeQueuedBytes(io) catch |e| switch (e) {
+                error.OutOfMemory => {
+                    std.log.scoped(.backpressure).warn("ring buffer out of memory: {}/{}", .{
+                        self.s2c_packet_ring_alloc.usedBytes(),
+                        self.s2c_packet_ring_alloc.buffer.len,
+                    });
+                    break;
+                },
+                else => return e,
+            }) orelse break;
             if (self.wants_disconnect.load(.acquire)) return;
             try self.dispatchS2CPacket(io, packet, rewind_mark);
         }
@@ -123,8 +132,8 @@ pub const Connection = struct {
             inline else => |*specific_protocol| {
                 switch (specific_protocol.*) {
                     inline else => |*specific_packet| {
-                        std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
                         if (specific_packet.handle_on_network_thread) {
+                            std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
                             try specific_packet.handleOnNetworkThread(io, self);
                             // free immediately
                             self.s2c_packet_ring_alloc.undoAllocations(rewind_mark);
@@ -164,7 +173,7 @@ pub const Connection = struct {
         try self.queued_bytes.write(read_bytes.data);
     }
 
-    pub fn decodeQueuedBytes(self: *@This(), io: std.Io) !?struct { S2C, RingBuffer.RewindMark } {
+    pub fn decodeQueuedBytes(self: *@This(), _: std.Io) !?struct { S2C, RingBuffer.RewindMark } {
         var packet_buffer: S2C.ReadBuffer = .fromOwnedSlice(self.queued_bytes.readableSlice());
 
         const packet_body_size, const packet_header_size = packet_buffer.readVarIntExtra(3) catch |err| switch (err) {
@@ -178,81 +187,38 @@ pub const Connection = struct {
 
         const packet_size = packet_header_size + @as(usize, @intCast(packet_body_size));
 
+        var ok = true;
+        defer if (ok) self.queued_bytes.discard(packet_size);
+        errdefer ok = false;
+
         // trim buffer to prevent reading past the packet end
         packet_buffer.backer = packet_buffer.backer[0..packet_size];
-        defer self.queued_bytes.discard(packet_size);
 
         // check if the buffer needs to be decompressed before it can be read as a packet
         // stack allocate decompression buffer, so we never need to worry about freeing
-        var decompress_buffer: []u8 = undefined;
+        var decompress_buffer: [2097152]u8 = undefined;
         if (try self.getDecompressedSize(&packet_buffer)) |decompressed_size| {
             const decompressed_bytes = decompress_buffer[0..decompressed_size];
             try decompressBuffer(&packet_buffer, decompressed_bytes);
             packet_buffer = .fromOwnedSlice(decompressed_bytes);
         }
 
-        while (true) {
-            // if we fail the allocation, roll back packet buffer and allocations, and try again
-            const initial_buffer_mark = packet_buffer.read_location;
-            const allocator_rewind_mark = self.s2c_packet_ring_alloc.beginRewind();
+        // if we fail the allocation, roll back packet buffer and allocations
+        const allocator_rewind_mark = self.s2c_packet_ring_alloc.beginRewind();
+        errdefer self.s2c_packet_ring_alloc.undoAllocations(allocator_rewind_mark);
 
-            switch (self.protocol) {
-                // only the client ever sends packets in the handshake protocol
-                .Handshake => unreachable,
-                // this does not occur in a normal connection
-                .Status => unreachable,
-                .Login => {
-                    const login = S2C.Login.decode(self.s2c_packet_ring_alloc.allocator(), &packet_buffer) catch |err| switch (err) {
-                        error.OutOfMemory => {
-                            if (self.wants_disconnect.load(.acquire)) return null;
-                            try self.handleOom(io, &packet_buffer, initial_buffer_mark, allocator_rewind_mark);
-                            continue;
-                        },
-                        else => |fatal| return fatal,
-                    };
-                    return .{ .{ .login = login }, allocator_rewind_mark };
-                },
-                .Play => {
-                    const play = S2C.Play.decode(self.s2c_packet_ring_alloc.allocator(), &packet_buffer) catch |err| switch (err) {
-                        error.OutOfMemory => {
-                            if (self.wants_disconnect.load(.acquire)) return null;
-                            try self.handleOom(io, &packet_buffer, initial_buffer_mark, allocator_rewind_mark);
-                            continue;
-                        },
-                        else => |fatal| return fatal,
-                    };
-                    return .{ .{ .play = play }, allocator_rewind_mark };
-                },
-            }
+        switch (self.protocol) {
+            // only the client ever sends packets in the handshake protocol
+            .Handshake => unreachable,
+            // this does not occur in a normal connection
+            .Status => unreachable,
+            .Login => {
+                return .{ .{ .login = try .decode(self.s2c_packet_ring_alloc.allocator(), &packet_buffer) }, allocator_rewind_mark };
+            },
+            .Play => {
+                return .{ .{ .play = try .decode(self.s2c_packet_ring_alloc.allocator(), &packet_buffer) }, allocator_rewind_mark };
+            },
         }
-    }
-
-    var oom_count: usize = 0;
-
-    pub fn handleOom(
-        self: *@This(),
-        io: std.Io,
-        buffer: *S2C.ReadBuffer,
-        initial_buffer_mark: usize,
-        allocator_rewind_mark: RingBuffer.RewindMark,
-    ) !void {
-        defer oom_count += 1;
-        if (oom_count % 5000 == 0) {
-            std.log.scoped(.backpressure).warn("ring buffer out of memory ({}) used: {}/{}", .{
-                oom_count,
-                self.s2c_packet_ring_alloc.usedBytes(),
-                self.s2c_packet_ring_alloc.buffer.len,
-            });
-            std.log.scoped(.backpressure).warn("{} unread s2c packets", .{
-                self.s2c_packet_queue.unread(),
-            });
-        }
-        // undo allocations and reads
-        buffer.read_location = initial_buffer_mark;
-        self.s2c_packet_ring_alloc.undoAllocations(allocator_rewind_mark);
-
-        // send c2s packets to prevent a deadlock
-        try self.sendC2SPackets(io);
     }
 
     /// check if the buffer needs to be decompressed
@@ -274,13 +240,10 @@ pub const Connection = struct {
     }
 
     pub fn decompressBuffer(compressed_buffer: *S2C.ReadBuffer, decompressed_bytes_out: []u8) !void {
-        // take slice of unread bytes to be compressed
-        const compressed_bytes = compressed_buffer.readRemainingBytesNonAllocating();
+        var scratch_buffer: [std.compress.flate.max_window_len]u8 = undefined;
 
-        var input: std.Io.Reader = .fixed(compressed_bytes);
-        var window: [std.compress.flate.max_window_len]u8 = undefined;
-        var decompressor: std.compress.flate.Decompress = .init(&input, .zlib, &window);
-
+        var input: std.Io.Reader = .fixed(compressed_buffer.readRemainingBytesNonAllocating());
+        var decompressor: std.compress.flate.Decompress = .init(&input, .zlib, &scratch_buffer);
         try decompressor.reader.readSliceAll(decompressed_bytes_out);
     }
 
@@ -295,35 +258,15 @@ pub const Connection = struct {
     }
 
     /// takes ownership of uncompressed_buffer
-    pub fn compressBuffer(self: *@This(), allocator: std.mem.Allocator, uncompressed_buffer: *C2S.WriteBuffer) !C2S.WriteBuffer {
-        defer uncompressed_buffer.deinit();
+    pub fn compressBuffer(uncompressed_buffer: *C2S.WriteBuffer, buffer: []u8) !C2S.WriteBuffer {
+        var scratch_buffer: [std.compress.flate.max_window_len]u8 = undefined;
 
-        var compressed_bytes: std.ArrayList(u8) = .empty;
-        errdefer compressed_bytes.deinit(allocator);
+        var output: std.Io.Writer = .fixed(buffer);
+        var compressor: std.compress.flate.Compress = try .init(&output, &scratch_buffer, .zlib, .fastest);
+        try compressor.writer.writeAll(uncompressed_buffer.backer.items);
+        try compressor.finish();
 
-        if (uncompressed_buffer.backer.items.len < self.compression_threshold) {
-            var compressed_buffer: C2S.WriteBuffer = .fromOwnedArrayList(allocator, compressed_bytes);
-            try compressed_buffer.writeVarInt(0);
-            try compressed_buffer.writeBytes(uncompressed_buffer.backer.items);
-            return compressed_buffer;
-        }
-
-        // Compress needs a fixed output writer, so compress into a scratch
-        // buffer and copy the result out. +64 covers the framing.
-        const uncompressed = uncompressed_buffer.backer.items;
-        const window = try allocator.alloc(u8, std.compress.flate.max_window_len);
-        defer allocator.free(window);
-        const scratch = try allocator.alloc(u8, uncompressed.len + 64);
-        defer allocator.free(scratch);
-
-        var output: std.Io.Writer = .fixed(scratch);
-        var compressor = try std.compress.flate.Compress.init(&output, window, .zlib, .default);
-        try compressor.writer.writeAll(uncompressed);
-        try std.compress.flate.Compress.finish(&compressor);
-
-        try compressed_bytes.appendSlice(allocator, output.buffered());
-
-        return .fromOwnedArrayList(allocator, compressed_bytes);
+        return .fromOwnedSlice(output.buffered());
     }
 
     /// takes ownership of original_buffer
@@ -354,12 +297,8 @@ pub const Connection = struct {
         io: std.Io,
         packet: C2S,
     ) !void {
-        var packet_encode_buffer: [1024 * 1024]u8 = undefined;
-        var packet_encode_alloc_impl: std.heap.FixedBufferAllocator = .init(&packet_encode_buffer);
-        const packet_encode_alloc = packet_encode_alloc_impl.allocator();
-
-        var packet_buffer: C2S.WriteBuffer = .init(packet_encode_alloc);
-        defer packet_buffer.deinit();
+        var packet_encode_buffer: [2097152]u8 = undefined;
+        var packet_buffer: C2S.WriteBuffer = .initBuffer(&packet_encode_buffer);
 
         // write packet
         switch (packet) {
@@ -368,15 +307,39 @@ pub const Connection = struct {
             .play => |play_packet| try play_packet.write(&packet_buffer),
         }
 
+        std.log.scoped(.send_packet).debug("sending packet {s}", .{switch (packet) {
+            inline else => |specific_packet| @tagName(specific_packet),
+        }});
+
+        const uncompressed_len = packet_buffer.backer.items.len;
+
         // compress packet
-        if (self.compression_threshold >= 0) {
-            packet_buffer = try self.compressBuffer(packet_encode_alloc, &packet_buffer);
+        var packet_compress_buffer: [2097152]u8 = undefined;
+
+        const compress = self.compression_threshold >= 0 and uncompressed_len >= self.compression_threshold;
+        if (compress) {
+            packet_buffer = try compressBuffer(&packet_buffer, &packet_compress_buffer);
         }
 
-        packet_buffer = try prependLength(packet_encode_alloc, &packet_buffer);
+        // if compression_threshold >= 0, framing is [length][uncompressed size][data]
+        // where a size of 0 means the data was not compressed.
+        // otherwise framing is [length][data]
+
+        var header_buf: [8]u8 = undefined;
+        var header: C2S.WriteBuffer = .initBuffer(&header_buf);
+        if (self.compression_threshold >= 0) {
+            const uncompressed_size: i32 = if (compress) @intCast(uncompressed_len) else 0;
+            header.writeVarInt(@intCast(packet_buffer.backer.items.len + C2S.WriteBuffer.getVarIntSize(uncompressed_size))) catch unreachable;
+            header.writeVarInt(uncompressed_size) catch unreachable;
+        } else {
+            header.writeVarInt(@intCast(uncompressed_len)) catch unreachable;
+        }
+
+        std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len + header.backer.items.len});
+
         var buf: [1024]u8 = undefined;
         var writer = self.stream.writer(io, &buf);
-        std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len});
+        _ = try writer.interface.write(header.backer.items);
         _ = try writer.interface.write(packet_buffer.backer.items);
         try writer.interface.flush();
     }
@@ -524,7 +487,7 @@ pub fn SpscQueue(comptime Element: type) type {
         /// The next element popped will be at this index
         read_index: std.atomic.Value(usize) = .init(0),
 
-        fn unread(self: *@This()) usize {
+        pub fn unread(self: *@This()) usize {
             return self.write_index.load(.acquire) - self.read_index.load(.acquire);
         }
 

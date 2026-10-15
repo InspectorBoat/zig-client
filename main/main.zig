@@ -68,6 +68,7 @@ pub const std_options: std.Options = .{
         .{ .scope = .handle_packet_net, .level = .warn },
         .{ .scope = .world, .level = .warn },
         .{ .scope = .decode_packet, .level = .warn },
+        .{ .scope = .send_packet, .level = .warn },
         .{ .scope = .entity, .level = .warn },
         .{ .scope = .local_player_moved, .level = .warn },
         .{ .scope = .player, .level = .warn },
