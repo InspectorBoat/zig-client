@@ -31,7 +31,7 @@ buffer: []u8,
 /// The next allocation can start at this byte
 logical_alloc_index: usize = 0,
 /// Bytes before this index are free
-logical_free_index: usize = 0,
+logical_free_index: std.atomic.Value(usize) = .init(0),
 
 safety: Safety = .{},
 
@@ -44,7 +44,7 @@ pub fn toPhysicalIndex(self: *const @This(), logical_index: usize) usize {
 }
 
 pub fn usedBytes(self: *const @This()) usize {
-    return self.logical_alloc_index - self.logical_free_index;
+    return self.logical_alloc_index - self.logical_free_index.load(.acquire);
 }
 
 pub fn alloc(self: *@This(), n: usize, alignment: std.mem.Alignment) ![*]u8 {
@@ -92,7 +92,7 @@ pub fn undoAllocations(self: *@This(), mark: RewindMark) void {
     // if you trigger this check, it's probably the RingBuffer that has a bug,
     // not the consuming code (unless it does something really stupid like forging
     // counterfeit Marks)
-    std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
+    std.debug.assert(mark.index >= self.logical_free_index.load(.acquire) and mark.index <= self.logical_alloc_index);
 
     self.logical_alloc_index = mark.index;
     self.safety.active_rewind_index = null;
@@ -105,7 +105,7 @@ pub fn commit(self: *@This(), mark: RewindMark) TailMark {
     // if you trigger this check, it's probably the RingBuffer that has a bug,
     // not the consuming code (unless it does something really stupid like forging
     // counterfeit Marks)
-    std.debug.assert(mark.index >= self.logical_free_index and mark.index <= self.logical_alloc_index);
+    std.debug.assert(mark.index >= self.logical_free_index.load(.acquire) and mark.index <= self.logical_alloc_index);
     self.safety.active_rewind_index = null;
     defer self.safety.next_tail_serial += 1;
     return .{ .index = self.logical_alloc_index, .serial = self.safety.next_tail_serial };
@@ -116,9 +116,9 @@ pub fn freeFromTail(self: *@This(), mark: TailMark) void {
     // if you trigger this check, it's probably the RingBuffer that has a bug,
     // not the consuming code (unless it does something really stupid like forging
     // counterfeit Marks)
-    std.debug.assert(mark.index >= self.logical_free_index);
+    std.debug.assert(mark.index >= self.logical_free_index.load(.acquire));
 
-    self.logical_free_index = mark.index;
+    self.logical_free_index.store(mark.index, .release);
     self.safety.oldest_tail_serial += 1;
 }
 
