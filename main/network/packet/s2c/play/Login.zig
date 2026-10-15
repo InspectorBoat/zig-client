@@ -55,6 +55,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         allocator,
         .{
             .difficulty = self.difficulty,
+            .game_mode = self.game_mode,
             .dimension = self.dimension,
             .hardcore = self.hardcore,
         },

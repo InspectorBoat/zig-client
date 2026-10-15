@@ -2,8 +2,9 @@ const std = @import("std");
 const root = @import("root");
 const S2C = root.network.packet.S2C;
 const Client = root.Client;
+const World = root.World;
 
-event: i32,
+event: Event,
 data: f32,
 
 comptime handle_on_network_thread: bool = false,
@@ -13,17 +14,28 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
 
     return .{
-        .event = try buffer.read(u8),
+        .event = @fromBackingInt(try buffer.read(u8)),
         .data = try buffer.read(f32),
     };
 }
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
-    _ = game;
-    _ = self;
+
+    switch (self.event) {
+        .InvalidBed => {},
+        .BeginRaining => {},
+        .StopRaining => {},
+        .SetGameMode => game.world.game_mode = std.enums.fromInt(World.GameMode, @as(i32, @trunc(self.data))) orelse .Survival,
+        .OpenCredits => {},
+        .DemoMessage => {},
+        .PlayArrowHitSound => {},
+        .SetRainDuration => {},
+        .SetThunderDuration => {},
+        .PlayElderGuardianJumpscare => {},
+        _ => {},
+    }
 }
 
 /// Ids handleGameEvent acts on; unknown ids are ignored, so the packet stores

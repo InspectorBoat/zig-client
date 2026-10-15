@@ -93,7 +93,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     // close screen if in portal
 
     // set steer from input
-    const inputs = &game.active_inputs;
+    const inputs = &game.input_manager;
     var steer: Vector2xz(f32) = inputs.movement.steer();
     self.sneaking = inputs.movement.sneak;
     // apply slowdown
@@ -168,6 +168,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
 
     // update air speed according to sprinting status
     self.air_speed = if (try self.base.isSprinting()) 0.025999999 else 0.02;
+    self.air_speed *= 5;
     // update move speed according to movement speed attribute
 
     // stop flying if on ground in creative mode and sync abilities
@@ -253,7 +254,7 @@ pub fn hasControl(self: *@This()) bool {
     return true;
 }
 
-pub fn updateSprinting(self: *@This(), inputs: Client.Game.ActiveInputs, steer: Vector2xz(f32)) !void {
+pub fn updateSprinting(self: *@This(), inputs: Client.Game.InputManager, steer: Vector2xz(f32)) !void {
     // TODO: Double tap sprint code
 
     const sufficient_forward_input = steer.z >= @as(f32, @floatCast(0.8));

@@ -2,82 +2,24 @@ const root = @import("root");
 const std = @import("std");
 
 const Game = root.Client.Game;
+const Vector3 = root.Vector3;
+const Direction = root.Direction;
 const ActiveInputs = Game.ActiveInputs;
 const LocalPlayer = root.Entity.LocalPlayer;
 
-// Caller is responsible for making sure we are not already mining a block
-pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer) !void {
-    // TODO: Check game mode, world border
+pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
+    _ = io;
+    _ = game;
+    _ = player;
+}
 
-    std.debug.assert(player.crosshair == .block);
-    std.debug.assert(game.world.mining_state == null);
-
-    if (game.world.getBlock(player.crosshair.block.block_pos) == .air) return;
-
+pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
+    if (game.input_manager.hand.attack_cooldown > 0) return;
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
-    try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
-        .action = .start_breaking_block,
-        .block_pos = player.crosshair.block.block_pos,
-        .face = player.crosshair.block.dir,
-    } });
-    if (false) { // TODO: This should check for instabreaking
-        @panic("TODO");
-    }
-    game.world.mining_state = .{
-        .target_block_pos = player.crosshair.block.block_pos,
-        .face = player.crosshair.block.dir,
-    };
-}
-
-// Caller is responsible for making sure we are mining a block
-pub fn stopMiningBlock(io: std.Io, game: *Game) !void {
-    std.debug.assert(game.world.mining_state != null);
-    try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
-        .action = .cancel_breaking_block,
-        .block_pos = game.world.mining_state.?.target_block_pos,
-        .face = game.world.mining_state.?.face,
-    } });
-    game.world.mining_state = null;
-}
-
-pub fn finishMiningBlock(io: std.Io, game: *Game) void {
-    std.debug.assert(game.world.mining_state != null);
-    const mining_state = &game.world.mining_state.?;
-    try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
-        .action = .finish_breaking_block,
-        .block_pos = mining_state.target_block_pos,
-        .face = mining_state.face,
-    } });
-    mining_state.* = null;
-}
-
-pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer) !void {
-    // TODO: World border, check game mode
-    if (game.world.mining_state) |*mining_state| {
-        switch (player.crosshair) {
-            .miss, .entity => try stopMiningBlock(io, game),
-            .block => |block| {
-                if (block.block_pos.equals(mining_state.target_block_pos)) {
-                    mining_state.ticks += 1;
-                    if (mining_state.ticks >= 10) { // TODO: Calculate block breaking time
-                        try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
-                            .action = .finish_breaking_block,
-                            .block_pos = mining_state.target_block_pos,
-                            .face = mining_state.face,
-                        } });
-                        game.world.mining_state = null;
-                    }
-                } else {
-                    try stopMiningBlock(io, game);
-                    try startMiningBlock(io, game, player);
-                }
-            },
-        }
-    } else {
-        switch (player.crosshair) {
-            .miss, .entity => {},
-            .block => try startMiningBlock(io, game, player),
-        }
+    switch (player.crosshair) {
+        .entity => |entity| try attackEntity(io, game, entity.entity_network_id),
+        .block => |block| try startMiningBlock(io, game, player, block.block_pos, block.dir),
+        .miss => game.input_manager.hand.attack_cooldown = 10,
     }
 }
 
@@ -87,6 +29,127 @@ pub fn attackEntity(io: std.Io, game: *Game, entity_network_id: i32) !void {
         .action = .attack,
         .target_network_id = entity_network_id,
     } });
+    // TODO: other clientside effects, like velocity multiply, stop sprinting, etc.
+}
+
+pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
+    // TODO: Check game mode, world border
+    std.debug.assert(player.crosshair == .block);
+
+    if (game.world.getBlock(block_pos) == .air) return;
+    // TODO: adventure mode tag overrides
+    if (game.world.game_mode.restrictsWorldModification()) return;
+
+    // todo: world border
+
+    // creative instabreak
+    if (game.world.game_mode == .Creative) {
+        try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+            .action = .start_breaking_block,
+            .block_pos = block_pos,
+            .face = dir,
+        } });
+        try instaMineBlock(game, block_pos);
+        game.input_manager.hand.mining_cooldown = 5;
+        return;
+    }
+
+    const already_mining_block = game.world.mining_state != null;
+    const mining_same_block = if (game.world.mining_state) |mining_state| mining_state.block_pos.equals(block_pos) else false;
+
+    if (already_mining_block and mining_same_block) return;
+
+    // abort current block
+    if (already_mining_block) {
+        try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+            .action = .cancel_breaking_block,
+            .block_pos = block_pos,
+            .face = dir,
+        } });
+    }
+
+    try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+        .action = .start_breaking_block,
+        .block_pos = block_pos,
+        .face = dir,
+    } });
+
+    const not_air = game.world.getBlock(block_pos) != .air;
+    if (not_air and false) {
+        // stuff like eating cake on left click, note blocks, etc.
+    }
+
+    if (not_air and false) {
+        try finishMiningBlock(io, game);
+    } else game.world.mining_state = .{
+        .block_pos = player.crosshair.block.block_pos,
+        .face = player.crosshair.block.dir,
+    };
+}
+
+// TODO: extinguish fire
+pub fn instaMineBlock(game: *Game, block_pos: Vector3(i32)) !void {
+    try finishMiningBlock(game, block_pos);
+}
+
+pub fn stopMiningBlock(io: std.Io, game: *Game) !void {
+    if (game.world.mining_state == null) return;
+    try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+        .action = .cancel_breaking_block,
+        .block_pos = game.world.mining_state.?.block_pos,
+        .face = game.world.mining_state.?.face,
+    } });
+    game.world.mining_state = null;
+}
+
+pub fn finishMiningBlock(game: *Game, block_pos: Vector3(i32)) !void {
+    if (game.world.game_mode.restrictsWorldModification()) {
+        // todo: check for adventure mode block overrides
+        return;
+    }
+
+    // todo: don't mine blocks in creative with sword
+
+    // optimistic removal
+    try game.world.setBlockState(std.mem.Allocator.failing, block_pos, .air_blockstate);
+    game.world.mining_state = null;
+}
+
+pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
+    if (game.input_manager.hand.mining_cooldown > 0) {
+        game.input_manager.hand.mining_cooldown -|= 1;
+        return;
+    }
+    if (game.world.game_mode == .Creative) {
+        try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+            .action = .start_breaking_block,
+            .block_pos = block_pos,
+            .face = dir,
+        } });
+        try instaMineBlock(game, block_pos);
+        game.input_manager.hand.mining_cooldown = 5;
+        return;
+    }
+    const mining_state = &(game.world.mining_state orelse return try startMiningBlock(io, game, player, block_pos, dir));
+    if (!mining_state.block_pos.equals(block_pos)) return try startMiningBlock(io, game, player, block_pos, dir);
+
+    const block = game.world.getBlock(mining_state.block_pos);
+    if (block == .air) {
+        game.world.mining_state = null;
+        return;
+    }
+    // update mining progress
+    mining_state.progress += block.getMiningProgress(player);
+    if (mining_state.progress >= 1) {
+        try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+            .action = .finish_breaking_block,
+            .block_pos = block_pos,
+            .face = dir,
+        } });
+        try finishMiningBlock(game, block_pos);
+        game.world.mining_state = null;
+        game.input_manager.hand.mining_cooldown = 5;
+    }
 }
 
 pub fn swingHand(io: std.Io, game: *Game) !void {
@@ -108,11 +171,14 @@ pub fn dropEntireStack(io: std.Io, game: *Game) !void {
 }
 
 pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
+    if (game.world.mining_state != null) return;
+
     const interaction_consumed = switch (player.crosshair) {
         .entity => try interactEntityAt(io, game, player) or try interactEntity(io, game, player),
         .block => try useBlock(game, player),
         .miss => false,
     };
+
     if (!interaction_consumed) {
         try useItem(game, player);
     }
@@ -164,4 +230,10 @@ pub fn stopUsingItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     );
     player.item_in_use = null;
     player.item_use_timer = 0;
+}
+
+pub fn pick(io: std.Io, game: *Game, player: *LocalPlayer) !void {
+    _ = io;
+    _ = game;
+    _ = player;
 }

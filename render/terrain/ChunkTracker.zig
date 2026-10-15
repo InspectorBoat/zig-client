@@ -122,20 +122,21 @@ pub fn markBlockPosDirty(self: *@This(), block_pos: Vector3(i32)) !void {
 }
 
 pub fn markAreaDirty(self: *@This(), block_pos_min: Vector3(i32), block_pos_max: Vector3(i32)) !void {
-    const min_section_pos: Vector3(i32) = .divFloor(block_pos_min, .splat(16));
-    const max_section_pos: Vector3(i32) = .divFloor(block_pos_max, .splat(16));
+    const min_section_pos: Vector3(i32) = .sub(.divFloor(block_pos_min, .splat(16)), .splat(1));
+    const max_section_pos: Vector3(i32) = .add(.divFloor(block_pos_max, .splat(16)), .splat(1));
+
     var x: i32 = min_section_pos.x;
-    var y: i32 = min_section_pos.y;
-    var z: i32 = min_section_pos.z;
     while (x <= max_section_pos.x) : (x += 1) {
-        while (y <= max_section_pos.y) : (y += 1) {
+        var y: i32 = @max(min_section_pos.y, 0);
+        while (y <= @min(max_section_pos.y, 15)) : (y += 1) {
+            var z: i32 = min_section_pos.z;
             while (z <= max_section_pos.z) : (z += 1) {
-                const chunk = self.chunks.getPtr(.{ .x = x, .z = z }) orelse return;
+                const chunk = self.chunks.getPtr(.{ .x = x, .z = z }) orelse continue;
                 switch (chunk.*) {
                     .rendering => |*sections| {
                         sections[@intCast(y)].markDirty();
                     },
-                    .waiting => return,
+                    .waiting => continue,
                 }
             }
         }

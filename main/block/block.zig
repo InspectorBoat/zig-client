@@ -1,6 +1,7 @@
 const std = @import("std");
 const root = @import("root");
 const World = root.World;
+const LocalPlayer = root.Entity.LocalPlayer;
 const Vector3 = root.Vector3;
 const Box = root.Box;
 const Direction = root.Direction;
@@ -253,6 +254,25 @@ pub const Block = enum(u8) {
     /// TODO: STUB
     pub fn isSolid(self: @This()) bool {
         return self.isFullCube();
+    }
+
+    pub fn getHardness(self: @This()) f32 {
+        return @import("hardness.zig").hardness.get(self);
+    }
+
+    pub fn getMiningProgress(self: @This(), player: *const LocalPlayer) f32 {
+        _ = player;
+
+        const hardness: f32 = self.getHardness();
+        if (hardness < 0) return 0;
+
+        const can_break_efficiently = true;
+        const player_mining_speed_multiplier: f32 = 1;
+
+        return if (!can_break_efficiently)
+            player_mining_speed_multiplier / hardness / 100.0
+        else
+            player_mining_speed_multiplier / hardness / 30.0;
     }
 
     pub const VirtualState = @import("virtual_state.zig").VirtualState;

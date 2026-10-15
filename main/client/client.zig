@@ -37,7 +37,7 @@ pub const Client = union(enum) {
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
         input_queue: InputQueue = .{},
-        active_inputs: ActiveInputs = .{},
+        input_manager: InputManager = .{},
 
         pub fn handleInputOnFrame(self: *@This()) void {
             const player = &self.world.player;
@@ -60,40 +60,37 @@ pub const Client = union(enum) {
         pub fn handleInputOnTick(self: *@This(), io: std.Io) !void {
             const interactions = @import("interactions.zig");
             const player = &self.world.player;
-            const inputs = &self.active_inputs;
+            const inputs = &self.input_manager;
 
-            // Cannot attack or break the same tick as stopping item usage
-            var released_use_item = false;
+            inputs.hand.attack_cooldown -|= 1;
+            inputs.hand.auto_use_item_cooldown -|= 1;
 
+            var drop_presses: usize, var attack_presses: usize, var use_presses: usize, var pick_presses: usize = .{ 0, 0, 0, 0 };
+            _ = &pick_presses;
             while (self.input_queue.on_tick.readItem()) |queued_input| {
                 switch (queued_input) {
                     .hand => |hand| {
                         switch (hand) {
                             .drop => |drop| switch (drop) {
-                                true => if (inputs.movement.sprint) try interactions.dropEntireStack(io, self) else try interactions.dropSingleItem(io, self),
-                                false => {},
+                                true => {
+                                    drop_presses += 1;
+                                    inputs.hand.drop = true;
+                                },
+                                false => inputs.hand.drop = false,
                             },
                             .main => |main| switch (main) {
                                 true => {
-                                    inputs.hand.main = true;
-                                    if (player.item_in_use != null or released_use_item) continue;
-                                    try interactions.swingHand(io, self);
-                                    switch (player.crosshair) {
-                                        .miss => {},
-                                        .block => if (self.world.mining_state == null) try interactions.startMiningBlock(io, self, player),
-                                        .entity => |entity| try interactions.attackEntity(io, self, entity.entity_network_id),
-                                    }
+                                    attack_presses += 1;
+                                    inputs.hand.attack = true;
                                 },
-                                false => inputs.hand.main = false,
+                                false => inputs.hand.attack = false,
                             },
                             .use => |use| switch (use) {
                                 true => {
-                                    if (player.item_in_use != null or released_use_item) continue;
-                                    try interactions.use(io, self, player);
+                                    use_presses += 1;
+                                    inputs.hand.use = true;
                                 },
-                                false => if (player.item_in_use != null) {
-                                    released_use_item = true;
-                                },
+                                false => inputs.hand.use = false,
                             },
                             else => {},
                         }
@@ -114,18 +111,37 @@ pub const Client = union(enum) {
                 }
             }
 
-            if (inputs.hand.main) {
-                try interactions.updateBlockMining(io, self, player);
-            } else if (self.world.mining_state != null) {
-                try interactions.stopMiningBlock(io, self);
+            if (player.item_in_use != null) {
+                if (!inputs.hand.use) try interactions.stopUsingItem(io, self, player);
+            } else {
+                for (0..attack_presses) |_| try interactions.attack(io, self, player);
+                for (0..use_presses) |_| try interactions.use(io, self, player);
+                for (0..pick_presses) |_| try interactions.pick(io, self, player);
+            }
+            if (inputs.hand.use and self.input_manager.hand.auto_use_item_cooldown == 0 and player.item_in_use == null) {
+                try interactions.use(io, self, player);
+            }
+
+            if (!inputs.hand.attack) self.input_manager.hand.attack_cooldown = 0;
+
+            if (self.input_manager.hand.attack_cooldown == 0 and player.item_in_use == null) {
+                if (inputs.hand.attack and player.crosshair == .block)
+                    try interactions.updateBlockMining(io, self, player, player.crosshair.block.block_pos, player.crosshair.block.dir)
+                else
+                    try interactions.stopMiningBlock(io, self);
             }
         }
 
-        pub const ActiveInputs = struct {
+        pub const InputManager = struct {
             hand: struct {
-                main: bool = false,
-                pick: bool = false,
+                attack_cooldown: usize = 0,
+                auto_use_item_cooldown: usize = 0,
+                mining_cooldown: usize = 0,
+
+                attack: bool = false,
                 use: bool = false,
+                pick: bool = false,
+                drop: bool = false,
             } = .{},
             movement: struct {
                 forward: bool = false,

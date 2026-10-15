@@ -56,7 +56,7 @@ pub const Connection = struct {
             disconnect_event.waitUncancelable(io);
         }
 
-        var ring_alloc_buffer: [1024 * 1024]u8 = undefined;
+        var ring_alloc_buffer: [1024 * 1024 * 4]u8 = undefined;
 
         const stream = try connectStream(io, name, port);
         defer stream.close(io);

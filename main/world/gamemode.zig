@@ -4,4 +4,8 @@ pub const GameMode = enum(i32) {
     Creative = 1,
     Adventure = 2,
     Spectator = 3,
+
+    pub fn restrictsWorldModification(self: @This()) bool {
+        return self == .Adventure or self == .Spectator;
+    }
 };

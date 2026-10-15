@@ -29,24 +29,26 @@ tick_timer: TickTimer,
 difficulty: Difficulty,
 dimension: i8,
 hardcore: bool,
+game_mode: GameMode = .Survival,
 player_inventory_menu: Menu,
 menu: union(enum) { none, player_menu, other: Menu } = .none,
 mining_state: ?struct {
-    target_block_pos: Vector3(i32),
-    ticks: usize = 0,
+    block_pos: Vector3(i32),
+    progress: f32 = 0,
     face: Direction,
 } = null,
 
 pub fn init(
     io: std.Io,
     allocator: std.mem.Allocator,
-    info: struct { difficulty: Difficulty, dimension: i8, hardcore: bool },
+    info: struct { difficulty: Difficulty, game_mode: GameMode, dimension: i8, hardcore: bool },
     player: LocalPlayerEntity,
 ) !@This() {
     return .{
         .entity_tracker = try .init(allocator),
         .tick_timer = try .init(io),
         .difficulty = info.difficulty,
+        .game_mode = info.game_mode,
         .dimension = info.dimension,
         .hardcore = info.hardcore,
         .player = player,
@@ -157,9 +159,13 @@ pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Ve
         .y = @mod(block_pos.y, 16),
         .z = @mod(block_pos.z, 16),
     };
-    section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)] = state;
 
-    try EventHandler.dispatch(Events.BlockUpdate, .{ .block_pos = block_pos, .world = self });
+    const ptr = &section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
+    const prev = ptr.*;
+    ptr.* = state;
+    if (prev != state) {
+        try EventHandler.dispatch(Events.BlockUpdate, .{ .block_pos = block_pos, .world = self });
+    }
 }
 
 pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {

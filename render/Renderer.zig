@@ -341,6 +341,8 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     }
     try self.bufferCrosshair(&game.world);
     try self.bufferEntities(&game.world, game.partial_tick);
+    try self.bufferChunkDebug(&game.world);
+    try self.bufferBlockBreaking(&game.world);
 
     self.render3dDebug();
 
@@ -426,6 +428,27 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
     }
 }
 
+pub fn bufferChunkDebug(self: *@This(), world: *const World) !void {
+    const player = world.player;
+    const block_pos: Vector3(i32) = .intFromFloat(player.base.pos);
+    const section_pos: Vector3(i32) = .divFloor(block_pos, .splat(16));
+    const min: Vector3(i32) = .mul(section_pos, .splat(16));
+    const max: Vector3(i32) = .mul(.add(section_pos, .splat(1)), .splat(16));
+    try self.@"3d_debug_staging_buffer".writeDebugCube(.floatFromInt(min), .floatFromInt(max));
+}
+
+pub fn bufferBlockBreaking(self: *@This(), world: *const World) !void {
+    if (world.mining_state) |mining_state| {
+        std.log.debug("{}", .{mining_state.progress});
+        const radius: f32 = mining_state.progress / 2.0;
+        const center: Vector3(f32) = .add(.floatFromInt(mining_state.block_pos), .splat(0.5));
+        try self.@"3d_debug_staging_buffer".writeDebugCube(
+            .sub(center, .splat(radius)),
+            .add(center, .splat(radius)),
+        );
+    }
+}
+
 pub fn bufferInventory(self: *@This(), world: *const World) !void {
     _ = world;
     _ = self;
@@ -433,6 +456,12 @@ pub fn bufferInventory(self: *@This(), world: *const World) !void {
 }
 
 pub fn render3dDebug(self: *@This()) void {
+    gl.disable(.depth_test);
+    gl.disable(.cull_face);
+
+    defer gl.enable(.depth_test);
+    defer gl.enable(.cull_face);
+
     self.debug_program.use();
     self.@"3d_vao".bind();
     self.@"3d_vao".vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
