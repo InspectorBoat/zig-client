@@ -271,10 +271,10 @@ pub const Block = enum(u8) {
         const hardness: f32 = self.getHardness();
         if (hardness < 0) return 0;
 
-        const can_break_efficiently = self.getMaterial().toolNotRequired();
+        const needs_tool = self.getMaterial().toolRequired();
         const player_mining_speed_multiplier: f32 = 1;
 
-        return if (!can_break_efficiently)
+        return if (needs_tool)
             player_mining_speed_multiplier / hardness / 100.0
         else
             player_mining_speed_multiplier / hardness / 30.0;
