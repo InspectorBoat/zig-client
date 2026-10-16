@@ -1,7 +1,7 @@
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const root = @import("root");
+const root = @import("main");
 const Vector3 = root.Vector3;
 const Vector2xz = root.Vector2xz;
 const Box = root.Box;
@@ -341,7 +341,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     }
     try self.bufferCrosshair(&game.world);
     try self.bufferEntities(&game.world, game.partial_tick);
-    try self.bufferChunkDebug(&game.world);
+    // try self.bufferChunkDebug(&game.world);
     try self.bufferBlockBreaking(&game.world);
 
     self.render3dDebug();
@@ -439,7 +439,6 @@ pub fn bufferChunkDebug(self: *@This(), world: *const World) !void {
 
 pub fn bufferBlockBreaking(self: *@This(), world: *const World) !void {
     if (world.mining_state) |mining_state| {
-        std.log.debug("{}", .{mining_state.progress});
         const radius: f32 = mining_state.progress / 2.0;
         const center: Vector3(f32) = .add(.floatFromInt(mining_state.block_pos), .splat(0.5));
         try self.@"3d_debug_staging_buffer".writeDebugCube(
@@ -567,7 +566,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std
             }
         }
 
-        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
+        if (start.untilNow(io).raw.toMilliseconds() < -100) return;
     }
 }
 
@@ -647,7 +646,7 @@ pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
             }
             try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
         } else |e| std.log.scoped(.section_revision).err("error meshing section at {}: {}", .{ completed.section_pos, e });
-        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
+        if (start.untilNow(io).raw.toMilliseconds() < -100) return;
     }
 }
 

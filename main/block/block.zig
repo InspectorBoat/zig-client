@@ -266,7 +266,7 @@ pub const Block = enum(u8) {
         const hardness: f32 = self.getHardness();
         if (hardness < 0) return 0;
 
-        const can_break_efficiently = true;
+        const can_break_efficiently = self.getMaterial().toolNotRequired();
         const player_mining_speed_multiplier: f32 = 1;
 
         return if (!can_break_efficiently)
@@ -274,6 +274,12 @@ pub const Block = enum(u8) {
         else
             player_mining_speed_multiplier / hardness / 30.0;
     }
+
+    pub fn getMaterial(self: @This()) Material {
+        return @import("material.zig").materials.get(self);
+    }
+
+    pub const Material = @import("material.zig").Material;
 
     pub const VirtualState = @import("virtual_state.zig").VirtualState;
     pub const PhysicalState = @import("physical_state.zig").PhysicalState;

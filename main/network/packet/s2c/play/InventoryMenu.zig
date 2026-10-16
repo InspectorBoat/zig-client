@@ -30,17 +30,16 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 
     const world = &game.world;
 
-    const menu: *Menu = switch (self.menu_network_id) {
-        0 => blk: {
-            world.player_inventory_menu.deinitItemStacks(allocator);
-            break :blk &world.player_inventory_menu;
-        },
-        else => |menu_network_id| blk: {
-            if (world.menu != .other or world.menu.other.network_id != menu_network_id) return;
-            break :blk &world.menu.other;
-        },
-    };
+    const menu: *Menu = if (self.menu_network_id == 0)
+        &world.player_inventory_menu
+    else if (world.menu == .other and world.menu.other.network_id == self.menu_network_id)
+        &world.menu.other
+    else
+        return;
+
+    menu.deinitItemStacks(allocator);
+
     for (self.stacks, 0..) |new_stack, i| {
-        menu.stacks[i] = try ItemStack.dupe(new_stack, allocator);
+        menu.stacks[i] = try .dupe(new_stack, allocator);
     }
 }

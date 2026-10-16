@@ -74,13 +74,11 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
         .face = dir,
     } });
 
-    const not_air = game.world.getBlock(block_pos) != .air;
-    if (not_air and false) {
-        // stuff like eating cake on left click, note blocks, etc.
-    }
+    const block = game.world.getBlock(block_pos);
+    // stuff like eating cake on left click, note blocks, etc.
 
-    if (not_air and false) {
-        try finishMiningBlock(io, game);
+    if (block.getMiningProgress(player) >= 1.0) {
+        try finishMiningBlock(game, block_pos);
     } else game.world.mining_state = .{
         .block_pos = player.crosshair.block.block_pos,
         .face = player.crosshair.block.dir,

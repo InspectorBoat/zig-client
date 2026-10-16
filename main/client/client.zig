@@ -111,6 +111,8 @@ pub const Client = union(enum) {
                 }
             }
 
+            if (self.world.mining_state) |mining_state| std.log.debug("{}", .{mining_state.progress});
+
             if (player.item_in_use != null) {
                 if (!inputs.hand.use) try interactions.stopUsingItem(io, self, player);
             } else {

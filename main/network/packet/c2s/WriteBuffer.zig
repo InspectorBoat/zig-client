@@ -1,10 +1,10 @@
 const std = @import("std");
-const root = @import("root");
-const network = root.network;
+const main = @import("main");
+const network = main.network;
 const VarIntByte = network.VarIntByte;
 const ReadPacketBuffer = network.packet.S2C.ReadPacketBuffer;
-const Vector3 = root.Vector3;
-const ItemStack = root.ItemStack;
+const Vector3 = main.Vector3;
+const ItemStack = main.ItemStack;
 const Uuid = @import("util").Uuid;
 
 /// A buffer to write packet data (c2s)

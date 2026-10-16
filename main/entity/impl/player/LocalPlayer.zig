@@ -168,7 +168,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
 
     // update air speed according to sprinting status
     self.air_speed = if (try self.base.isSprinting()) 0.025999999 else 0.02;
-    self.air_speed *= 5;
+
     // update move speed according to movement speed attribute
 
     // stop flying if on ground in creative mode and sync abilities

@@ -20,7 +20,7 @@ pub fn dupe(maybe_item_stack: ?@This(), allocator: std.mem.Allocator) !?@This() 
 }
 
 pub fn deinit(maybe_item_stack: *?@This(), allocator: std.mem.Allocator) void {
-    ((maybe_item_stack.* orelse return).nbt orelse return).deinit(allocator);
+    if (maybe_item_stack.*) |*item_stack| if (item_stack.nbt) |*nbt| nbt.deinit(allocator);
 }
 
 // TODO: Fix this awful code

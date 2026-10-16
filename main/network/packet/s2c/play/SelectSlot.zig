@@ -17,9 +17,10 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
+
     if (self.slot >= 0 and self.slot <= 8) {
         game.world.player.hotbar_slot = @intCast(self.slot);
+        std.log.scoped(.hotbar).debug("switched hotbar slot to {}", .{self.slot});
     }
 }

@@ -161,7 +161,7 @@ pub const Connection = struct {
         const read_bytes = self.stream.socket.receiveTimeout(
             io,
             &read_buffer,
-            .{ .duration = .{ .raw = .fromMilliseconds(10), .clock = .real } },
+            .{ .duration = .{ .raw = .fromMilliseconds(5), .clock = .real } },
         ) catch |err| switch (err) {
             error.Timeout => return,
             else => return err,

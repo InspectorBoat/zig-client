@@ -40,11 +40,13 @@ fn createModules(
     render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
     render.addImport("zigimg", zigimg);
+    render.addImport("main", root);
 
     root.addImport("network", network);
     root.addImport("render", render);
     root.addImport("util", util);
     root.addImport("llm-code-quarantine", quarantine);
+    root.addImport("main", root);
 
     return .{
         .root = root,

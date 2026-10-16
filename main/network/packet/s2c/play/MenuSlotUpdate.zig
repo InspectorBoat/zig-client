@@ -32,5 +32,5 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
             break :blk &world.menu.other.stacks[@intCast(self.slot_id)];
         },
     };
-    stack.* = try ItemStack.dupe(self.item_stack, allocator);
+    stack.* = try .dupe(self.item_stack, allocator);
 }
