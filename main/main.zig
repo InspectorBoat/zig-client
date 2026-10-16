@@ -2,6 +2,8 @@ const std = @import("std");
 
 const build_options = @import("build_options");
 const network_lib = @import("network");
+const render = @import("render");
+const util = @import("util");
 
 pub const block = @import("block/block.zig");
 pub const item = @import("item/item.zig");
@@ -126,15 +128,14 @@ pub const EventHandler = struct {
     pub const listeners = if (build_options.headless)
         .{exit}
     else
-        .{exit} ++ @import("render").event_listeners;
+        .{exit} ++ render.event_listeners;
 
-    pub const dispatch = @import("util").events.getDispatcher(Events, listeners).dispatch;
+    pub const dispatch = util.events.getDispatcher(Events, listeners).dispatch;
 };
 
 test {
-    _ = @import("world/ChunkMap.zig");
-    _ = @import("nbt/nbt.zig");
-    _ = @import("network/packet/c2s/WriteBuffer.zig");
-    _ = @import("network/packet/s2c/ReadBuffer.zig");
-    _ = @import("block/metadata_conversion_table.zig");
+    _ = World.ChunkMap;
+    _ = NbtCompound;
+    _ = network.packet.C2S.WriteBuffer;
+    _ = network.packet.S2C.ReadBuffer;
 }

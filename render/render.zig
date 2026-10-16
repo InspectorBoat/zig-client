@@ -4,6 +4,7 @@ const glfw = @import("mach-glfw");
 const main = @import("main");
 const gl = @import("zgl");
 
+const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
 const Renderer = @import("Renderer.zig");
 const WindowInput = @import("WindowInput.zig");
 const glfw_helper = @import("glfw_helper.zig");
@@ -33,7 +34,7 @@ pub fn onStartup(startup: Events.Startup) !void {
     try glfw_helper.initGlfw();
 
     // initialize window
-    const window = try glfw_helper.initGlfwWindow();
+    const window = try glfw_helper.initGlfwWindow(true);
     window.setInputModeCursor(.disabled);
 
     // initialize opengl
@@ -217,6 +218,9 @@ var framebuffer_size: Vector2xy(u32) = .{ .x = 1, .y = 1 };
 var scale: Vector2xy(f32) = .{ .x = 1, .y = 1 };
 
 test {
-    _ = @import("GpuMemoryAllocator.zig");
-    _ = @import("main");
+    try glfw_helper.initGlfw();
+    _ = try glfw_helper.initGlfwWindow(false);
+    try glfw_helper.loadGlPointers();
+
+    _ = GpuMemoryAllocator;
 }

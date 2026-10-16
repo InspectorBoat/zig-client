@@ -10,11 +10,12 @@ pub fn initGlfw() error{GlfwInitFailed}!void {
     }
 }
 
-pub fn initGlfwWindow() error{GlfwWindowFailed}!glfw.Window {
+pub fn initGlfwWindow(visible: bool) error{GlfwWindowFailed}!glfw.Window {
     const window = glfw.Window.create(640, 640, "client", null, null, .{
         .opengl_profile = .opengl_core_profile,
         .context_version_major = 4,
         .context_version_minor = 6,
+        .visible = visible,
         .maximized = true,
     }) orelse {
         std.log.err("failed to create glfw window: {?s}", .{glfw.getErrorString()});

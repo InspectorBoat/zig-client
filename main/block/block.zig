@@ -235,6 +235,11 @@ pub const Block = enum(u8) {
     acacia_door,
     dark_oak_door,
 
+    pub const Material = @import("material.zig").Material;
+
+    pub const VirtualState = @import("virtual_state.zig").VirtualState;
+    pub const PhysicalState = @import("physical_state.zig").PhysicalState;
+
     pub fn getFriction(self: @This()) f32 {
         return switch (self) {
             .slime => 0.8,
@@ -243,8 +248,9 @@ pub const Block = enum(u8) {
         };
     }
 
+    const full_cube_table = @import("full_cube.zig").full_cube;
     pub fn isFullCube(self: @This()) bool {
-        return @import("full_cube_table.zig").@"export".get(self);
+        return full_cube_table.contains(self);
     }
 
     /// TODO: STUB
@@ -252,8 +258,14 @@ pub const Block = enum(u8) {
         return self.isFullCube();
     }
 
+    const hardness_table = @import("hardness.zig").hardness;
     pub fn getHardness(self: @This()) f32 {
-        return @import("hardness.zig").hardness.get(self);
+        return hardness_table.get(self);
+    }
+
+    const block_to_material = @import("material.zig").block_to_material;
+    pub fn getMaterial(self: @This()) Material {
+        return block_to_material.get(self);
     }
 
     pub fn getMiningProgress(self: @This(), player: *const LocalPlayer) f32 {
@@ -270,13 +282,4 @@ pub const Block = enum(u8) {
         else
             player_mining_speed_multiplier / hardness / 30.0;
     }
-
-    pub fn getMaterial(self: @This()) Material {
-        return @import("material.zig").materials.get(self);
-    }
-
-    pub const Material = @import("material.zig").Material;
-
-    pub const VirtualState = @import("virtual_state.zig").VirtualState;
-    pub const PhysicalState = @import("physical_state.zig").PhysicalState;
 };

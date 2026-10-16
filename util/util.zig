@@ -6,7 +6,7 @@ pub const EnumBoolArray = @import("enum_bool_array.zig").EnumBoolArray;
 pub const PackedNibbleArray = @import("packed_nibble_array.zig").PackedNibbleArray;
 
 test {
-    _ = @import("packed_nibble_array.zig");
-    _ = @import("RingBuffer.zig");
-    _ = @import("all_combos.zig");
+    _ = PackedNibbleArray;
+    _ = RingBuffer;
+    _ = allValues;
 }

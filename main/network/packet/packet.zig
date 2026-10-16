@@ -8,7 +8,7 @@ pub const C2S = union(enum) {
 
         pub const write = Mixin(@This()).write;
 
-        handshake: @import("c2s/handshake/Handshake.zig"),
+        handshake: C2S.Handshake.Handshake,
     };
     pub const Login = union(enum) {
         pub const Hello = @import("c2s/login/Hello.zig");
@@ -199,7 +199,7 @@ pub const S2C = union(enum) {
         pub const decode = Mixin(@This()).decode;
 
         keep_alive: KeepAlive,
-        login: @import("s2c/play/Login.zig"),
+        login: S2C.Play.Login,
         chat_message: ChatMessage,
         world_time: WorldTime,
         entity_equipment: EntityEquipment,
