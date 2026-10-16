@@ -3,13 +3,13 @@ const std = @import("std");
 const main = @import("main");
 
 const Client = main.Client;
-const NbtCompound = main.NbtCompound;
+const Nbt = main.Nbt;
 const Vector3 = main.Vector3;
 const S2C = main.network.packet.S2C;
 
 block_pos: Vector3(i32),
 type: i32,
-nbt: NbtCompound,
+nbt: Nbt.Compound,
 
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
@@ -19,7 +19,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const block_entity_type = try buffer.read(u8);
     // const nbt: NbtCompound = try .read(allocator, buffer);
     // TODO: Fix nbt decoding
-    const nbt: NbtCompound = try .init(allocator, .{});
+    const nbt: Nbt.Compound = try .init(allocator, .{});
     return .{
         .block_pos = block_pos,
         .type = block_entity_type,

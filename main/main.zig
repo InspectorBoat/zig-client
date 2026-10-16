@@ -9,12 +9,12 @@ pub const block = @import("block/block.zig");
 pub const item = @import("item/item.zig");
 pub const math = @import("math/math.zig");
 pub const Menu = @import("menu/Menu.zig");
-pub const nbt = @import("nbt/nbt.zig");
 pub const network = @import("network/network.zig");
 pub const World = @import("world/World.zig");
 pub const Client = @import("client/client.zig").Client;
 pub const Entity = @import("entity/entity.zig").Entity;
 pub const EntityType = @import("entity/entity.zig").EntityType;
+pub const Nbt = @import("nbt/nbt.zig").Nbt;
 
 pub const Block = block.Block;
 pub const Item = item.Item;
@@ -29,22 +29,6 @@ pub const Rotation3 = math.Rotation3;
 pub const Vector2xy = math.Vector2xy;
 pub const Vector2xz = math.Vector2xz;
 pub const Vector3 = math.Vector3;
-pub const NbtByte = nbt.NbtByte;
-pub const NbtByteArray = nbt.NbtByteArray;
-pub const NbtCompound = nbt.NbtCompound;
-pub const NbtDouble = nbt.NbtDouble;
-pub const NbtElement = nbt.NbtElement;
-pub const NbtElementTag = nbt.NbtElementTag;
-pub const NbtEnd = nbt.NbtEnd;
-pub const NbtFloat = nbt.NbtFloat;
-pub const NbtInt = nbt.NbtInt;
-pub const NbtIntArray = nbt.NbtIntArray;
-pub const NbtList = nbt.NbtList;
-pub const NbtLong = nbt.NbtLong;
-pub const NbtReadError = nbt.NbtReadError;
-pub const NbtShort = nbt.NbtShort;
-pub const NbtString = nbt.NbtString;
-pub const NbtWriteError = nbt.NbtWriteError;
 pub const Chunk = World.Chunk;
 pub const Section = World.Section;
 
@@ -135,7 +119,7 @@ pub const EventHandler = struct {
 
 test {
     _ = World.ChunkMap;
-    _ = NbtCompound;
+    _ = Nbt;
     _ = network.packet.C2S.WriteBuffer;
     _ = network.packet.S2C.ReadBuffer;
 }

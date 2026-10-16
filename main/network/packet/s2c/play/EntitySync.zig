@@ -3,6 +3,7 @@ const std = @import("std");
 const main = @import("main");
 
 const Client = main.Client;
+const Nbt = main.Nbt;
 const S2C = main.network.packet.S2C;
 
 // this packet is literally useless
@@ -12,7 +13,7 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = try buffer.readVarInt();
-    _ = try main.NbtCompound.read(allocator, buffer);
+    _ = try Nbt.Compound.read(allocator, buffer);
     return .{};
 }
 

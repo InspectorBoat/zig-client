@@ -4,7 +4,7 @@ const main = @import("main");
 const Uuid = @import("util").Uuid;
 
 const ItemStack = main.ItemStack;
-const NbtElement = main.NbtElement;
+const Nbt = main.Nbt;
 const Vector3 = main.Vector3;
 const network = main.network;
 const VarIntByte = network.VarIntByte;
@@ -155,8 +155,8 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
             .size = try self.read(i8),
             .metadata = try self.read(i16),
             .item = @fromBackingInt(@intCast(item_id)),
-            .nbt = switch (try NbtElement.readDiscardName(allocator, self)) {
-                .Compound => |compound| compound,
+            .nbt = switch (try Nbt.readDiscardName(allocator, self)) {
+                .compound => |compound| compound,
                 else => null,
             },
         };
@@ -194,7 +194,7 @@ pub fn readBlockPos(self: *@This()) !Vector3(i32) {
 }
 
 pub fn readUuid(self: *@This()) !Uuid {
-    return Uuid{
+    return .{
         .bytes = std.mem.toBytes(try self.read(u128)),
     };
 }

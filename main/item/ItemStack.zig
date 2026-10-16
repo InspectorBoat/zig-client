@@ -3,9 +3,9 @@ const std = @import("std");
 const main = @import("main");
 
 const Item = main.Item;
-const NbtCompound = main.NbtCompound;
+const Nbt = main.Nbt;
 
-nbt: ?NbtCompound,
+nbt: ?Nbt.Compound,
 item: Item,
 size: i32,
 metadata: i32,
@@ -30,7 +30,7 @@ pub fn deepEquals(maybe_lhs: ?@This(), maybe_rhs: ?@This()) bool {
     if (maybe_lhs) |lhs| {
         if (maybe_rhs) |rhs| {
             return lhs.item == rhs.item and lhs.metadata == rhs.metadata and lhs.size == rhs.size and blk: {
-                break :blk if (lhs.nbt) |lhs_nbt| lhs_nbt.deepEquals(&.{ .Compound = rhs.nbt orelse break :blk false }) else rhs.nbt == null;
+                break :blk if (lhs.nbt) |lhs_nbt| lhs_nbt.deepEquals(&.{ .compound = rhs.nbt orelse break :blk false }) else rhs.nbt == null;
             };
         } else return false;
     } else return maybe_rhs == null;
