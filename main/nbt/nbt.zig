@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const C2S = root.network.packet.C2S;
+
+const S2C = main.network.packet.S2C;
+const C2S = main.network.packet.C2S;
 
 pub const NbtElementTag = enum(i8) {
     End = 0,
@@ -50,7 +51,6 @@ pub const NbtElement = union(NbtElementTag) {
     }
 
     pub fn writeWithName(self: *@This(), buffer: *C2S.WriteBuffer, key: []const u8) NbtWriteError!void {
-        std.debug.print("writing {s}\n", .{@tagName(self.*)});
         try buffer.write(i8, @backingInt(self.*));
         switch (self.*) {
             .End => {},
@@ -255,7 +255,7 @@ pub const NbtList = struct {
     pub fn init(
         comptime nbt_element_type: NbtElementTag,
         allocator: std.mem.Allocator,
-        specific_elements: []const std.meta.TagPayloadByName(NbtElement, @tagName(nbt_element_type)),
+        specific_elements: []const @FieldType(NbtElement, @tagName(nbt_element_type)),
     ) !@This() {
         var elements = try allocator.alloc(NbtElement, specific_elements.len);
         _ = &elements;
@@ -463,31 +463,32 @@ pub fn ReadLimiter(comptime Limit: usize) type {
 }
 
 test "NbtCompound" {
-    std.debug.print("\n", .{});
     var nbt: NbtElement = .{
         .Compound = try .init(
+            std.testing.allocator,
             .{
                 .foo = NbtElement{ .Byte = .{ .value = 121 } },
-                .bar = NbtElement{ .IntArray = try .init(&.{ @bitCast(@as(u32, 0xDEADBEEF)), @bitCast(@as(u32, 0xACAB1312)), @bitCast(@as(u32, 0xCAFEBABE)) }, std.testing.allocator) },
+                .bar = NbtElement{ .IntArray = try .init(
+                    std.testing.allocator,
+                    &.{ @bitCast(@as(u32, 0xDEADBEEF)), @bitCast(@as(u32, 0xACAB1312)), @bitCast(@as(u32, 0xCAFEBABE)) },
+                ) },
                 .qux = NbtElement{ .Double = .{ .value = 52.1 } },
                 .foobar = NbtElement{
-                    .List = try .init(.Double, &.{
+                    .List = try .init(.Double, std.testing.allocator, &.{
                         .{ .value = 1 },
                         .{ .value = 52 },
                         .{ .value = 15 },
-                    }, std.testing.allocator),
+                    }),
                 },
             },
-            std.testing.allocator,
         ),
     };
     defer nbt.deinit(std.testing.allocator);
 
-    var buffer: C2S.WriteBuffer = .init(std.testing.allocator);
-    defer buffer.deinit();
+    var buffer: C2S.WriteBuffer = .initBuffer(try std.testing.allocator.alloc(u8, 4096));
+    defer buffer.backer.deinit(std.testing.allocator);
 
     try nbt.writeBlankName(&buffer);
-    std.debug.print("{x}\n", .{buffer.backer.items});
 
     var read_buffer = buffer.toReadBuffer();
 
@@ -495,5 +496,4 @@ test "NbtCompound" {
     defer read_nbt.deinit(std.testing.allocator);
 
     try std.testing.expect(nbt.deepEquals(&read_nbt));
-    std.debug.print("{}\n", .{read_nbt});
 }

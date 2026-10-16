@@ -1,11 +1,11 @@
-const root = @import("root");
-const Entity = root.Entity;
-const Client = root.Client;
-const Box = root.Box;
-const Vector3 = root.Vector3;
-const Rotation2 = root.Rotation2;
-const DataTracker = root.Entity.DataTracker;
-const ScaledVector = root.network.ScaledVector;
+const main = @import("main");
+const Entity = main.Entity;
+const Client = main.Client;
+const Box = main.Box;
+const Vector3 = main.Vector3;
+const Rotation2 = main.Rotation2;
+const DataTracker = main.Entity.DataTracker;
+const ScaledVector = main.network.ScaledVector;
 const std = @import("std");
 
 /// This struct supplies fields that every entity needs

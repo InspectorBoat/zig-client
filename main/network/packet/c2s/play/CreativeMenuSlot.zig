@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const C2S = root.network.packet.C2S;
-const ItemStack = root.ItemStack;
+
+const C2S = main.network.packet.C2S;
+const ItemStack = main.ItemStack;
 
 slot_id: i16,
 item_stack: ItemStack,

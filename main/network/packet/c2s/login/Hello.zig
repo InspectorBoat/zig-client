@@ -1,5 +1,5 @@
-const root = @import("root");
-const C2S = root.network.packet.C2S;
+const main = @import("main");
+const C2S = main.network.packet.C2S;
 
 player_name: []const u8,
 

@@ -1,11 +1,12 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const Difficulty = root.World.Difficulty;
-const GameMode = root.World.GameMode;
-const GeneratorType = root.World.GeneratorType;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const Difficulty = main.World.Difficulty;
+const GameMode = main.World.GameMode;
+const GeneratorType = main.World.GeneratorType;
 
 dimension_id: i32,
 difficulty: Difficulty,

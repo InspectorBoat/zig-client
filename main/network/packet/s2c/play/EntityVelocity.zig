@@ -1,9 +1,10 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const ScaledVector = root.network.ScaledVector;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const ScaledVector = main.network.ScaledVector;
 
 network_id: i32,
 velocity: ScaledVector(i32, 8000.0),

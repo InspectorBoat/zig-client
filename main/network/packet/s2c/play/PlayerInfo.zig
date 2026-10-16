@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const GameMode = root.World.GameMode;
-const GameProfile = root.network.GameProfile;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const GameMode = main.World.GameMode;
+const GameProfile = main.network.GameProfile;
 
 action: Action,
 entries: []const Entry,

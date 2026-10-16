@@ -1,12 +1,12 @@
 const std = @import("std");
-const Vector3 = @import("root").Vector3;
-const World = @import("root").World;
+const Vector3 = @import("main").Vector3;
+const World = @import("main").World;
 const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 const CompilationTracker = @import("CompilationTracker.zig");
-const Box = @import("root").Box;
-const Direction = @import("root").Direction;
-const PhysicalState = @import("root").Block.PhysicalState;
-const VirtualState = @import("root").Block.VirtualState;
+const Box = @import("main").Box;
+const Direction = @import("main").Direction;
+const PhysicalState = @import("main").Block.PhysicalState;
+const VirtualState = @import("main").Block.VirtualState;
 const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 block_states: [18][18][18]VirtualState,

@@ -1,14 +1,14 @@
 const std = @import("std");
 
 const Renderer = @import("../Renderer.zig");
-const Block = @import("root").Block;
-const Direction = @import("root").Direction;
+const Block = @import("main").Block;
+const Direction = @import("main").Direction;
 const allValues = @import("util").allValues;
 const BlockModelTemplate = @import("BlockModelTemplate.zig");
 const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
 const StateToModelMap = @import("StateToModelMap.zig");
 const BakedModel = @import("BakedModel.zig");
-const Vector3 = @import("root").Vector3;
+const Vector3 = @import("main").Vector3;
 
 // Takes ownership of resource_pack_dir
 pub fn init(

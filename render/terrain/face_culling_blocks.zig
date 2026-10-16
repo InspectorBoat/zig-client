@@ -1,5 +1,5 @@
 const std = @import("std");
-const Block = @import("root").Block;
+const Block = @import("main").Block;
 const EnumBoolArray = @import("util").EnumBoolArray;
 
 pub const @"export": EnumBoolArray(Block) = .init(.{

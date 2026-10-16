@@ -1,6 +1,7 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const C2S = root.network.packet.C2S;
+
+const C2S = main.network.packet.C2S;
 
 channel: []const u8,
 data: []const u8,

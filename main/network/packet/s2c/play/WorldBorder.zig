@@ -1,9 +1,10 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const Vector2xz = root.Vector2xz;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const Vector2xz = main.Vector2xz;
 
 type: Type,
 max_size: i32,

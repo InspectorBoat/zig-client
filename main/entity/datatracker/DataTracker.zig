@@ -1,8 +1,9 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const ItemStack = root.ItemStack;
-const Vector3 = root.Vector3;
-const Rotation3 = root.Rotation3;
+
+const ItemStack = main.ItemStack;
+const Vector3 = main.Vector3;
+const Rotation3 = main.Rotation3;
 
 entries: [24]?DataValue = blk: {
     var result: [24]?DataValue = @splat(null);

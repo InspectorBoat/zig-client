@@ -1,12 +1,13 @@
+const main = @import("main");
 const std = @import("std");
 
 const network_lib = @import("network");
-const root = @import("root");
-const network = root.network;
+
+const network = main.network;
 const C2S = network.packet.C2S;
 const S2C = network.packet.S2C;
 const Protocol = network.Protocol;
-const Client = root.Client;
+const Client = main.Client;
 const RingBuffer = @import("util").RingBuffer;
 
 pub const Connection = struct {

@@ -1,14 +1,15 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const ScaledVector = root.network.ScaledVector;
-const ScaledRotation2 = root.network.ScaledRotation2;
-const ScaledRotation1 = root.network.ScaledRotation1;
-const DataTracker = root.Entity.DataTracker;
-const Entity = root.Entity;
-const EntityType = root.EntityType;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const ScaledVector = main.network.ScaledVector;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledRotation1 = main.network.ScaledRotation1;
+const DataTracker = main.Entity.DataTracker;
+const Entity = main.Entity;
+const EntityType = main.EntityType;
 
 network_id: i32,
 entity_type: i32,

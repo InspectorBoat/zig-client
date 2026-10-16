@@ -1,14 +1,15 @@
+const main = @import("main");
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const root = @import("root");
-const Client = root.Client;
-const EventHandler = root.EventHandler;
-const Events = root.Events;
+
+const Client = main.Client;
+const EventHandler = main.EventHandler;
+const Events = main.Events;
 const glfw_helper = @import("glfw_helper.zig");
 const WindowInput = @import("WindowInput.zig");
 const Renderer = @import("Renderer.zig");
-const Vector2xy = root.Vector2xy;
+const Vector2xy = main.Vector2xy;
 
 pub var window_input: WindowInput = undefined;
 pub var renderer: Renderer = undefined;
@@ -215,4 +216,5 @@ var scale: Vector2xy(f32) = .{ .x = 1, .y = 1 };
 
 test {
     _ = @import("GpuMemoryAllocator.zig");
+    _ = @import("main");
 }

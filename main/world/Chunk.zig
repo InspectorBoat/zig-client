@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Section = root.Section;
-const Vector2xz = root.Vector2xz;
+
+const Section = main.Section;
+const Vector2xz = main.Vector2xz;
 
 sections: [16]?*Section,
 biomes: [256]u8,

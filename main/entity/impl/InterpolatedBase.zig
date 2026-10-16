@@ -1,7 +1,7 @@
-const root = @import("root");
-const Vector3 = root.Vector3;
-const Rotation2 = root.Rotation2;
-const MathHelper = root.MathHelper;
+const main = @import("main");
+const Vector3 = main.Vector3;
+const Rotation2 = main.Rotation2;
+const MathHelper = main.MathHelper;
 const Base = @import("Base.zig");
 const std = @import("std");
 

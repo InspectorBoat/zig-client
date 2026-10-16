@@ -2,7 +2,7 @@ const std = @import("std");
 const main = @import("main");
 const network = main.network;
 const VarIntByte = network.VarIntByte;
-const ReadPacketBuffer = network.packet.S2C.ReadPacketBuffer;
+const ReadBuffer = network.packet.S2C.ReadBuffer;
 const Vector3 = main.Vector3;
 const ItemStack = main.ItemStack;
 const Uuid = @import("util").Uuid;
@@ -28,7 +28,7 @@ pub fn clear(self: *@This()) void {
 }
 
 /// Returns a read buffer view of this buffer without copying.
-pub fn toReadBuffer(self: *@This()) ReadPacketBuffer {
+pub fn toReadBuffer(self: *@This()) ReadBuffer {
     return .{
         .backer = self.backer.items,
         .read_location = 0,
@@ -159,8 +159,7 @@ pub fn fromOwnedArrayList(allocator: std.mem.Allocator, array_list: std.ArrayLis
 }
 
 test writeVarInt {
-    std.debug.print("\n", .{});
-    var buffer: @This() = .initBuffer(std.testing.allocator);
+    var buffer: @This() = .initBuffer(try std.testing.allocator.alloc(u8, 4096));
     defer buffer.backer.deinit(std.testing.allocator);
 
     try buffer.writeVarInt(0);

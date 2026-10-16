@@ -154,31 +154,26 @@ test "RingBuffer" {
     });
     const rand = rand_impl.random();
 
-    var ring_alloc: @This() = .{ .buffer = try std.testing.allocator.alloc(u8, 1024) };
+    var ring_alloc: @This() = .initBuffer(try std.testing.allocator.alloc(u8, 1024));
     defer std.testing.allocator.free(ring_alloc.buffer);
 
-    var fifo: std.Deque(usize) = .empty;
+    var fifo: std.Deque(TailMark) = .empty;
     defer fifo.deinit(std.testing.allocator);
 
     for (0..1024) |_| {
-        while (true) {
-            const initial_alloc_index = ring_alloc.logical_alloc_index;
-            const alloc_size = rand.intRangeAtMost(usize, 32, 64);
+        const rewind_mark = ring_alloc.beginRewind();
+        const alloc_size = rand.intRangeAtMost(usize, 32, 64);
 
-            _ = ring_alloc.alloc(alloc_size, .@"1") catch {
-                if (initial_alloc_index != ring_alloc.logical_alloc_index) {
-                    try ring_alloc.undoAllocations(initial_alloc_index);
-                }
-                while (fifo.popFront()) |item| {
-                    try ring_alloc.freeFromTail(item);
-                }
-                try std.testing.expectEqual(0, ring_alloc.usedBytes());
-                try std.testing.expectEqual(ring_alloc.logical_free_index, ring_alloc.logical_alloc_index);
-                continue;
-            };
+        _ = ring_alloc.alloc(alloc_size, .@"1") catch {
+            ring_alloc.undoAllocations(rewind_mark);
+            while (fifo.popFront()) |item| {
+                ring_alloc.freeFromTail(item);
+            }
+            try std.testing.expectEqual(0, ring_alloc.usedBytes());
+            try std.testing.expectEqual(ring_alloc.logical_free_index.raw, ring_alloc.logical_alloc_index);
+            continue;
+        };
 
-            break;
-        }
-        try fifo.pushBack(std.testing.allocator, ring_alloc.logical_alloc_index);
+        try fifo.pushBack(std.testing.allocator, ring_alloc.commit(rewind_mark));
     }
 }

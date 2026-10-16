@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const C2S = root.network.packet.C2S;
-const Vector3 = root.Vector3;
+
+const C2S = main.network.packet.C2S;
+const Vector3 = main.Vector3;
 
 command: []const u8,
 block_pos: ?Vector3(i32),

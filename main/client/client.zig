@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Vector2xy = root.Vector2xy;
-const Vector2xz = root.Vector2xz;
-const Connection = root.network.Connection;
-const ConnectionHandle = root.network.ConnectionHandle;
-const World = root.World;
+
+const Vector2xy = main.Vector2xy;
+const Vector2xz = main.Vector2xz;
+const Connection = main.network.Connection;
+const ConnectionHandle = main.network.ConnectionHandle;
+const World = main.World;
 
 pub const Client = union(enum) {
     pub const Idle = struct {
@@ -13,7 +14,7 @@ pub const Client = union(enum) {
         pub fn initConnection(self: *@This(), io: std.Io, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator, name: []const u8, port: u16, player_name: []const u8) !void {
             const gpa = self.gpa;
 
-            var connection_handle = try root.network.connection.initConnection(io, allocator, c2s_packet_allocator, name, port);
+            var connection_handle = try main.network.connection.initConnection(io, allocator, c2s_packet_allocator, name, port);
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
             client.* = .{ .connecting = .{
                 .gpa = gpa,
@@ -78,7 +79,7 @@ pub const Client = union(enum) {
                                 },
                                 false => inputs.hand.drop = false,
                             },
-                            .main => |main| switch (main) {
+                            .main => |attack| switch (attack) {
                                 true => {
                                     attack_presses += 1;
                                     inputs.hand.attack = true;

@@ -1,7 +1,7 @@
 /// BlockModelTemplate, but we walked the parent chain and resolved
 /// all texture references, ambient occlusion, and elements
-const Vector3 = @import("root").Vector3;
-const Vector2xy = @import("root").Vector2xy;
+const Vector3 = @import("main").Vector3;
+const Vector2xy = @import("main").Vector2xy;
 const BlockModelTemplate = @import("BlockModelTemplate.zig");
 const TextureHandle = @import("../Renderer.zig").TextureHandle;
 

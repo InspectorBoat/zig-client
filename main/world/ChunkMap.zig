@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Vector2xz = root.Vector2xz;
-const Chunk = root.Chunk;
+
+const Vector2xz = main.Vector2xz;
+const Chunk = main.Chunk;
 
 const Entry = struct {
     pos: Vector2xz(i32),
@@ -72,146 +73,15 @@ pub fn iterator(self: *@This()) Iterator {
 
 test toIndex {
     var i: usize = 0;
-    for (0..32) |x| for (0..32) |z| {
+    for (0..64) |x| for (0..64) |z| {
         try std.testing.expectEqual(i, toIndex(.{ .x = @intCast(x), .z = @intCast(z) }));
         i += 1;
     };
 
-    for (0..512) |z| {
-        try std.testing.expectEqual(z % 32, toIndex(.{ .x = 0, .z = @intCast(z) }));
+    for (0..64 * 64) |z| {
+        try std.testing.expectEqual(z % 64, toIndex(.{ .x = 0, .z = @intCast(z) }));
     }
-    try std.testing.expectEqual(1, toIndex(.{ .x = 0, .z = -31 }));
-    try std.testing.expectEqual(1, toIndex(.{ .x = 32, .z = -31 }));
-    try std.testing.expectEqual(33, toIndex(.{ .x = 33, .z = -31 }));
-}
-
-test "performance" {
-    std.debug.print("\n\n", .{});
-
-    var gpa_impl = std.heap.DebugAllocator(.{ .safety = false }){};
-    const gpa = gpa_impl.allocator();
-
-    var rand_impl: std.Random.DefaultPrng = .init(blk: {
-        var seed: u64 = undefined;
-        std.debug.assert(std.os.linux.errno(std.os.linux.getrandom(std.mem.asBytes(&seed).ptr, @sizeOf(@TypeOf(seed)), 0)) == .SUCCESS);
-        break :blk seed;
-    });
-    const rand = rand_impl.random();
-    var hash_map_world: DummyWorld(std.AutoHashMap(Vector2xz(i32), Chunk)) = .{ .chunks = .init(gpa) };
-    for (0..8) |x| for (0..8) |z| {
-        try hash_map_world.makeChunk(gpa, .{ .x = @intCast(x), .z = @intCast(z) }, rand);
-    };
-    {
-        const start = try std.time.Instant.now();
-        defer {
-            const end = std.time.Instant.now() catch unreachable;
-            std.debug.print("hash_map: {d} ms\n", .{@as(f64, @floatFromInt(end.since(start))) / @as(f64, @floatFromInt(std.time.ns_per_ms))});
-        }
-
-        hash_map_world.updateRegion(.{
-            .min = .{ .x = 0, .y = 0, .z = 0 },
-            .max = .{ .x = 8 * 16, .y = 255, .z = 8 * 16 },
-        });
-    }
-
-    var chunk_map_world: DummyWorld(@This()) = .{ .chunks = .{} };
-    for (0..8) |x| for (0..8) |z| {
-        try chunk_map_world.makeChunk(gpa, .{ .x = @intCast(x), .z = @intCast(z) }, rand);
-    };
-    {
-        const start = try std.time.Instant.now();
-        defer {
-            const end = std.time.Instant.now() catch unreachable;
-            std.debug.print("chunk_map: {d} ms\n", .{@as(f64, @floatFromInt(end.since(start))) / @as(f64, @floatFromInt(std.time.ns_per_ms))});
-        }
-        chunk_map_world.updateRegion(.{
-            .min = .{ .x = 0, .y = 0, .z = 0 },
-            .max = .{ .x = 8 * 16, .y = 255, .z = 8 * 16 },
-        });
-    }
-}
-
-pub fn DummyWorld(comptime MapType: type) type {
-    return struct {
-        chunks: MapType,
-        const Section = root.Section;
-        const Block = root.Block;
-        const FilteredBlockState = root.FilteredState;
-        const RawBlockState = root.RawBlockState;
-        const Box = root.Box;
-        const Vector3 = root.Vector3;
-
-        pub fn updateRegion(self: *@This(), region: Box(i32)) void {
-            var x = region.min.x;
-            while (x <= region.max.x) : (x += 1) {
-                var y = region.min.y;
-                while (y <= region.max.y) : (y += 1) {
-                    var z = region.min.z;
-                    while (z <= region.max.z) : (z += 1) {
-                        const block_pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
-                        const block_state = self.getBlockStatePtr(block_pos) orelse continue;
-                        // std.mem.doNotOptimizeAway(block_state);
-                        _ = block_state;
-                    }
-                }
-            }
-        }
-        pub fn makeChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32), rand: std.Random) !void {
-            var chunk: Chunk = .{
-                .biomes = undefined,
-                .chunk_pos = chunk_pos,
-                .sections = @splat(null),
-            };
-
-            for (0..16) |section_y| {
-                const section = try allocator.create(Section);
-                errdefer allocator.destroy(section);
-
-                for (&section.block_states) |*block_state| {
-                    const state: RawBlockState = .{ .block = @backingInt(rand.enumValue(Block)), .metadata = rand.int(u4) };
-                    block_state.* = state.toFiltered();
-                }
-
-                chunk.sections[section_y] = section;
-            }
-            try self.chunks.put(chunk_pos, chunk);
-        }
-        pub fn getBlock(self: *@This(), block_pos: Vector3(i32)) Block {
-            if (block_pos.y < 0 or block_pos.y > 255) return .air;
-
-            const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air;
-            const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return .air;
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)].block;
-        }
-        pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) FilteredBlockState {
-            if (block_pos.y < 0 or block_pos.y > 255) return FilteredBlockState.AIR;
-
-            const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return FilteredBlockState.AIR;
-            const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return FilteredBlockState.AIR;
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
-        }
-
-        pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*FilteredBlockState {
-            if (block_pos.y < 0 or block_pos.y > 255) return null;
-
-            const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;
-            const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return null;
-            const section_block_pos = .{
-                .x = @mod(block_pos.x, 16),
-                .y = @mod(block_pos.y, 16),
-                .z = @mod(block_pos.z, 16),
-            };
-            return &section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
-        }
-    };
+    try std.testing.expectEqual(1, toIndex(.{ .x = 0, .z = -63 }));
+    try std.testing.expectEqual(1, toIndex(.{ .x = 64, .z = -63 }));
+    try std.testing.expectEqual(65, toIndex(.{ .x = 65, .z = -63 }));
 }

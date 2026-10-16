@@ -1,13 +1,14 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const World = root.World;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const World = main.World;
 const GameMode = World.GameMode;
 const Difficulty = World.Difficulty;
 const GeneratorType = World.GeneratorType;
-const LocalPlayerEntity = root.Entity.LocalPlayer;
+const LocalPlayerEntity = main.Entity.LocalPlayer;
 
 /// the network id of the player
 network_id: i32,

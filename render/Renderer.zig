@@ -1,24 +1,25 @@
+const main = @import("main");
 const std = @import("std");
 const gl = @import("zgl");
 const glfw = @import("mach-glfw");
-const root = @import("main");
-const Vector3 = root.Vector3;
-const Vector2xz = root.Vector2xz;
-const Box = root.Box;
-const Chunk = root.Chunk;
-const LocalPlayerEntity = root.Entity.LocalPlayer;
+
+const Vector3 = main.Vector3;
+const Vector2xz = main.Vector2xz;
+const Box = main.Box;
+const Chunk = main.Chunk;
+const LocalPlayerEntity = main.Entity.LocalPlayer;
 const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
 const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
-const Client = root.Client;
+const Client = main.Client;
 const za = @import("zalgebra");
 const Vec3 = za.Vec3;
 const Mat4 = za.Mat4;
-const Direction = root.Direction;
-const World = root.World;
+const Direction = main.Direction;
+const World = main.World;
 const CompilationTask = @import("terrain/CompilationTask.zig");
 const CompilationTracker = @import("terrain/CompilationTracker.zig");
 const ChunkTracker = @import("terrain/ChunkTracker.zig");
-const Block = root.Block;
+const Block = main.Block;
 const BakedModel = @import("resource_pack/BakedModel.zig");
 
 pub const TextureHandle = enum(u16) { _ };

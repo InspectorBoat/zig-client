@@ -1,8 +1,9 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Vector3 = root.Vector3;
-const HitResult = root.HitResult;
-const Direction = root.Direction;
+
+const Vector3 = main.Vector3;
+const HitResult = main.HitResult;
+const Direction = main.Direction;
 
 min: Vector3(f64),
 max: Vector3(f64),

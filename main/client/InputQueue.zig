@@ -1,6 +1,7 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Vector2xy = root.Vector2xy;
+
+const Vector2xy = main.Vector2xy;
 
 on_frame: @import("llm-code-quarantine").FixedFifo(Input, 256) = .init(),
 on_tick: @import("llm-code-quarantine").FixedFifo(Input, 128) = .init(),

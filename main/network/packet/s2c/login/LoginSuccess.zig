@@ -1,8 +1,9 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Connection = root.network.Connection;
-const Client = root.Client;
+
+const S2C = main.network.packet.S2C;
+const Connection = main.network.Connection;
+const Client = main.Client;
 const Uuid = @import("util").Uuid;
 
 uuid: Uuid,

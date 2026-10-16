@@ -1,11 +1,12 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const network = root.network;
+
+const network = main.network;
 const VarIntByte = network.VarIntByte;
-const Vector3 = root.Vector3;
+const Vector3 = main.Vector3;
 const Uuid = @import("util").Uuid;
-const ItemStack = root.ItemStack;
-const NbtElement = root.NbtElement;
+const ItemStack = main.ItemStack;
+const NbtElement = main.NbtElement;
 
 /// A buffer to read incoming packet data (s2c)
 backer: []const u8,
@@ -255,66 +256,50 @@ pub fn readVarIntFromArray(comptime max_bytes: usize, var_int: [max_bytes]VarInt
 
 test readVarInt {
     const WriteBuffer = network.packet.C2S.WriteBuffer;
-    std.debug.print("\n", .{});
 
     // initialize buffer to write to
-    var write_buffer: WriteBuffer = .init(std.testing.allocator);
-    var read_buffer: @This() = undefined;
-    // deinitializing read_buffer is unnecessary because it shares a backer with write_buffer
-    defer write_buffer.deinit();
+    var write_buffer: WriteBuffer = .initBuffer(try std.testing.allocator.alloc(u8, 4096));
+    defer write_buffer.backer.deinit(std.testing.allocator);
 
     try write_buffer.writeVarInt(0);
-    // initialize read_buffer with write_buffer's backer
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
-    // read varint
+    var read_buffer: @This() = .fromOwnedSlice(write_buffer.backer.items);
     try std.testing.expectEqual(0, read_buffer.readVarInt());
-    // resetting read_buffer is unnecesssary
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(1);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(1, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(2);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(2, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(127);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(127, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(255);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(255, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(25565);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(25565, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(2097151);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(2097151, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(2147483647);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(2147483647, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(-1);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(-1, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(-2147483648);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(-2147483648, read_buffer.readVarInt());
-    write_buffer.clear();
 
     try write_buffer.writeVarInt(0);
     try write_buffer.writeVarInt(1);
@@ -322,13 +307,11 @@ test readVarInt {
     try write_buffer.writeVarInt(127);
     try write_buffer.writeVarInt(255);
     try write_buffer.writeVarInt(25565);
-    read_buffer = .{ .backer = write_buffer.backer.items, .read_location = 0 };
+    read_buffer.backer = write_buffer.backer.items;
     try std.testing.expectEqual(0, read_buffer.readVarInt());
     try std.testing.expectEqual(1, read_buffer.readVarInt());
     try std.testing.expectEqual(2, read_buffer.readVarInt());
     try std.testing.expectEqual(127, read_buffer.readVarInt());
     try std.testing.expectEqual(255, read_buffer.readVarInt());
     try std.testing.expectEqual(25565, read_buffer.readVarInt());
-
-    write_buffer.clear();
 }

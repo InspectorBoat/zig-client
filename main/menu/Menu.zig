@@ -1,6 +1,7 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const ItemStack = root.ItemStack;
+
+const ItemStack = main.ItemStack;
 
 network_id: i32,
 stacks: []?ItemStack,

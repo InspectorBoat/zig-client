@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const ScaledVector = root.network.ScaledVector;
-const Vector3 = root.Vector3;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const ScaledVector = main.network.ScaledVector;
+const Vector3 = main.Vector3;
 
 pos: Vector3(f64),
 power: f32,

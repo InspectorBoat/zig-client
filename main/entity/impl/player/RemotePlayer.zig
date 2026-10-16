@@ -1,5 +1,5 @@
-const root = @import("root");
-const Entity = root.Entity;
+const main = @import("main");
+const Entity = main.Entity;
 
 base: Entity.Base,
 living: Entity.LivingBase = .{},

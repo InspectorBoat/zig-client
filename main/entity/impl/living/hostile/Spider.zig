@@ -1,7 +1,7 @@
-const root = @import("root");
-const Entity = root.Entity;
-const Vector3 = root.Vector3;
-const Rotation2 = root.Rotation2;
+const main = @import("main");
+const Entity = main.Entity;
+const Vector3 = main.Vector3;
+const Rotation2 = main.Rotation2;
 
 base: Entity.Base,
 living: Entity.LivingBase,

@@ -1,11 +1,11 @@
-const root = @import("root");
+const main = @import("main");
 const std = @import("std");
 
-const Game = root.Client.Game;
-const Vector3 = root.Vector3;
-const Direction = root.Direction;
+const Game = main.Client.Game;
+const Vector3 = main.Vector3;
+const Direction = main.Direction;
 const ActiveInputs = Game.ActiveInputs;
-const LocalPlayer = root.Entity.LocalPlayer;
+const LocalPlayer = main.Entity.LocalPlayer;
 
 pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     _ = io;

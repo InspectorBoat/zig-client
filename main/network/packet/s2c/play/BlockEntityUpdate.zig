@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const Vector3 = root.Vector3;
-const NbtCompound = root.NbtCompound;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const Vector3 = main.Vector3;
+const NbtCompound = main.NbtCompound;
 
 block_pos: Vector3(i32),
 type: i32,

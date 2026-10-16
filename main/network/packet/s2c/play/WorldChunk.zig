@@ -1,13 +1,14 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const Vector2xz = root.Vector2xz;
-const Chunk = root.Chunk;
-const Section = root.Section;
-const RawBlockState = root.RawBlockState;
-const FilteredBlockState = root.FilteredBlockState;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const Vector2xz = main.Vector2xz;
+const Chunk = main.Chunk;
+const Section = main.Section;
+const RawBlockState = main.RawBlockState;
+const FilteredBlockState = main.FilteredBlockState;
 
 chunk_pos: Vector2xz(i32),
 chunk_data: ChunkData,

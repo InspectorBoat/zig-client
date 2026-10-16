@@ -1,8 +1,9 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const C2S = root.network.packet.C2S;
-const Rotation2 = root.Rotation2;
-const Vector3 = root.Vector3;
+
+const C2S = main.network.packet.C2S;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
 
 on_ground: bool,
 

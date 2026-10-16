@@ -1,6 +1,6 @@
 /// Pretty much directly parsed from json
 const JsonMap = @import("json_map.zig").JsonMap;
-const Direction = @import("root").Direction;
+const Direction = @import("main").Direction;
 
 parent: ?[]const u8 = null,
 textures: ?JsonMap([]const u8) = null,

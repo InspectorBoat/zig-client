@@ -1,6 +1,6 @@
+const main = @import("main");
 const std = @import("std");
 const CompilationTask = @import("CompilationTask.zig");
-const root = @import("root");
 
 gpa: std.mem.Allocator,
 free_slots: std.heap.memory_pool.Extra(CompilationSlot, .{ .growable = false }),
@@ -12,13 +12,13 @@ mutex: std.Io.Mutex = .init,
 const CompilationSlot = struct {
     next_outstanding: std.SinglyLinkedList.Node,
     next_completed: std.SinglyLinkedList.Node,
-    section_pos: root.Vector3(i32),
+    section_pos: main.Vector3(i32),
     revision: u32,
     future: std.Io.Future(CompilationTask.Error!CompilationTask.Mesh),
 };
 
 const CompletedCompilation = struct {
-    section_pos: root.Vector3(i32),
+    section_pos: main.Vector3(i32),
     revision: u32,
     mesh: CompilationTask.Error!CompilationTask.Mesh,
 };
@@ -30,7 +30,7 @@ pub fn init(gpa: std.mem.Allocator, capacity: usize) !@This() {
     };
 }
 
-pub fn take(self: *@This(), section_pos: root.Vector3(i32), revision: u32) error{QueueFull}!*CompilationSlot {
+pub fn take(self: *@This(), section_pos: main.Vector3(i32), revision: u32) error{QueueFull}!*CompilationSlot {
     const slot = self.free_slots.create(undefined) catch return error.QueueFull;
     slot.* = .{
         .next_outstanding = .{},

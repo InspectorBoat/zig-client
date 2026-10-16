@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
+
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
 
 const ParticleType = @import("../../../../particle/particletype.zig").ParticleType;
-const Vector3 = root.Vector3;
+const Vector3 = main.Vector3;
 
 type: ParticleType,
 pos: Vector3(f32),

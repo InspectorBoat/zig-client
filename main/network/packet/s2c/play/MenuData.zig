@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
+
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
 
 menu_network_id: i32,
 data_id: i32,

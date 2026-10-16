@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const Vector2xz = root.Vector2xz;
-const Vector3 = root.Vector3;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
 
 chunk_pos: Vector2xz(i32),
 updates: []const BlockUpdate,

@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Connection = root.network.Connection;
+
+const S2C = main.network.packet.S2C;
+const Connection = main.network.Connection;
 
 compression_threshold: i32,
 

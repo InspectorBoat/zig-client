@@ -1,9 +1,10 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const DataTracker = root.Entity.DataTracker;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const DataTracker = main.Entity.DataTracker;
 
 network_id: i32,
 entries: []const DataTrackerEntry,

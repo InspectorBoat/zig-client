@@ -1,11 +1,12 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Entity = root.Entity;
-const Vector3 = root.Vector3;
-const ScaledVector3 = root.network.ScaledVector;
-const Client = root.Client;
 
-const ItemStack = root.ItemStack;
+const Entity = main.Entity;
+const Vector3 = main.Vector3;
+const ScaledVector3 = main.network.ScaledVector;
+const Client = main.Client;
+
+const ItemStack = main.ItemStack;
 
 base: Entity.Base,
 

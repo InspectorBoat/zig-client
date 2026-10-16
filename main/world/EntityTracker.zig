@@ -1,6 +1,7 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const Entity = root.Entity;
+
+const Entity = main.Entity;
 
 entities: std.AutoHashMap(*Entity, void),
 entities_by_network_id: std.AutoHashMap(i32, *Entity),

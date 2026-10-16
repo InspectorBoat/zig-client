@@ -1,6 +1,6 @@
 const std = @import("std");
-const Vector2xz = @import("root").Vector2xz;
-const Vector3 = @import("root").Vector3;
+const Vector2xz = @import("main").Vector2xz;
+const Vector3 = @import("main").Vector3;
 const GpuMemoryAllocator = @import("../GpuMemoryAllocator.zig");
 
 chunks: std.AutoHashMap(Vector2xz(i32), ChunkCompileStatus),

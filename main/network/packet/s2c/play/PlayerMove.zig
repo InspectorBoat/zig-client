@@ -1,10 +1,11 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const Client = root.Client;
 
-const Vector3 = root.Vector3;
-const Rotation2 = root.Rotation2;
+const S2C = main.network.packet.S2C;
+const Client = main.Client;
+
+const Vector3 = main.Vector3;
+const Rotation2 = main.Rotation2;
 
 pos: Vector3(f64),
 rotation: Rotation2(f32),

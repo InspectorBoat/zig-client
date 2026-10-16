@@ -145,5 +145,8 @@ pub const EventHandler = struct {
 
 test {
     _ = @import("world/ChunkMap.zig");
+    _ = @import("nbt/nbt.zig");
+    _ = @import("network/packet/c2s/WriteBuffer.zig");
+    _ = @import("network/packet/s2c/ReadBuffer.zig");
     _ = @import("block/metadata_conversion_table.zig");
 }

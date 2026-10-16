@@ -1,7 +1,7 @@
 const std = @import("std");
-const Vector3 = @import("root").Vector3;
-const Vector2xy = @import("root").Vector2xy;
-const Direction = @import("root").Direction;
+const Vector3 = @import("main").Vector3;
+const Vector2xy = @import("main").Vector2xy;
+const Direction = @import("main").Direction;
 
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,

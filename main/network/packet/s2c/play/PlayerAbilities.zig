@@ -1,8 +1,9 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const S2C = root.network.packet.S2C;
-const C2S = root.network.packet.C2S;
-const Client = root.Client;
+
+const S2C = main.network.packet.S2C;
+const C2S = main.network.packet.C2S;
+const Client = main.Client;
 
 is_invulnerable: bool,
 is_flying: bool,

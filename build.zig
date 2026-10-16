@@ -24,12 +24,18 @@ fn createModules(
     });
     const quarantine = b.createModule(.{
         .root_source_file = b.path("quarantine/quarantine.zig"),
+        .target = target,
+        .optimize = optimize,
     });
     const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),
+        .target = target,
+        .optimize = optimize,
     });
     const render = b.createModule(.{
         .root_source_file = b.path("render/render.zig"),
+        .target = target,
+        .optimize = optimize,
     });
 
     util.addImport("llm-code-quarantine", quarantine);
@@ -105,56 +111,16 @@ pub fn build(b: *std.Build) void {
         run_step.dependOn(&run_exe.step);
 
         // Run unit tests
-        // Unit tests for main module
-        const test_main = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("main/main.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-        test_main.root_module.addImport("network", network);
-        test_main.root_module.addImport("render", mods.render);
-        test_main.root_module.addImport("util", mods.util);
-        test_main.root_module.addImport("llm-code-quarantine", mods.quarantine);
-        test_main.root_module.addOptions("build_options", options);
-
-        // Unit tests for render module
-        const test_render = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("render/render.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-        test_render.root_module.addImport("zgl", zgl);
-        test_render.root_module.addImport("mach_glfw", mach_glfw);
-        test_render.root_module.addImport("zalgebra", zalgebra);
-        test_render.root_module.addImport("util", mods.util);
-        test_render.root_module.addImport("llm-code-quarantine", mods.quarantine);
-
-        const test_util = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("util/util.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-
-        // Unit tests for llm generated shim modules
-        const test_quarantine = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("quarantine/quarantine.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
+        const test_main = b.addTest(.{ .root_module = mods.root });
+        const test_render = b.addTest(.{ .root_module = mods.render });
+        const test_util = b.addTest(.{ .root_module = mods.util });
+        const test_quarantine = b.addTest(.{ .root_module = mods.quarantine });
 
         const test_step = b.step("test", "Run unit tests");
-        test_step.dependOn(&b.addRunArtifact(test_main).step);
         test_step.dependOn(&b.addRunArtifact(test_render).step);
         test_step.dependOn(&b.addRunArtifact(test_util).step);
         test_step.dependOn(&b.addRunArtifact(test_quarantine).step);
+        test_step.dependOn(&b.addRunArtifact(test_main).step);
     }
 
     // Add check step to see if client compiles without doing any codegen

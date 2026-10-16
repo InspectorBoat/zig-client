@@ -1,7 +1,8 @@
+const main = @import("main");
 const std = @import("std");
-const root = @import("root");
-const NbtCompound = root.NbtCompound;
-const Item = root.Item;
+
+const NbtCompound = main.NbtCompound;
+const Item = main.Item;
 
 nbt: ?NbtCompound,
 item: Item,
