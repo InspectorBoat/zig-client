@@ -24,10 +24,6 @@
             .url = "git+https://github.com/InspectorBoat/zgl#9b8dacf88a5634655ff8a5058b558ef5d780bfa9",
             .hash = "zgl-1.1.0-p_NpAI4zCgBU9vmfngYNj38lK8NxfVWvSKjLjmRYFdta",
         },
-        .network = .{
-            .url = "git+https://github.com/InspectorBoat/zig-network#2803cdf29206cbb398b089680f956c3381209e0e",
-            .hash = "network-0.1.0-UtQr95f-AADG5wllUBpvg1t8xA1W6Z4KfrGB1h6-gQHd",
-        },
         .zigimg = .{
             .url = "git+https://github.com/zigimg/zigimg.git#734fa919fb15b7917d4eb124f53600348f4ffa30",
             .hash = "zigimg-0.1.0-8_eo2sBLGACBebrhQZUwRliZNSUyDn6szp99eip_6-Rw",
@@ -35,6 +31,11 @@
         .zio = .{
             .url = "git+https://github.com/lalinsky/zio#3c1c5d0b67514caca20aed646f2ad6bf261a10e2",
             .hash = "zio-0.19.0-xHbVVLeXLADamdv-xiQM84sQyW5RAsa3jQiOhfME9Cro",
+        },
+        .zsort = .{
+            .url = "git+https://github.com/InspectorBoat/zsort.git#b9f92773002476a19239b9ee583d8eff2dc03a1f",
+            .hash = "zsort-0.8.0-D-hm6aYfAwA1tmaf4nY5wos_QgIwiOx0pFwFtQ8_pZnp",
+            .lazy = true,
         },
     },
 }

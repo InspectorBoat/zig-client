@@ -11,7 +11,6 @@ fn createModules(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    network: *std.Build.Module,
     mach_glfw: *std.Build.Module,
     zgl: *std.Build.Module,
     zalgebra: *std.Build.Module,
@@ -52,8 +51,6 @@ fn createModules(
 
     main.addImport("main", main);
     main.addImport("render", render);
-
-    main.addImport("network", network);
     main.addImport("util", util);
     main.addImport("llm-code-quarantine", quarantine);
 
@@ -67,7 +64,6 @@ fn createModules(
 
 pub fn build(b: *std.Build) void {
     // Declare external dependencies
-    const network = b.dependency("network", .{}).module("network");
     const mach_glfw = b.dependency("mach_glfw", .{}).module("mach_glfw");
     const zgl = b.dependency("zgl", .{}).module("zgl");
     const zalgebra = b.dependency("zalgebra", .{}).module("zalgebra");
@@ -85,7 +81,7 @@ pub fn build(b: *std.Build) void {
 
     {
         // Create main executable
-        const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
+        const mods = createModules(b, target, optimize, mach_glfw, zgl, zalgebra, zigimg);
         mods.main.addOptions("build_options", options);
         mods.main.single_threaded = single_threaded;
         const client = b.addExecutable(.{
@@ -129,7 +125,7 @@ pub fn build(b: *std.Build) void {
     // Add check step to see if client compiles without doing any codegen
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     {
-        const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
+        const mods = createModules(b, target, optimize, mach_glfw, zgl, zalgebra, zigimg);
         mods.main.addOptions("build_options", options);
         const client = b.addExecutable(.{
             .name = "zig-client",
@@ -139,4 +135,14 @@ pub fn build(b: *std.Build) void {
         const check = b.step("check", "Check if client compiles");
         check.dependOn(&client.step);
     }
+
+    const zsort = (b.lazyDependency("zsort", .{
+        .target = b.graph.host,
+        .optimize = .fast,
+    }) orelse return).artifact("zsort");
+
+    const run_fix = b.addRunArtifact(zsort);
+    run_fix.setCwd(b.path("."));
+    run_fix.addArgs(&.{ "fix", ".", "--remove-unused" });
+    b.step("fix", "Fix imports").dependOn(&run_fix.step);
 }

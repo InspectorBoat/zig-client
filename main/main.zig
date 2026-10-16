@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const build_options = @import("build_options");
-const network_lib = @import("network");
 const render = @import("render");
 const util = @import("util");
 
@@ -63,9 +62,6 @@ pub fn main(init: std.process.Init) !void {
     const gpa = init.gpa;
 
     try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = init.io });
-
-    try network_lib.init();
-    defer network_lib.deinit();
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
