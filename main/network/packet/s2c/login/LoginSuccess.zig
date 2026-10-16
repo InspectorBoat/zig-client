@@ -1,10 +1,10 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Connection = main.network.Connection;
-const Client = main.Client;
+const main = @import("main");
 const Uuid = @import("util").Uuid;
+
+const Connection = main.network.Connection;
+const S2C = main.network.packet.S2C;
 
 uuid: Uuid,
 name: []const u8,

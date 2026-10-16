@@ -1,14 +1,14 @@
-const main = @import("main");
 const std = @import("std");
 
-const network_lib = @import("network");
+const quarantine = @import("llm-code-quarantine");
+const main = @import("main");
+const util = @import("util");
 
 const network = main.network;
+const Protocol = network.Protocol;
 const C2S = network.packet.C2S;
 const S2C = network.packet.S2C;
-const Protocol = network.Protocol;
-const Client = main.Client;
-const RingBuffer = @import("util").RingBuffer;
+const RingBuffer = util.RingBuffer;
 
 pub const Connection = struct {
     /// The network thread does not own this memory
@@ -37,7 +37,7 @@ pub const Connection = struct {
     s2c_packet_queue: *SpscQueue(S2CWrapper),
 
     /// A buffer of raw bytes read from the socket but not yet decoded
-    queued_bytes: @import("llm-code-quarantine").FixedFifo(u8, 1024 * 1024 * 2),
+    queued_bytes: quarantine.FixedFifo(u8, 1024 * 1024 * 2),
     /// This ring allocator should be used to allocate memory for s2c packets and *nothing else*
     s2c_packet_ring_alloc: RingBuffer,
 

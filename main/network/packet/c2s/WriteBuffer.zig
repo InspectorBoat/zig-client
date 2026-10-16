@@ -1,11 +1,13 @@
 const std = @import("std");
+
 const main = @import("main");
+const Uuid = @import("util").Uuid;
+
+const ItemStack = main.ItemStack;
+const Vector3 = main.Vector3;
 const network = main.network;
 const VarIntByte = network.VarIntByte;
 const ReadBuffer = network.packet.S2C.ReadBuffer;
-const Vector3 = main.Vector3;
-const ItemStack = main.ItemStack;
-const Uuid = @import("util").Uuid;
 
 /// A buffer to write packet data (c2s)
 backer: std.ArrayList(u8),

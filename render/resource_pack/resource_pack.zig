@@ -1,16 +1,19 @@
 const std = @import("std");
 
-const Renderer = @import("../Renderer.zig");
+const zigimg = @import("zigimg");
 const Block = @import("main").Block;
 const Direction = @import("main").Direction;
+const Vector3 = @import("main").Vector3;
 const allValues = @import("util").allValues;
+
+const Renderer = @import("../Renderer.zig");
+const BakedModel = @import("BakedModel.zig");
 const BlockModelTemplate = @import("BlockModelTemplate.zig");
 const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
 const StateToModelMap = @import("StateToModelMap.zig");
-const BakedModel = @import("BakedModel.zig");
-const Vector3 = @import("main").Vector3;
 
 // Takes ownership of resource_pack_dir
+
 pub fn init(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -439,8 +442,6 @@ pub fn skipField(comptime block: Block, comptime field_name: []const u8, propert
 
     return false;
 }
-
-const zigimg = @import("zigimg");
 
 /// Decodes every image in a directory
 /// Takes ownership of dir

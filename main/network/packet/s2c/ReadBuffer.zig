@@ -1,12 +1,13 @@
-const main = @import("main");
 const std = @import("std");
 
-const network = main.network;
-const VarIntByte = network.VarIntByte;
-const Vector3 = main.Vector3;
+const main = @import("main");
 const Uuid = @import("util").Uuid;
+
 const ItemStack = main.ItemStack;
 const NbtElement = main.NbtElement;
+const Vector3 = main.Vector3;
+const network = main.network;
+const VarIntByte = network.VarIntByte;
 
 /// A buffer to read incoming packet data (s2c)
 backer: []const u8,

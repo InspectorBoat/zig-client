@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const Direction = @import("direction.zig").Direction;
 
 pub fn Vector2xy(comptime Element: type) type {

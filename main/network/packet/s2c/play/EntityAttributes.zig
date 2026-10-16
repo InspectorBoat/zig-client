@@ -1,9 +1,10 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 const Uuid = @import("util").Uuid;
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;
 
 network_id: i32,
 entries: []const Entry,

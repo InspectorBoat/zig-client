@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const ModuleSet = struct {
-    root: *std.Build.Module,
+    main: *std.Build.Module,
     render: *std.Build.Module,
     util: *std.Build.Module,
     quarantine: *std.Build.Module,
@@ -17,7 +17,7 @@ fn createModules(
     zalgebra: *std.Build.Module,
     zigimg: *std.Build.Module,
 ) ModuleSet {
-    const root = b.createModule(.{
+    const main = b.createModule(.{
         .root_source_file = b.path("main/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -40,22 +40,25 @@ fn createModules(
 
     util.addImport("llm-code-quarantine", quarantine);
 
+    render.addImport("main", main);
+    render.addImport("render", render);
+
     render.addImport("zgl", zgl);
     render.addImport("mach-glfw", mach_glfw);
     render.addImport("zalgebra", zalgebra);
     render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
     render.addImport("zigimg", zigimg);
-    render.addImport("main", root);
 
-    root.addImport("network", network);
-    root.addImport("render", render);
-    root.addImport("util", util);
-    root.addImport("llm-code-quarantine", quarantine);
-    root.addImport("main", root);
+    main.addImport("main", main);
+    main.addImport("render", render);
+
+    main.addImport("network", network);
+    main.addImport("util", util);
+    main.addImport("llm-code-quarantine", quarantine);
 
     return .{
-        .root = root,
+        .main = main,
         .render = render,
         .util = util,
         .quarantine = quarantine,
@@ -83,11 +86,11 @@ pub fn build(b: *std.Build) void {
     {
         // Create main executable
         const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
-        mods.root.addOptions("build_options", options);
-        mods.root.single_threaded = single_threaded;
+        mods.main.addOptions("build_options", options);
+        mods.main.single_threaded = single_threaded;
         const client = b.addExecutable(.{
             .name = "zig-client",
-            .root_module = mods.root,
+            .root_module = mods.main,
         });
 
         // Install exe
@@ -111,7 +114,7 @@ pub fn build(b: *std.Build) void {
         run_step.dependOn(&run_exe.step);
 
         // Run unit tests
-        const test_main = b.addTest(.{ .root_module = mods.root });
+        const test_main = b.addTest(.{ .root_module = mods.main });
         const test_render = b.addTest(.{ .root_module = mods.render });
         const test_util = b.addTest(.{ .root_module = mods.util });
         const test_quarantine = b.addTest(.{ .root_module = mods.quarantine });
@@ -127,10 +130,10 @@ pub fn build(b: *std.Build) void {
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     {
         const mods = createModules(b, target, optimize, network, mach_glfw, zgl, zalgebra, zigimg);
-        mods.root.addOptions("build_options", options);
+        mods.main.addOptions("build_options", options);
         const client = b.addExecutable(.{
             .name = "zig-client",
-            .root_module = mods.root,
+            .root_module = mods.main,
         });
 
         const check = b.step("check", "Check if client compiles");

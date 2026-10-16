@@ -1,5 +1,6 @@
-const Block = @import("block.zig").Block;
 const std = @import("std");
+
+const Block = @import("block.zig").Block;
 
 pub const PhysicalState = packed struct(u16) {
     properties: Properties,

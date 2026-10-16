@@ -1,6 +1,7 @@
 const main = @import("main");
-const Vector3 = main.Vector3;
+
 const Entity = main.Entity;
+const Vector3 = main.Vector3;
 
 base: Entity.Base,
 interpolator: Entity.InterpolatedBase = undefined,

@@ -1,7 +1,10 @@
 const std = @import("std");
-const Vector3 = @import("main").Vector3;
-const Vector2xy = @import("main").Vector2xy;
+
 const Direction = @import("main").Direction;
+const Vector2xy = @import("main").Vector2xy;
+const Vector3 = @import("main").Vector3;
+
+const Renderer = @import("../Renderer.zig");
 
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,
@@ -51,8 +54,6 @@ pub fn writeVertex(
     };
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&vertex));
 }
-
-const Renderer = @import("../Renderer.zig");
 
 pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !void {
     @setRuntimeSafety(false);

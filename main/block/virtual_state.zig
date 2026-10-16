@@ -1,7 +1,15 @@
-const main = @import("main");
-const Block = @import("block.zig").Block;
 const std = @import("std");
+
+const main = @import("main");
+
+const physical_state = @import("physical_state.zig");
+const Block = @import("block.zig").Block;
+
 const Box = main.Box;
+const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const World = main.World;
+const PhysicalState = physical_state.PhysicalState;
 
 pub const VirtualState = union(Block) {
     pub const StairShape = enum(u3) { straight, inner_left, inner_right, outer_left, outer_right };
@@ -533,14 +541,6 @@ pub const VirtualState = union(Block) {
         }
     }
 };
-
-const physical_state = @import("physical_state.zig");
-
-const PhysicalState = physical_state.PhysicalState;
-
-const World = main.World;
-const Vector3 = main.Vector3;
-const Direction = main.Direction;
 
 fn isSnow(block: Block) bool {
     return block == .snow or block == .snow_layer;

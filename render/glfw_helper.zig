@@ -1,7 +1,8 @@
 const std = @import("std");
-const Vector2 = @import("main").Vector3;
+
 const glfw = @import("mach-glfw");
 const gl = @import("zgl");
+
 pub fn initGlfw() error{GlfwInitFailed}!void {
     if (!glfw.init(.{ .platform = .wayland })) {
         std.log.err("failed to init glfw: {?s}", .{glfw.getErrorString()});

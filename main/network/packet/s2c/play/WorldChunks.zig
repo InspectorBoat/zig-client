@@ -1,10 +1,11 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 
+const Client = main.Client;
 const Vector2xz = main.Vector2xz;
+const S2C = main.network.packet.S2C;
+pub const ChunkData = S2C.Play.WorldChunk.ChunkData;
 
 chunk_positions: []const Vector2xz(i32),
 chunk_datas: []ChunkData,
@@ -12,8 +13,6 @@ has_light: bool,
 
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
-
-pub const ChunkData = S2C.Play.WorldChunk.ChunkData;
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const has_sky_light = try buffer.read(bool);

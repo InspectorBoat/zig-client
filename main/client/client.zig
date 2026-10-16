@@ -1,11 +1,11 @@
-const main = @import("main");
 const std = @import("std");
 
-const Vector2xy = main.Vector2xy;
+const main = @import("main");
+
 const Vector2xz = main.Vector2xz;
+const World = main.World;
 const Connection = main.network.Connection;
 const ConnectionHandle = main.network.ConnectionHandle;
-const World = main.World;
 
 pub const Client = union(enum) {
     pub const Idle = struct {

@@ -1,27 +1,28 @@
-const main = @import("main");
 const std = @import("std");
 
-const Vector2xz = main.Vector2xz;
-const Vector3 = main.Vector3;
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-const LocalPlayerEntity = main.Entity.LocalPlayer;
-const Entity = main.Entity;
-const Block = main.Block;
-const Box = main.Box;
-const EventHandler = main.EventHandler;
-const Events = main.Events;
-const Menu = main.Menu;
-const ItemStack = main.ItemStack;
-const Direction = main.Direction;
+const main = @import("main");
+
 pub const Chunk = @import("Chunk.zig");
+pub const ChunkMap = @import("ChunkMap.zig");
+pub const EntityTracker = @import("EntityTracker.zig");
 pub const Section = @import("Section.zig");
 pub const TickTimer = @import("TickTimer.zig");
 pub const Difficulty = @import("difficulty.zig").Difficulty;
 pub const GameMode = @import("gamemode.zig").GameMode;
 pub const GeneratorType = @import("generatortype.zig").GeneratorType;
-pub const ChunkMap = @import("ChunkMap.zig");
-pub const EntityTracker = @import("EntityTracker.zig");
+
+const Block = main.Block;
+const Box = main.Box;
+const Client = main.Client;
+const Direction = main.Direction;
+const Entity = main.Entity;
+const LocalPlayerEntity = main.Entity.LocalPlayer;
+const EventHandler = main.EventHandler;
+const Events = main.Events;
+const Menu = main.Menu;
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;
 
 chunks: ChunkMap = .{},
 player: LocalPlayerEntity,
@@ -301,7 +302,7 @@ pub fn getCollisions(self: *const @This(), allocator: std.mem.Allocator, hitbox:
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
                 const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
-                const virtual: @import("../block/virtual_state.zig").VirtualState = .resolve(
+                const virtual: Block.VirtualState = .resolve(
                     self.getBlockState(pos),
                     self,
                     pos,

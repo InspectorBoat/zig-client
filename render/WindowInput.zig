@@ -1,6 +1,7 @@
 const std = @import("std");
-const Vector2xy = @import("main").Vector2xy;
+
 const glfw = @import("mach-glfw");
+const Vector2xy = @import("main").Vector2xy;
 
 window: glfw.Window,
 

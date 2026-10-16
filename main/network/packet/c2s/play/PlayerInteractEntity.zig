@@ -1,8 +1,9 @@
-const main = @import("main");
 const std = @import("std");
 
-const C2S = main.network.packet.C2S;
+const main = @import("main");
+
 const Vector3 = main.Vector3;
+const C2S = main.network.packet.C2S;
 
 target_network_id: i32,
 action: Action,

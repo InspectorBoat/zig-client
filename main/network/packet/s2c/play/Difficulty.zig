@@ -1,10 +1,10 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 
+const Client = main.Client;
 const Difficulty = main.World.Difficulty;
+const S2C = main.network.packet.S2C;
 
 difficulty: Difficulty,
 

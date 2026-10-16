@@ -1,4 +1,5 @@
 const main = @import("main");
+
 const Rotation2 = main.Rotation2;
 
 pub fn ScaledRotation2(comptime Element: type, comptime Factor: comptime_float) type {

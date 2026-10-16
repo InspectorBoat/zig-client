@@ -1,8 +1,9 @@
 const main = @import("main");
-const Entity = main.Entity;
+
 const Client = main.Client;
-const Vector3 = main.Vector3;
+const Entity = main.Entity;
 const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
 
 base: Entity.Base = .{ .width = 1.3, .height = 0.9 },
 living: Entity.LivingBase,

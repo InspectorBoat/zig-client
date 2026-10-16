@@ -1,12 +1,13 @@
-const main = @import("main");
 const std = @import("std");
 
-const Vector3 = main.Vector3;
-const Rotation2 = main.Rotation2;
-const World = main.World;
-const Direction = main.Direction;
+const main = @import("main");
+
 const Box = main.Box;
+const Direction = main.Direction;
 const MathHelper = main.MathHelper;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
+const World = main.World;
 
 pub const HitType = enum { block, entity, miss };
 

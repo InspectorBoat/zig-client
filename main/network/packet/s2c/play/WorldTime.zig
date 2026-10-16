@@ -1,8 +1,9 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
+const main = @import("main");
+
 const Client = main.Client;
+const S2C = main.network.packet.S2C;
 
 time: i64,
 time_of_day: i64,

@@ -1,13 +1,13 @@
 const std = @import("std");
+
+const render = @import("render");
 const Vector3 = @import("main").Vector3;
-const World = @import("main").World;
-const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
-const CompilationTracker = @import("CompilationTracker.zig");
-const Box = @import("main").Box;
-const Direction = @import("main").Direction;
-const PhysicalState = @import("main").Block.PhysicalState;
 const VirtualState = @import("main").Block.VirtualState;
+const World = @import("main").World;
 const PackedNibbleArray = @import("util").PackedNibbleArray;
+
+const CompilationTracker = @import("CompilationTracker.zig");
+const GpuStagingBuffer = @import("GpuStagingBuffer.zig");
 
 block_states: [18][18][18]VirtualState,
 block_light: PackedNibbleArray(18, 18, 18),
@@ -58,7 +58,7 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
 
         for (1..17) |y| {
             for (1..17) |z| {
-                const model = @import("../render.zig").renderer.lookup_table.get(task.block_states[x][y][z]) orelse continue;
+                const model = render.renderer.lookup_table.get(task.block_states[x][y][z]) orelse continue;
 
                 for (model.faces) |face| {
                     const pos_vec: Vector3(f32) = .{

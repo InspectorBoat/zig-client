@@ -1,8 +1,4 @@
-const main = @import("main");
 const std = @import("std");
-
-const Client = main.Client;
-const Connection = main.network.Connection;
 
 pub const C2S = union(enum) {
     pub const WriteBuffer = @import("c2s/WriteBuffer.zig");

@@ -1,8 +1,7 @@
 const main = @import("main");
-const std = @import("std");
+const Uuid = @import("util").Uuid;
 
 const C2S = main.network.packet.C2S;
-const Uuid = @import("util").Uuid;
 
 targetUuid: Uuid,
 

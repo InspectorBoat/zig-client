@@ -1,17 +1,16 @@
-const main = @import("main");
 const std = @import("std");
 
-const Entity = main.Entity;
-const PlayerInventory = @import("../../inventory/PlayerInventory.zig");
-const ItemStack = main.ItemStack;
+const main = @import("main");
+
 const Client = main.Client;
+const Entity = main.Entity;
+const HitResult = main.HitResult;
+const ItemStack = main.ItemStack;
+const Rotation2 = main.Rotation2;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
-const World = main.World;
-const Rotation2 = main.Rotation2;
-const HitResult = main.HitResult;
-const MathHelper = main.math.MathHelper;
 const Direction = main.math.Direction;
+const MathHelper = main.math.MathHelper;
 
 base: Entity.Base,
 living: Entity.LivingBase = .{},

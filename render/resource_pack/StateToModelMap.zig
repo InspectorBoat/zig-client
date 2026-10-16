@@ -22,6 +22,7 @@
 /// whether uvs are rotated along with the geometry, or stay fixed in space.
 /// `model` is a bare name. "redstone_ne" resolves to `models/block/redstone_ne.json`.
 const std = @import("std");
+
 const JsonMap = @import("json_map.zig").JsonMap;
 
 variants: JsonMap(ModelVariants),

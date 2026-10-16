@@ -1,8 +1,9 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
+const main = @import("main");
+
 const Connection = main.network.Connection;
+const S2C = main.network.packet.S2C;
 
 time_millis: i32,
 

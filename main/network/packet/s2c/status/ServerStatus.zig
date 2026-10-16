@@ -1,5 +1,4 @@
 const main = @import("main");
-const std = @import("std");
 
 const S2C = main.network.packet.S2C;
 

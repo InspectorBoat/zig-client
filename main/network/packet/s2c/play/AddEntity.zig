@@ -1,12 +1,12 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 
-const ScaledVector = main.network.ScaledVector;
-const ScaledRotation2 = main.network.ScaledRotation2;
+const Client = main.Client;
 const Entity = main.Entity;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;
 
 network_id: i32,
 pos: ScaledVector(i32, 32.0),

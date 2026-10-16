@@ -1,4 +1,5 @@
 const main = @import("main");
+
 const C2S = main.network.packet.C2S;
 
 player_name: []const u8,

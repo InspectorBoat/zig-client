@@ -1,11 +1,6 @@
 const main = @import("main");
-const std = @import("std");
 
-const World = main.World;
 const LocalPlayer = main.Entity.LocalPlayer;
-const Vector3 = main.Vector3;
-const Box = main.Box;
-const Direction = main.Direction;
 
 // In minecraft versions <1.13, chunks store block(states) packed in 16 bits:
 // <block type: 12 bits>|<block metadata: 4 bits>

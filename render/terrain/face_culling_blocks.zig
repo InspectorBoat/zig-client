@@ -1,4 +1,3 @@
-const std = @import("std");
 const Block = @import("main").Block;
 const EnumBoolArray = @import("util").EnumBoolArray;
 

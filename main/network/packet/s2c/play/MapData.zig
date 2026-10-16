@@ -1,11 +1,12 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 
 const MapDecoration = @import("../../../../world/MapDecoration.zig");
+
+const Client = main.Client;
 const Vector2xy = main.Vector2xy;
+const S2C = main.network.packet.S2C;
 
 map_id: i32,
 scale: i8,

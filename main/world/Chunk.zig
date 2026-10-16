@@ -1,5 +1,6 @@
-const main = @import("main");
 const std = @import("std");
+
+const main = @import("main");
 
 const Section = main.Section;
 const Vector2xz = main.Vector2xz;

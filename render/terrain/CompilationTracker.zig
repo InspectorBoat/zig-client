@@ -1,5 +1,7 @@
-const main = @import("main");
 const std = @import("std");
+
+const main = @import("main");
+
 const CompilationTask = @import("CompilationTask.zig");
 
 gpa: std.mem.Allocator,

@@ -1,14 +1,16 @@
-const main = @import("main");
 const std = @import("std");
-const gl = @import("zgl");
+
 const glfw = @import("mach-glfw");
+const main = @import("main");
+const gl = @import("zgl");
+
+const Renderer = @import("Renderer.zig");
+const WindowInput = @import("WindowInput.zig");
+const glfw_helper = @import("glfw_helper.zig");
 
 const Client = main.Client;
 const EventHandler = main.EventHandler;
 const Events = main.Events;
-const glfw_helper = @import("glfw_helper.zig");
-const WindowInput = @import("WindowInput.zig");
-const Renderer = @import("Renderer.zig");
 const Vector2xy = main.Vector2xy;
 
 pub var window_input: WindowInput = undefined;

@@ -1,7 +1,5 @@
 const std = @import("std");
 
-const RingBuffer = @This();
-
 pub const TailMark = struct {
     index: usize,
     /// TODO: actually you *can* move a ring buffer (just like how you can move an arraylist)

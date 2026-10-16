@@ -1,8 +1,7 @@
 const main = @import("main");
-const std = @import("std");
 
-const C2S = main.network.packet.C2S;
 const ItemStack = main.ItemStack;
+const C2S = main.network.packet.C2S;
 
 menu_network_id: i8,
 slot_id: i16,

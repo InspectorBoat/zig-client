@@ -1,6 +1,6 @@
-const std = @import("std");
-const Block = @import("block.zig").Block;
 const EnumBoolArray = @import("util").EnumBoolArray;
+
+const Block = @import("block.zig").Block;
 
 pub const @"export" = EnumBoolArray(Block).init(.{
     .air = false,

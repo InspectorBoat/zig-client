@@ -1,26 +1,27 @@
-const main = @import("main");
 const std = @import("std");
-const gl = @import("zgl");
-const glfw = @import("mach-glfw");
 
-const Vector3 = main.Vector3;
-const Vector2xz = main.Vector2xz;
-const Box = main.Box;
-const Chunk = main.Chunk;
-const LocalPlayerEntity = main.Entity.LocalPlayer;
-const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
-const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
-const Client = main.Client;
+const main = @import("main");
 const za = @import("zalgebra");
-const Vec3 = za.Vec3;
-const Mat4 = za.Mat4;
-const Direction = main.Direction;
-const World = main.World;
+const gl = @import("zgl");
+const zigimg = @import("zigimg");
+
+const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
+const render = @import("render.zig");
+const BakedModel = @import("resource_pack/BakedModel.zig");
+const resource_pack = @import("resource_pack/resource_pack.zig");
+const ChunkTracker = @import("terrain/ChunkTracker.zig");
 const CompilationTask = @import("terrain/CompilationTask.zig");
 const CompilationTracker = @import("terrain/CompilationTracker.zig");
-const ChunkTracker = @import("terrain/ChunkTracker.zig");
+const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
+
 const Block = main.Block;
-const BakedModel = @import("resource_pack/BakedModel.zig");
+const Chunk = main.Chunk;
+const Client = main.Client;
+const LocalPlayerEntity = main.Entity.LocalPlayer;
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
+const World = main.World;
+const Mat4 = za.Mat4;
 
 pub const TextureHandle = enum(u16) { _ };
 
@@ -75,7 +76,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
     var arena: std.heap.ArenaAllocator = .init(allocator);
     defer arena.deinit();
-    const blockstate_to_model_lookup_table, const named_block_textures = try @import("resource_pack/resource_pack.zig").init(
+    const blockstate_to_model_lookup_table, const named_block_textures = try resource_pack.init(
         io,
         allocator,
         arena.allocator(),
@@ -221,8 +222,6 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 
     return index_buffer;
 }
-
-const zigimg = @import("zigimg");
 
 /// Uploads every decoded sprite as one layer of a 2D array texture.
 ///
@@ -490,8 +489,8 @@ pub fn render2dDebug(self: *@This()) void {
 pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
 
-    const window_width: f32 = @floatFromInt(@import("render.zig").window_input.window_size.x);
-    const window_height: f32 = @floatFromInt(@import("render.zig").window_input.window_size.y);
+    const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
+    const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
 
     const projection: Mat4 = za.perspective(90.0, window_width / window_height, 0.05, 1000.0);
     const view: Mat4 = .mul(

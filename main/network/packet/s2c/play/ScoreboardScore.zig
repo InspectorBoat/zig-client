@@ -1,8 +1,9 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
+const main = @import("main");
+
 const Client = main.Client;
+const S2C = main.network.packet.S2C;
 
 owner: []const u8,
 objective: []const u8,

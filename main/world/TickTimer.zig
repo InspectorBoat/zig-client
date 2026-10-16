@@ -1,5 +1,4 @@
 const std = @import("std");
-const monotonicNanos = @import("llm-code-quarantine").monotonicNanos;
 
 tps: f32 = 20.0,
 start: std.Io.Timestamp,

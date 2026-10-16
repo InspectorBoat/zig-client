@@ -1,8 +1,7 @@
 const main = @import("main");
-const std = @import("std");
+const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 const Block = main.Block;
-const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 block_states: [16 * 16 * 16]Block.PhysicalState,
 block_light: PackedNibbleArray(16, 16, 16),

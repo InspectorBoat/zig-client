@@ -4,8 +4,9 @@
 //! that a worker thread runs and then frees.
 
 const std = @import("std");
-const Mutex = @import("Mutex.zig").Mutex;
+
 const Condition = @import("Mutex.zig").Condition;
+const Mutex = @import("Mutex.zig").Mutex;
 
 /// A type-erased queued task. Only ever created by `ThreadPool.spawn`.
 const Task = struct {

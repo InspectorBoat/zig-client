@@ -1,8 +1,8 @@
 const main = @import("main");
-const std = @import("std");
+
+const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
 
 const C2S = main.network.packet.C2S;
-const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
 
 language: []const u8,
 view_distance: i8,

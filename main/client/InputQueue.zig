@@ -1,10 +1,10 @@
+const quarantine = @import("llm-code-quarantine");
 const main = @import("main");
-const std = @import("std");
 
 const Vector2xy = main.Vector2xy;
 
-on_frame: @import("llm-code-quarantine").FixedFifo(Input, 256) = .init(),
-on_tick: @import("llm-code-quarantine").FixedFifo(Input, 128) = .init(),
+on_frame: quarantine.FixedFifo(Input, 256) = .init(),
+on_tick: quarantine.FixedFifo(Input, 128) = .init(),
 
 pub fn queueOnFrame(self: *@This(), input: Input) !void {
     try self.on_frame.writeItem(input);

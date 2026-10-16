@@ -1,7 +1,8 @@
 const main = @import("main");
+
 const Entity = main.Entity;
-const Vector3 = main.Vector3;
 const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
 
 base: Entity.Base,
 living: Entity.LivingBase,

@@ -1,5 +1,6 @@
-const main = @import("main");
 const std = @import("std");
+
+const main = @import("main");
 
 const ItemStack = main.ItemStack;
 

@@ -1,13 +1,12 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
-
-const ScaledVector = main.network.ScaledVector;
-const ScaledRotation2 = main.network.ScaledRotation2;
-const DataTracker = main.Entity.DataTracker;
+const main = @import("main");
 const Uuid = @import("util").Uuid;
+
+const Client = main.Client;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;
 
 network_id: i32,
 uuid: Uuid,

@@ -1,12 +1,12 @@
 const main = @import("main");
-const Entity = main.Entity;
-const Client = main.Client;
+
 const Box = main.Box;
-const Vector3 = main.Vector3;
-const Rotation2 = main.Rotation2;
+const Client = main.Client;
+const Entity = main.Entity;
 const DataTracker = main.Entity.DataTracker;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
 const ScaledVector = main.network.ScaledVector;
-const std = @import("std");
 
 /// This struct supplies fields that every entity needs
 network_id: i32 = undefined,

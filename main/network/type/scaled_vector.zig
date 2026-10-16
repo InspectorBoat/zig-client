@@ -1,5 +1,4 @@
 const main = @import("main");
-const std = @import("std");
 
 const Vector3 = main.Vector3;
 

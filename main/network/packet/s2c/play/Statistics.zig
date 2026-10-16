@@ -1,10 +1,11 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 
 const Stat = @import("../../../../stat/Stat.zig");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;
 
 stats: []const StatEntry,
 

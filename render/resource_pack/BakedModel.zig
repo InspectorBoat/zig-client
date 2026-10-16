@@ -1,10 +1,12 @@
-const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
-const Vector3 = @import("main").Vector3;
-const Vector2xy = @import("main").Vector2xy;
-const Renderer = @import("../Renderer.zig");
+const std = @import("std");
+
 const za = @import("zalgebra");
 const Direction = @import("main").Direction;
-const std = @import("std");
+const Vector2xy = @import("main").Vector2xy;
+const Vector3 = @import("main").Vector3;
+
+const Renderer = @import("../Renderer.zig");
+const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
 const StateToModelMap = @import("StateToModelMap.zig");
 
 faces: []const Face,

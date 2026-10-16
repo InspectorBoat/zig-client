@@ -1,8 +1,10 @@
-const main = @import("main");
 const std = @import("std");
 
-const Vector2xz = main.Vector2xz;
+const main = @import("main");
+
+const Self = @This();
 const Chunk = main.Chunk;
+const Vector2xz = main.Vector2xz;
 
 const Entry = struct {
     pos: Vector2xz(i32),
@@ -52,7 +54,6 @@ pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*Chunk {
     return self.items[toIndex(pos)].chunk;
 }
 
-const Self = @This();
 const Iterator = struct {
     index: usize = 0,
     map: *Self,

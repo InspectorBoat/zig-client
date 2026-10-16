@@ -1,13 +1,7 @@
+const builtin = @import("builtin");
 const std = @import("std");
-const gl = if (!@import("builtin").is_test) @import("zgl") else struct {
-    pub const Buffer = struct {
-        pub fn create() @This() {
-            return .{};
-        }
-        pub fn storage(_: @This(), comptime T: type, _: usize, _: ?[*]align(1) const T, _: anytype) void {}
-        pub fn delete(_: @This()) void {}
-    };
-};
+
+const gl = @import("zgl");
 
 const FreeSegment = struct {
     node: std.SinglyLinkedList.Node,
@@ -40,7 +34,7 @@ pub fn init(allocator: std.mem.Allocator, backing_buffer_size: usize) !@This() {
     };
 
     var shader_storage_buffer_alignment: c_int = 0;
-    if (!@import("builtin").is_test) gl.binding.getIntegerv(gl.binding.SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &shader_storage_buffer_alignment);
+    if (!builtin.is_test) gl.binding.getIntegerv(gl.binding.SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &shader_storage_buffer_alignment);
 
     return .{
         .free_segments = .{ .first = &first_node.node },

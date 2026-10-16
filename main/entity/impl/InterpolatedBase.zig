@@ -1,9 +1,10 @@
 const main = @import("main");
-const Vector3 = main.Vector3;
-const Rotation2 = main.Rotation2;
-const MathHelper = main.MathHelper;
+
 const Base = @import("Base.zig");
-const std = @import("std");
+
+const MathHelper = main.MathHelper;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
 
 interpolation_steps: i32 = 0,
 target_position: Vector3(f64) = .origin(),

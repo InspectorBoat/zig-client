@@ -1,8 +1,6 @@
 const main = @import("main");
-const std = @import("std");
 
 const C2S = main.network.packet.C2S;
-const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
 
 status: Status,
 

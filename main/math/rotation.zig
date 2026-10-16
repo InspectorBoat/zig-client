@@ -1,4 +1,5 @@
 const std = @import("std");
+
 pub fn Rotation2(comptime Element: type) type {
     return struct {
         yaw: Element,

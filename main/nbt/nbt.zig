@@ -1,8 +1,9 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
+const main = @import("main");
+
 const C2S = main.network.packet.C2S;
+const S2C = main.network.packet.S2C;
 
 pub const NbtElementTag = enum(i8) {
     End = 0,

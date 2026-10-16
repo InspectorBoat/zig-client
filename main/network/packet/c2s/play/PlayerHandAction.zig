@@ -1,9 +1,8 @@
 const main = @import("main");
-const std = @import("std");
 
-const C2S = main.network.packet.C2S;
-const Vector3 = main.Vector3;
 const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const C2S = main.network.packet.C2S;
 
 block_pos: Vector3(i32),
 face: Direction,

@@ -1,11 +1,11 @@
-const main = @import("main");
 const std = @import("std");
 
-const S2C = main.network.packet.S2C;
-const Client = main.Client;
+const main = @import("main");
 
+const Client = main.Client;
 const ItemStack = main.ItemStack;
 const Menu = main.Menu;
+const S2C = main.network.packet.S2C;
 
 menu_network_id: i32,
 stacks: []const ?ItemStack,

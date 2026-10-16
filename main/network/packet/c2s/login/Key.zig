@@ -1,4 +1,5 @@
 const main = @import("main");
+
 const C2S = main.network.packet.C2S;
 
 reply: []const u8,

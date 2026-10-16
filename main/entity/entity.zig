@@ -1,9 +1,10 @@
-const main = @import("main");
 const std = @import("std");
 
-const Vector3 = main.Vector3;
-const Rotation2 = main.Rotation2;
+const main = @import("main");
+
 const Client = main.Client;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
 const World = main.World;
 
 pub const EntityType = enum(i32) {

@@ -1,6 +1,7 @@
 const main = @import("main");
-const GameMode = main.World.GameMode;
+
 const Client = main.Client;
+const GameMode = main.World.GameMode;
 
 game_mode: GameMode = .NotSet,
 hunger: struct {
