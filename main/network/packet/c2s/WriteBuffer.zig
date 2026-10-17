@@ -97,15 +97,15 @@ pub fn writeItemStack(self: *@This(), maybe_item_stack: ?ItemStack) !void {
         try self.write(i16, @intCast(@backingInt(item_stack.item)));
         try self.write(i8, @truncate(item_stack.size));
         try self.write(i16, @truncate(item_stack.metadata));
-        if (item_stack.nbt) |nbt| {
-            try self.writeNbtCompound(nbt);
-        }
-    }
+        try self.writeNbtCompound(item_stack.nbt);
+    } else try self.write(i16, -1);
 }
 
-pub fn writeNbtCompound(self: *@This(), compound: Nbt.Compound) !void {
-    const as_generic: Nbt = .{ .compound = compound };
-    try as_generic.writeBlankName(self);
+pub fn writeNbtCompound(self: *@This(), maybe_compound: ?Nbt.Compound) !void {
+    if (maybe_compound) |compound| {
+        const as_generic: Nbt = .{ .compound = compound };
+        try as_generic.writeBlankName(self);
+    } else try self.write(i8, 0);
 }
 
 pub fn writeUuid(self: *@This(), uuid: Uuid) !void {
