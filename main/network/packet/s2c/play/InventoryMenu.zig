@@ -28,7 +28,6 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     const world = &game.world;
 
     const menu: *Menu = if (self.menu_network_id == 0)
@@ -38,9 +37,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     else
         return;
 
-    menu.deinitItemStacks(allocator);
-
     for (self.stacks, 0..) |new_stack, i| {
-        menu.stacks[i] = try .dupe(new_stack, allocator);
+        menu.setSlot(allocator, i, try .dupe(allocator, new_stack));
     }
 }

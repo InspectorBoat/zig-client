@@ -171,6 +171,8 @@ pub fn dropEntireStack(io: std.Io, game: *Game) !void {
 pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     if (game.world.mining_state != null) return;
 
+    game.input_manager.hand.auto_use_cooldown = 4;
+
     const interaction_consumed = switch (player.crosshair) {
         .entity => try interactEntityAt(io, game, player) or try interactEntity(io, game, player),
         .block => try useBlock(game, player),
@@ -178,12 +180,22 @@ pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     };
 
     if (!interaction_consumed) {
-        try useItem(game, player);
+        try useItem(io, game, player);
     }
 }
 
-pub fn useItem(game: *Game, player: *LocalPlayer) !void {
+pub fn useItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
+    if (game.world.game_mode == .Spectator) return;
+
     const held_stack = player.getHeldStack(game) orelse return;
+
+    try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
+        .block_pos = .splat(-1),
+        .face = null,
+        .stack = held_stack,
+        .offset = .splat(0.0),
+    } });
+
     switch (held_stack.item) {
         .diamond_sword => {
             player.item_in_use = held_stack;

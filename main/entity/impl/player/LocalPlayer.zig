@@ -233,7 +233,7 @@ pub fn pushAwayFrom(self: *@This(), game: *const Client.Game, x: f64, y: f64, z:
 }
 
 pub fn getHeldStack(self: *@This(), game: *Client.Game) ?ItemStack {
-    return game.world.player_inventory_menu.stacks[self.hotbar_slot];
+    return game.world.main_inventory.stacks[self.hotbar_slot];
 }
 
 // TODO: Implement

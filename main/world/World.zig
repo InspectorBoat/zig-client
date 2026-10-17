@@ -11,6 +11,7 @@ pub const Difficulty = @import("difficulty.zig").Difficulty;
 pub const GameMode = @import("gamemode.zig").GameMode;
 pub const GeneratorType = @import("generatortype.zig").GeneratorType;
 
+const Inventory = main.Inventory;
 const Block = main.Block;
 const Box = main.Box;
 const Client = main.Client;
@@ -32,8 +33,15 @@ difficulty: Difficulty,
 dimension: i8,
 hardcore: bool,
 game_mode: GameMode = .Survival,
+
+main_inventory: *Inventory,
+crafting_inventory: *Inventory,
+crafting_result_inventory: *Inventory,
+
 player_inventory_menu: Menu,
+
 menu: union(enum) { none, player_menu, other: Menu } = .none,
+
 mining_state: ?struct {
     block_pos: Vector3(i32),
     progress: f32 = 0,
@@ -46,6 +54,12 @@ pub fn init(
     info: struct { difficulty: Difficulty, game_mode: GameMode, dimension: i8, hardcore: bool },
     player: LocalPlayerEntity,
 ) !@This() {
+    const main_inventory: *Inventory = try .init(allocator, 40);
+    const crafting_inventory: *Inventory = try .init(allocator, 4);
+    const crafting_result_inventory: *Inventory = try .init(allocator, 1);
+
+    const player_inventory_menu: Menu = try .initPlayerMenu(allocator, main_inventory, crafting_inventory, crafting_result_inventory);
+
     return .{
         .entity_tracker = try .init(allocator),
         .tick_timer = try .init(io),
@@ -53,8 +67,11 @@ pub fn init(
         .game_mode = info.game_mode,
         .dimension = info.dimension,
         .hardcore = info.hardcore,
+        .main_inventory = main_inventory,
+        .crafting_inventory = crafting_inventory,
+        .crafting_result_inventory = crafting_result_inventory,
+        .player_inventory_menu = player_inventory_menu,
         .player = player,
-        .player_inventory_menu = try .init(allocator, 0, 45),
     };
 }
 
@@ -354,7 +371,9 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         std.log.scoped(.world).debug("freeing chunk at {}", .{chunk.chunk_pos});
         chunk.deinit(allocator);
     }
-    if (self.menu == .other) self.menu.other.deinit(allocator);
+    self.main_inventory.deinit(allocator);
+    self.crafting_inventory.deinit(allocator);
+    self.crafting_result_inventory.deinit(allocator);
     self.player_inventory_menu.deinit(allocator);
 
     self.entity_tracker.deinit();

@@ -23,15 +23,13 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     const world = &game.world;
 
-    const stack: *?ItemStack = switch (self.menu_network_id) {
-        0 => &world.player_inventory_menu.stacks[@intCast(self.slot_id)],
-        else => |menu_network_id| blk: {
+    switch (self.menu_network_id) {
+        0 => world.player_inventory_menu.setSlot(allocator, @intCast(self.slot_id), try .dupe(allocator, self.item_stack)),
+        else => |menu_network_id| {
             if (world.menu != .other or world.menu.other.network_id != menu_network_id) return;
-            break :blk &world.menu.other.stacks[@intCast(self.slot_id)];
+            world.menu.other.setSlot(allocator, @intCast(self.slot_id), try .dupe(allocator, self.item_stack));
         },
-    };
-    stack.* = try .dupe(self.item_stack, allocator);
+    }
 }

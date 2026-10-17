@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Nbt = main.Nbt;
+
 const main = @import("main");
 const Uuid = @import("util").Uuid;
 
@@ -90,10 +92,20 @@ pub fn writeBlockPos(self: *@This(), block_pos: Vector3(i32)) !void {
     );
 }
 
-pub fn writeItemStack(self: *@This(), item_stack: ?ItemStack) !void {
-    _ = self; // autofix
-    _ = item_stack; // autofix
-    std.debug.panic("unimplemented", .{});
+pub fn writeItemStack(self: *@This(), maybe_item_stack: ?ItemStack) !void {
+    if (maybe_item_stack) |item_stack| {
+        try self.write(i16, @intCast(@backingInt(item_stack.item)));
+        try self.write(i8, @truncate(item_stack.size));
+        try self.write(i16, @truncate(item_stack.metadata));
+        if (item_stack.nbt) |nbt| {
+            try self.writeNbtCompound(nbt);
+        }
+    }
+}
+
+pub fn writeNbtCompound(self: *@This(), compound: Nbt.Compound) !void {
+    const as_generic: Nbt = .{ .compound = compound };
+    try as_generic.writeBlankName(self);
 }
 
 pub fn writeUuid(self: *@This(), uuid: Uuid) !void {

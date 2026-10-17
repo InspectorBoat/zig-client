@@ -64,7 +64,7 @@ pub const Client = union(enum) {
             const inputs = &self.input_manager;
 
             inputs.hand.attack_cooldown -|= 1;
-            inputs.hand.auto_use_item_cooldown -|= 1;
+            inputs.hand.auto_use_cooldown -|= 1;
 
             var drop_presses: usize, var attack_presses: usize, var use_presses: usize, var pick_presses: usize = .{ 0, 0, 0, 0 };
             _ = &pick_presses;
@@ -121,7 +121,7 @@ pub const Client = union(enum) {
                 for (0..use_presses) |_| try interactions.use(io, self, player);
                 for (0..pick_presses) |_| try interactions.pick(io, self, player);
             }
-            if (inputs.hand.use and self.input_manager.hand.auto_use_item_cooldown == 0 and player.item_in_use == null) {
+            if (inputs.hand.use and self.input_manager.hand.auto_use_cooldown == 0 and player.item_in_use == null) {
                 try interactions.use(io, self, player);
             }
 
@@ -138,7 +138,7 @@ pub const Client = union(enum) {
         pub const InputManager = struct {
             hand: struct {
                 attack_cooldown: usize = 0,
-                auto_use_item_cooldown: usize = 0,
+                auto_use_cooldown: usize = 0,
                 mining_cooldown: usize = 0,
 
                 attack: bool = false,

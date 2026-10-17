@@ -47,11 +47,11 @@ pub const Nbt = union(Tag) {
         StringTooLarge,
     };
 
-    pub fn writeBlankName(self: *@This(), buffer: *C2S.WriteBuffer) WriteError!void {
+    pub fn writeBlankName(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
         try self.writeWithName(buffer, "");
     }
 
-    pub fn writeWithName(self: *@This(), buffer: *C2S.WriteBuffer, key: []const u8) WriteError!void {
+    pub fn writeWithName(self: *const @This(), buffer: *C2S.WriteBuffer, key: []const u8) WriteError!void {
         try buffer.write(i8, @backingInt(self.*));
         switch (self.*) {
             .end => {},
@@ -260,10 +260,10 @@ pub const Nbt = union(Tag) {
             };
         }
 
-        pub fn write(self: *@This(), buffer: *C2S.WriteBuffer) WriteError!void {
-            self.element_type = if (self.elements.len == 0) .end else @as(Tag, self.elements[0]);
+        pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
+            const element_type: Tag = if (self.elements.len == 0) .end else self.elements[0];
 
-            try buffer.write(i8, @backingInt(self.element_type));
+            try buffer.write(i8, @backingInt(element_type));
             try buffer.write(i32, @intCast(self.elements.len));
 
             for (self.elements) |*element| {
@@ -346,7 +346,7 @@ pub const Nbt = union(Tag) {
                 try element.writeWithName(buffer, key);
             }
             // write end
-            var end = Nbt{ .end = .{} };
+            var end: Nbt = .{ .end = .{} };
             try end.writeBlankName(buffer);
         }
 

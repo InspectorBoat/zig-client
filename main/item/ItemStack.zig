@@ -10,7 +10,7 @@ item: Item,
 size: i32,
 metadata: i32,
 
-pub fn dupe(maybe_item_stack: ?@This(), allocator: std.mem.Allocator) !?@This() {
+pub fn dupe(allocator: std.mem.Allocator, maybe_item_stack: ?@This()) !?@This() {
     if (maybe_item_stack) |item_stack| if (item_stack.nbt) |nbt| return .{
         .item = item_stack.item,
         .size = item_stack.size,
@@ -21,7 +21,7 @@ pub fn dupe(maybe_item_stack: ?@This(), allocator: std.mem.Allocator) !?@This() 
     return maybe_item_stack;
 }
 
-pub fn deinit(maybe_item_stack: *?@This(), allocator: std.mem.Allocator) void {
+pub fn deinit(allocator: std.mem.Allocator, maybe_item_stack: *?@This()) void {
     if (maybe_item_stack.*) |*item_stack| if (item_stack.nbt) |*nbt| nbt.deinit(allocator);
 }
 

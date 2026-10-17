@@ -32,19 +32,10 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
+    _ = allocator;
+    _ = game;
 
-    const world = &game.world;
+    if (std.mem.eql(u8, "minecraft:container", self.menu_type)) {}
 
-    switch (world.menu) {
-        .other => |*previous_menu| previous_menu.deinit(allocator),
-        else => {},
-    }
-
-    const stacks = try allocator.alloc(?ItemStack, @intCast(self.size));
-    @memset(stacks, null);
-
-    world.menu = .{ .other = .{
-        .network_id = self.menu_network_id,
-        .stacks = stacks,
-    } };
+    std.debug.panic("TODO!", .{});
 }
