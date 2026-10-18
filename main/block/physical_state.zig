@@ -1,10 +1,10 @@
 const std = @import("std");
 
 const Block = @import("main").Block;
-const World = @import("main").World;
+const Direction = @import("main").Direction;
 const Entity = @import("main").Entity;
 const Vector3 = @import("main").Vector3;
-const Direction = @import("main").Direction;
+const World = @import("main").World;
 
 pub const PhysicalState = packed struct(u16) {
     properties: Properties,
@@ -38,6 +38,33 @@ pub const PhysicalState = packed struct(u16) {
             @field(self.properties, @tagName(block))
         else
             null;
+    }
+
+    /// check for solid blocking cube, a top-half slab/stair, a hopper, or a full snow layer
+    pub fn hasSolidTop(self: @This()) bool {
+        const block = self.block;
+        if (block.getMaterial().blocksMovementAndNotTranslucent() and block.isCube()) return true;
+
+        return switch (block) {
+            .oak_stairs,
+            .stone_stairs,
+            .brick_stairs,
+            .stone_brick_stairs,
+            .nether_brick_stairs,
+            .sandstone_stairs,
+            .spruce_stairs,
+            .birch_stairs,
+            .jungle_stairs,
+            .quartz_stairs,
+            .acacia_stairs,
+            .dark_oak_stairs,
+            .red_sandstone_stairs,
+            => self.properties.oak_stairs.half == .top,
+            .stone_slab, .wooden_slab, .stone_slab2 => self.properties.stone_slab.half == .top,
+            .hopper => true,
+            .snow_layer => self.properties.snow_layer.layers == .@"7" or self.properties.snow_layer.layers == .@"8",
+            else => false,
+        };
     }
 
     pub fn use(self: @This(), world: *World, player: *Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
@@ -291,7 +318,7 @@ pub const PhysicalState = packed struct(u16) {
     pub const DoublePlantVariant = enum(u3) { sunflower, syringa, double_grass, double_fern, double_rose, paeonia };
     pub const DoublePlantHalf = enum(u1) { lower, upper };
     pub const PistonType = enum(u1) { normal, sticky };
-    pub const SnowLayers = enum(u3) { @"1", @"2", @"3", @"4", @"5", @"6", @"7" };
+    pub const SnowLayers = enum(u3) { @"1", @"2", @"3", @"4", @"5", @"6", @"7", @"8" };
     pub const Age02 = enum(u2) { @"0", @"1", @"2" };
     pub const ComparatorMode = enum(u1) { compare, subtract };
 };

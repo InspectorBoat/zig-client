@@ -2,6 +2,30 @@ const std = @import("std");
 
 const Block = @import("block.zig").Block;
 
+pub const is_cube: std.enums.EnumSet(Block) = .initMany(&.{
+    .air,                .barrier,               .bedrock,       .bookshelf,      .brick_block,       .brown_mushroom_block,
+    .clay,               .coal_block,            .coal_ore,      .cobblestone,    .command_block,     .crafting_table,
+    .diamond_block,      .diamond_ore,           .dirt,          .dispenser,      .double_stone_slab, .double_stone_slab2,
+    .double_wooden_slab, .dropper,               .emerald_block, .emerald_ore,    .end_portal_frame,  .end_stone,
+    .furnace,            .glowstone,             .gold_block,    .gold_ore,       .grass,             .gravel,
+    .hardened_clay,      .hay_block,             .ice,           .iron_block,     .iron_ore,          .jukebox,
+    .lapis_block,        .lapis_ore,             .leaves,        .leaves2,        .lit_furnace,       .lit_pumpkin,
+    .lit_redstone_lamp,  .lit_redstone_ore,      .log,           .log2,           .melon_block,       .mob_spawner,
+    .monster_egg,        .mossy_cobblestone,     .mycelium,      .nether_brick,   .netherrack,        .noteblock,
+    .obsidian,           .packed_ice,            .planks,        .prismarine,     .pumpkin,           .quartz_block,
+    .quartz_ore,         .red_mushroom_block,    .red_sandstone, .redstone_block, .redstone_lamp,     .redstone_ore,
+    .sand,               .sandstone,             .sea_lantern,   .slime,          .snow,              .soul_sand,
+    .sponge,             .stained_hardened_clay, .stone,         .stonebrick,     .tnt,               .wool,
+});
+
+pub const signal_source: std.enums.EnumSet(Block) = .initMany(&.{
+    .stone_pressure_plate, .wooden_pressure_plate, .light_weighted_pressure_plate, .heavy_weighted_pressure_plate,
+    .unpowered_repeater,   .powered_repeater,      .unpowered_comparator,          .powered_comparator,
+    .redstone_block,       .trapped_chest,         .stone_button,                  .wooden_button,
+    .detector_rail,        .daylight_detector,     .daylight_detector_inverted,    .lever,
+    .redstone_torch,       .redstone_wire,         .tripwire_hook,
+});
+
 pub const hardness: std.EnumArray(Block, f32) = .init(.{
     .air = 0.0,
     .stone = 1.5,

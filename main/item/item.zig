@@ -1,5 +1,7 @@
-pub const ItemStack = @import("ItemStack.zig");
 const main = @import("main");
+
+pub const ItemStack = @import("ItemStack.zig");
+
 const Block = main.Block;
 
 pub const Item = enum(u16) {

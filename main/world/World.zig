@@ -139,7 +139,6 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.Physic
     return section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
 }
 
-/// Virtual properties are computed on demand; this is the only entry point for them.
 pub fn resolveVirtualBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.VirtualState {
     return .resolve(self.getBlockState(block_pos), self, block_pos);
 }
@@ -341,6 +340,14 @@ pub fn getCollisions(self: *const @This(), allocator: std.mem.Allocator, hitbox:
     }
     // TODO: Include entities
     return try collisions.toOwnedSlice(allocator);
+}
+
+/// Only tests entities
+/// TODO: Implement this
+pub fn isUnobstructed(self: *const @This(), hitbox: Box(f64)) bool {
+    _ = self;
+    _ = hitbox;
+    return false;
 }
 
 /// returns intersecting hitboxes originating from blocks

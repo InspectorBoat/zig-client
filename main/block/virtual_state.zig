@@ -243,13 +243,13 @@ pub const VirtualState = union(Block) {
                 .west = physical.payload(.vine).west,
                 .north = physical.payload(.vine).north,
                 .east = physical.payload(.vine).east,
-                .up = world.getBlock(block_pos.up()).isFullCube(),
+                .up = world.getBlock(block_pos.up()).blocksAmbientLight(),
             } },
             .tripwire_hook => .{ .tripwire_hook = .{
                 .facing = physical.payload(.tripwire_hook).facing,
                 .attached = physical.payload(.tripwire_hook).attached,
                 .powered = physical.payload(.tripwire_hook).powered,
-                .suspended = !hasSolidTop(world.getBlock(block_pos.down())),
+                .suspended = !world.getBlockState(block_pos.down()).hasSolidTop(),
             } },
             .pumpkin_stem => .{ .pumpkin_stem = .{
                 .age = physical.payload(.pumpkin_stem).age,
@@ -384,6 +384,15 @@ pub const VirtualState = union(Block) {
         };
     }
 
+    pub fn canBeReplaced(self: @This()) bool {
+        return switch (self) {
+            .air, .deadbush, .tallgrass, .vine => true,
+            .snow_layer => |s| s.layers == .@"1",
+            .double_plant => |s| s.variant == .double_fern or s.variant == .double_grass,
+            else => false,
+        };
+    }
+
     pub fn getCollisionHitboxes(self: @This()) [5]?Box(f64) {
         var c: Collisions = .{};
         switch (self) {
@@ -430,9 +439,7 @@ pub const VirtualState = union(Block) {
                 fence_collisions(&c, s.north, s.south, s.west, s.east);
             },
 
-            inline .iron_bars, .glass_pane => |s| pane_collisions(&c, s.north, s.south, s.west, s.east),
-
-            .stained_glass_pane => |s| pane_collisions(&c, s.north, s.south, s.west, s.east),
+            inline .iron_bars, .glass_pane, .stained_glass_pane => |s| pane_collisions(&c, s.north, s.south, s.west, s.east),
 
             .cobblestone_wall => |s| c.add(wall_collision(s.north, s.south, s.west, s.east)),
 
@@ -540,6 +547,14 @@ pub const VirtualState = union(Block) {
             else => return self.getCollisionHitboxes(),
         }
     }
+
+    pub fn isFullCube(self: @This()) bool {
+        const first = self.getCollisionHitboxes()[0] orelse return false;
+        const dx = first.max.x - first.min.x;
+        const dy = first.max.y - first.min.y;
+        const dz = first.max.z - first.min.z;
+        return (dx + dy + dz) / 3.0 >= 1.0;
+    }
 };
 
 fn isSnow(block: Block) bool {
@@ -565,11 +580,6 @@ fn isStair(block: Block) bool {
         .oak_stairs, .stone_stairs, .brick_stairs, .stone_brick_stairs, .nether_brick_stairs, .sandstone_stairs, .spruce_stairs, .birch_stairs, .jungle_stairs, .quartz_stairs, .acacia_stairs, .dark_oak_stairs, .red_sandstone_stairs => true,
         else => false,
     };
-}
-
-fn hasSolidTop(block: Block) bool {
-    _ = block;
-    return false;
 }
 
 fn stemFacingFor(world: *const World, block_pos: Vector3(i32), self_block: Block) VirtualState.StemFacing {
@@ -1036,58 +1046,62 @@ fn fence_gate_collision(open: bool, facing: PhysicalState.PackedHorizontalFacing
 }
 
 fn fence_collisions(c: *Collisions, north: bool, south: bool, west: bool, east: bool) void {
-    var min_x: f64 = 0.375;
-    var max_x: f64 = 0.625;
-    var min_z: f64 = 0.375;
-    var max_z: f64 = 0.625;
-    if (north) min_z = 0;
-    if (south) max_z = 1;
-    if (north or south) c.add(collision_box(min_x, 0, min_z, max_x, 1.5, max_z));
+    const width: f64 = 0.375; // 4/16 post, centred
 
-    min_z = 0.375;
-    max_z = 0.625;
-    if (west) min_x = 0;
-    if (east) max_x = 1;
-    if (west or east or (!north and !south)) c.add(collision_box(min_x, 0, min_z, max_x, 1.5, max_z));
+    // A neighbour on an axis extends the post out to that edge, so the box covers
+    // the post plus however far it connects.
+    const z0: f64 = if (north) 0 else width;
+    const z1: f64 = if (south) 1 else 1 - width;
+    if (north or south) c.add(collision_box(width, 0, z0, 1 - width, 1.5, z1));
+
+    const x0: f64 = if (west) 0 else width;
+    const x1: f64 = if (east) 1 else 1 - width;
+    // an unconnected fence is still one post
+    if (west or east or !(north or south)) c.add(collision_box(x0, 0, width, x1, 1.5, 1 - width));
 }
 
 fn pane_collisions(c: *Collisions, north: bool, south: bool, west: bool, east: bool) void {
-    if ((!west or !east) and (west or east or north or south)) {
-        if (west) {
-            c.add(collision_box(0, 0, 0.4375, 0.5, 1, 0.5625));
-        } else if (east) {
-            c.add(collision_box(0.5, 0, 0.4375, 1, 1, 0.5625));
-        }
-    } else {
-        c.add(collision_box(0, 0, 0.4375, 1, 1, 0.5625));
+    const width: f64 = 0.4375; // 2/16 thick, centred
+    const far: f64 = 1 - width;
+    const anchored = north or south or west or east;
+
+    // A pane joined on both sides of an axis spans it; joined on one side it only
+    // covers that half. Joined on neither it contributes no box, except when it is
+    // unconnected everywhere - vanilla still gives that case the full post.
+    if (west and east) {
+        c.add(collision_box(0, 0, width, 1, 1, far));
+    } else if (west) {
+        c.add(collision_box(0, 0, width, 0.5, 1, far));
+    } else if (east) {
+        c.add(collision_box(0.5, 0, width, 1, 1, far));
+    } else if (!anchored) {
+        c.add(collision_box(0, 0, width, 1, 1, far));
     }
-    if ((!north or !south) and (west or east or north or south)) {
-        if (north) {
-            c.add(collision_box(0.4375, 0, 0, 0.5625, 1, 0.5));
-        } else if (south) {
-            c.add(collision_box(0.4375, 0, 0.5, 0.5625, 1, 1));
-        }
-    } else {
-        c.add(collision_box(0.4375, 0, 0, 0.5625, 1, 1));
+
+    if (north and south) {
+        c.add(collision_box(width, 0, 0, far, 1, 1));
+    } else if (north) {
+        c.add(collision_box(width, 0, 0, far, 1, 0.5));
+    } else if (south) {
+        c.add(collision_box(width, 0, 0.5, far, 1, 1));
+    } else if (!anchored) {
+        c.add(collision_box(width, 0, 0, far, 1, 1));
     }
 }
 
 fn wall_collision(north: bool, south: bool, west: bool, east: bool) Box(f64) {
-    var min_x: f64 = 0.25;
-    var max_x: f64 = 0.75;
-    var min_z: f64 = 0.25;
-    var max_z: f64 = 0.75;
-    if (north) min_z = 0;
-    if (south) max_z = 1;
-    if (west) min_x = 0;
-    if (east) max_x = 1;
-    if ((north and south and !west and !east) or (!north and !south and west and east)) {
-        min_x = 0.3125;
-        max_x = 0.6875;
-        min_z = 0.3125;
-        max_z = 0.6875;
-    }
-    return collision_box(min_x, 0, min_z, max_x, 1.5, max_z);
+    const width: f64 = 0.25; // 8/16 wall, centred
+    const x0: f64 = if (west) 0 else width;
+    const x1: f64 = if (east) 1 else 1 - width;
+    const z0: f64 = if (north) 0 else width;
+    const z1: f64 = if (south) 1 else 1 - width;
+
+    // When joined on both sides of one axis and neither side of the other,
+    // the wall narrows to 5/16 across the unconnected axis.
+    if (north and south and !(west or east)) return collision_box(0.3125, 0, z0, 0.6875, 1.5, z1);
+    if (west and east and !(north or south)) return collision_box(x0, 0, 0.3125, x1, 1.5, 0.6875);
+
+    return collision_box(x0, 0, z0, x1, 1.5, z1);
 }
 
 fn funnel_collisions(c: *Collisions, inner_height: f64) void {

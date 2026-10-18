@@ -15,6 +15,47 @@ pub const Direction = enum(i8) {
     pub const @"-y": @This() = .down;
     pub const @"-z": @This() = .north;
 
+    pub const Plane = enum {
+        vertical,
+        horizontal,
+    };
+
+    pub const Axis = enum {
+        x,
+        y,
+        z,
+    };
+
+    pub fn plane(self: @This()) Plane {
+        return switch (self) {
+            .up, .down => .vertical,
+            else => .horizontal,
+        };
+    }
+
+    pub fn axis(self: @This()) Axis {
+        return switch (self) {
+            .west, .east => .x,
+            .up, .down => .y,
+            .north, .south => .z,
+        };
+    }
+
+    pub const verticals: [2]@This() = .{ .up, .down };
+
+    pub const horizontals: [4]@This() = .{ .north, .south, .west, .east };
+
+    pub fn opposite(self: @This()) @This() {
+        return switch (self) {
+            .down => .up,
+            .up => .down,
+            .north => .south,
+            .south => .north,
+            .west => .east,
+            .east => .west,
+        };
+    }
+
     pub fn from(other: anytype) @This() {
         switch (other) {
             inline else => |tag| return @field(@This(), @tagName(tag)),

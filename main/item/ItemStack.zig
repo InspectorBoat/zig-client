@@ -2,12 +2,12 @@ const std = @import("std");
 
 const main = @import("main");
 
-const World = main.World;
-const Vector3 = main.Vector3;
+const Direction = main.Direction;
+const Entity = main.Entity;
 const Item = main.Item;
 const Nbt = main.Nbt;
-const Entity = main.Entity;
-const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const World = main.World;
 
 nbt: ?Nbt.Compound,
 item: Item,
@@ -40,11 +40,10 @@ pub fn deepEquals(maybe_lhs: ?@This(), maybe_rhs: ?@This()) bool {
     } else return maybe_rhs == null;
 }
 
-pub fn canPlace(self: @This(), world: *const World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction) bool {
+pub fn canPlace(self: @This(), world: *const World, block_pos: Vector3(i32), dir: Direction) bool {
     _ = world;
     _ = block_pos;
     _ = dir;
-    _ = player;
     std.debug.assert(self.item.isBlock());
 
     return true;

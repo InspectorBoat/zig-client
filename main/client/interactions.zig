@@ -266,7 +266,7 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     if (!consumed) {
         if (maybe_held_item_stack) |held_item_stack| {
             if (held_item_stack.item.isBlock()) {
-                if (held_item_stack.canPlace(&game.world, player, crosshair.block_pos, crosshair.dir)) {
+                if (held_item_stack.canPlace(&game.world, crosshair.block_pos, crosshair.dir)) {
                     return false;
                 }
             }

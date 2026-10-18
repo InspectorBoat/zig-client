@@ -187,7 +187,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
 
 fn canSurvive(game: *const Client.Game, pos: Vector3(i32)) bool {
     const block = game.world.getBlock(pos);
-    const above = game.world.getBlock(.add(pos, .{ .x = 0, .y = 1, .z = 0 }));
+    const above = game.world.getBlock(pos.up());
     return !block.isSolid() and !above.isSolid();
 }
 

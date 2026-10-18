@@ -1,6 +1,11 @@
 const main = @import("main");
 
+const attributes = @import("block_attributes.zig");
+
+const Direction = main.Direction;
 const LocalPlayer = main.Entity.LocalPlayer;
+const Vector3 = main.Vector3;
+const World = main.World;
 
 // Before 1.13, each block in a chunk is stored in 16 bits:
 // <id: 12 bits>|<metadata: 4 bits>
@@ -245,24 +250,242 @@ pub const Block = enum(u8) {
         };
     }
 
-    const full_cube_table = @import("full_cube.zig").full_cube;
-    pub fn isFullCube(self: @This()) bool {
-        return full_cube_table.contains(self);
+    pub fn isCube(self: @This()) bool {
+        return attributes.is_cube.contains(self);
     }
 
-    /// TODO: STUB
+    pub fn blocksAmbientLight(self: @This()) bool {
+        return self.getMaterial().blocksMovement() and self.isCube();
+    }
+
+    pub fn isSignalSource(self: @This()) bool {
+        return attributes.signal_source.contains(self);
+    }
+
     pub fn isSolid(self: @This()) bool {
-        return self.isFullCube();
+        return self.getMaterial().blocksMovementAndNotTranslucent() and self.isCube() and !self.isSignalSource();
     }
 
-    const hardness_table = @import("hardness.zig").hardness;
     pub fn getHardness(self: @This()) f32 {
-        return hardness_table.get(self);
+        return attributes.hardness.get(self);
     }
 
     const block_to_material = @import("material.zig").block_to_material;
     pub fn getMaterial(self: @This()) Material {
         return block_to_material.get(self);
+    }
+
+    pub fn isSolidRender(self: @This()) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn isOpaque(self: @This()) bool {
+        return self.isSolidRender();
+    }
+
+    comptime {
+        _ = &canBePlaced;
+    }
+
+    pub fn canBePlaced(self: @This(), world: *const World, pos: Vector3(i32), dir: Direction) bool {
+        const replaceable = world.getBlock(pos).getMaterial().isReplaceable();
+
+        return switch (self) {
+            // these blocks do not exist in item form
+            // TODO: find them all
+            .air, .piston_head, .tripwire => unreachable,
+
+            .stone_pressure_plate,
+            .wooden_pressure_plate,
+            .light_weighted_pressure_plate,
+            .heavy_weighted_pressure_plate,
+            => {
+                const below = world.getBlockState(pos.down());
+                return below.hasSolidTop() or switch (below.block) {
+                    .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => true,
+                    else => false,
+                };
+            },
+
+            .golden_rail,
+            .rail,
+            .detector_rail,
+            .activator_rail,
+            => world.getBlockState(pos.down()).hasSolidTop(),
+
+            .standing_sign,
+            .wall_sign,
+            .standing_banner,
+            .wall_banner,
+            => {
+                if (!replaceable) return false;
+                for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)) == .cactus) return false;
+                return true;
+            },
+
+            .unpowered_repeater,
+            .powered_repeater,
+            .unpowered_comparator,
+            .powered_comparator,
+            .flower_pot,
+            .fence_gate,
+            .redstone_wire,
+            => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
+
+            .carpet,
+            => replaceable and world.getBlock(pos.down()) != .air,
+
+            .pumpkin, .lit_pumpkin => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
+
+            .red_flower, .yellow_flower, .sapling => replaceable and switch (world.getBlock(pos.down())) {
+                .grass, .dirt, .farmland => true,
+                else => false,
+            },
+            .deadbush => replaceable and switch (world.getBlock(pos.down())) {
+                .sand, .hardened_clay, .stained_hardened_clay, .dirt => true,
+                else => false,
+            },
+            .waterlily => replaceable and world.getBlock(pos.down()) == .water,
+
+            .double_plant => replaceable and world.getBlock(pos.up()) == .air and switch (world.getBlock(pos.down())) {
+                .grass, .dirt, .farmland => true,
+                else => false,
+            },
+
+            .wheat, .carrots, .potatoes, .pumpkin_stem, .melon_stem => replaceable and world.getBlock(pos.down()) == .farmland,
+
+            .nether_wart => replaceable and world.getBlock(pos.down()) == .soul_sand,
+
+            // TODO: Light level, podzol, mycelium, etc. etc.
+            .brown_mushroom, .red_mushroom => replaceable and world.getBlock(pos.down()).getMaterial().isOpaque(),
+
+            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => pos.y < 255 and
+                world.getBlockState(pos.down()).hasSolidTop() and
+                replaceable and
+                world.getBlock(pos.up()).getMaterial().isReplaceable(),
+
+            .chest, .trapped_chest => {
+                var neighbouring_chests: usize = 0;
+                for (Direction.horizontals) |side| {
+                    const other = world.getBlock(pos.dir(side));
+                    if (other == .chest or other == .trapped_chest) {
+                        neighbouring_chests += 1;
+                        // a neighbour that itself has a same-block neighbour is a double chest
+                        // cannot place a chest next to a double chest (of the same type)
+                        for (Direction.horizontals) |diag| {
+                            if (world.getBlock(pos.dir(side).dir(diag)) == other) return false;
+                        }
+                    }
+                }
+                // at most one orthogonal neighbour
+                return neighbouring_chests <= 1;
+            },
+
+            .ladder => {
+                for (Direction.horizontals) |side| {
+                    if (world.getBlock(pos.dir(side)).isSolid()) return true;
+                }
+                return false;
+            },
+
+            .torch, .redstone_torch, .unlit_redstone_torch => {
+                // oh FOR FUCKS SAKEEEE
+                // this is incorrect at the WORLD BORDER and when searching an UNLOADED CHUNK
+                // TODO: KILL MYSELF
+                for (Direction.horizontals) |side| {
+                    const side_block = world.getBlock(pos.dir(side));
+                    if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
+                }
+                return world.getBlockState(pos.down()).hasSolidTop();
+            },
+
+            .stone_button, .wooden_button, .lever => if (dir.plane() == .horizontal)
+                world.getBlock(pos.dir(dir.opposite())).isSolid()
+            else
+                world.getBlockState(pos.dir(dir.opposite())).hasSolidTop(),
+
+            .trapdoor, .iron_trapdoor => {
+                if (dir.plane() != .horizontal) return false;
+
+                const side_block = world.getBlock(pos.dir(dir.opposite()));
+
+                if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
+
+                switch (side_block) {
+                    .glowstone,
+                    .stone_slab,
+                    .stone_slab2,
+                    .wooden_slab,
+                    .double_wooden_slab,
+                    .double_stone_slab,
+                    .double_stone_slab2,
+                    .oak_stairs,
+                    .stone_stairs,
+                    .brick_stairs,
+                    .stone_brick_stairs,
+                    .nether_brick_stairs,
+                    .sandstone_stairs,
+                    .spruce_stairs,
+                    .birch_stairs,
+                    .jungle_stairs,
+                    .quartz_stairs,
+                    .acacia_stairs,
+                    .dark_oak_stairs,
+                    .red_sandstone_stairs,
+                    => return true,
+                    else => return false,
+                }
+            },
+
+            .tripwire_hook => dir.plane() == .horizontal and world.getBlock(pos.dir(dir.opposite())).isSolid(),
+
+            .vine => {
+                const target = world.getBlock(if (dir == .up) pos.up() else pos.dir(dir.opposite()));
+                return target.isCube() and target.getMaterial().blocksMovement();
+            },
+
+            // sugarcane grows on a sand/grass/dirt block with water besides it
+            // or on another sugarcane
+            .reeds => {
+                const below = world.getBlock(pos.down());
+                if (below == .reeds) return true;
+                if (below != .grass and below != .dirt and below != .sand) return false;
+                for (Direction.horizontals) |side| {
+                    if (world.getBlock(pos.dir(side).down()).getMaterial() == .water) return true;
+                }
+                return false;
+            },
+
+            // snow layer stacks on leaves or another full snow layer
+            .snow_layer => {
+                const below = world.getBlockState(pos.down());
+                switch (below.block) {
+                    .ice, .packed_ice => return false,
+                    .leaves, .leaves2 => return true,
+                    .snow_layer => return below.payload(.snow_layer).layers == .@"7" or below.payload(.snow_layer).layers == .@"8",
+                    // TODO: implement block.isSolidRender
+                    else => return below.hasSolidTop(),
+                }
+            },
+
+            .oak_stairs,
+            .stone_stairs,
+            .brick_stairs,
+            .stone_brick_stairs,
+            .nether_brick_stairs,
+            .sandstone_stairs,
+            .spruce_stairs,
+            .birch_stairs,
+            .jungle_stairs,
+            .quartz_stairs,
+            .acacia_stairs,
+            .dark_oak_stairs,
+            .red_sandstone_stairs,
+            => replaceable,
+
+            else => replaceable,
+        };
     }
 
     pub fn getMiningProgress(self: @This(), player: *const LocalPlayer) f32 {
@@ -271,7 +494,7 @@ pub const Block = enum(u8) {
         const hardness: f32 = self.getHardness();
         if (hardness < 0) return 0;
 
-        const needs_tool = self.getMaterial().toolRequired();
+        const needs_tool = self.getMaterial().requiresTool();
         const player_mining_speed_multiplier: f32 = 1;
 
         return if (needs_tool)
