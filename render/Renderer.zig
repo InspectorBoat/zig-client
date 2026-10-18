@@ -411,11 +411,18 @@ pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !v
 pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
     switch (world.crosshair) {
         .block => |block| {
-            const pos: Vector3(f32) = .floatFromInt(block.block_pos);
-            try self.@"3d_debug_staging_buffer".writeDebugCube(
-                pos,
-                .add(pos, .{ .x = 1, .y = 1, .z = 1 }),
-            );
+            const virtual_state = world.resolveVirtualBlockState(block.block_pos);
+
+            var hitboxes_buffer: [5]main.Box(f64) = undefined;
+            var hitboxes: std.ArrayList(main.Box(f64)) = .initBuffer(&hitboxes_buffer);
+            virtual_state.getCollisionHitboxes(&hitboxes);
+
+            for (hitboxes.items) |hitbox| {
+                try self.@"3d_debug_staging_buffer".writeDebugCube(
+                    .add(.floatCast(hitbox.min), .floatFromInt(block.block_pos)),
+                    .add(.floatCast(hitbox.max), .floatFromInt(block.block_pos)),
+                );
+            }
         },
         .entity => |entity| {
             _ = entity;

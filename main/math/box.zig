@@ -14,24 +14,15 @@ pub fn Box(comptime Element: type) type {
         min: Vector3(Element),
         max: Vector3(Element),
 
-        pub fn cube() @This() {
-            return .{
-                .min = .{ .x = 0, .y = 0, .z = 0 },
-                .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
-            };
-        }
+        pub const unit_cube: @This() = .{
+            .min = .{ .x = 0, .y = 0, .z = 0 },
+            .max = .{ .x = 1.0, .y = 1.0, .z = 1.0 },
+        };
 
-        pub fn none() @This() {
+        pub fn new(min_x: Element, min_y: Element, min_z: Element, max_x: Element, max_y: Element, max_z: Element) @This() {
             return .{
-                .min = .{ .x = 0, .y = 0, .z = 0 },
-                .max = .{ .x = 0, .y = 0, .z = 0 },
-            };
-        }
-
-        pub fn move(self: @This(), delta: Vector3(Element)) @This() {
-            return .{
-                .min = .add(self.min, delta),
-                .max = .add(self.max, delta),
+                .min = .{ .x = min_x, .y = min_y, .z = min_z },
+                .max = .{ .x = max_x, .y = max_y, .z = max_z },
             };
         }
 
@@ -48,6 +39,28 @@ pub fn Box(comptime Element: type) type {
                     .y = feet.y + height,
                     .z = feet.z + half_width,
                 },
+            };
+        }
+
+        pub fn centeredPost(distance_from_side: Element, height: Element) @This() {
+            return .{
+                .min = .{
+                    .x = distance_from_side,
+                    .y = 0,
+                    .z = distance_from_side,
+                },
+                .max = .{
+                    .x = 1 - distance_from_side,
+                    .y = height,
+                    .z = 1 - distance_from_side,
+                },
+            };
+        }
+
+        pub fn move(self: @This(), delta: Vector3(Element)) @This() {
+            return .{
+                .min = .add(self.min, delta),
+                .max = .add(self.max, delta),
             };
         }
 

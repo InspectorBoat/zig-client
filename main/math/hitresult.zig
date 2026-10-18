@@ -116,37 +116,41 @@ pub const HitResult = union(HitType) {
                 .z = floor(from.z) - if (dir == .south) @as(i32, 1) else 0,
             };
 
-            const block = world.getBlock(from_block_pos);
-            for (world.resolveVirtualBlockState(from_block_pos).getRaytraceHitboxes()) |maybe_hitbox| {
-                if (maybe_hitbox) |hitbox| {
-                    if (Vector3(f64).equals(hitbox.min, .origin()) and Vector3(f64).equals(hitbox.max, .origin())) continue;
+            const block = world.resolveVirtualBlockState(from_block_pos);
 
-                    if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
-                    if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
+            var local_hitboxes_buffer: [5]Box(f64) = undefined;
+            var local_hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&local_hitboxes_buffer);
 
-                    const hit_result = rayTraceHitbox(
-                        hitbox,
-                        .sub(from, .{
-                            .x = from_block_pos.x,
-                            .y = from_block_pos.y,
-                            .z = from_block_pos.z,
-                        }),
-                        .sub(to, .{
-                            .x = from_block_pos.x,
-                            .y = from_block_pos.y,
-                            .z = from_block_pos.z,
-                        }),
-                    );
-                    if (hit_result == .block) {
-                        return .{
-                            .block = .{
-                                .block_pos = from_block_pos,
-                                .dir = hit_result.block.dir,
-                                .pos = hit_result.block.pos,
-                            },
-                        };
-                    }
-                } else break;
+            block.getRaytraceHitboxes(&local_hitboxes);
+
+            for (local_hitboxes.items) |hitbox| {
+                if (Vector3(f64).equals(hitbox.min, .origin()) and Vector3(f64).equals(hitbox.max, .origin())) continue;
+
+                if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
+                if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
+
+                const hit_result = rayTraceHitbox(
+                    hitbox,
+                    .sub(from, .{
+                        .x = from_block_pos.x,
+                        .y = from_block_pos.y,
+                        .z = from_block_pos.z,
+                    }),
+                    .sub(to, .{
+                        .x = from_block_pos.x,
+                        .y = from_block_pos.y,
+                        .z = from_block_pos.z,
+                    }),
+                );
+                if (hit_result == .block) {
+                    return .{
+                        .block = .{
+                            .block_pos = from_block_pos,
+                            .dir = hit_result.block.dir,
+                            .pos = hit_result.block.pos,
+                        },
+                    };
+                }
             }
         }
 

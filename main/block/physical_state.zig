@@ -1,11 +1,12 @@
 const std = @import("std");
 
-const attributes = @import("block_attributes.zig");
 const Block = @import("main").Block;
 const Direction = @import("main").Direction;
 const Entity = @import("main").Entity;
 const Vector3 = @import("main").Vector3;
 const World = @import("main").World;
+
+const attributes = @import("block_attributes.zig");
 
 pub const PhysicalState = packed struct(u16) {
     properties: Properties,

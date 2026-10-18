@@ -219,14 +219,23 @@ pub const VirtualState = union(Block) {
     pub fn resolve(physical: PhysicalState, world: *const World, block_pos: Vector3(i32)) @This() {
         return switch (physical.block) {
             .grass => .{ .grass = .{
-                .snowy = isSnow(world.getBlockState(block_pos.up()).block),
+                .snowy = blk: {
+                    const up = world.getBlock(block_pos.up());
+                    break :blk up == .snow or up == .snow_layer;
+                },
             } },
             .mycelium => .{ .mycelium = .{
-                .snowy = isSnow(world.getBlockState(block_pos.up()).block),
+                .snowy = blk: {
+                    const up = world.getBlock(block_pos.up());
+                    break :blk up == .snow or up == .snow_layer;
+                },
             } },
             .dirt => .{ .dirt = .{
                 .variant = physical.payload(.dirt).variant,
-                .snowy = physical.payload(.dirt).variant == .podzol and isSnow(world.getBlockState(block_pos.up()).block),
+                .snowy = physical.payload(.dirt).variant == .podzol and blk: {
+                    const up = world.getBlock(block_pos.up());
+                    break :blk up == .snow or up == .snow_layer;
+                },
             } },
             .bed => .{ .bed = .{
                 .facing = physical.payload(.bed).facing,
@@ -387,164 +396,150 @@ pub const VirtualState = union(Block) {
     pub fn canBeReplaced(self: @This()) bool {
         return switch (self) {
             .air, .deadbush, .tallgrass, .vine => true,
-            .snow_layer => |s| s.layers == .@"1",
-            .double_plant => |s| s.variant == .double_fern or s.variant == .double_grass,
+            .snow_layer => |snow_layer| snow_layer.layers == .@"1",
+            .double_plant => |double_plant| double_plant.variant == .double_fern or double_plant.variant == .double_grass,
             else => false,
         };
     }
 
-    pub fn getCollisionHitboxes(self: @This()) [5]?Box(f64) {
-        var c: Collisions = .{};
+    pub fn getCollisionHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
         switch (self) {
             .air, .sapling, .flowing_water, .water, .flowing_lava, .lava, .tallgrass, .deadbush, .web, .yellow_flower, .red_flower, .brown_mushroom, .red_mushroom, .fire, .golden_rail, .detector_rail, .rail, .activator_rail, .redstone_wire, .torch, .unlit_redstone_torch, .redstone_torch, .standing_sign, .wall_sign, .lever, .stone_pressure_plate, .wooden_pressure_plate, .light_weighted_pressure_plate, .heavy_weighted_pressure_plate, .stone_button, .wooden_button, .reeds, .wheat, .carrots, .potatoes, .nether_wart, .pumpkin_stem, .melon_stem, .double_plant, .vine, .tripwire, .tripwire_hook, .standing_banner, .wall_banner, .end_portal, .piston_extension, .portal => {},
 
             .stone, .grass, .dirt, .cobblestone, .planks, .bedrock, .sand, .gravel, .gold_ore, .iron_ore, .coal_ore, .log, .leaves, .sponge, .glass, .lapis_ore, .lapis_block, .dispenser, .sandstone, .noteblock, .bed, .wool, .gold_block, .iron_block, .double_stone_slab, .brick_block, .tnt, .bookshelf, .mossy_cobblestone, .obsidian, .mob_spawner, .diamond_ore, .diamond_block, .crafting_table, .furnace, .lit_furnace, .redstone_ore, .lit_redstone_ore, .ice, .snow, .clay, .jukebox, .pumpkin, .netherrack, .glowstone, .lit_pumpkin, .stained_glass, .monster_egg, .stonebrick, .brown_mushroom_block, .red_mushroom_block, .melon_block, .mycelium, .nether_brick, .end_stone, .redstone_lamp, .lit_redstone_lamp, .double_wooden_slab, .emerald_ore, .emerald_block, .command_block, .beacon, .anvil, .unpowered_comparator, .powered_comparator, .redstone_block, .quartz_ore, .quartz_block, .dropper, .stained_hardened_clay, .leaves2, .log2, .slime, .barrier, .prismarine, .sea_lantern, .hay_block, .hardened_clay, .coal_block, .packed_ice, .red_sandstone, .double_stone_slab2 => {
-                c.add(full_cube);
+                hitboxes.appendAssumeCapacity(.unit_cube);
             },
 
-            .farmland => c.add(full_cube),
+            .farmland => hitboxes.appendAssumeCapacity(.unit_cube),
 
-            .stone_slab => |s| c.add(slab_collision(s.half)),
-            .wooden_slab => |s| c.add(slab_collision(s.half)),
-            .stone_slab2 => |s| c.add(slab_collision(s.half)),
-            .cactus => c.add(collision_box(0.0625, 0, 0.0625, 0.9375, 0.9375, 0.9375)),
-            .soul_sand => c.add(collision_box(0, 0, 0, 1, 0.875, 1)),
-            .cake => |s| c.add(cake_collision(s.bites)),
-            .waterlily => c.add(collision_box(0, 0, 0, 1, 0.015625, 1)),
-            .enchanting_table => c.add(collision_box(0, 0, 0, 1, 0.75, 1)),
-            .dragon_egg => c.add(collision_box(0.0625, 0, 0.0625, 0.9375, 1, 0.9375)),
-            .flower_pot => c.add(collision_box(0.3125, 0, 0.3125, 0.6875, 0.375, 0.6875)),
-            .chest, .trapped_chest, .ender_chest => c.add(collision_box(0.0625, 0, 0.0625, 0.9375, 0.875, 0.9375)),
-            .carpet => c.add(collision_box(0, 0, 0, 1, 0.0625, 1)),
-            .unpowered_repeater, .powered_repeater => c.add(collision_box(0, 0, 0, 1, 0.125, 1)),
-            .daylight_detector, .daylight_detector_inverted => c.add(collision_box(0, 0, 0, 1, 0.375, 1)),
-            .snow_layer => |s| c.add(snow_layer_collision(s.layers)),
-            .ladder => |s| c.add(ladder_collision(s.facing)),
-            .cocoa => |s| c.add(cocoa_collision(s.facing, s.age)),
-            .skull => |s| c.add(skull_collision(s.facing)),
-            inline .trapdoor, .iron_trapdoor => |s| c.add(trapdoor_collision(s.half, s.open, s.facing)),
+            .cactus => hitboxes.appendAssumeCapacity(.centeredPost(0.0625, 0.9375)),
+            .soul_sand => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.875)),
 
-            inline .sticky_piston, .piston => |s| c.add(piston_collision(s.facing, s.extended)),
-            .piston_head => |s| piston_head_collisions(&c, s.facing),
-
-            inline .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => |s| {
-                c.add(door_collision(s.facing, s.open, s.hinge));
-            },
-
-            inline .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => |s| {
-                if (fence_gate_collision(s.open, s.facing)) |b| c.add(b);
-            },
-
-            inline .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => |s| {
-                fence_collisions(&c, s.north, s.south, s.west, s.east);
-            },
-
-            inline .iron_bars, .glass_pane, .stained_glass_pane => |s| pane_collisions(&c, s.north, s.south, s.west, s.east),
-
-            .cobblestone_wall => |s| c.add(wall_collision(s.north, s.south, s.west, s.east)),
-
+            .waterlily => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.015625)),
+            .enchanting_table => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.75)),
+            .dragon_egg => hitboxes.appendAssumeCapacity(.centeredPost(0.0625, 1)),
+            .flower_pot => hitboxes.appendAssumeCapacity(.centeredPost(0.3125, 0.375)),
+            .carpet => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.0625)),
+            .chest, .trapped_chest, .ender_chest => hitboxes.appendAssumeCapacity(.centeredPost(0.0625, 0.875)),
+            .unpowered_repeater, .powered_repeater => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.125)),
+            .daylight_detector, .daylight_detector_inverted => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.375)),
             .brewing_stand => {
-                c.add(collision_box(0.4375, 0, 0.4375, 0.5625, 0.875, 0.5625));
-                c.add(collision_box(0, 0, 0, 1, 0.125, 1));
+                hitboxes.appendAssumeCapacity(.centeredPost(0.4375, 0.875));
+                hitboxes.appendAssumeCapacity(.centeredPost(0, 0.125));
             },
 
-            .end_portal_frame => |s| {
-                c.add(collision_box(0, 0, 0, 1, 0.8125, 1));
-                if (s.eye) c.add(collision_box(0.3125, 0.8125, 0.3125, 0.6875, 1, 0.6875));
+            .cake => |cake| hitboxes.appendAssumeCapacity(cake_collision(cake.bites)),
+            .snow_layer => |snow_layer| hitboxes.appendAssumeCapacity(snow_layer_collision(snow_layer.layers)),
+            .ladder => |ladder| hitboxes.appendAssumeCapacity(ladder_collision(ladder.facing)),
+            .cocoa => |cocoa| hitboxes.appendAssumeCapacity(cocoa_collision(cocoa.facing, cocoa.age)),
+            .skull => |skull| hitboxes.appendAssumeCapacity(skull_collision(skull.facing)),
+            .piston_head => |piston_head| piston_head_collisions(hitboxes, piston_head.facing),
+            .cobblestone_wall => |cobblestone_wall| hitboxes.appendAssumeCapacity(wall_collision(cobblestone_wall.north, cobblestone_wall.south, cobblestone_wall.west, cobblestone_wall.east)),
+
+            inline .stone_slab, .wooden_slab, .stone_slab2 => |slab| hitboxes.appendAssumeCapacity(slab_collision(slab.half)),
+            inline .trapdoor, .iron_trapdoor => |trapdoor| hitboxes.appendAssumeCapacity(trapdoor_collision(trapdoor.half, trapdoor.open, trapdoor.facing)),
+            inline .sticky_piston, .piston => |piston| hitboxes.appendAssumeCapacity(piston_collision(piston.facing, piston.extended)),
+            inline .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => |door| hitboxes.appendAssumeCapacity(door_collision(door.facing, door.open, door.hinge)),
+            inline .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => |fence_gate| if (fence_gate_collision(fence_gate.open, fence_gate.facing)) |b| hitboxes.appendAssumeCapacity(b),
+            inline .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => |fence| fence_collisions(hitboxes, fence.north, fence.south, fence.west, fence.east),
+            inline .iron_bars, .glass_pane, .stained_glass_pane => |pane| pane_collisions(hitboxes, pane.north, pane.south, pane.west, pane.east),
+
+            .end_portal_frame => |end_portal_frame| {
+                hitboxes.appendAssumeCapacity(.centeredPost(0, 0.8125));
+                if (end_portal_frame.eye) hitboxes.appendAssumeCapacity(.new(0.3125, 0.8125, 0.3125, 0.6875, 1, 0.6875));
             },
 
-            .cauldron => funnel_collisions(&c, 0.3125),
-            .hopper => funnel_collisions(&c, 0.625),
+            .cauldron => funnel_collisions(hitboxes, 0.3125),
+            .hopper => funnel_collisions(hitboxes, 0.625),
 
-            inline .oak_stairs, .stone_stairs, .brick_stairs, .stone_brick_stairs, .nether_brick_stairs, .sandstone_stairs, .spruce_stairs, .birch_stairs, .jungle_stairs, .quartz_stairs, .acacia_stairs, .dark_oak_stairs, .red_sandstone_stairs => |s| {
-                stair_collisions(&c, s.facing, s.half, s.shape);
+            inline .oak_stairs, .stone_stairs, .brick_stairs, .stone_brick_stairs, .nether_brick_stairs, .sandstone_stairs, .spruce_stairs, .birch_stairs, .jungle_stairs, .quartz_stairs, .acacia_stairs, .dark_oak_stairs, .red_sandstone_stairs => |stairs| {
+                stair_collisions(hitboxes, stairs.facing, stairs.half, stairs.shape);
             },
         }
-        return c.boxes;
     }
 
-    pub fn getRaytraceHitboxes(self: @This()) [5]?Box(f64) {
+    pub fn getRaytraceHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
         switch (self) {
-            .piston_extension, .air => return no_ray_box,
+            .piston_extension, .air => return,
 
-            .cactus, .soul_sand, .glass_pane, .stained_glass_pane, .iron_bars => return ray(full_cube),
-            .fire, .flowing_water, .water, .flowing_lava, .lava => return ray(full_cube),
-            .web, .double_plant => return ray(full_cube),
-            .cauldron, .hopper => return ray(full_cube),
-            .brewing_stand => return ray(collision_box(0, 0, 0, 1, 0.125, 1)),
+            .cactus, .soul_sand, .glass_pane, .stained_glass_pane, .iron_bars => hitboxes.appendAssumeCapacity(.unit_cube),
+            .fire, .flowing_water, .water, .flowing_lava, .lava => hitboxes.appendAssumeCapacity(.unit_cube),
+            .web, .double_plant => hitboxes.appendAssumeCapacity(.unit_cube),
+            .cauldron, .hopper => hitboxes.appendAssumeCapacity(.unit_cube),
+            .brewing_stand => hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, 0.125, 1)),
 
-            .sapling, .tallgrass, .deadbush => return ray(collision_box(0.1, 0, 0.1, 0.9, 0.8, 0.9)),
-            .brown_mushroom, .red_mushroom => return ray(collision_box(0.3, 0, 0.3, 0.7, 0.4, 0.7)),
-            .yellow_flower, .red_flower => return ray(collision_box(0.3, 0, 0.3, 0.7, 0.6, 0.7)),
-            .wheat, .carrots, .potatoes, .nether_wart => return ray(collision_box(0, 0, 0, 1, 0.25, 1)),
-            .reeds => return ray(collision_box(0.125, 0, 0.125, 0.875, 1, 0.875)),
-            .redstone_wire => return ray(collision_box(0, 0, 0, 1, 0.0625, 1)),
-            .standing_sign, .standing_banner => return ray(collision_box(0.25, 0, 0.25, 0.75, 1, 0.75)),
-            .end_portal => return ray(collision_box(0, 0, 0, 1, 0.0625, 1)),
-            .end_portal_frame => return ray(collision_box(0, 0, 0, 1, 0.8125, 1)),
-            .farmland => return ray(collision_box(0, 0, 0, 1, 0.9375, 1)),
+            .sapling, .tallgrass, .deadbush => hitboxes.appendAssumeCapacity(.new(0.1, 0, 0.1, 0.9, 0.8, 0.9)),
+            .brown_mushroom, .red_mushroom => hitboxes.appendAssumeCapacity(.new(0.3, 0, 0.3, 0.7, 0.4, 0.7)),
+            .yellow_flower, .red_flower => hitboxes.appendAssumeCapacity(.new(0.3, 0, 0.3, 0.7, 0.6, 0.7)),
+            .wheat, .carrots, .potatoes, .nether_wart => hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, 0.25, 1)),
+            .reeds => hitboxes.appendAssumeCapacity(.new(0.125, 0, 0.125, 0.875, 1, 0.875)),
+            .redstone_wire => hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, 0.0625, 1)),
+            .standing_sign, .standing_banner => hitboxes.appendAssumeCapacity(.new(0.25, 0, 0.25, 0.75, 1, 0.75)),
+            .end_portal => hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, 0.0625, 1)),
+            .end_portal_frame => hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, 0.8125, 1)),
+            .farmland => hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, 0.9375, 1)),
 
-            .stone_slab => |s| return ray(slab_collision(s.half)),
-            .wooden_slab => |s| return ray(slab_collision(s.half)),
-            .stone_slab2 => |s| return ray(slab_collision(s.half)),
-            .double_stone_slab, .double_wooden_slab, .double_stone_slab2 => return ray(full_cube),
+            // .stone_slab => |s| return ray(slab_collision(s.half)),
+            // .wooden_slab => |s| return ray(slab_collision(s.half)),
+            // .stone_slab2 => |s| return ray(slab_collision(s.half)),
+            // .double_stone_slab, .double_wooden_slab, .double_stone_slab2 => return ray(.unit_cube),
 
-            .snow_layer => |s| return ray(collision_box(0, 0, 0, 1, (@as(f64, @backingInt(s.layers)) + 1) / 8.0, 1)),
-            .cake => |s| return ray(cake_collision(s.bites)),
-            .melon_stem => |s| return ray(stem_ray(s.age)),
-            .pumpkin_stem => |s| return ray(stem_ray(s.age)),
-            .ladder => |s| return ray(ladder_collision(s.facing)),
-            .skull => |s| return ray(skull_collision(s.facing)),
-            .cocoa => |s| return ray(cocoa_collision(s.facing, s.age)),
+            .snow_layer => |s| hitboxes.appendAssumeCapacity(.new(0, 0, 0, 1, (@as(f64, @backingInt(s.layers)) + 1) / 8.0, 1)),
+            // .cake => |s| return ray(cake_collision(s.bites)),
+            .melon_stem => |s| hitboxes.appendAssumeCapacity(stem_ray(s.age)),
+            .pumpkin_stem => |s| hitboxes.appendAssumeCapacity(stem_ray(s.age)),
+            // .ladder => |s| return ray(ladder_collision(s.facing)),
+            // .skull => |s| return ray(skull_collision(s.facing)),
+            // .cocoa => |s| return ray(cocoa_collision(s.facing, s.age)),
 
-            inline .trapdoor, .iron_trapdoor => |s| return ray(trapdoor_collision(s.half, s.open, s.facing)),
+            inline .trapdoor, .iron_trapdoor => |s| hitboxes.appendAssumeCapacity(trapdoor_collision(s.half, s.open, s.facing)),
 
-            inline .sticky_piston, .piston => |s| return ray(piston_collision(s.facing, s.extended)),
-            .piston_head => |s| return ray(piston_head_collision(s.facing)),
+            inline .sticky_piston, .piston => |s| hitboxes.appendAssumeCapacity(piston_collision(s.facing, s.extended)),
+            .piston_head => |s| hitboxes.appendAssumeCapacity(piston_head_collision(s.facing)),
 
             inline .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => |s| {
-                return ray(door_collision(s.facing, s.open, s.hinge));
+                hitboxes.appendAssumeCapacity(door_collision(s.facing, s.open, s.hinge));
             },
 
             inline .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => |s| {
-                return ray(fence_gate_ray(s.facing));
+                hitboxes.appendAssumeCapacity(fence_gate_ray(s.facing));
             },
 
             inline .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => |s| {
-                return ray(fence_ray(s.north, s.south, s.west, s.east));
+                hitboxes.appendAssumeCapacity(fence_ray(s.north, s.south, s.west, s.east));
             },
 
-            .cobblestone_wall => |s| return ray(wall_ray(s.north, s.south, s.west, s.east)),
+            .cobblestone_wall => |s| hitboxes.appendAssumeCapacity(wall_ray(s.north, s.south, s.west, s.east)),
 
-            .golden_rail => |s| return ray(rail_ray(s.shape)),
-            .detector_rail => |s| return ray(rail_ray(s.shape)),
-            .activator_rail => |s| return ray(rail_ray(s.shape)),
-            .rail => |s| return ray(rail_ray(s.shape)),
+            .golden_rail => |s| hitboxes.appendAssumeCapacity(rail_ray(s.shape)),
+            .detector_rail => |s| hitboxes.appendAssumeCapacity(rail_ray(s.shape)),
+            .activator_rail => |s| hitboxes.appendAssumeCapacity(rail_ray(s.shape)),
+            .rail => |s| hitboxes.appendAssumeCapacity(rail_ray(s.shape)),
 
-            .torch => |s| return ray(torch_ray(s.facing)),
-            .redstone_torch => |s| return ray(torch_ray(s.facing)),
-            .unlit_redstone_torch => |s| return ray(torch_ray(s.facing)),
-            .lever => |s| return ray(lever_ray(s.facing)),
-            .stone_button => |s| return ray(button_ray(s.facing, s.powered)),
-            .wooden_button => |s| return ray(button_ray(s.facing, s.powered)),
+            .torch => |s| hitboxes.appendAssumeCapacity(torch_ray(s.facing)),
+            .redstone_torch => |s| hitboxes.appendAssumeCapacity(torch_ray(s.facing)),
+            .unlit_redstone_torch => |s| hitboxes.appendAssumeCapacity(torch_ray(s.facing)),
+            .lever => |s| hitboxes.appendAssumeCapacity(lever_ray(s.facing)),
+            .stone_button => |s| hitboxes.appendAssumeCapacity(button_ray(s.facing, s.powered)),
+            .wooden_button => |s| hitboxes.appendAssumeCapacity(button_ray(s.facing, s.powered)),
 
-            .stone_pressure_plate => |s| return ray(pressure_plate_ray(s.powered)),
-            .wooden_pressure_plate => |s| return ray(pressure_plate_ray(s.powered)),
-            .light_weighted_pressure_plate => |s| return ray(pressure_plate_ray(s.power != 0)),
-            .heavy_weighted_pressure_plate => |s| return ray(pressure_plate_ray(s.power != 0)),
+            .stone_pressure_plate => |s| hitboxes.appendAssumeCapacity(pressure_plate_ray(s.powered)),
+            .wooden_pressure_plate => |s| hitboxes.appendAssumeCapacity(pressure_plate_ray(s.powered)),
+            .light_weighted_pressure_plate => |s| hitboxes.appendAssumeCapacity(pressure_plate_ray(s.power != 0)),
+            .heavy_weighted_pressure_plate => |s| hitboxes.appendAssumeCapacity(pressure_plate_ray(s.power != 0)),
 
-            .wall_sign => |s| return ray(wall_sign_ray(s.facing)),
-            .wall_banner => |s| return ray(wall_sign_ray(s.facing)),
-            .tripwire_hook => |s| return ray(tripwire_hook_ray(s.facing)),
-            .tripwire => |s| return ray(tripwire_ray(s.suspended, s.attached)),
-            .vine => |s| return ray(vine_ray(s.north, s.east, s.south, s.west, false)),
-            .portal => |s| return ray(portal_ray(s.axis)),
+            .wall_sign => |s| hitboxes.appendAssumeCapacity(wall_sign_ray(s.facing)),
+            .wall_banner => |s| hitboxes.appendAssumeCapacity(wall_sign_ray(s.facing)),
+            .tripwire_hook => |s| hitboxes.appendAssumeCapacity(tripwire_hook_ray(s.facing)),
+            .tripwire => |s| hitboxes.appendAssumeCapacity(tripwire_ray(s.suspended, s.attached)),
+            .vine => |s| hitboxes.appendAssumeCapacity(vine_ray(s.north, s.east, s.south, s.west, false)),
+            .portal => |s| hitboxes.appendAssumeCapacity(portal_ray(s.axis)),
 
             inline .oak_stairs, .stone_stairs, .brick_stairs, .stone_brick_stairs, .nether_brick_stairs, .sandstone_stairs, .spruce_stairs, .birch_stairs, .jungle_stairs, .quartz_stairs, .acacia_stairs, .dark_oak_stairs, .red_sandstone_stairs => {
-                return self.getCollisionHitboxes();
+                return self.getCollisionHitboxes(hitboxes);
             },
 
-            else => return self.getCollisionHitboxes(),
+            else => return self.getCollisionHitboxes(hitboxes),
         }
     }
 
@@ -556,31 +551,6 @@ pub const VirtualState = union(Block) {
         return (dx + dy + dz) / 3.0 >= 1.0;
     }
 };
-
-fn isSnow(block: Block) bool {
-    return block == .snow or block == .snow_layer;
-}
-
-fn isFence(block: Block) bool {
-    return switch (block) {
-        .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => true,
-        else => false,
-    };
-}
-
-fn isFenceGate(block: Block) bool {
-    return switch (block) {
-        .fence_gate, .spruce_fence_gate, .birch_fence_gate, .jungle_fence_gate, .dark_oak_fence_gate, .acacia_fence_gate => true,
-        else => false,
-    };
-}
-
-fn isStair(block: Block) bool {
-    return switch (block) {
-        .oak_stairs, .stone_stairs, .brick_stairs, .stone_brick_stairs, .nether_brick_stairs, .sandstone_stairs, .spruce_stairs, .birch_stairs, .jungle_stairs, .quartz_stairs, .acacia_stairs, .dark_oak_stairs, .red_sandstone_stairs => true,
-        else => false,
-    };
-}
 
 fn stemFacingFor(world: *const World, block_pos: Vector3(i32), self_block: Block) VirtualState.StemFacing {
     const plant: Block = if (self_block == .pumpkin_stem) .melon_block else .pumpkin;
@@ -628,7 +598,7 @@ fn tripwireShouldConnectTo(world: *const World, block_pos: Vector3(i32), suspend
 
 fn isStairSameHalfSameFacing(world: *const World, other_pos: Vector3(i32), self_props: anytype) bool {
     const other = world.getBlockState(other_pos);
-    if (!isStair(other.block)) return false;
+    if (!other.block.isStair()) return false;
     const p = other.properties.oak_stairs;
     return p.half == self_props.half and p.facing == self_props.facing;
 }
@@ -647,7 +617,7 @@ fn isInnerStair(world: *const World, block_pos: Vector3(i32), self_props: anytyp
         .south => .south,
         .north => .north,
     }));
-    if (!isStair(neighbour.block) or neighbour.properties.oak_stairs.half != self_props.half) return true;
+    if (!neighbour.block.isStair() or neighbour.properties.oak_stairs.half != self_props.half) return true;
     const neighbour_facing = neighbour.properties.oak_stairs.facing;
     if (neighbour_facing == first and
         !isStairSameHalfSameFacing(world, block_pos.dir(.from(second)), self_props)) return false;
@@ -675,7 +645,7 @@ fn stairCorner(world: *const World, block_pos: Vector3(i32), self_props: anytype
     const check_second = if (inner) second else first;
 
     const neighbour = world.getBlockState(block_pos.dir(.from(neighbour_dir)));
-    if (!isStair(neighbour.block) or neighbour.properties.oak_stairs.half != self_props.half) return 0;
+    if (!neighbour.block.isStair() or neighbour.properties.oak_stairs.half != self_props.half) return 0;
     const neighbour_facing = neighbour.properties.oak_stairs.facing;
 
     const first_value: u2, const second_value: u2 = switch (facing) {
@@ -719,24 +689,13 @@ const Collisions = struct {
     }
 };
 
-fn collision_box(min_x: f64, min_y: f64, min_z: f64, max_x: f64, max_y: f64, max_z: f64) Box(f64) {
-    return .{
-        .min = .{ .x = min_x, .y = min_y, .z = min_z },
-        .max = .{ .x = max_x, .y = max_y, .z = max_z },
-    };
-}
-
-const full_cube: Box(f64) = collision_box(0, 0, 0, 1, 1, 1);
-
 fn ray(b: Box(f64)) [5]?Box(f64) {
     return .{ b, null, null, null, null };
 }
 
-const no_ray_box: [5]?Box(f64) = @splat(null);
-
 fn stem_ray(age: u3) Box(f64) {
     const h: f64 = (@as(f64, age) * 2.0 + 2.0) / 16.0;
-    return collision_box(0.375, 0, 0.375, 0.625, h, 0.625);
+    return .new(0.375, 0, 0.375, 0.625, h, 0.625);
 }
 
 fn fence_ray(north: bool, south: bool, west: bool, east: bool) Box(f64) {
@@ -748,7 +707,7 @@ fn fence_ray(north: bool, south: bool, west: bool, east: bool) Box(f64) {
     if (south) max_z = 1;
     if (west) min_x = 0;
     if (east) max_x = 1;
-    return collision_box(min_x, 0, min_z, max_x, 1, max_z);
+    return .new(min_x, 0, min_z, max_x, 1, max_z);
 }
 
 fn wall_ray(north: bool, south: bool, west: bool, east: bool) Box(f64) {
@@ -768,13 +727,13 @@ fn wall_ray(north: bool, south: bool, west: bool, east: bool) Box(f64) {
         min_z = 0.3125;
         max_z = 0.6875;
     }
-    return collision_box(min_x, 0, min_z, max_x, max_y, max_z);
+    return .new(min_x, 0, min_z, max_x, max_y, max_z);
 }
 
 fn fence_gate_ray(facing: PhysicalState.PackedHorizontalFacing) Box(f64) {
     return switch (facing) {
-        .north, .south => collision_box(0, 0, 0.375, 1, 1, 0.625),
-        .west, .east => collision_box(0.375, 0, 0, 0.625, 1, 1),
+        .north, .south => .new(0, 0, 0.375, 1, 1, 0.625),
+        .west, .east => .new(0.375, 0, 0, 0.625, 1, 1),
     };
 }
 
@@ -783,46 +742,46 @@ fn rail_ray(shape: anytype) Box(f64) {
         .ascending_east, .ascending_west, .ascending_north, .ascending_south => true,
         else => false,
     };
-    return collision_box(0, 0, 0, 1, if (ascending) 0.625 else 0.125, 1);
+    return .new(0, 0, 0, 1, if (ascending) 0.625 else 0.125, 1);
 }
 
 fn torch_ray(facing: PhysicalState.TorchFacing) Box(f64) {
     const t: f64 = 0.15;
     return switch (facing) {
-        .east => collision_box(0, 0.2, 0.5 - t, t * 2, 0.8, 0.5 + t),
-        .west => collision_box(1 - t * 2, 0.2, 0.5 - t, 1, 0.8, 0.5 + t),
-        .south => collision_box(0.5 - t, 0.2, 0, 0.5 + t, 0.8, t * 2),
-        .north => collision_box(0.5 - t, 0.2, 1 - t * 2, 0.5 + t, 0.8, 1),
-        .up => collision_box(0.4, 0, 0.4, 0.6, 0.6, 0.6),
+        .east => .new(0, 0.2, 0.5 - t, t * 2, 0.8, 0.5 + t),
+        .west => .new(1 - t * 2, 0.2, 0.5 - t, 1, 0.8, 0.5 + t),
+        .south => .new(0.5 - t, 0.2, 0, 0.5 + t, 0.8, t * 2),
+        .north => .new(0.5 - t, 0.2, 1 - t * 2, 0.5 + t, 0.8, 1),
+        .up => .new(0.4, 0, 0.4, 0.6, 0.6, 0.6),
     };
 }
 
 fn lever_ray(facing: PhysicalState.LeverFacing) Box(f64) {
     const t: f64 = 0.1875;
     return switch (facing) {
-        .east => collision_box(0, 0.2, 0.5 - t, t * 2, 0.8, 0.5 + t),
-        .west => collision_box(1 - t * 2, 0.2, 0.5 - t, 1, 0.8, 0.5 + t),
-        .south => collision_box(0.5 - t, 0.2, 0, 0.5 + t, 0.8, t * 2),
-        .north => collision_box(0.5 - t, 0.2, 1 - t * 2, 0.5 + t, 0.8, 1),
-        .up_z, .up_x => collision_box(0.25, 0, 0.25, 0.75, 0.6, 0.75),
-        .down_x, .down_z => collision_box(0.25, 0.4, 0.25, 0.75, 1, 0.75),
+        .east => .new(0, 0.2, 0.5 - t, t * 2, 0.8, 0.5 + t),
+        .west => .new(1 - t * 2, 0.2, 0.5 - t, 1, 0.8, 0.5 + t),
+        .south => .new(0.5 - t, 0.2, 0, 0.5 + t, 0.8, t * 2),
+        .north => .new(0.5 - t, 0.2, 1 - t * 2, 0.5 + t, 0.8, 1),
+        .up_z, .up_x => .new(0.25, 0, 0.25, 0.75, 0.6, 0.75),
+        .down_x, .down_z => .new(0.25, 0.4, 0.25, 0.75, 1, 0.75),
     };
 }
 
 fn button_ray(facing: PhysicalState.ButtonFacing, powered: bool) Box(f64) {
     const h: f64 = @as(f64, if (powered) 1.0 else 2.0) / 16.0;
     return switch (facing) {
-        .east => collision_box(0, 0.375, 0.3125, h, 0.625, 0.6875),
-        .west => collision_box(1 - h, 0.375, 0.3125, 1, 0.625, 0.6875),
-        .south => collision_box(0.3125, 0.375, 0, 0.6875, 0.625, h),
-        .north => collision_box(0.3125, 0.375, 1 - h, 0.6875, 0.625, 1),
-        .up => collision_box(0.3125, 0, 0.375, 0.6875, h, 0.625),
-        .down => collision_box(0.3125, 1 - h, 0.375, 0.6875, 1, 0.625),
+        .east => .new(0, 0.375, 0.3125, h, 0.625, 0.6875),
+        .west => .new(1 - h, 0.375, 0.3125, 1, 0.625, 0.6875),
+        .south => .new(0.3125, 0.375, 0, 0.6875, 0.625, h),
+        .north => .new(0.3125, 0.375, 1 - h, 0.6875, 0.625, 1),
+        .up => .new(0.3125, 0, 0.375, 0.6875, h, 0.625),
+        .down => .new(0.3125, 1 - h, 0.375, 0.6875, 1, 0.625),
     };
 }
 
 fn pressure_plate_ray(powered: bool) Box(f64) {
-    return collision_box(0.0625, 0, 0.0625, 0.9375, if (powered) 0.03125 else 0.0625, 0.9375);
+    return .new(0.0625, 0, 0.0625, 0.9375, if (powered) 0.03125 else 0.0625, 0.9375);
 }
 
 fn wall_sign_ray(facing: PhysicalState.HorizontalFacing) Box(f64) {
@@ -830,43 +789,43 @@ fn wall_sign_ray(facing: PhysicalState.HorizontalFacing) Box(f64) {
     const g: f64 = 0.78125;
     const j: f64 = 0.125;
     return switch (facing) {
-        .north => collision_box(0, f, 1 - j, 1, g, 1),
-        .south => collision_box(0, f, 0, 1, g, j),
-        .west => collision_box(1 - j, f, 0, 1, g, 1),
-        .east => collision_box(0, f, 0, j, g, 1),
+        .north => .new(0, f, 1 - j, 1, g, 1),
+        .south => .new(0, f, 0, 1, g, j),
+        .west => .new(1 - j, f, 0, 1, g, 1),
+        .east => .new(0, f, 0, j, g, 1),
     };
 }
 
 fn tripwire_hook_ray(facing: PhysicalState.PackedHorizontalFacing) Box(f64) {
     const f: f64 = 0.1875;
     return switch (facing) {
-        .east => collision_box(0, 0.2, 0.5 - f, f * 2, 0.8, 0.5 + f),
-        .west => collision_box(1 - f * 2, 0.2, 0.5 - f, 1, 0.8, 0.5 + f),
-        .south => collision_box(0.5 - f, 0.2, 0, 0.5 + f, 0.8, f * 2),
-        .north => collision_box(0.5 - f, 0.2, 1 - f * 2, 0.5 + f, 0.8, 1),
+        .east => .new(0, 0.2, 0.5 - f, f * 2, 0.8, 0.5 + f),
+        .west => .new(1 - f * 2, 0.2, 0.5 - f, 1, 0.8, 0.5 + f),
+        .south => .new(0.5 - f, 0.2, 0, 0.5 + f, 0.8, f * 2),
+        .north => .new(0.5 - f, 0.2, 1 - f * 2, 0.5 + f, 0.8, 1),
     };
 }
 
 fn tripwire_ray(suspended: bool, attached: bool) Box(f64) {
-    if (!suspended) return collision_box(0, 0, 0, 1, 0.09375, 1);
-    if (!attached) return collision_box(0, 0, 0, 1, 0.5, 1);
-    return collision_box(0, 0.0625, 0, 1, 0.15625, 1);
+    if (!suspended) return .new(0, 0, 0, 1, 0.09375, 1);
+    if (!attached) return .new(0, 0, 0, 1, 0.5, 1);
+    return .new(0, 0.0625, 0, 1, 0.15625, 1);
 }
 
 fn portal_ray(axis: PhysicalState.PortalAxis) Box(f64) {
     const f: f64 = if (axis == .x) 0.5 else 0.125;
     const g: f64 = if (axis == .z) 0.5 else 0.125;
-    return collision_box(0.5 - f, 0, 0.5 - g, 0.5 + f, 1, 0.5 + g);
+    return .new(0.5 - f, 0, 0.5 - g, 0.5 + f, 1, 0.5 + g);
 }
 
 fn piston_head_collision(facing: PhysicalState.Facing) Box(f64) {
     return switch (facing) {
-        .down => collision_box(0, 0, 0, 1, 0.25, 1),
-        .up => collision_box(0, 0.75, 0, 1, 1, 1),
-        .north => collision_box(0, 0, 0, 1, 1, 0.25),
-        .south => collision_box(0, 0, 0.75, 1, 1, 1),
-        .west => collision_box(0, 0, 0, 0.25, 1, 1),
-        .east => collision_box(0.75, 0, 0, 1, 1, 1),
+        .down => .new(0, 0, 0, 1, 0.25, 1),
+        .up => .new(0, 0.75, 0, 1, 1, 1),
+        .north => .new(0, 0, 0, 1, 1, 0.25),
+        .south => .new(0, 0, 0.75, 1, 1, 1),
+        .west => .new(0, 0, 0, 0.25, 1, 1),
+        .east => .new(0.75, 0, 0, 1, 1, 1),
     };
 }
 
@@ -923,45 +882,45 @@ fn vine_ray(north: bool, east: bool, south: bool, west: bool, grow_above: bool) 
         min_z = 0;
         max_z = 1;
     }
-    return collision_box(min_x, min_y, min_z, max_x, max_y, max_z);
+    return .new(min_x, min_y, min_z, max_x, max_y, max_z);
 }
 
 fn slab_collision(half: PhysicalState.Half) Box(f64) {
     return if (half == .top)
-        collision_box(0, 0.5, 0, 1, 1, 1)
+        .new(0, 0.5, 0, 1, 1, 1)
     else
-        collision_box(0, 0, 0, 1, 0.5, 1);
+        .new(0, 0, 0, 1, 0.5, 1);
 }
 
 fn snow_layer_collision(layers: PhysicalState.SnowLayers) Box(f64) {
-    return collision_box(0, 0, 0, 1, @as(f64, @backingInt(layers)) / 8.0, 1);
+    return .new(0, 0, 0, 1, @as(f64, @backingInt(layers)) / 8.0, 1);
 }
 
 fn cake_collision(bites: PhysicalState.CakeBites) Box(f64) {
-    return collision_box((@as(f64, @backingInt(bites)) * 2.0 + 1.0) / 16.0, 0, 0.0625, 0.9375, 0.5, 0.9375);
+    return .new((@as(f64, @backingInt(bites)) * 2.0 + 1.0) / 16.0, 0, 0.0625, 0.9375, 0.5, 0.9375);
 }
 
 fn ladder_collision(facing: PhysicalState.HorizontalFacing) Box(f64) {
     const t: f64 = 0.125;
     return switch (facing) {
-        .north => collision_box(0, 0, 1 - t, 1, 1, 1),
-        .south => collision_box(0, 0, 0, 1, 1, t),
-        .west => collision_box(1 - t, 0, 0, 1, 1, 1),
-        .east => collision_box(0, 0, 0, t, 1, 1),
+        .north => .new(0, 0, 1 - t, 1, 1, 1),
+        .south => .new(0, 0, 0, 1, 1, t),
+        .west => .new(1 - t, 0, 0, 1, 1, 1),
+        .east => .new(0, 0, 0, t, 1, 1),
     };
 }
 
 fn trapdoor_collision(half: PhysicalState.Half, open: bool, facing: PhysicalState.TrapdoorFacing) Box(f64) {
     const t: f64 = 0.1875;
     if (!open) return if (half == .top)
-        collision_box(0, 0.8125, 0, 1, 1, 1)
+        .new(0, 0.8125, 0, 1, 1, 1)
     else
-        collision_box(0, 0, 0, 1, t, 1);
+        .new(0, 0, 0, 1, t, 1);
     return switch (facing) {
-        .north => collision_box(0, 0, 1 - t, 1, 1, 1),
-        .south => collision_box(0, 0, 0, 1, 1, t),
-        .west => collision_box(1 - t, 0, 0, 1, 1, 1),
-        .east => collision_box(0, 0, 0, t, 1, 1),
+        .north => .new(0, 0, 1 - t, 1, 1, 1),
+        .south => .new(0, 0, 0, 1, 1, t),
+        .west => .new(1 - t, 0, 0, 1, 1, 1),
+        .east => .new(0, 0, 0, t, 1, 1),
     };
 }
 
@@ -971,96 +930,96 @@ fn cocoa_collision(facing: PhysicalState.PackedHorizontalFacing, age: PhysicalSt
     const w = j / 2.0;
     const y0 = (12.0 - k) / 16.0;
     return switch (facing) {
-        .south => collision_box((8.0 - w) / 16.0, y0, (15.0 - j) / 16.0, (8.0 + w) / 16.0, 0.75, 0.9375),
-        .north => collision_box((8.0 - w) / 16.0, y0, 0.0625, (8.0 + w) / 16.0, 0.75, (1.0 + j) / 16.0),
-        .west => collision_box(0.0625, y0, (8.0 - w) / 16.0, (1.0 + j) / 16.0, 0.75, (8.0 + w) / 16.0),
-        .east => collision_box((15.0 - j) / 16.0, y0, (8.0 - w) / 16.0, 0.9375, 0.75, (8.0 + w) / 16.0),
+        .south => .new((8.0 - w) / 16.0, y0, (15.0 - j) / 16.0, (8.0 + w) / 16.0, 0.75, 0.9375),
+        .north => .new((8.0 - w) / 16.0, y0, 0.0625, (8.0 + w) / 16.0, 0.75, (1.0 + j) / 16.0),
+        .west => .new(0.0625, y0, (8.0 - w) / 16.0, (1.0 + j) / 16.0, 0.75, (8.0 + w) / 16.0),
+        .east => .new((15.0 - j) / 16.0, y0, (8.0 - w) / 16.0, 0.9375, 0.75, (8.0 + w) / 16.0),
     };
 }
 
 fn skull_collision(facing: PhysicalState.Facing) Box(f64) {
     return switch (facing) {
-        .north => collision_box(0.25, 0.25, 0.5, 0.75, 0.75, 1),
-        .south => collision_box(0.25, 0.25, 0, 0.75, 0.75, 0.5),
-        .west => collision_box(0.5, 0.25, 0.25, 1, 0.75, 0.75),
-        .east => collision_box(0, 0.25, 0.25, 0.5, 0.75, 0.75),
+        .north => .new(0.25, 0.25, 0.5, 0.75, 0.75, 1),
+        .south => .new(0.25, 0.25, 0, 0.75, 0.75, 0.5),
+        .west => .new(0.5, 0.25, 0.25, 1, 0.75, 0.75),
+        .east => .new(0, 0.25, 0.25, 0.5, 0.75, 0.75),
 
-        .up, .down => collision_box(0.25, 0, 0.25, 0.75, 0.5, 0.75),
+        .up, .down => .new(0.25, 0, 0.25, 0.75, 0.5, 0.75),
     };
 }
 
 fn piston_collision(facing: PhysicalState.Facing, extended: bool) Box(f64) {
-    if (!extended) return full_cube;
+    if (!extended) return .unit_cube;
     const t: f64 = 0.25;
     return switch (facing) {
-        .down => collision_box(0, t, 0, 1, 1, 1),
-        .up => collision_box(0, 0, 0, 1, 1 - t, 1),
-        .north => collision_box(0, 0, t, 1, 1, 1),
-        .south => collision_box(0, 0, 0, 1, 1, 1 - t),
-        .west => collision_box(t, 0, 0, 1, 1, 1),
-        .east => collision_box(0, 0, 0, 1 - t, 1, 1),
+        .down => .new(0, t, 0, 1, 1, 1),
+        .up => .new(0, 0, 0, 1, 1 - t, 1),
+        .north => .new(0, 0, t, 1, 1, 1),
+        .south => .new(0, 0, 0, 1, 1, 1 - t),
+        .west => .new(t, 0, 0, 1, 1, 1),
+        .east => .new(0, 0, 0, 1 - t, 1, 1),
     };
 }
 
-fn piston_head_collisions(c: *Collisions, facing: PhysicalState.Facing) void {
-    c.add(switch (facing) {
-        .down => collision_box(0, 0, 0, 1, 0.25, 1),
-        .up => collision_box(0, 0.75, 0, 1, 1, 1),
-        .north => collision_box(0, 0, 0, 1, 1, 0.25),
-        .south => collision_box(0, 0, 0.75, 1, 1, 1),
-        .west => collision_box(0, 0, 0, 0.25, 1, 1),
-        .east => collision_box(0.75, 0, 0, 1, 1, 1),
+fn piston_head_collisions(collisions: *std.ArrayList(Box(f64)), facing: PhysicalState.Facing) void {
+    collisions.appendAssumeCapacity(switch (facing) {
+        .down => .new(0, 0, 0, 1, 0.25, 1),
+        .up => .new(0, 0.75, 0, 1, 1, 1),
+        .north => .new(0, 0, 0, 1, 1, 0.25),
+        .south => .new(0, 0, 0.75, 1, 1, 1),
+        .west => .new(0, 0, 0, 0.25, 1, 1),
+        .east => .new(0.75, 0, 0, 1, 1, 1),
     });
-    c.add(switch (facing) {
-        .down => collision_box(0.375, 0.25, 0.375, 0.625, 1, 0.625),
-        .up => collision_box(0.375, 0, 0.375, 0.625, 0.75, 0.625),
-        .north => collision_box(0.25, 0.375, 0.25, 0.75, 0.625, 1),
-        .south => collision_box(0.25, 0.375, 0, 0.75, 0.625, 0.75),
-        .west => collision_box(0.375, 0.25, 0.25, 0.625, 0.75, 1),
-        .east => collision_box(0, 0.375, 0.25, 0.75, 0.625, 0.75),
+    collisions.appendAssumeCapacity(switch (facing) {
+        .down => .new(0.375, 0.25, 0.375, 0.625, 1, 0.625),
+        .up => .new(0.375, 0, 0.375, 0.625, 0.75, 0.625),
+        .north => .new(0.25, 0.375, 0.25, 0.75, 0.625, 1),
+        .south => .new(0.25, 0.375, 0, 0.75, 0.625, 0.75),
+        .west => .new(0.375, 0.25, 0.25, 0.625, 0.75, 1),
+        .east => .new(0, 0.375, 0.25, 0.75, 0.625, 0.75),
     });
 }
 
 fn door_collision(facing: PhysicalState.DoorFacing, open: bool, hinge: PhysicalState.DoorHinge) Box(f64) {
     const t: f64 = 0.1875;
     if (open) return switch (facing) {
-        .east => if (hinge == .right) collision_box(0, 0, 1 - t, 1, 1, 1) else collision_box(0, 0, 0, 1, 1, t),
-        .south => if (hinge == .right) collision_box(0, 0, 0, t, 1, 1) else collision_box(1 - t, 0, 0, 1, 1, 1),
-        .west => if (hinge == .right) collision_box(0, 0, 0, 1, 1, t) else collision_box(0, 0, 1 - t, 1, 1, 1),
-        .north => if (hinge == .right) collision_box(1 - t, 0, 0, 1, 1, 1) else collision_box(0, 0, 0, t, 1, 1),
+        .east => if (hinge == .right) .new(0, 0, 1 - t, 1, 1, 1) else .new(0, 0, 0, 1, 1, t),
+        .south => if (hinge == .right) .new(0, 0, 0, t, 1, 1) else .new(1 - t, 0, 0, 1, 1, 1),
+        .west => if (hinge == .right) .new(0, 0, 0, 1, 1, t) else .new(0, 0, 1 - t, 1, 1, 1),
+        .north => if (hinge == .right) .new(1 - t, 0, 0, 1, 1, 1) else .new(0, 0, 0, t, 1, 1),
     };
     return switch (facing) {
-        .east => collision_box(0, 0, 0, t, 1, 1),
-        .south => collision_box(0, 0, 0, 1, 1, t),
-        .west => collision_box(1 - t, 0, 0, 1, 1, 1),
-        .north => collision_box(0, 0, 1 - t, 1, 1, 1),
+        .east => .new(0, 0, 0, t, 1, 1),
+        .south => .new(0, 0, 0, 1, 1, t),
+        .west => .new(1 - t, 0, 0, 1, 1, 1),
+        .north => .new(0, 0, 1 - t, 1, 1, 1),
     };
 }
 
 fn fence_gate_collision(open: bool, facing: PhysicalState.PackedHorizontalFacing) ?Box(f64) {
     if (open) return null;
     return switch (facing) {
-        .north, .south => collision_box(0, 0, 0.375, 1, 1.5, 0.625),
-        .west, .east => collision_box(0.375, 0, 0, 0.625, 1.5, 1),
+        .north, .south => .new(0, 0, 0.375, 1, 1.5, 0.625),
+        .west, .east => .new(0.375, 0, 0, 0.625, 1.5, 1),
     };
 }
 
-fn fence_collisions(c: *Collisions, north: bool, south: bool, west: bool, east: bool) void {
+fn fence_collisions(collisions: *std.ArrayList(Box(f64)), north: bool, south: bool, west: bool, east: bool) void {
     const width: f64 = 0.375; // 4/16 post, centred
 
     // A neighbour on an axis extends the post out to that edge, so the box covers
     // the post plus however far it connects.
     const z0: f64 = if (north) 0 else width;
     const z1: f64 = if (south) 1 else 1 - width;
-    if (north or south) c.add(collision_box(width, 0, z0, 1 - width, 1.5, z1));
+    if (north or south) collisions.appendAssumeCapacity(.new(width, 0, z0, 1 - width, 1.5, z1));
 
     const x0: f64 = if (west) 0 else width;
     const x1: f64 = if (east) 1 else 1 - width;
     // an unconnected fence is still one post
-    if (west or east or !(north or south)) c.add(collision_box(x0, 0, width, x1, 1.5, 1 - width));
+    if (west or east or !(north or south)) collisions.appendAssumeCapacity(.new(x0, 0, width, x1, 1.5, 1 - width));
 }
 
-fn pane_collisions(c: *Collisions, north: bool, south: bool, west: bool, east: bool) void {
+fn pane_collisions(collisions: *std.ArrayList(Box(f64)), north: bool, south: bool, west: bool, east: bool) void {
     const width: f64 = 0.4375; // 2/16 thick, centred
     const far: f64 = 1 - width;
     const anchored = north or south or west or east;
@@ -1069,23 +1028,23 @@ fn pane_collisions(c: *Collisions, north: bool, south: bool, west: bool, east: b
     // covers that half. Joined on neither it contributes no box, except when it is
     // unconnected everywhere - vanilla still gives that case the full post.
     if (west and east) {
-        c.add(collision_box(0, 0, width, 1, 1, far));
+        collisions.appendAssumeCapacity(.new(0, 0, width, 1, 1, far));
     } else if (west) {
-        c.add(collision_box(0, 0, width, 0.5, 1, far));
+        collisions.appendAssumeCapacity(.new(0, 0, width, 0.5, 1, far));
     } else if (east) {
-        c.add(collision_box(0.5, 0, width, 1, 1, far));
+        collisions.appendAssumeCapacity(.new(0.5, 0, width, 1, 1, far));
     } else if (!anchored) {
-        c.add(collision_box(0, 0, width, 1, 1, far));
+        collisions.appendAssumeCapacity(.new(0, 0, width, 1, 1, far));
     }
 
     if (north and south) {
-        c.add(collision_box(width, 0, 0, far, 1, 1));
+        collisions.appendAssumeCapacity(.new(width, 0, 0, far, 1, 1));
     } else if (north) {
-        c.add(collision_box(width, 0, 0, far, 1, 0.5));
+        collisions.appendAssumeCapacity(.new(width, 0, 0, far, 1, 0.5));
     } else if (south) {
-        c.add(collision_box(width, 0, 0.5, far, 1, 1));
+        collisions.appendAssumeCapacity(.new(width, 0, 0.5, far, 1, 1));
     } else if (!anchored) {
-        c.add(collision_box(width, 0, 0, far, 1, 1));
+        collisions.appendAssumeCapacity(.new(width, 0, 0, far, 1, 1));
     }
 }
 
@@ -1098,28 +1057,28 @@ fn wall_collision(north: bool, south: bool, west: bool, east: bool) Box(f64) {
 
     // When joined on both sides of one axis and neither side of the other,
     // the wall narrows to 5/16 across the unconnected axis.
-    if (north and south and !(west or east)) return collision_box(0.3125, 0, z0, 0.6875, 1.5, z1);
-    if (west and east and !(north or south)) return collision_box(x0, 0, 0.3125, x1, 1.5, 0.6875);
+    if (north and south and !(west or east)) return .new(0.3125, 0, z0, 0.6875, 1.5, z1);
+    if (west and east and !(north or south)) return .new(x0, 0, 0.3125, x1, 1.5, 0.6875);
 
-    return collision_box(x0, 0, z0, x1, 1.5, z1);
+    return .new(x0, 0, z0, x1, 1.5, z1);
 }
 
-fn funnel_collisions(c: *Collisions, inner_height: f64) void {
-    c.add(collision_box(0, 0, 0, 1, inner_height, 1));
-    c.add(collision_box(0, 0, 0, 0.125, 1, 1));
-    c.add(collision_box(0, 0, 0, 1, 1, 0.125));
-    c.add(collision_box(0.875, 0, 0, 1, 1, 1));
-    c.add(collision_box(0, 0, 0.875, 1, 1, 1));
+fn funnel_collisions(collisions: *std.ArrayList(Box(f64)), inner_height: f64) void {
+    collisions.appendAssumeCapacity(.new(0, 0, 0, 1, inner_height, 1));
+    collisions.appendAssumeCapacity(.new(0, 0, 0, 0.125, 1, 1));
+    collisions.appendAssumeCapacity(.new(0, 0, 0, 1, 1, 0.125));
+    collisions.appendAssumeCapacity(.new(0.875, 0, 0, 1, 1, 1));
+    collisions.appendAssumeCapacity(.new(0, 0, 0.875, 1, 1, 1));
 }
 
 fn stair_base_collision(half: PhysicalState.Half) Box(f64) {
     return if (half == .top)
-        collision_box(0, 0.5, 0, 1, 1, 1)
+        .new(0, 0.5, 0, 1, 1, 1)
     else
-        collision_box(0, 0, 0, 1, 0.5, 1);
+        .new(0, 0, 0, 1, 0.5, 1);
 }
 
-fn stair_collisions(c: *Collisions, facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: VirtualState.StairShape) void {
+fn stair_collisions(collisions: *std.ArrayList(Box(f64)), facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: VirtualState.StairShape) void {
     const y0: f64 = if (half == .top) 0 else 0.5;
     const y1: f64 = if (half == .top) 0.5 else 1;
 
@@ -1141,21 +1100,21 @@ fn stair_collisions(c: *Collisions, facing: PhysicalState.StairFacing, half: Phy
     const s0: f64 = if (low) 0 else 0.5;
     const s1: f64 = if (low) 0.5 else 1;
 
-    c.add(stair_base_collision(half));
+    collisions.appendAssumeCapacity(stair_base_collision(half));
 
     const split = shape == .outer_left or shape == .outer_right;
-    c.add(if (split)
+    collisions.appendAssumeCapacity(if (split)
         (if (axis_is_x)
-            collision_box(s0, y0, bz0, s1, y1, bz1)
+            .new(s0, y0, bz0, s1, y1, bz1)
         else
-            collision_box(bx0, y0, s0, bx1, y1, s1))
+            .new(bx0, y0, s0, bx1, y1, s1))
     else
-        collision_box(bx0, y0, bz0, bx1, y1, bz1));
+        .new(bx0, y0, bz0, bx1, y1, bz1));
 
     if (shape == .inner_left or shape == .inner_right) {
-        c.add(if (axis_is_x)
-            collision_box(s0, y0, 1 - bz1, s1, y1, 1 - bz0)
+        collisions.appendAssumeCapacity(if (axis_is_x)
+            .new(s0, y0, 1 - bz1, s1, y1, 1 - bz0)
         else
-            collision_box(1 - bx1, y0, s0, 1 - bx0, y1, s1));
+            .new(1 - bx1, y0, s0, 1 - bx0, y1, s1));
     }
 }

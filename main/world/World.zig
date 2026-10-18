@@ -294,11 +294,17 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
-                for (self.resolveVirtualBlockState(.{ .x = x, .y = y, .z = z }).getCollisionHitboxes()) |maybe_block_hitbox| {
-                    _ = maybe_block_hitbox orelse continue;
-                    collisions_count += 1;
-                }
-                if (self.getBlockState(.{ .x = x, .y = y, .z = z }).block != .air) {
+                const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
+                const virtual_state: Block.VirtualState = .resolve(
+                    self.getBlockState(pos),
+                    self,
+                    pos,
+                );
+                var hitboxes_buffer: [5]Box(f64) = undefined;
+                var hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&hitboxes_buffer);
+                virtual_state.getCollisionHitboxes(&hitboxes);
+
+                for (hitboxes.items) |_| {
                     collisions_count += 1;
                 }
             }
@@ -331,8 +337,10 @@ pub fn getCollisions(self: *const @This(), allocator: std.mem.Allocator, hitbox:
                     self,
                     pos,
                 );
-                for (virtual.getCollisionHitboxes()) |maybe_block_hitbox| {
-                    const block_hitbox = maybe_block_hitbox orelse continue;
+                var local_hitboxes_buffer: [5]Box(f64) = undefined;
+                var local_hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&local_hitboxes_buffer);
+                virtual.getCollisionHitboxes(&local_hitboxes);
+                for (local_hitboxes.items) |block_hitbox| {
                     try collisions.append(allocator, block_hitbox.move(.{ .x = x, .y = y, .z = z }));
                 }
             }
