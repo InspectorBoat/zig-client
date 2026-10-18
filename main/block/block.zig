@@ -304,6 +304,7 @@ pub const Block = enum(u8) {
         return material.block_to_material.get(self);
     }
 
+    // TODO: implement
     pub fn isSolidRender(self: @This()) bool {
         _ = self;
         return false;
@@ -311,10 +312,6 @@ pub const Block = enum(u8) {
 
     pub fn isOpaque(self: @This()) bool {
         return self.isSolidRender();
-    }
-
-    comptime {
-        _ = &canBePlaced;
     }
 
     pub fn canBePlaced(self: @This(), world: *const World, pos: Vector3(i32), dir: Direction) bool {
@@ -501,8 +498,7 @@ pub const Block = enum(u8) {
                 switch (below.block) {
                     .ice, .packed_ice => return false,
                     .snow_layer => return below.payload(.snow_layer).layers == .@"7" or below.payload(.snow_layer).layers == .@"8",
-                    // TODO: implement block.isSolidRender
-                    else => |block| return block.getMaterial() == .leaves or block.isSolidRender() and block.getMaterial().blocksMovement(),
+                    else => |block| return block.getMaterial() == .leaves or (block.isSolidRender() and block.getMaterial().blocksMovement()),
                 }
             },
 

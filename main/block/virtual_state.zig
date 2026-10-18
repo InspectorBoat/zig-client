@@ -81,14 +81,14 @@ pub const VirtualState = union(Block) {
     furnace: packed struct { facing: PhysicalState.HorizontalFacing },
     lit_furnace: packed struct { facing: PhysicalState.HorizontalFacing },
     standing_sign: packed struct { rotation: u4 },
-    wooden_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    wooden_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
     ladder: packed struct { facing: PhysicalState.HorizontalFacing },
     rail: packed struct { shape: PhysicalState.CurveableRailShape },
     stone_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
     wall_sign: packed struct { facing: PhysicalState.HorizontalFacing },
     lever: packed struct { facing: PhysicalState.LeverFacing, powered: bool },
     stone_pressure_plate: packed struct { powered: bool },
-    iron_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    iron_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
     wooden_pressure_plate: packed struct { powered: bool },
     redstone_ore: packed struct {},
     lit_redstone_ore: packed struct {},
@@ -113,7 +113,7 @@ pub const VirtualState = union(Block) {
     unpowered_repeater: packed struct { facing: PhysicalState.PackedHorizontalFacing, delay: PhysicalState.RepeaterDelay, locked: bool },
     powered_repeater: packed struct { facing: PhysicalState.PackedHorizontalFacing, delay: PhysicalState.RepeaterDelay, locked: bool },
     stained_glass: packed struct { color: PhysicalState.Color },
-    trapdoor: packed struct { facing: PhysicalState.PackedHorizontalFacing, open: bool, half: PhysicalState.Half },
+    trapdoor: packed struct { facing: PhysicalState.TrapdoorFacing, open: bool, half: PhysicalState.Half },
     monster_egg: packed struct { variant: PhysicalState.MonsterEggVariant },
     stonebrick: packed struct { variant: PhysicalState.StoneBrickVariant },
     brown_mushroom_block: packed struct { variant: PhysicalState.MushroomBlockVariant },
@@ -184,7 +184,7 @@ pub const VirtualState = union(Block) {
     dark_oak_stairs: packed struct { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape },
     slime: packed struct {},
     barrier: packed struct {},
-    iron_trapdoor: packed struct { facing: PhysicalState.PackedHorizontalFacing, open: bool, half: PhysicalState.Half },
+    iron_trapdoor: packed struct { facing: PhysicalState.TrapdoorFacing, open: bool, half: PhysicalState.Half },
     prismarine: packed struct { variant: PhysicalState.PrismarineVariant },
     sea_lantern: packed struct {},
     hay_block: packed struct { axis: PhysicalState.HayBlockAxis },
@@ -210,11 +210,11 @@ pub const VirtualState = union(Block) {
     jungle_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
     dark_oak_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
     acacia_fence: packed struct { north: bool, east: bool, south: bool, west: bool },
-    spruce_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    birch_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    jungle_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    acacia_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
-    dark_oak_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.PackedHorizontalFacing },
+    spruce_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
+    birch_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
+    jungle_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
+    acacia_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
+    dark_oak_door: packed struct { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing },
 
     pub fn resolve(physical: PhysicalState, world: *const World, block_pos: Vector3(i32)) @This() {
         return switch (physical.block) {
@@ -951,7 +951,7 @@ fn ladder_collision(facing: PhysicalState.HorizontalFacing) Box(f64) {
     };
 }
 
-fn trapdoor_collision(half: PhysicalState.Half, open: bool, facing: PhysicalState.PackedHorizontalFacing) Box(f64) {
+fn trapdoor_collision(half: PhysicalState.Half, open: bool, facing: PhysicalState.TrapdoorFacing) Box(f64) {
     const t: f64 = 0.1875;
     if (!open) return if (half == .top)
         collision_box(0, 0.8125, 0, 1, 1, 1)
@@ -1021,7 +1021,7 @@ fn piston_head_collisions(c: *Collisions, facing: PhysicalState.Facing) void {
     });
 }
 
-fn door_collision(facing: PhysicalState.PackedHorizontalFacing, open: bool, hinge: PhysicalState.DoorHinge) Box(f64) {
+fn door_collision(facing: PhysicalState.DoorFacing, open: bool, hinge: PhysicalState.DoorHinge) Box(f64) {
     const t: f64 = 0.1875;
     if (open) return switch (facing) {
         .east => if (hinge == .right) collision_box(0, 0, 1 - t, 1, 1, 1) else collision_box(0, 0, 0, 1, 1, t),

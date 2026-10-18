@@ -259,7 +259,7 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
 
     // if we are *not* sneaking, or our hand is empty, try to interact with the block itself
     if (!player.isSneaking() or maybe_held_item_stack == null) {
-        consumed = block_state.use(&game.world, player, crosshair.block_pos, crosshair.dir, crosshair.pos);
+        consumed = try block_state.use(&game.world, player, crosshair.block_pos);
     }
 
     // if we are holding a block item, make sure we can actually place it

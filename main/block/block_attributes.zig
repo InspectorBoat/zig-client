@@ -48,6 +48,27 @@ pub const is_plant: std.enums.EnumSet(Block) = .initMany(&.{
     .melon_stem,    .nether_wart, .double_plant,
 });
 
+pub const overrides_use: std.enums.EnumSet(Block) = .initMany(&.{
+    .acacia_door,          .acacia_fence,        .acacia_fence_gate,    .acacia_stairs,
+    .anvil,                .beacon,              .bed,                  .birch_door,
+    .birch_fence,          .birch_fence_gate,    .birch_stairs,         .brewing_stand,
+    .brick_stairs,         .cake,                .cauldron,             .chest,
+    .command_block,        .crafting_table,      .dark_oak_door,        .dark_oak_fence,
+    .dark_oak_fence_gate,  .dark_oak_stairs,     .daylight_detector,    .daylight_detector_inverted,
+    .dispenser,            .dragon_egg,          .dropper,              .enchanting_table,
+    .ender_chest,          .fence,               .fence_gate,           .flower_pot,
+    .furnace,              .hopper,              .iron_door,            .iron_trapdoor,
+    .jukebox,              .jungle_door,         .jungle_fence,         .jungle_fence_gate,
+    .jungle_stairs,        .lever,               .lit_furnace,          .lit_redstone_ore,
+    .nether_brick_fence,   .nether_brick_stairs, .noteblock,            .oak_stairs,
+    .piston_extension,     .powered_comparator,  .powered_repeater,     .quartz_stairs,
+    .red_sandstone_stairs, .redstone_ore,        .sandstone_stairs,     .spruce_door,
+    .spruce_fence,         .spruce_fence_gate,   .spruce_stairs,        .standing_sign,
+    .stone_brick_stairs,   .stone_button,        .stone_stairs,         .tnt,
+    .trapdoor,             .trapped_chest,       .unpowered_comparator, .unpowered_repeater,
+    .wall_sign,            .wooden_button,       .wooden_door,
+});
+
 pub const overrides_can_be_placed: std.enums.EnumSet(Block) = .initMany(&.{
     .acacia_door,                   .acacia_fence_gate,    .acacia_stairs,        .activator_rail,
     .birch_door,                    .birch_fence_gate,     .birch_stairs,         .brick_stairs,
