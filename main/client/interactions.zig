@@ -262,7 +262,8 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
         consumed = block_state.use(&game.world, player, crosshair.block_pos, crosshair.dir, crosshair.pos);
     }
 
-    // if we are holding a block item, try to place it directly
+    // if we are holding a block item, make sure we can actually place it
+    // if not, we return without even sending a packet
     if (!consumed) {
         if (maybe_held_item_stack) |held_item_stack| {
             if (held_item_stack.item.getBlock()) |block| {
@@ -272,13 +273,10 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
                 var block_pos = crosshair.block_pos;
                 if (crosshair_target_block == .snow_layer) {
                     dir = .up;
-                } else if (game.world.resolveVirtualBlockState(crosshair.block_pos).canBeReplaced()) {
+                } else if (!game.world.resolveVirtualBlockState(crosshair.block_pos).canBeReplaced()) {
                     block_pos = block_pos.dir(dir);
                 }
-                if (!block.canBePlaced(&game.world, block_pos, dir)) {
-                    std.log.debug("bad", .{});
-                    return false;
-                }
+                if (!block.canBePlaced(&game.world, block_pos, dir)) return false;
             }
         }
     }

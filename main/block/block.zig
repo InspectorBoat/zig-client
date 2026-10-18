@@ -1,6 +1,9 @@
+const std = @import("std");
+
 const main = @import("main");
 
 const attributes = @import("block_attributes.zig");
+const material = @import("material.zig");
 
 const Direction = main.Direction;
 const LocalPlayer = main.Entity.LocalPlayer;
@@ -237,8 +240,7 @@ pub const Block = enum(u8) {
     acacia_door,
     dark_oak_door,
 
-    pub const Material = @import("material.zig").Material;
-
+    pub const Material = material.Material;
     pub const VirtualState = @import("virtual_state.zig").VirtualState;
     pub const PhysicalState = @import("physical_state.zig").PhysicalState;
 
@@ -248,6 +250,34 @@ pub const Block = enum(u8) {
             .ice, .packed_ice => 0.98,
             else => 0.6,
         };
+    }
+
+    pub fn isStair(self: @This()) bool {
+        return attributes.is_stair.contains(self);
+    }
+
+    pub fn isSingleSlab(self: @This()) bool {
+        return attributes.is_single_slab.contains(self);
+    }
+
+    pub fn isDoubleSlab(self: @This()) bool {
+        return attributes.is_double_slab.contains(self);
+    }
+
+    pub fn isSlab(self: @This()) bool {
+        return self.isSingleSlab() or self.isDoubleSlab();
+    }
+
+    pub fn isFence(self: @This()) bool {
+        return attributes.is_fence.contains(self);
+    }
+
+    pub fn isFenceGate(self: @This()) bool {
+        return attributes.is_fence_gate.contains(self);
+    }
+
+    pub fn isPlant(self: @This()) bool {
+        return attributes.is_plant.contains(self);
     }
 
     pub fn isCube(self: @This()) bool {
@@ -270,9 +300,8 @@ pub const Block = enum(u8) {
         return attributes.hardness.get(self);
     }
 
-    const block_to_material = @import("material.zig").block_to_material;
     pub fn getMaterial(self: @This()) Material {
-        return block_to_material.get(self);
+        return material.block_to_material.get(self);
     }
 
     pub fn isSolidRender(self: @This()) bool {
@@ -292,9 +321,29 @@ pub const Block = enum(u8) {
         const replaceable = world.getBlock(pos).getMaterial().isReplaceable();
 
         return switch (self) {
-            // these blocks do not exist in item form
-            // TODO: find them all
-            .air, .fire, .piston_extension, .piston_head, .tripwire => unreachable,
+            // no item form
+            inline .air,
+            .fire,
+            .flowing_lava,
+            .flowing_water,
+            .lava,
+            .piston_extension,
+            .piston_head,
+            .portal,
+            .powered_comparator,
+            .powered_repeater,
+            .unlit_redstone_torch,
+            .water,
+            => |block| {
+                @setEvalBranchQuota(10_000);
+                comptime std.debug.assert(std.enums.fromInt(main.Item, @backingInt(block)) == null);
+                unreachable;
+            },
+
+            // items that produce these never call canBePlaced
+            .bed,
+            .wall_banner,
+            => unreachable,
 
             .stone_pressure_plate,
             .wooden_pressure_plate,
@@ -302,10 +351,7 @@ pub const Block = enum(u8) {
             .heavy_weighted_pressure_plate,
             => {
                 const below = world.getBlockState(pos.down());
-                return below.hasSolidTop() or switch (below.block) {
-                    .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => true,
-                    else => false,
-                };
+                return below.hasSolidTop() or below.block.isFence();
             },
 
             .golden_rail,
@@ -317,7 +363,6 @@ pub const Block = enum(u8) {
             .standing_sign,
             .wall_sign,
             .standing_banner,
-            .wall_banner,
             => {
                 if (!replaceable) return false;
                 for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)) == .cactus) return false;
@@ -325,9 +370,7 @@ pub const Block = enum(u8) {
             },
 
             .unpowered_repeater,
-            .powered_repeater,
             .unpowered_comparator,
-            .powered_comparator,
             .flower_pot,
             => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
 
@@ -376,9 +419,9 @@ pub const Block = enum(u8) {
             // TODO: Light level, podzol, mycelium, etc. etc.
             .brown_mushroom, .red_mushroom => replaceable and world.getBlock(pos.down()).getMaterial().isOpaque(),
 
-            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => pos.y < 255 and
+            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => replaceable and
+                pos.y < 255 and
                 world.getBlockState(pos.down()).hasSolidTop() and
-                replaceable and
                 world.getBlock(pos.up()).getMaterial().isReplaceable(),
 
             .chest, .trapped_chest => {
@@ -392,7 +435,7 @@ pub const Block = enum(u8) {
                     }
                     neighbouring_chests += 1;
                 }
-                // at most one orthogonal neighbour
+                // at most one neighboring chest
                 return neighbouring_chests <= 1;
             },
 
@@ -403,7 +446,7 @@ pub const Block = enum(u8) {
                 return false;
             },
 
-            .torch, .redstone_torch, .unlit_redstone_torch => {
+            .torch, .redstone_torch => {
                 // oh FOR FUCKS SAKEEEE
                 // this is incorrect at the WORLD BORDER and when searching an UNLOADED CHUNK
                 // TODO: KILL MYSELF
@@ -412,18 +455,8 @@ pub const Block = enum(u8) {
                     if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
                 }
                 const below = world.getBlockState(pos.down());
-                return below.hasSolidTop() or switch (below.block) {
-                    .fence,
-                    .nether_brick_fence,
-                    .spruce_fence,
-                    .birch_fence,
-                    .jungle_fence,
-                    .dark_oak_fence,
-                    .acacia_fence,
-                    .glass,
-                    .cobblestone_wall,
-                    .stained_glass,
-                    => true,
+                return below.hasSolidTop() or below.block.isFence() or switch (below.block) {
+                    .glass, .cobblestone_wall, .stained_glass => true,
                     else => false,
                 };
             },
@@ -440,30 +473,7 @@ pub const Block = enum(u8) {
 
                 if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
 
-                switch (side_block) {
-                    .glowstone,
-                    .stone_slab,
-                    .stone_slab2,
-                    .wooden_slab,
-                    .double_wooden_slab,
-                    .double_stone_slab,
-                    .double_stone_slab2,
-                    .oak_stairs,
-                    .stone_stairs,
-                    .brick_stairs,
-                    .stone_brick_stairs,
-                    .nether_brick_stairs,
-                    .sandstone_stairs,
-                    .spruce_stairs,
-                    .birch_stairs,
-                    .jungle_stairs,
-                    .quartz_stairs,
-                    .acacia_stairs,
-                    .dark_oak_stairs,
-                    .red_sandstone_stairs,
-                    => return true,
-                    else => return false,
-                }
+                return side_block == .glowstone or side_block.isSlab() or side_block.isStair();
             },
 
             .tripwire_hook => dir.plane() == .horizontal and world.getBlock(pos.dir(dir.opposite())).isSolid(),
@@ -474,6 +484,8 @@ pub const Block = enum(u8) {
                 return target.isCube() and target.getMaterial().blocksMovement();
             },
 
+            // sugarcane grows on a sand/grass/dirt block with water besides it
+            // or on another sugarcane
             .reeds => {
                 const below = world.getBlock(pos.down());
                 if (below == .reeds) return true;
@@ -488,13 +500,14 @@ pub const Block = enum(u8) {
                 const below = world.getBlockState(pos.down());
                 switch (below.block) {
                     .ice, .packed_ice => return false,
-                    .leaves, .leaves2 => return true,
                     .snow_layer => return below.payload(.snow_layer).layers == .@"7" or below.payload(.snow_layer).layers == .@"8",
                     // TODO: implement block.isSolidRender
-                    else => |block| return block.getMaterial().blocksMovement(),
+                    else => |block| return block.getMaterial() == .leaves or block.isSolidRender() and block.getMaterial().blocksMovement(),
                 }
             },
 
+            // stairs just delegate to their parent block
+            // here for explicitness
             .oak_stairs,
             .stone_stairs,
             .brick_stairs,
@@ -510,7 +523,12 @@ pub const Block = enum(u8) {
             .red_sandstone_stairs,
             => replaceable,
 
-            else => replaceable,
+            inline else => |unlisted| {
+                @setEvalBranchQuota(10_000);
+                // make sure our override arms are exhaustive
+                comptime std.debug.assert(!attributes.overrides_can_be_placed.contains(unlisted));
+                return replaceable;
+            },
         };
     }
 

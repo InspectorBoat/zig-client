@@ -18,6 +18,60 @@ pub const is_cube: std.enums.EnumSet(Block) = .initMany(&.{
     .sponge,             .stained_hardened_clay, .stone,         .stonebrick,     .tnt,               .wool,
 });
 
+pub const is_stair: std.enums.EnumSet(Block) = .initMany(&.{
+    .acacia_stairs,        .birch_stairs,        .brick_stairs,  .dark_oak_stairs,
+    .jungle_stairs,        .nether_brick_stairs, .oak_stairs,    .quartz_stairs,
+    .red_sandstone_stairs, .sandstone_stairs,    .spruce_stairs, .stone_brick_stairs,
+    .stone_stairs,
+});
+
+pub const is_single_slab: std.enums.EnumSet(Block) = .initMany(&.{
+    .stone_slab, .stone_slab2, .wooden_slab,
+});
+
+pub const is_double_slab: std.enums.EnumSet(Block) = .initMany(&.{
+    .double_stone_slab, .double_stone_slab2, .double_wooden_slab,
+});
+
+pub const is_fence: std.enums.EnumSet(Block) = .initMany(&.{
+    .acacia_fence, .birch_fence, .dark_oak_fence, .fence, .jungle_fence, .nether_brick_fence, .spruce_fence,
+});
+
+pub const is_fence_gate: std.enums.EnumSet(Block) = .initMany(&.{
+    .acacia_fence_gate, .birch_fence_gate, .dark_oak_fence_gate, .fence_gate, .jungle_fence_gate, .spruce_fence_gate,
+});
+
+pub const is_plant: std.enums.EnumSet(Block) = .initMany(&.{
+    .sapling,       .tallgrass,   .deadbush,       .red_flower,
+    .yellow_flower, .waterlily,   .brown_mushroom, .red_mushroom,
+    .wheat,         .carrots,     .potatoes,       .pumpkin_stem,
+    .melon_stem,    .nether_wart, .double_plant,
+});
+
+pub const overrides_can_be_placed: std.enums.EnumSet(Block) = .initMany(&.{
+    .acacia_door,                   .acacia_fence_gate,    .acacia_stairs,        .activator_rail,
+    .birch_door,                    .birch_fence_gate,     .birch_stairs,         .brick_stairs,
+    .brown_mushroom,                .cactus,               .cake,                 .carpet,
+    .carrots,                       .chest,                .dark_oak_door,        .dark_oak_fence_gate,
+    .dark_oak_stairs,               .deadbush,             .detector_rail,        .double_plant,
+    .fence_gate,                    .fire,                 .flower_pot,           .golden_rail,
+    .heavy_weighted_pressure_plate, .iron_door,            .iron_trapdoor,        .jungle_door,
+    .jungle_fence_gate,             .jungle_stairs,        .ladder,               .lever,
+    .light_weighted_pressure_plate, .lit_pumpkin,          .melon_stem,           .nether_brick_stairs,
+    .nether_wart,                   .oak_stairs,           .piston_extension,     .piston_head,
+    .potatoes,                      .powered_comparator,   .powered_repeater,     .pumpkin,
+    .pumpkin_stem,                  .quartz_stairs,        .rail,                 .red_flower,
+    .red_mushroom,                  .red_sandstone_stairs, .redstone_torch,       .redstone_wire,
+    .reeds,                         .sandstone_stairs,     .sapling,              .snow_layer,
+    .spruce_door,                   .spruce_fence_gate,    .spruce_stairs,        .standing_banner,
+    .standing_sign,                 .stone_brick_stairs,   .stone_button,         .stone_pressure_plate,
+    .stone_stairs,                  .tallgrass,            .torch,                .trapdoor,
+    .trapped_chest,                 .tripwire_hook,        .unlit_redstone_torch, .unpowered_comparator,
+    .unpowered_repeater,            .vine,                 .wall_banner,          .wall_sign,
+    .waterlily,                     .wheat,                .wooden_button,        .wooden_door,
+    .wooden_pressure_plate,         .yellow_flower,
+});
+
 pub const signal_source: std.enums.EnumSet(Block) = .initMany(&.{
     .stone_pressure_plate, .wooden_pressure_plate, .light_weighted_pressure_plate, .heavy_weighted_pressure_plate,
     .unpowered_repeater,   .powered_repeater,      .unpowered_comparator,          .powered_comparator,

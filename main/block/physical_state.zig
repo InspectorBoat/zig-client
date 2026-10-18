@@ -68,13 +68,84 @@ pub const PhysicalState = packed struct(u16) {
     }
 
     pub fn use(self: @This(), world: *World, player: *Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
-        _ = self;
         _ = world;
         _ = block_pos;
         _ = dir;
         _ = player;
         _ = pos;
-        return true;
+
+        return switch (self.block) {
+            .anvil, .beacon, .bed, .brewing_stand => true,
+            .cake => {
+                // TODO: check hunger, etc, then eat it...
+                return true;
+            },
+            .wooden_button, .stone_button => {
+                // TODO: push the button
+                return true;
+            },
+            .cauldron => true,
+            .chest => true,
+            .command_block => {
+                std.debug.panic("TODO: block entities", .{});
+            },
+            .powered_comparator, .unpowered_comparator => {
+                // TODO: check can modify world, toggle it
+                return true;
+            },
+            .crafting_table => true,
+            .daylight_detector, .daylight_detector_inverted => {
+                // TODO: check can modify, toggle it
+                return true;
+            },
+            .dispenser => true,
+
+            // TODO: doors
+
+            .dragon_egg => true,
+
+            .enchanting_table => true,
+
+            .ender_chest => true,
+
+            // TODO: fences
+
+            // TODO: fence gates
+
+            // TODO: flower pot
+
+            .furnace, .lit_furnace => true,
+
+            .hopper => true,
+
+            .jukebox => {
+                // TODO: set state and return true iff had record
+                return true;
+            },
+
+            .lever => true,
+
+            .noteblock => true,
+
+            .lit_redstone_ore => {
+                // TODO: set state but don't actually return true
+                return false;
+            },
+
+            .powered_repeater, .unpowered_repeater => {
+                // TODO: check can modify world, toggle it
+                return true;
+            },
+
+            .tnt => {
+                // TODO: ignite with flint and steel
+                return false;
+            },
+
+            // TODO: trapdoors
+
+            else => false,
+        };
     }
 
     pub const Properties = packed union(u4) {
