@@ -11,7 +11,6 @@ pub const Difficulty = @import("difficulty.zig").Difficulty;
 pub const GameMode = @import("gamemode.zig").GameMode;
 pub const GeneratorType = @import("generatortype.zig").GeneratorType;
 
-const Inventory = main.Inventory;
 const Block = main.Block;
 const Box = main.Box;
 const Client = main.Client;
@@ -20,6 +19,8 @@ const Entity = main.Entity;
 const LocalPlayerEntity = main.Entity.LocalPlayer;
 const EventHandler = main.EventHandler;
 const Events = main.Events;
+const HitResult = main.HitResult;
+const Inventory = main.Inventory;
 const Menu = main.Menu;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
@@ -41,6 +42,8 @@ crafting_result_inventory: *Inventory,
 player_inventory_menu: Menu,
 
 menu: union(enum) { none, player_menu, other: Menu } = .none,
+
+crosshair: HitResult = .miss,
 
 mining_state: ?struct {
     block_pos: Vector3(i32),
@@ -75,8 +78,13 @@ pub fn init(
     };
 }
 
+pub fn pick(self: *@This()) void {
+    self.crosshair = .rayTraceWorld(.{}, self, self.player.getEyePos(), self.player.base.rotation, 30);
+}
+
 pub fn tick(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = allocator;
+
     self.entity_tracker.processEntityRemovals();
     var entity_iter = self.entity_tracker.entities.keyIterator();
     while (entity_iter.next()) |maybe_entity| {

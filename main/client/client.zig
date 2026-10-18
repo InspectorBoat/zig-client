@@ -60,8 +60,11 @@ pub const Client = union(enum) {
 
         pub fn handleInputOnTick(self: *@This(), io: std.Io) !void {
             const interactions = @import("interactions.zig");
+
             const player = &self.world.player;
             const inputs = &self.input_manager;
+
+            try interactions.updateHotbarSlot(io, self, player);
 
             inputs.hand.attack_cooldown -|= 1;
             inputs.hand.auto_use_cooldown -|= 1;
@@ -79,7 +82,7 @@ pub const Client = union(enum) {
                                 },
                                 false => inputs.hand.drop = false,
                             },
-                            .main => |attack| switch (attack) {
+                            .attack => |attack| switch (attack) {
                                 true => {
                                     attack_presses += 1;
                                     inputs.hand.attack = true;
@@ -92,6 +95,9 @@ pub const Client = union(enum) {
                                     inputs.hand.use = true;
                                 },
                                 false => inputs.hand.use = false,
+                            },
+                            .hotkey => |hotkey| {
+                                if (hotkey.@"1") self.world.player.hotbar_slot = @intCast(hotkey.@"0");
                             },
                             else => {},
                         }
@@ -112,7 +118,7 @@ pub const Client = union(enum) {
                 }
             }
 
-            if (self.world.mining_state) |mining_state| std.log.debug("{}", .{mining_state.progress});
+            for (0..drop_presses) |_| if (inputs.movement.sprint) try interactions.dropEntireStack(io, self) else try interactions.dropSingleItem(io, self);
 
             if (player.item_in_use != null) {
                 if (!inputs.hand.use) try interactions.stopUsingItem(io, self, player);
@@ -128,8 +134,8 @@ pub const Client = union(enum) {
             if (!inputs.hand.attack) self.input_manager.hand.attack_cooldown = 0;
 
             if (self.input_manager.hand.attack_cooldown == 0 and player.item_in_use == null) {
-                if (inputs.hand.attack and player.crosshair == .block)
-                    try interactions.updateBlockMining(io, self, player, player.crosshair.block.block_pos, player.crosshair.block.dir)
+                if (inputs.hand.attack and self.world.crosshair == .block)
+                    try interactions.updateBlockMining(io, self, player, self.world.crosshair.block.block_pos, self.world.crosshair.block.dir)
                 else
                     try interactions.stopMiningBlock(io, self);
             }
@@ -184,8 +190,9 @@ pub const Client = union(enum) {
                 // Do logging
                 logTickStatistics(game.partial_tick, ticks_elapsed);
 
-                try game.handleInputOnTick(io);
                 for (0..ticks_elapsed) |_| {
+                    game.world.pick();
+                    try game.handleInputOnTick(io);
                     try game.world.tick(io, game.gpa, game);
                 }
             },

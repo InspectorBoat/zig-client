@@ -409,7 +409,7 @@ pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !v
 }
 
 pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
-    switch (world.player.crosshair) {
+    switch (world.crosshair) {
         .block => |block| {
             const pos: Vector3(f32) = .floatFromInt(block.block_pos);
             try self.@"3d_debug_staging_buffer".writeDebugCube(

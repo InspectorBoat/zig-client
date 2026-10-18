@@ -4,7 +4,6 @@ const main = @import("main");
 
 const Client = main.Client;
 const Entity = main.Entity;
-const HitResult = main.HitResult;
 const ItemStack = main.ItemStack;
 const Rotation2 = main.Rotation2;
 const Vector2xz = main.Vector2xz;
@@ -37,15 +36,12 @@ server_movement_status: struct {
     ticks_since_sent_movement: i32 = 0,
 } = .{},
 
-crosshair: HitResult = .miss,
-
 sneaking: bool = false,
 
 hotbar_slot: u8 = 0,
+server_hotbar_slot: u8 = 0,
 
 pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
-    self.crosshair = HitResult.rayTraceWorld(.{}, game.world, self.getEyePos(), self.base.rotation, 30);
-
     // tick spectator onground and noclip
     if (self.player.isSpectator(game)) {
         self.base.colliding.on_ground = false;
@@ -55,6 +51,8 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     }
     // tick item use
     if (self.item_in_use) |item_in_use| {
+        // TODO: Vanilla uses a pointer equality check.
+        // We need to figure out how to emulate it.
         if (!ItemStack.deepEquals(item_in_use, self.getHeldStack(game))) {
             self.item_in_use = null;
         } else {

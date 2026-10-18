@@ -188,7 +188,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             .MouseButton => |button| {
                 if (button.action == .repeat) continue;
                 switch (button.button) {
-                    .left => try input_queue.queueOnTick(.{ .hand = .{ .main = (button.action == .press) } }),
+                    .left => try input_queue.queueOnTick(.{ .hand = .{ .attack = (button.action == .press) } }),
                     .right => try input_queue.queueOnTick(.{ .hand = .{ .use = (button.action == .press) } }),
                     else => {},
                 }

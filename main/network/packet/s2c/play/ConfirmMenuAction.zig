@@ -26,7 +26,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     // simply send the packet back for now, vanilla logic is more complicated
     std.log.scoped(.transaction).debug("transaction - {any}", .{self});
     try game.connection_handle.sendPlayPacket(io, .{ .confirm_menu_action = .{
-        .accepted = self.accepted,
+        .accepted = true,
         .action_id = self.action_id,
         .menu_network_id = @bitCast(self.menu_network_id),
     } });

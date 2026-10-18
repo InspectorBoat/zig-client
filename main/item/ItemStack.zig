@@ -2,8 +2,12 @@ const std = @import("std");
 
 const main = @import("main");
 
+const World = main.World;
+const Vector3 = main.Vector3;
 const Item = main.Item;
 const Nbt = main.Nbt;
+const Entity = main.Entity;
+const Direction = main.Direction;
 
 nbt: ?Nbt.Compound,
 item: Item,
@@ -34,4 +38,24 @@ pub fn deepEquals(maybe_lhs: ?@This(), maybe_rhs: ?@This()) bool {
             };
         } else return false;
     } else return maybe_rhs == null;
+}
+
+pub fn canPlace(self: @This(), world: *const World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction) bool {
+    _ = world;
+    _ = block_pos;
+    _ = dir;
+    _ = player;
+    std.debug.assert(self.item.isBlock());
+
+    return true;
+}
+
+pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
+    _ = self;
+    _ = world;
+    _ = block_pos;
+    _ = dir;
+    _ = player;
+    _ = pos;
+    return true;
 }

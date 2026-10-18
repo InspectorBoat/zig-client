@@ -1,11 +1,10 @@
 const std = @import("std");
 
-const Nbt = main.Nbt;
-
 const main = @import("main");
 const Uuid = @import("util").Uuid;
 
 const ItemStack = main.ItemStack;
+const Nbt = main.Nbt;
 const Vector3 = main.Vector3;
 const network = main.network;
 const VarIntByte = network.VarIntByte;
@@ -118,9 +117,10 @@ pub fn writeString(self: *@This(), s: []const u8) (error{StringTooLarge} || std.
     try self.writeBytes(s);
 }
 
-/// TODO: this is probably wrong
-pub fn writeJavaUtf(self: *@This(), s: []const u8) !void {
-    try self.write(i32, @intCast(s.len));
+/// Uses a u16 and java's """""""""slight modification""""""""" of utf8
+pub fn writeJavaUtf(self: *@This(), s: []const u8) (error{StringTooLarge} || std.mem.Allocator.Error)!void {
+    if (s.len > 0xffff) return error.StringTooLarge;
+    try self.write(u16, @intCast(s.len));
     try self.writeBytes(s);
 }
 
@@ -224,4 +224,70 @@ test writeVarInt {
     try buffer.writeVarInt(25565);
     try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x01, 0x02, 0x7f, 0xff, 0x01, 0xdd, 0xc7, 0x01 }, buffer.backer.items);
     buffer.clear();
+}
+
+test "writeJavaUtf" {
+    const allocator = std.testing.allocator;
+    var buffer: @This() = .initBuffer(try allocator.alloc(u8, 4096));
+    defer buffer.backer.deinit(allocator);
+
+    // u16 length prefix, not varint and not i32
+    try buffer.writeJavaUtf("hi");
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x02, 'h', 'i' }, buffer.backer.items);
+    buffer.clear();
+
+    try buffer.writeJavaUtf("");
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x00 }, buffer.backer.items);
+    buffer.clear();
+
+    const too_long = try allocator.alloc(u8, 0x10000);
+    defer allocator.free(too_long);
+    @memset(too_long, 'x');
+    try std.testing.expectError(error.StringTooLarge, buffer.writeJavaUtf(too_long));
+    try std.testing.expectEqual(@as(usize, 0), buffer.backer.items.len);
+}
+
+test "readJavaUtfAllocating" {
+    const allocator = std.testing.allocator;
+    // exactly what java's DataOutput.writeUTF produces for "hi"
+    const vanilla = [_]u8{ 0x00, 0x02, 'h', 'i' };
+
+    var buffer: ReadBuffer = .{ .backer = &vanilla, .read_location = 0 };
+    const read = try buffer.readJavaUtfAllocating(allocator);
+    defer allocator.free(read);
+    try std.testing.expectEqualStrings("hi", read);
+    try std.testing.expectEqual(vanilla.len, buffer.read_location);
+}
+
+test "writeItemStack" {
+    const allocator = std.testing.allocator;
+    var buffer: @This() = .initBuffer(try allocator.alloc(u8, 4096));
+    defer buffer.backer.deinit(allocator);
+
+    try buffer.writeItemStack(null);
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 0xff, 0xff }, buffer.backer.items);
+    buffer.clear();
+
+    const plain: ItemStack = .{ .item = .stone, .size = 3, .metadata = 0, .nbt = null };
+    try buffer.writeItemStack(plain);
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x01, 0x03, 0x00, 0x00, 0x00 }, buffer.backer.items);
+    buffer.clear();
+
+    // Nbt.String owns its buffer (deinit frees it), so an int is used here to keep
+    // the test free of ownership bookkeeping; the name still goes through writeJavaUtf
+    const entry: Nbt = .{ .int = .{ .value = 1 } };
+    var compound = try Nbt.Compound.init(allocator, .{ .s = entry });
+    defer compound.deinit(allocator);
+
+    try buffer.writeItemStack(.{ .item = .stone, .size = 3, .metadata = 0, .nbt = compound });
+    try std.testing.expectEqualSlices(u8, &[_]u8{
+        0x00, 0x01, //           item id
+        0x03, //                 count
+        0x00, 0x00, //           damage
+        0x0a, //                TAG_Compound
+        0x00, 0x00, //           empty name
+        0x03, 0x00, 0x01, 's', // TAG_Int "s"
+        0x00, 0x00, 0x00, 0x01, //   1
+        0x00, // TAG_End
+    }, buffer.backer.items);
 }

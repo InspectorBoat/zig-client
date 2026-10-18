@@ -2,8 +2,9 @@ const std = @import("std");
 
 const main = @import("main");
 
-const ItemStack = main.ItemStack;
 const Inventory = @import("Inventory.zig");
+
+const ItemStack = main.ItemStack;
 
 network_id: i32,
 slots: []Slot,

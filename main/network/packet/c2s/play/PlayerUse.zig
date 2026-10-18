@@ -7,7 +7,7 @@ const C2S = main.network.packet.C2S;
 
 block_pos: ?Vector3(i32),
 face: ?Direction,
-stack: ItemStack,
+stack: ?ItemStack,
 offset: ?Vector3(f32),
 
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {

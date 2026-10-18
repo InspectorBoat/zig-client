@@ -1,6 +1,10 @@
 const std = @import("std");
 
-const Block = @import("block.zig").Block;
+const Block = @import("main").Block;
+const World = @import("main").World;
+const Entity = @import("main").Entity;
+const Vector3 = @import("main").Vector3;
+const Direction = @import("main").Direction;
 
 pub const PhysicalState = packed struct(u16) {
     properties: Properties,
@@ -34,6 +38,16 @@ pub const PhysicalState = packed struct(u16) {
             @field(self.properties, @tagName(block))
         else
             null;
+    }
+
+    pub fn use(self: @This(), world: *World, player: *Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
+        _ = self;
+        _ = world;
+        _ = block_pos;
+        _ = dir;
+        _ = player;
+        _ = pos;
+        return true;
     }
 
     pub const Properties = packed union(u4) {

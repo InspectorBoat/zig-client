@@ -3,7 +3,6 @@ const std = @import("std");
 const main = @import("main");
 
 const Client = main.Client;
-const ItemStack = main.ItemStack;
 const S2C = main.network.packet.S2C;
 
 menu_network_id: i32,

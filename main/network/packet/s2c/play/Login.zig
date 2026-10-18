@@ -70,10 +70,18 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     errdefer world.deinit(allocator);
 
     // send brand packet
-    try connecting.connection_handle.sendPlayPacket(io, .{ .custom_payload = .{
-        .channel = "MC|Brand",
-        .data = "vanilla",
-    } });
+    const brand = comptime blk: {
+        var buf: [9]u8 = undefined;
+        var scratch: main.network.packet.C2S.WriteBuffer = .initBuffer(&buf);
+        scratch.writeJavaUtf("vanilla") catch unreachable;
+        break :blk scratch.backer.items.*;
+    };
+    try connecting.connection_handle.sendPlayPacket(io, .{
+        .custom_payload = .{
+            .channel = "MC|Brand",
+            .data = &brand,
+        },
+    });
 
     try connecting.connection_handle.sendPlayPacket(io, .{ .client_settings = .{
         .language = "English",

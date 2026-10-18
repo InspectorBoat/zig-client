@@ -1,4 +1,6 @@
 pub const ItemStack = @import("ItemStack.zig");
+const main = @import("main");
+const Block = main.Block;
 
 pub const Item = enum(u16) {
     stone = 1,
@@ -339,4 +341,14 @@ pub const Item = enum(u16) {
     record_ward = 2265,
     record_11 = 2266,
     record_wait = 2267,
+
+    pub fn isBlock(self: @This()) bool {
+        return @backingInt(self) <= @backingInt(Block.dark_oak_door);
+    }
+    pub fn getBlock(self: @This()) ?Block {
+        return if (self.isBlock())
+            @fromBackingInt(@intCast(@backingInt(self)))
+        else
+            null;
+    }
 };

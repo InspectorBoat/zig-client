@@ -25,7 +25,7 @@ pub const Input = union(enum) {
         sneak: bool,
     },
     hand: union(enum) {
-        main: bool,
+        attack: bool,
         pick: bool,
         use: bool,
         hotkey: struct { i32, bool },

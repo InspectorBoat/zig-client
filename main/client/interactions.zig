@@ -7,16 +7,10 @@ const Direction = main.Direction;
 const LocalPlayer = main.Entity.LocalPlayer;
 const Vector3 = main.Vector3;
 
-pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
-    _ = io;
-    _ = game;
-    _ = player;
-}
-
 pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     if (game.input_manager.hand.attack_cooldown > 0) return;
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
-    switch (player.crosshair) {
+    switch (game.world.crosshair) {
         .entity => |entity| try attackEntity(io, game, entity.entity_network_id),
         .block => |block| try startMiningBlock(io, game, player, block.block_pos, block.dir),
         .miss => game.input_manager.hand.attack_cooldown = 10,
@@ -34,7 +28,7 @@ pub fn attackEntity(io: std.Io, game: *Game, entity_network_id: i32) !void {
 
 pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
     // TODO: Check game mode, world border
-    std.debug.assert(player.crosshair == .block);
+    std.debug.assert(game.world.crosshair == .block);
 
     if (game.world.getBlock(block_pos) == .air) return;
     // TODO: adventure mode tag overrides
@@ -80,8 +74,8 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
     if (block.getMiningProgress(player) >= 1.0) {
         try finishMiningBlock(game, block_pos);
     } else game.world.mining_state = .{
-        .block_pos = player.crosshair.block.block_pos,
-        .face = player.crosshair.block.dir,
+        .block_pos = game.world.crosshair.block.block_pos,
+        .face = game.world.crosshair.block.dir,
     };
 }
 
@@ -114,6 +108,8 @@ pub fn finishMiningBlock(game: *Game, block_pos: Vector3(i32)) !void {
 }
 
 pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
+    try updateHotbarSlot(io, game, player);
+
     if (game.input_manager.hand.mining_cooldown > 0) {
         game.input_manager.hand.mining_cooldown -|= 1;
         return;
@@ -173,9 +169,9 @@ pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
 
     game.input_manager.hand.auto_use_cooldown = 4;
 
-    const interaction_consumed = switch (player.crosshair) {
+    const interaction_consumed = switch (game.world.crosshair) {
         .entity => try interactEntityAt(io, game, player) or try interactEntity(io, game, player),
-        .block => try useBlock(game, player),
+        .block => try useBlock(io, game, player),
         .miss => false,
     };
 
@@ -187,6 +183,8 @@ pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
 pub fn useItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     if (game.world.game_mode == .Spectator) return;
 
+    try updateHotbarSlot(io, game, player);
+
     const held_stack = player.getHeldStack(game) orelse return;
 
     try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
@@ -197,47 +195,105 @@ pub fn useItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     } });
 
     switch (held_stack.item) {
-        .diamond_sword => {
+        .iron_sword, .wooden_sword, .stone_sword, .golden_sword, .diamond_sword, .bow => {
             player.item_in_use = held_stack;
             player.item_use_timer = 72000;
         },
+        .apple, .bread, .porkchop, .cooked_porkchop, .cookie, .melon, .beef, .cooked_beef, .chicken, .cooked_chicken, .rotten_flesh, .spider_eye, .baked_potato, .poisonous_potato, .golden_carrot, .pumpkin_pie, .rabbit, .cooked_rabbit, .mutton, .cooked_mutton, .mushroom_stew, .rabbit_stew, .carrot, .potato, .golden_apple, .potion, .milk_bucket, .fish, .cooked_fish => {
+            player.item_in_use = held_stack;
+            player.item_use_timer = 32;
+        },
+
         else => {},
     }
 }
 
-/// TODO
+/// No entities have a client-side interact-at interaction in 1.8.9
 pub fn interactEntityAt(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
+    try updateHotbarSlot(io, game, player);
+
     try game.connection_handle.sendPlayPacket(io, .{ .player_interact_entity = .{
-        .action = .{ .interact_at = player.crosshair.entity.pos },
-        .target_network_id = player.crosshair.entity.entity_network_id,
+        .action = .{ .interact_at = game.world.crosshair.entity.pos },
+        .target_network_id = game.world.crosshair.entity.entity_network_id,
     } });
     return false;
 }
 
 /// TODO
 pub fn interactEntity(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
+    try updateHotbarSlot(io, game, player);
+
     try game.connection_handle.sendPlayPacket(io, .{ .player_interact_entity = .{
         .action = .interact,
-        .target_network_id = player.crosshair.entity.entity_network_id,
+        .target_network_id = game.world.crosshair.entity.entity_network_id,
     } });
     return false;
 }
 
 /// Returns whether the interaction was consumed
 /// Attempts to either interact with block or place block
-pub fn useBlock(game: *Game, player: *LocalPlayer) !bool {
-    // TODO: World border, check gamemode
-    std.debug.assert(player.crosshair == .block);
-    std.debug.assert(game.world.getBlock(player.crosshair.block.block_pos) != .air);
+pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
+    try updateHotbarSlot(io, game, player);
 
+    // TODO: World border
+
+    const crosshair = game.world.crosshair.block;
+
+    std.debug.assert(game.world.getBlock(crosshair.block_pos) != .air);
+
+    const maybe_held_item_stack = player.getHeldStack(game);
+
+    if (game.world.game_mode == .Spectator) {
+        try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
+            .block_pos = crosshair.block_pos,
+            .face = crosshair.dir,
+            .stack = maybe_held_item_stack,
+            .offset = .floatCast(crosshair.pos),
+        } });
+        return true;
+    }
+
+    const block_state = game.world.getBlockState(crosshair.block_pos);
+
+    var consumed: bool = false;
+
+    // if we are *not* sneaking, or our hand is empty, try to interact with the block itself
+    if (!player.isSneaking() or maybe_held_item_stack == null) {
+        consumed = block_state.use(&game.world, player, crosshair.block_pos, crosshair.dir, crosshair.pos);
+    }
+
+    // if we are holding a block item, try to place it directly
+    if (!consumed) {
+        if (maybe_held_item_stack) |held_item_stack| {
+            if (held_item_stack.item.isBlock()) {
+                if (held_item_stack.canPlace(&game.world, player, crosshair.block_pos, crosshair.dir)) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
+        .block_pos = crosshair.block_pos,
+        .face = crosshair.dir,
+        .stack = maybe_held_item_stack,
+        .offset = .floatCast(crosshair.pos),
+    } });
+
+    if (consumed) return true;
+
+    if (maybe_held_item_stack) |held_item_stack| {
+        return held_item_stack.useOn(&game.world, player, crosshair.block_pos, crosshair.dir, crosshair.pos);
+    }
     return false;
 }
 
 pub fn stopUsingItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
-    try game.connection_handle.sendPlayPacket(
-        io,
-        .{ .player_hand_action = .{ .action = .stop_using_item, .block_pos = .origin(), .face = .down } },
-    );
+    try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
+        .action = .stop_using_item,
+        .block_pos = .origin(),
+        .face = .down,
+    } });
     player.item_in_use = null;
     player.item_use_timer = 0;
 }
@@ -246,4 +302,13 @@ pub fn pick(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     _ = io;
     _ = game;
     _ = player;
+}
+
+pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
+    if (player.hotbar_slot != player.server_hotbar_slot) {
+        try game.connection_handle.sendPlayPacket(io, .{ .select_slot = .{
+            .slot = player.hotbar_slot,
+        } });
+        player.server_hotbar_slot = player.hotbar_slot;
+    }
 }

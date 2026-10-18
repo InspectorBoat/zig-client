@@ -5,10 +5,10 @@ const render = @import("render");
 const util = @import("util");
 
 pub const block = @import("block/block.zig");
+pub const Inventory = @import("inventory/Inventory.zig");
+pub const Menu = @import("inventory/Menu.zig");
 pub const item = @import("item/item.zig");
 pub const math = @import("math/math.zig");
-pub const Menu = @import("inventory/Menu.zig");
-pub const Inventory = @import("inventory/Inventory.zig");
 pub const network = @import("network/network.zig");
 pub const World = @import("world/World.zig");
 pub const Client = @import("client/client.zig").Client;
@@ -51,6 +51,7 @@ pub const std_options: std.Options = .{
         .{ .scope = .resource_pack, .level = .info },
         .{ .scope = .section_revision, .level = .warn },
         .{ .scope = .ring_buffer, .level = .warn },
+        .{ .scope = .transaction, .level = .warn },
     },
 };
 

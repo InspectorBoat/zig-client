@@ -14,6 +14,7 @@ pub const HitType = enum { block, entity, miss };
 pub const HitResult = union(HitType) {
     block: struct {
         block_pos: Vector3(i32),
+        /// in local space already
         pos: Vector3(f64),
         dir: Direction,
     },
@@ -31,7 +32,7 @@ pub const HitResult = union(HitType) {
 
     pub fn rayTraceBlocks(
         comptime options: RayTraceOptions,
-        world: World,
+        world: *const World,
         origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,
@@ -118,7 +119,7 @@ pub const HitResult = union(HitType) {
             const block = world.getBlock(from_block_pos);
             for (world.resolveVirtualBlockState(from_block_pos).getRaytraceHitboxes()) |maybe_hitbox| {
                 if (maybe_hitbox) |hitbox| {
-                    if (hitbox.min.equals(Vector3(f64).origin()) and hitbox.max.equals(Vector3(f64).origin())) continue;
+                    if (Vector3(f64).equals(hitbox.min, .origin()) and Vector3(f64).equals(hitbox.max, .origin())) continue;
 
                     if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
                     if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
@@ -153,7 +154,7 @@ pub const HitResult = union(HitType) {
     }
 
     pub fn rayTraceEntities(
-        world: World,
+        world: *const World,
         origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,
@@ -205,7 +206,7 @@ pub const HitResult = union(HitType) {
 
     pub fn rayTraceWorld(
         comptime options: RayTraceOptions,
-        world: World,
+        world: *const World,
         origin: Vector3(f64),
         rotation: Rotation2(f32),
         range: f64,

@@ -164,16 +164,14 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
     return item_stack;
 }
 
-/// Uses an i32 and java's """""""""slight  modification""""""""" of utf8
+/// Uses a u16 and java's """""""""slight modification""""""""" of utf8
 pub fn readJavaUtfAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
-    const length = try self.read(i32);
-    return try self.readBytesAllocating(allocator, @intCast(length));
+    return try self.readBytesAllocating(allocator, try self.read(u16));
 }
 
-/// Uses an i32 and java's """""""""slight  modification""""""""" of utf8
-pub fn readJavaUtfNonAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
-    const length = try self.read(i32);
-    return try self.readBytesNonAllocating(@intCast(length), allocator);
+/// Uses a u16 and java's """""""""slight modification""""""""" of utf8
+pub fn readJavaUtfNonAllocating(self: *@This()) ![]const u8 {
+    return try self.readBytesNonAllocating(try self.read(u16));
 }
 
 pub fn readBlockPos(self: *@This()) !Vector3(i32) {

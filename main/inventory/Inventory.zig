@@ -1,5 +1,6 @@
-const ItemStack = @import("main").ItemStack;
 const std = @import("std");
+
+const ItemStack = @import("main").ItemStack;
 
 stacks: []?ItemStack,
 
