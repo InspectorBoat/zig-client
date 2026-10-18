@@ -294,7 +294,7 @@ pub const Block = enum(u8) {
         return switch (self) {
             // these blocks do not exist in item form
             // TODO: find them all
-            .air, .piston_head, .tripwire => unreachable,
+            .air, .fire, .piston_extension, .piston_head, .tripwire => unreachable,
 
             .stone_pressure_plate,
             .wooden_pressure_plate,
@@ -329,16 +329,32 @@ pub const Block = enum(u8) {
             .unpowered_comparator,
             .powered_comparator,
             .flower_pot,
-            .fence_gate,
-            .redstone_wire,
             => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
+
+            .redstone_wire => replaceable and (world.getBlockState(pos.down()).hasSolidTop() or world.getBlock(pos.down()) == .glowstone),
+
+            .fence_gate,
+            .spruce_fence_gate,
+            .birch_fence_gate,
+            .jungle_fence_gate,
+            .acacia_fence_gate,
+            .dark_oak_fence_gate,
+            .cake,
+            => replaceable and world.getBlock(pos.down()).getMaterial().isSolid(),
+
+            .cactus => {
+                if (!replaceable) return false;
+                for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)).getMaterial().isSolid()) return false;
+                const below = world.getBlock(pos.down());
+                return below == .cactus or below == .sand;
+            },
 
             .carpet,
             => replaceable and world.getBlock(pos.down()) != .air,
 
             .pumpkin, .lit_pumpkin => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
 
-            .red_flower, .yellow_flower, .sapling => replaceable and switch (world.getBlock(pos.down())) {
+            .red_flower, .yellow_flower, .sapling, .tallgrass => replaceable and switch (world.getBlock(pos.down())) {
                 .grass, .dirt, .farmland => true,
                 else => false,
             },
@@ -368,15 +384,13 @@ pub const Block = enum(u8) {
             .chest, .trapped_chest => {
                 var neighbouring_chests: usize = 0;
                 for (Direction.horizontals) |side| {
-                    const other = world.getBlock(pos.dir(side));
-                    if (other == .chest or other == .trapped_chest) {
-                        neighbouring_chests += 1;
-                        // a neighbour that itself has a same-block neighbour is a double chest
-                        // cannot place a chest next to a double chest (of the same type)
-                        for (Direction.horizontals) |diag| {
-                            if (world.getBlock(pos.dir(side).dir(diag)) == other) return false;
-                        }
+                    if (world.getBlock(pos.dir(side)) != self) continue;
+                    // a neighbour that itself has a same-block neighbour is a double chest
+                    // cannot place a chest next to a double chest (of the same type)
+                    for (Direction.horizontals) |diag| {
+                        if (world.getBlock(pos.dir(side).dir(diag)) == self) return false;
                     }
+                    neighbouring_chests += 1;
                 }
                 // at most one orthogonal neighbour
                 return neighbouring_chests <= 1;
@@ -397,7 +411,21 @@ pub const Block = enum(u8) {
                     const side_block = world.getBlock(pos.dir(side));
                     if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
                 }
-                return world.getBlockState(pos.down()).hasSolidTop();
+                const below = world.getBlockState(pos.down());
+                return below.hasSolidTop() or switch (below.block) {
+                    .fence,
+                    .nether_brick_fence,
+                    .spruce_fence,
+                    .birch_fence,
+                    .jungle_fence,
+                    .dark_oak_fence,
+                    .acacia_fence,
+                    .glass,
+                    .cobblestone_wall,
+                    .stained_glass,
+                    => true,
+                    else => false,
+                };
             },
 
             .stone_button, .wooden_button, .lever => if (dir.plane() == .horizontal)
@@ -441,12 +469,11 @@ pub const Block = enum(u8) {
             .tripwire_hook => dir.plane() == .horizontal and world.getBlock(pos.dir(dir.opposite())).isSolid(),
 
             .vine => {
+                if (dir == .down) return false;
                 const target = world.getBlock(if (dir == .up) pos.up() else pos.dir(dir.opposite()));
                 return target.isCube() and target.getMaterial().blocksMovement();
             },
 
-            // sugarcane grows on a sand/grass/dirt block with water besides it
-            // or on another sugarcane
             .reeds => {
                 const below = world.getBlock(pos.down());
                 if (below == .reeds) return true;
@@ -457,7 +484,6 @@ pub const Block = enum(u8) {
                 return false;
             },
 
-            // snow layer stacks on leaves or another full snow layer
             .snow_layer => {
                 const below = world.getBlockState(pos.down());
                 switch (below.block) {
@@ -465,7 +491,7 @@ pub const Block = enum(u8) {
                     .leaves, .leaves2 => return true,
                     .snow_layer => return below.payload(.snow_layer).layers == .@"7" or below.payload(.snow_layer).layers == .@"8",
                     // TODO: implement block.isSolidRender
-                    else => return below.hasSolidTop(),
+                    else => |block| return block.getMaterial().blocksMovement(),
                 }
             },
 

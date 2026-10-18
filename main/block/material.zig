@@ -101,6 +101,10 @@ pub const Material = enum {
         return liquid.contains(self);
     }
 
+    pub fn isSolid(self: @This()) bool {
+        return solid.contains(self);
+    }
+
     pub fn isOpaque(self: @This()) bool {
         return @"opaque".contains(self);
     }

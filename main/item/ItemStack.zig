@@ -40,15 +40,6 @@ pub fn deepEquals(maybe_lhs: ?@This(), maybe_rhs: ?@This()) bool {
     } else return maybe_rhs == null;
 }
 
-pub fn canPlace(self: @This(), world: *const World, block_pos: Vector3(i32), dir: Direction) bool {
-    _ = world;
-    _ = block_pos;
-    _ = dir;
-    std.debug.assert(self.item.isBlock());
-
-    return true;
-}
-
 pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
     _ = self;
     _ = world;
