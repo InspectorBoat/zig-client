@@ -384,8 +384,19 @@ pub const VirtualState = union(Block) {
                 .short = false,
             } },
             inline else => |block| {
-                var properties: @FieldType(VirtualState, @tagName(block)) = undefined;
-                inline for (@typeInfo(@TypeOf(properties)).@"struct".field_names) |field_name| {
+                const VirtualProperty = @FieldType(VirtualState, @tagName(block));
+                const PhysicalProperty = @FieldType(PhysicalState.Properties, @tagName(block));
+
+                var properties: VirtualProperty = undefined;
+
+                // Make sure all properties that exist on VirtualProperty exist on PhysicalProperty
+                inline for (@typeInfo(VirtualProperty).@"struct".field_names) |field_name| {
+                    comptime std.debug.assert(@hasField(PhysicalProperty, field_name));
+                }
+
+                // Copy every field in PhysicalProperty into VirtualProperty (except for _)
+                inline for (@typeInfo(PhysicalProperty).@"struct".field_names) |field_name| {
+                    if (comptime std.mem.eql(u8, field_name, "_")) continue;
                     @field(properties, field_name) = @field(physical.payload(block), field_name);
                 }
                 return @unionInit(@This(), @tagName(block), properties);
@@ -402,15 +413,19 @@ pub const VirtualState = union(Block) {
         };
     }
 
+    // TODO: ALl the code below this line is abysmal dogshit and I have not verified all of it
+
     pub fn getCollisionHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
         switch (self) {
             .air, .sapling, .flowing_water, .water, .flowing_lava, .lava, .tallgrass, .deadbush, .web, .yellow_flower, .red_flower, .brown_mushroom, .red_mushroom, .fire, .golden_rail, .detector_rail, .rail, .activator_rail, .redstone_wire, .torch, .unlit_redstone_torch, .redstone_torch, .standing_sign, .wall_sign, .lever, .stone_pressure_plate, .wooden_pressure_plate, .light_weighted_pressure_plate, .heavy_weighted_pressure_plate, .stone_button, .wooden_button, .reeds, .wheat, .carrots, .potatoes, .nether_wart, .pumpkin_stem, .melon_stem, .double_plant, .vine, .tripwire, .tripwire_hook, .standing_banner, .wall_banner, .end_portal, .piston_extension, .portal => {},
 
-            .stone, .grass, .dirt, .cobblestone, .planks, .bedrock, .sand, .gravel, .gold_ore, .iron_ore, .coal_ore, .log, .leaves, .sponge, .glass, .lapis_ore, .lapis_block, .dispenser, .sandstone, .noteblock, .bed, .wool, .gold_block, .iron_block, .double_stone_slab, .brick_block, .tnt, .bookshelf, .mossy_cobblestone, .obsidian, .mob_spawner, .diamond_ore, .diamond_block, .crafting_table, .furnace, .lit_furnace, .redstone_ore, .lit_redstone_ore, .ice, .snow, .clay, .jukebox, .pumpkin, .netherrack, .glowstone, .lit_pumpkin, .stained_glass, .monster_egg, .stonebrick, .brown_mushroom_block, .red_mushroom_block, .melon_block, .mycelium, .nether_brick, .end_stone, .redstone_lamp, .lit_redstone_lamp, .double_wooden_slab, .emerald_ore, .emerald_block, .command_block, .beacon, .anvil, .unpowered_comparator, .powered_comparator, .redstone_block, .quartz_ore, .quartz_block, .dropper, .stained_hardened_clay, .leaves2, .log2, .slime, .barrier, .prismarine, .sea_lantern, .hay_block, .hardened_clay, .coal_block, .packed_ice, .red_sandstone, .double_stone_slab2 => {
+            .stone, .grass, .dirt, .cobblestone, .planks, .bedrock, .sand, .gravel, .gold_ore, .iron_ore, .coal_ore, .log, .leaves, .sponge, .glass, .lapis_ore, .lapis_block, .dispenser, .sandstone, .noteblock, .wool, .gold_block, .iron_block, .double_stone_slab, .brick_block, .tnt, .bookshelf, .mossy_cobblestone, .obsidian, .mob_spawner, .diamond_ore, .diamond_block, .crafting_table, .furnace, .lit_furnace, .redstone_ore, .lit_redstone_ore, .ice, .snow, .clay, .jukebox, .pumpkin, .netherrack, .glowstone, .lit_pumpkin, .stained_glass, .monster_egg, .stonebrick, .brown_mushroom_block, .red_mushroom_block, .melon_block, .mycelium, .nether_brick, .end_stone, .redstone_lamp, .lit_redstone_lamp, .double_wooden_slab, .emerald_ore, .emerald_block, .command_block, .beacon, .anvil, .unpowered_comparator, .powered_comparator, .redstone_block, .quartz_ore, .quartz_block, .dropper, .stained_hardened_clay, .leaves2, .log2, .slime, .barrier, .prismarine, .sea_lantern, .hay_block, .hardened_clay, .coal_block, .packed_ice, .red_sandstone, .double_stone_slab2 => {
                 hitboxes.appendAssumeCapacity(.unit_cube);
             },
 
             .farmland => hitboxes.appendAssumeCapacity(.unit_cube),
+
+            .bed => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.5625)),
 
             .cactus => hitboxes.appendAssumeCapacity(.centeredPost(0.0625, 0.9375)),
             .soul_sand => hitboxes.appendAssumeCapacity(.centeredPost(0, 0.875)),
