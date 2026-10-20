@@ -13,12 +13,12 @@
     },
     .dependencies = .{
         .mach_glfw = .{
-            .url = "git+https://github.com/InspectorBoat/mach_glfw.git#ace535f38771ede755f24acbc59c4b12bab0c56a",
-            .hash = "mach_glfw-0.2.0-HMuMvYVABQBYApVeo1oEqAnMTJ7nlGjx7NO0WnZ2MIKo",
+            .url = "git+https://github.com/InspectorBoat/mach_glfw.git#8db971184228f28a09729c9e9ddc87b45fb01ad2",
+            .hash = "mach_glfw-0.2.0-HMuMvTdDBQCrTaZoPKUDPIRzFANYQrRnxVugCM3n_uJT",
         },
         .zalgebra = .{
-            .url = "git+https://github.com/kooparse/zalgebra#0482fbaf8f17b90b51c333ea60e77dfa12aaf5e2",
-            .hash = "zalgebra-0.0.0-aaiVSoN_AQCWiF1SsKeHX0FxJ2-38OIPsqU9F-cVMQMN",
+            .url = "git+https://github.com/kooparse/zalgebra#b5ebfef29a76fffdf1bc5424ac4c9f49fe323df2",
+            .hash = "zalgebra-0.0.0-aaiVSn6AAQB8nPn_r_w4B679hFolc1a8IjNvSjpQMVzC",
         },
         .zgl = .{
             .url = "git+https://github.com/InspectorBoat/zgl#9b8dacf88a5634655ff8a5058b558ef5d780bfa9",
