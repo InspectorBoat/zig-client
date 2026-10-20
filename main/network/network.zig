@@ -1,8 +1,6 @@
+pub const Connection = @import("Connection.zig");
 pub const GameProfile = @import("GameProfile.zig");
-pub const connection = @import("connection.zig");
 pub const packet = @import("packet/packet.zig");
-pub const Connection = @import("connection.zig").Connection;
-pub const ConnectionHandle = @import("connection.zig").ConnectionHandle;
 pub const Protocol = @import("protocol.zig").Protocol;
 pub const ScaledRotation1 = @import("type/scaled_rotation.zig").ScaledRotation1;
 pub const ScaledRotation2 = @import("type/scaled_rotation.zig").ScaledRotation2;

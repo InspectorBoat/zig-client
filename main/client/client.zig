@@ -5,7 +5,6 @@ const main = @import("main");
 const Vector2xz = main.Vector2xz;
 const World = main.World;
 const Connection = main.network.Connection;
-const ConnectionHandle = main.network.ConnectionHandle;
 
 pub const Client = union(enum) {
     pub const Idle = struct {
@@ -21,7 +20,7 @@ pub const Client = union(enum) {
         ) !void {
             const gpa = self.gpa;
 
-            const connection_handle = try main.network.connection.initConnection(io, allocator, name, port, player_name);
+            const connection_handle: Connection.Handle = try .init(io, allocator, name, port, player_name);
 
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
 
@@ -35,12 +34,12 @@ pub const Client = union(enum) {
     pub const Connecting = struct {
         gpa: std.mem.Allocator,
 
-        connection_handle: ConnectionHandle,
+        connection_handle: Connection.Handle,
     };
     pub const Game = struct {
         gpa: std.mem.Allocator,
 
-        connection_handle: ConnectionHandle,
+        connection_handle: Connection.Handle,
 
         world: World,
         partial_tick: f64 = 0,
