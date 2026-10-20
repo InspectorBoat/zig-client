@@ -37,6 +37,16 @@ pub fn initBuffer(buffer: []u8) @This() {
     return .{ .buffer = buffer };
 }
 
+pub fn initCapacity(backing_allocator: std.mem.Allocator, capacity: usize) !@This() {
+    const buffer = try backing_allocator.alloc(u8, capacity);
+    return .{ .buffer = buffer };
+}
+
+pub fn deinit(self: *@This(), backing_allocator: std.mem.Allocator) void {
+    backing_allocator.free(self.buffer);
+    self.* = undefined;
+}
+
 pub fn toPhysicalIndex(self: *const @This(), logical_index: usize) usize {
     return logical_index % self.buffer.len;
 }

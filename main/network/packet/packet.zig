@@ -1,6 +1,8 @@
 const std = @import("std");
 
 pub const C2S = union(enum) {
+    pub const WritePacketError = error{ OutOfMemory, IllegalPacket };
+
     pub const WriteBuffer = @import("c2s/WriteBuffer.zig");
 
     pub const Handshake = union(enum) {
@@ -92,11 +94,16 @@ pub const C2S = union(enum) {
 
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
-            pub fn write(packet: PacketMixin, buffer: *C2S.WriteBuffer) !void {
+            pub fn write(packet: PacketMixin, buffer: *C2S.WriteBuffer) WritePacketError!void {
                 try buffer.writeVarInt(@backingInt(packet));
                 switch (packet) {
                     inline else => |specific_packet| {
-                        try specific_packet.write(buffer);
+                        specific_packet.write(buffer) catch |e| {
+                            if (e == error.OutOfMemory)
+                                return error.OutOfMemory
+                            else
+                                return error.IllegalPacket;
+                        };
                     },
                 }
             }
@@ -113,7 +120,7 @@ pub const S2C = union(enum) {
         pub const LoginFail = @import("s2c/login/LoginFail.zig");
         pub const LoginSuccess = @import("s2c/login/LoginSuccess.zig");
 
-        pub const decode = Mixin(@This()).decode;
+        pub const read = Mixin(@This()).read;
 
         login_fail: LoginFail,
         hello: Hello,
@@ -196,7 +203,7 @@ pub const S2C = union(enum) {
         pub const ResourcePack = @import("s2c/play/ResourcePack.zig");
         pub const EntitySync = @import("s2c/play/EntitySync.zig");
 
-        pub const decode = Mixin(@This()).decode;
+        pub const read = Mixin(@This()).read;
 
         keep_alive: KeepAlive,
         login: S2C.Play.Login,
@@ -277,7 +284,7 @@ pub const S2C = union(enum) {
         pub const Ping = @import("s2c/status/Ping.zig");
         pub const ServerStatus = @import("s2c/status/ServerStatus.zig");
 
-        pub const decode = Mixin(@This()).decode;
+        pub const read = Mixin(@This()).read;
 
         ping: Ping,
         server_status: ServerStatus,
@@ -287,16 +294,18 @@ pub const S2C = union(enum) {
     login: Login,
     play: Play,
 
+    pub const ReadPacketError = error{ InvalidOpcode, MalformedPacket, OutOfMemory };
+
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
-            pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !PacketMixin {
+            pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadPacketError!PacketMixin {
                 const packet_type_info = @typeInfo(PacketMixin).@"union";
-                switch (try buffer.readVarInt()) {
+                switch (buffer.readVarInt() catch return error.MalformedPacket) {
                     inline 0...packet_type_info.field_names.len - 1 => |opcode| {
                         return @unionInit(
                             PacketMixin,
                             packet_type_info.field_names[opcode],
-                            try .decode(allocator, buffer),
+                            packet_type_info.field_types[opcode].decode(allocator, buffer) catch return error.MalformedPacket,
                         );
                     },
                     else => |opcode| {

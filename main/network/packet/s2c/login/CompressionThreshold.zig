@@ -18,6 +18,5 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
     _ = io;
-
-    connection.setCompressionThreshold(self.compression_threshold);
+    connection.compression_threshold = self.compression_threshold;
 }

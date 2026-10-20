@@ -11,123 +11,70 @@ const S2C = network.packet.S2C;
 const RingBuffer = util.RingBuffer;
 
 pub const Connection = struct {
-    /// The network thread does not own this memory
-    name: []const u8,
-    port: u16,
-
-    /// If either thread sets this flag to true, the network thread will wait on disconnect_event then halt
-    wants_disconnect: *std.atomic.Value(bool),
-    /// Network thread will wait for main thread to set this before stopping
-    /// This is because the network thread holds memory that the main thread reads from (in s2c_packet_ring_alloc)
-    /// The main thread setting this signals that it is done reading from any memory owned
-    /// by the network thread
-    disconnect_event: *std.Io.Event,
-
-    stream: std.Io.net.Stream,
-
     protocol: Protocol = .Login,
-
     compression_threshold: i32 = -1,
 
-    /// The main thread submits to this queue, network thread encodes and sends them
-    /// The main thread should periodically poll and free already sent packets using c2s_packet_allocator
-    c2s_packet_queue: *SpscQueue(C2S),
-    /// The network thread decodes packets and submits them to this queue, main thread reads and handles them
-    /// The network thread should periodically poll and free already handled packets using s2c_packet_allocator
-    s2c_packet_queue: *SpscQueue(S2CWrapper),
+    wants_disconnect: std.atomic.Value(bool) = .init(false),
 
-    /// A buffer of raw bytes read from the socket but not yet decoded
-    queued_bytes: quarantine.FixedFifo(u8, 1024 * 1024 * 2),
-    /// This ring allocator should be used to allocate memory for s2c packets and *nothing else*
-    s2c_packet_ring_alloc: RingBuffer,
+    ip: std.Io.net.IpAddress,
+    stream: std.Io.net.Stream,
 
-    pub var ringbuffer: *RingBuffer = undefined;
+    incoming_packets: SpscQueue(S2CWrapper),
+    outgoing_packets: SpscQueue(C2SWrapper),
 
-    pub fn networkThreadImpl(
-        io: std.Io,
-        name: []const u8,
-        port: u16,
-        wants_disconnect: *std.atomic.Value(bool),
-        disconnect_event: *std.Io.Event,
-        c2s_packet_queue: *SpscQueue(C2S),
-        s2c_packet_queue: *SpscQueue(S2CWrapper),
-    ) !void {
-        defer {
-            wants_disconnect.store(true, .release);
-            disconnect_event.waitUncancelable(io);
-        }
+    incoming_allocator: RingBuffer,
+    outgoing_allocator: RingBuffer,
 
-        var ring_alloc_buffer: [1024 * 1024 * 4]u8 = undefined;
+    pub const NetworkThreadError = TickError;
+    pub fn networkThreadImpl(io: std.Io, connection: *@This()) NetworkThreadError!void {
+        defer connection.wants_disconnect.store(true, .release);
 
-        const stream = try connectStream(io, name, port);
-        defer stream.close(io);
-
-        var connection: Connection = .{
-            .name = name,
-            .port = port,
-
-            .wants_disconnect = wants_disconnect,
-            .disconnect_event = disconnect_event,
-
-            .stream = stream,
-
-            .c2s_packet_queue = c2s_packet_queue,
-            .s2c_packet_queue = s2c_packet_queue,
-
-            .queued_bytes = .init(),
-
-            .s2c_packet_ring_alloc = .initBuffer(&ring_alloc_buffer),
+        connection.tick(io) catch |e| switch (e) {
+            error.Canceled => {
+                std.log.scoped(.net).info("network thread cancelled", .{});
+                return;
+            },
+            else => {
+                if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
+                std.log.scoped(.net).info("{}, stopping network thread", .{e});
+                return e;
+            },
         };
+    }
 
-        ringbuffer = &connection.s2c_packet_ring_alloc;
+    pub const TickError = ReceiveBytesError || DecodePacketError || DispatchPacketError || SendPacketError;
+    pub fn tick(self: *@This(), io: std.Io) TickError!void {
+        var unread_bytes: quarantine.FixedFifo(u8, 1024 * 1024) = .init();
 
         while (true) {
-            connection.tick(io) catch |e| switch (e) {
-                error.Canceled => {
-                    std.log.scoped(.net).info("network thread cancelled", .{});
-                    return;
-                },
-                else => {
-                    if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
-                    std.log.scoped(.net).info("{}, stopping network thread", .{e});
-                    return e;
-                },
-            };
+            // read from socket
+            try self.receiveBytes(io, &unread_bytes);
+
+            // decode and dispatch
+            while (true) {
+                const packet, const rewind_mark = (self.decodePacket(&unread_bytes) catch |e| switch (e) {
+                    error.RingBufferFull => {
+                        std.log.scoped(.backpressure).warn("ring buffer out of memory: {}/{}", .{ self.incoming_allocator.usedBytes(), self.incoming_allocator.buffer.len });
+                        break;
+                    },
+                    else => return e,
+                }) orelse break;
+                try self.dispatchS2CPacket(io, packet, rewind_mark);
+            }
+
+            // encode and send outbound packets
+            try self.sendC2SPackets(io);
         }
     }
 
-    pub fn tick(self: *@This(), io: std.Io) !void {
-        // read from socket
-        try self.readIncomingBytes(io);
-
-        // decode and dispatch
-        while (true) {
-            if (self.wants_disconnect.load(.acquire)) return;
-            const packet, const rewind_mark = (self.decodeQueuedBytes(io) catch |e| switch (e) {
-                error.OutOfMemory => {
-                    std.log.scoped(.backpressure).warn("ring buffer out of memory: {}/{}", .{
-                        self.s2c_packet_ring_alloc.usedBytes(),
-                        self.s2c_packet_ring_alloc.buffer.len,
-                    });
-                    break;
-                },
-                else => return e,
-            }) orelse break;
-            if (self.wants_disconnect.load(.acquire)) return;
-            try self.dispatchS2CPacket(io, packet, rewind_mark);
-        }
-
-        // encode and send
-        try self.sendC2SPackets(io);
-    }
-
-    pub fn sendC2SPackets(self: *@This(), io: std.Io) !void {
-        while (self.c2s_packet_queue.pop()) |packet| {
-            try self.sendPacket(io, packet);
+    pub fn sendC2SPackets(self: *@This(), io: std.Io) SendPacketError!void {
+        while (self.outgoing_packets.pop()) |packet| {
+            try self.sendPacket(io, packet.@"0");
         }
     }
 
-    pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: RingBuffer.RewindMark) !void {
+    pub const DispatchPacketError = error{ PacketHandlingError, QueueFull };
+    pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: RingBuffer.RewindMark) DispatchPacketError!void {
         var packet_mut = packet;
         switch (packet_mut) {
             inline else => |*specific_protocol| {
@@ -135,12 +82,11 @@ pub const Connection = struct {
                     inline else => |*specific_packet| {
                         if (specific_packet.handle_on_network_thread) {
                             std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
-                            try specific_packet.handleOnNetworkThread(io, self);
+                            specific_packet.handleOnNetworkThread(io, self) catch return error.PacketHandlingError;
                             // free immediately
-                            self.s2c_packet_ring_alloc.undoAllocations(rewind_mark);
+                            self.incoming_allocator.undoAllocations(rewind_mark);
                         } else {
-                            // if packet didn't allocate, pass null allocation so we know not to free
-                            try self.s2c_packet_queue.push(.{ packet.play, self.s2c_packet_ring_alloc.commit(rewind_mark) });
+                            self.incoming_packets.push(.{ packet.play, self.incoming_allocator.commit(rewind_mark) }) catch return error.QueueFull;
                         }
                     },
                 }
@@ -148,15 +94,20 @@ pub const Connection = struct {
         }
     }
 
-    pub fn connectStream(io: std.Io, name: []const u8, port: u16) !std.Io.net.Stream {
-        const ip: std.Io.net.IpAddress = try .parseIp4(name, port);
+    pub const ConnectError = std.Io.net.IpAddress.ConnectError;
+    pub fn connectStream(io: std.Io, ip: std.Io.net.IpAddress) ConnectError!std.Io.net.Stream {
         return try ip.connect(io, .{
             .mode = .stream,
             .protocol = .tcp,
         });
     }
 
-    pub fn readIncomingBytes(self: *@This(), io: std.Io) !void {
+    pub const ReceiveBytesError = std.Io.net.Socket.ReceiveTimeoutError || std.mem.Allocator.Error;
+    pub fn receiveBytes(
+        self: *@This(),
+        io: std.Io,
+        bytes: *quarantine.FixedFifo(u8, 1024 * 1024),
+    ) ReceiveBytesError!void {
         var read_buffer: [262144]u8 = undefined;
         // Stream.read is unimplemented, so we just use this for now
         const read_bytes = self.stream.socket.receiveTimeout(
@@ -171,25 +122,26 @@ pub const Connection = struct {
         // TODO: Fix our queue implementation, make it growable
         // In fact, we should probably use a memory mapped ring buffer
         // so we never have to compact the buffer
-        try self.queued_bytes.write(read_bytes.data);
+        try bytes.write(read_bytes.data);
     }
 
-    pub fn decodeQueuedBytes(self: *@This(), _: std.Io) !?struct { S2C, RingBuffer.RewindMark } {
-        var packet_buffer: S2C.ReadBuffer = .fromOwnedSlice(self.queued_bytes.readableSlice());
+    pub const DecodePacketError = DecompressPacketError || PacketHeaderError || S2C.ReadPacketError || error{RingBufferFull};
+    pub fn decodePacket(self: *@This(), unread_bytes: *quarantine.FixedFifo(u8, 1024 * 1024)) DecodePacketError!?struct { S2C, RingBuffer.RewindMark } {
+        var packet_buffer: S2C.ReadBuffer = .fromOwnedSlice(unread_bytes.readableSlice());
 
         const packet_body_size, const packet_header_size = packet_buffer.readVarIntExtra(3) catch |err| switch (err) {
-            error.VarIntTooBig => return err,
+            error.VarIntTooBig => return error.MalformedPacket,
             error.EndOfBuffer => return null,
         };
 
-        // we don't have enough bytes - the packet is not complete
+        // we don't have enough bytes, so the packet is not complete
         if (packet_buffer.remainingBytes() < packet_body_size) return null;
         std.log.scoped(.decode_packet).debug("decoding packet - {} bytes header + {} bytes body", .{ packet_buffer.read_location, packet_body_size });
 
         const packet_size = packet_header_size + @as(usize, @intCast(packet_body_size));
 
         var ok = true;
-        defer if (ok) self.queued_bytes.discard(packet_size);
+        defer if (ok) unread_bytes.discard(packet_size);
         errdefer ok = false;
 
         // trim buffer to prevent reading past the packet end
@@ -198,15 +150,15 @@ pub const Connection = struct {
         // check if the buffer needs to be decompressed before it can be read as a packet
         // stack allocate decompression buffer, so we never need to worry about freeing
         var decompress_buffer: [2097152]u8 = undefined;
-        if (try self.getDecompressedSize(&packet_buffer)) |decompressed_size| {
+        if (self.getDecompressedSize(&packet_buffer) catch return error.PacketDecompressionError) |decompressed_size| {
             const decompressed_bytes = decompress_buffer[0..decompressed_size];
             try decompressBuffer(&packet_buffer, decompressed_bytes);
             packet_buffer = .fromOwnedSlice(decompressed_bytes);
         }
 
         // if we fail the allocation, roll back packet buffer and allocations
-        const allocator_rewind_mark = self.s2c_packet_ring_alloc.beginRewind();
-        errdefer self.s2c_packet_ring_alloc.undoAllocations(allocator_rewind_mark);
+        const allocator_rewind_mark = self.incoming_allocator.beginRewind();
+        errdefer self.incoming_allocator.undoAllocations(allocator_rewind_mark);
 
         switch (self.protocol) {
             // only the client ever sends packets in the handshake protocol
@@ -214,10 +166,18 @@ pub const Connection = struct {
             // this does not occur in a normal connection
             .Status => unreachable,
             .Login => {
-                return .{ .{ .login = try .decode(self.s2c_packet_ring_alloc.allocator(), &packet_buffer) }, allocator_rewind_mark };
+                const packet = S2C.Login.read(self.incoming_allocator.allocator(), &packet_buffer) catch |e| switch (e) {
+                    error.OutOfMemory => return error.RingBufferFull,
+                    inline else => return e,
+                };
+                return .{ .{ .login = packet }, allocator_rewind_mark };
             },
             .Play => {
-                return .{ .{ .play = try .decode(self.s2c_packet_ring_alloc.allocator(), &packet_buffer) }, allocator_rewind_mark };
+                const packet = S2C.Play.read(self.incoming_allocator.allocator(), &packet_buffer) catch |e| switch (e) {
+                    error.OutOfMemory => return error.RingBufferFull,
+                    inline else => return e,
+                };
+                return .{ .{ .play = packet }, allocator_rewind_mark };
             },
         }
     }
@@ -225,10 +185,11 @@ pub const Connection = struct {
     /// check if the buffer needs to be decompressed
     /// returns null if the packet does not need to be decompressed,
     /// otherwise returns the size after decompression
-    pub fn getDecompressedSize(self: *@This(), buffer: *S2C.ReadBuffer) !?usize {
+    pub const PacketHeaderError = error{ PacketTooLarge, PacketTooSmall, MalformedPacket };
+    pub fn getDecompressedSize(self: *@This(), buffer: *S2C.ReadBuffer) PacketHeaderError!?usize {
         if (self.compression_threshold < 0) return null;
 
-        const size_after_decompression = try buffer.readVarInt();
+        const size_after_decompression = buffer.readVarInt() catch return error.MalformedPacket;
 
         return if (size_after_decompression == 0)
             null
@@ -240,16 +201,13 @@ pub const Connection = struct {
             @intCast(size_after_decompression);
     }
 
-    pub fn decompressBuffer(compressed_buffer: *S2C.ReadBuffer, decompressed_bytes_out: []u8) !void {
+    pub const DecompressPacketError = error{PacketDecompressionError};
+    pub fn decompressBuffer(compressed_buffer: *S2C.ReadBuffer, decompressed_bytes_out: []u8) DecompressPacketError!void {
         var scratch_buffer: [std.compress.flate.max_window_len]u8 = undefined;
 
         var input: std.Io.Reader = .fixed(compressed_buffer.readRemainingBytesNonAllocating());
         var decompressor: std.compress.flate.Decompress = .init(&input, .zlib, &scratch_buffer);
-        try decompressor.reader.readSliceAll(decompressed_bytes_out);
-    }
-
-    pub fn setCompressionThreshold(self: *@This(), compression_threshold: i32) void {
-        self.compression_threshold = compression_threshold;
+        decompressor.reader.readSliceAll(decompressed_bytes_out) catch return error.PacketDecompressionError;
     }
 
     pub fn switchProtocol(self: *@This(), protocol: Protocol) void {
@@ -258,46 +216,33 @@ pub const Connection = struct {
         self.protocol = protocol;
     }
 
-    /// takes ownership of uncompressed_buffer
-    pub fn compressBuffer(uncompressed_buffer: *C2S.WriteBuffer, buffer: []u8) !C2S.WriteBuffer {
+    pub const CompressPacketError = error{PacketCompressionError};
+    pub fn compressBuffer(uncompressed_buffer: *C2S.WriteBuffer, buffer: []u8) CompressPacketError!C2S.WriteBuffer {
         var scratch_buffer: [std.compress.flate.max_window_len]u8 = undefined;
 
         var output: std.Io.Writer = .fixed(buffer);
-        var compressor: std.compress.flate.Compress = try .init(&output, &scratch_buffer, .zlib, .fastest);
-        try compressor.writer.writeAll(uncompressed_buffer.backer.items);
-        try compressor.finish();
+        var compressor = std.compress.flate.Compress.init(&output, &scratch_buffer, .zlib, .fastest) catch return error.PacketCompressionError;
+        compressor.writer.writeAll(uncompressed_buffer.backer.items) catch return error.PacketCompressionError;
+        compressor.finish() catch return error.PacketCompressionError;
 
         return .fromOwnedSlice(output.buffered());
     }
 
-    /// takes ownership of original_buffer
-    pub fn prependLength(allocator: std.mem.Allocator, original_buffer: *C2S.WriteBuffer) !C2S.WriteBuffer {
-        defer original_buffer.deinit();
+    pub const SendPacketError = std.Io.net.Stream.Writer.Error || C2S.WritePacketError || CompressPacketError;
 
-        var out_buffer: C2S.WriteBuffer = .init(allocator);
-        errdefer out_buffer.deinit();
-
-        try out_buffer.writeByteSlice(original_buffer.backer.items);
-        return out_buffer;
-    }
-
-    pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) !void {
+    pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) SendPacketError!void {
         try self.sendPacket(io, .{ .handshake = packet });
     }
 
-    pub fn sendLoginPacket(self: *@This(), io: std.Io, packet: C2S.Login) !void {
+    pub fn sendLoginPacket(self: *@This(), io: std.Io, packet: C2S.Login) SendPacketError!void {
         try self.sendPacket(io, .{ .login = packet });
     }
 
-    pub fn sendPlayPacket(self: *@This(), io: std.Io, packet: C2S.Play) !void {
+    pub fn sendPlayPacket(self: *@This(), io: std.Io, packet: C2S.Play) SendPacketError!void {
         try self.sendPacket(io, .{ .play = packet });
     }
 
-    pub fn sendPacket(
-        self: *@This(),
-        io: std.Io,
-        packet: C2S,
-    ) !void {
+    pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void {
         var packet_encode_buffer: [2097152]u8 = undefined;
         var packet_buffer: C2S.WriteBuffer = .initBuffer(&packet_encode_buffer);
 
@@ -340,42 +285,22 @@ pub const Connection = struct {
 
         var buf: [1024]u8 = undefined;
         var writer = self.stream.writer(io, &buf);
-        _ = try writer.interface.write(header.backer.items);
-        _ = try writer.interface.write(packet_buffer.backer.items);
-        try writer.interface.flush();
+        _ = writer.interface.write(header.backer.items) catch return writer.err.?;
+        _ = writer.interface.write(packet_buffer.backer.items) catch return writer.err.?;
+        writer.interface.flush() catch return writer.err.?;
     }
 };
 
 pub const ConnectionHandle = struct {
-    name: []const u8,
-    port: u16,
-    network_task: std.Io.Future(@typeInfo(@TypeOf(network.connection.Connection.networkThreadImpl)).@"fn".return_type.?),
-    /// The main thread submits to this queue, network thread encodes and sends them
-    /// The main thread should periodically poll and free already sent packets
-    c2s_packet_queue: *SpscQueue(C2S),
-    /// The network thread decodes packets and submits them to this queue, main thread reads and handles them
-    /// The network thread should periodically poll and free already handled packets using s2c_packet_allocator
-    s2c_packet_queue: *SpscQueue(S2CWrapper),
-    /// This allocator should be used to allocate memory for c2s packets and *nothing else*
-    /// It is currently usused, but there *are* c2s packets that will need allocation.
-    /// At that point, we should switch to a RingBuffer and do the same song and dance the
-    /// s2c_packet_allocator goes through
-    c2s_packet_allocator: std.mem.Allocator,
-    /// If either thread sets this flag to true, the network thread will wait on disconnect_event then halt
-    wants_disconnect: *std.atomic.Value(bool),
-    /// Network thread will wait for main thread to set this before stopping
-    /// This is because the network thread holds memory that the main thread reads from (in s2c_packet_ring_alloc)
-    /// The main thread setting this signals that it is done reading from any memory owned
-    /// by the network thread
-    disconnect_event: *std.Io.Event,
-
+    network_task: std.Io.Future(Connection.NetworkThreadError!void),
+    connection: *Connection,
     pub fn sendPacket(
         self: *@This(),
         io: std.Io,
         packet: C2S,
     ) !void {
         _ = io;
-        try self.c2s_packet_queue.push(packet);
+        try self.connection.outgoing_packets.push(.{ packet, undefined });
     }
 
     pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) !void {
@@ -390,36 +315,24 @@ pub const ConnectionHandle = struct {
         try self.sendPacket(io, .{ .play = packet });
     }
 
-    pub fn sendLoginSequence(self: *@This(), io: std.Io, player_name: []const u8) !void {
-        const handshake_packet: C2S.Handshake.Handshake = .{
-            .version = 47,
-            .address = self.name,
-            .port = @intCast(self.port),
-            .protocol_id = 2,
-        };
-        const hello_packet: C2S.Login.Hello = .{
-            .player_name = player_name,
-        };
-        try self.sendHandshakePacket(io, .{ .handshake = handshake_packet });
-        try self.sendLoginPacket(io, .{ .hello = hello_packet });
-    }
-
     pub fn disconnect(
         self: *@This(),
         io: std.Io,
-        /// This should be the allocator that was passed to initConnection
-        /// and was used to allocate the ring buffers used to pass packets
         allocator: std.mem.Allocator,
     ) void {
         std.log.scoped(.net).info("sending cancel to network thread", .{});
-        self.wants_disconnect.store(true, .release);
-        self.disconnect_event.set(io);
+
+        self.connection.wants_disconnect.store(true, .release);
+
         self.network_task.cancel(io) catch {};
-        allocator.destroy(self.c2s_packet_queue);
-        allocator.destroy(self.s2c_packet_queue);
-        allocator.destroy(self.wants_disconnect);
-        allocator.destroy(self.disconnect_event);
-        allocator.free(self.name);
+
+        self.connection.stream.close(io);
+
+        self.connection.incoming_packets.deinit(allocator);
+        self.connection.outgoing_packets.deinit(allocator);
+        self.connection.incoming_allocator.deinit(allocator);
+        self.connection.outgoing_allocator.deinit(allocator);
+
         std.log.scoped(.net).info("disconnected successfully", .{});
     }
 };
@@ -427,66 +340,80 @@ pub const ConnectionHandle = struct {
 /// Spawns a new thread and initializes a new connection in that thread, then returns a handle to that connection
 pub fn initConnection(
     io: std.Io,
-    /// This allocator will be used to allocate the ring buffers used for passing packets between threads,
-    /// also also duplicate name
     allocator: std.mem.Allocator,
-    /// This allocator will be used to allocate memory for c2s packets and nothing else
-    /// It is currently usused, but there *are* c2s packets that will need allocation.
-    /// At that point, we should switch to a RingBuffer and do the same song and dance the
-    /// s2c_packet_allocator goes through
-    c2s_packet_allocator: std.mem.Allocator,
-    name: []const u8,
+    address: []const u8,
     port: u16,
+    player_name: []const u8,
 ) !ConnectionHandle {
-    const c2s_packet_queue = try allocator.create(SpscQueue(C2S));
-    const s2c_packet_queue = try allocator.create(SpscQueue(S2CWrapper));
+    const ip: std.Io.net.IpAddress = try .parse(address, port);
 
-    const disconnect_event = try allocator.create(std.Io.Event);
-    const wants_disconnect = try allocator.create(std.atomic.Value(bool));
+    const stream: std.Io.net.Stream = try ip.connect(io, .{
+        .mode = .stream,
+        .protocol = .tcp,
+    });
+    errdefer stream.close(io);
 
-    const name_dupe = try allocator.dupe(u8, name);
+    const connection = try allocator.create(Connection);
+    errdefer allocator.destroy(connection);
 
-    c2s_packet_queue.* = .{};
-    s2c_packet_queue.* = .{};
-    disconnect_event.* = .unset;
-    wants_disconnect.*.raw = false;
+    var incoming_packets: SpscQueue(S2CWrapper) = try .initCapacity(allocator, 1024);
+    errdefer incoming_packets.deinit(allocator);
+    var outgoing_packets: SpscQueue(C2SWrapper) = try .initCapacity(allocator, 1024);
+    errdefer outgoing_packets.deinit(allocator);
 
-    const network_task = try io.concurrent(
-        Connection.networkThreadImpl,
-        .{
-            io,
-            name_dupe,
-            port,
-            wants_disconnect,
-            disconnect_event,
-            c2s_packet_queue,
-            s2c_packet_queue,
-        },
-    );
+    var incoming_allocator: RingBuffer = try .initCapacity(allocator, 1024 * 1024 * 16);
+    errdefer incoming_allocator.deinit(allocator);
+    var outgoing_allocator: RingBuffer = try .initCapacity(allocator, 1024 * 1024 * 16);
+    errdefer outgoing_allocator.deinit(allocator);
+
+    connection.* = .{
+        .ip = ip,
+        .stream = stream,
+
+        .incoming_packets = incoming_packets,
+        .outgoing_packets = outgoing_packets,
+
+        .incoming_allocator = incoming_allocator,
+        .outgoing_allocator = outgoing_allocator,
+    };
+
+    try connection.sendHandshakePacket(io, .{ .handshake = .{
+        .version = 47,
+        .address = address,
+        .port = @intCast(port),
+        .protocol_id = 2,
+    } });
+    try connection.sendLoginPacket(io, .{ .hello = .{
+        .player_name = player_name,
+    } });
+
+    const network_task = try io.concurrent(Connection.networkThreadImpl, .{ io, connection });
 
     return .{
-        .name = name_dupe,
-        .port = port,
         .network_task = network_task,
-        .c2s_packet_queue = c2s_packet_queue,
-        .s2c_packet_queue = s2c_packet_queue,
-        .c2s_packet_allocator = c2s_packet_allocator,
-        .wants_disconnect = wants_disconnect,
-        .disconnect_event = disconnect_event,
+        .connection = connection,
     };
 }
 
 pub const S2CWrapper = struct { S2C.Play, RingBuffer.TailMark };
+pub const C2SWrapper = struct { C2S, RingBuffer.TailMark };
 
-pub fn SpscQueue(comptime Element: type) type {
-    const size = 8192;
+pub fn SpscQueue(Element: type) type {
     return struct {
-        buffer: [size]Element = @splat(undefined),
+        buffer: []Element,
 
         /// The next element written will go to this index
         write_index: std.atomic.Value(usize) = .init(0),
         /// The next element popped will be at this index
         read_index: std.atomic.Value(usize) = .init(0),
+
+        pub fn initCapacity(allocator: std.mem.Allocator, capacity: usize) !@This() {
+            return .{ .buffer = try allocator.alloc(Element, capacity) };
+        }
+
+        pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+            allocator.free(self.buffer);
+        }
 
         pub fn unread(self: *@This()) usize {
             return self.write_index.load(.acquire) - self.read_index.load(.acquire);
@@ -495,9 +422,9 @@ pub fn SpscQueue(comptime Element: type) type {
         pub fn push(self: *@This(), element: Element) !void {
             const read_index = self.read_index.load(.acquire);
             const write_index = self.write_index.load(.monotonic);
-            if (write_index - read_index >= size) return error.WouldOverflow;
+            if (write_index - read_index >= self.buffer.len) return error.WouldOverflow;
 
-            self.buffer[write_index % size] = element;
+            self.buffer[write_index % self.buffer.len] = element;
 
             self.write_index.store(write_index + 1, .release);
         }
@@ -507,7 +434,7 @@ pub fn SpscQueue(comptime Element: type) type {
             const write_index = self.write_index.load(.acquire);
             if (write_index == read_index) return null;
 
-            const element = self.buffer[read_index % size];
+            const element = self.buffer[read_index % self.buffer.len];
 
             self.read_index.store(read_index + 1, .release);
 

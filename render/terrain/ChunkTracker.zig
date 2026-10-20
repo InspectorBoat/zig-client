@@ -5,7 +5,9 @@ const Vector3 = @import("main").Vector3;
 
 const GpuMemoryAllocator = @import("../GpuMemoryAllocator.zig");
 
-chunks: std.AutoHashMap(Vector2xz(i32), ChunkCompileStatus),
+chunks: std.AutoHashMapUnmanaged(Vector2xz(i32), ChunkCompileStatus) = .empty,
+
+pub const init: @This() = .{};
 
 pub const ChunkCompileStatus = union(enum) {
     waiting: MissingNeighbors,
@@ -72,11 +74,7 @@ pub const SectionRenderInfo = struct {
     quads: usize,
 };
 
-pub fn init(allocator: std.mem.Allocator) @This() {
-    return .{ .chunks = .init(allocator) };
-}
-
-pub fn markChunkPresent(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
+pub fn markChunkPresent(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !void {
     if (self.chunks.contains(chunk_pos)) return error.ChunkAlreadyExists;
 
     var new_chunk_neighbors: MissingNeighbors = .{};
@@ -110,7 +108,7 @@ pub fn markChunkPresent(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
         }
     }
 
-    try self.chunks.put(chunk_pos, .{ .waiting = new_chunk_neighbors });
+    try self.chunks.put(allocator, chunk_pos, .{ .waiting = new_chunk_neighbors });
 }
 
 pub fn markBlockPosDirty(self: *@This(), block_pos: Vector3(i32)) !void {

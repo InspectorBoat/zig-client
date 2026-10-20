@@ -58,8 +58,8 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
 
-    const compilation_tracker: CompilationTracker = try .init(allocator, 4);
-    const chunk_tracker: ChunkTracker = .init(allocator);
+    const compilation_tracker: CompilationTracker = try .init(allocator, 128);
+    const chunk_tracker: ChunkTracker = .init;
 
     const debug_program = try initProgram(allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
     const debug_buffer: gl.Buffer = .create();
@@ -515,7 +515,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
 }
 
 pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
-    self.chunk_tracker.markChunkPresent(chunk_pos) catch |e| switch (e) {
+    self.chunk_tracker.markChunkPresent(self.allocator, chunk_pos) catch |e| switch (e) {
         error.ChunkAlreadyExists => {}, // TODO: Figure out why this happens
         else => return e,
     };
@@ -573,7 +573,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std
             }
         }
 
-        if (start.untilNow(io).raw.toMilliseconds() < -100) return;
+        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
     }
 }
 
@@ -653,7 +653,7 @@ pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
             }
             try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
         } else |e| std.log.scoped(.section_revision).err("error meshing section at {}: {}", .{ completed.section_pos, e });
-        if (start.untilNow(io).raw.toMilliseconds() < -100) return;
+        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
     }
 }
 
@@ -670,7 +670,7 @@ pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
     self.chunk_tracker.removeChunk(chunk_pos);
 }
 
-pub fn unloadAllChunks(self: *@This()) !void {
+pub fn unloadAllChunks(self: *@This(), allocator: std.mem.Allocator) !void {
     var iter = self.chunk_tracker.chunks.iterator();
     while (iter.next()) |entry| {
         const chunk = entry.value_ptr;
@@ -683,11 +683,11 @@ pub fn unloadAllChunks(self: *@This()) !void {
             .waiting => {},
         }
     }
-    self.chunk_tracker.chunks.clearAndFree();
+    self.chunk_tracker.chunks.clearAndFree(allocator);
 }
 
 pub fn deinit(self: *@This(), io: std.Io) !void {
-    try self.unloadAllChunks();
+    try self.unloadAllChunks(self.allocator);
     self.gpu_memory_allocator.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
     self.compilation_tracker.deinit(io);

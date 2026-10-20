@@ -796,7 +796,7 @@ fn button_ray(facing: PhysicalState.ButtonFacing, powered: bool) Box(f64) {
 }
 
 fn pressure_plate_ray(powered: bool) Box(f64) {
-    return .new(0.0625, 0, 0.0625, 0.9375, if (powered) 0.03125 else 0.0625, 0.9375);
+    return .centeredPost(0.0625, if (powered) 0.03125 else 0.0625);
 }
 
 fn wall_sign_ray(facing: PhysicalState.HorizontalFacing) Box(f64) {

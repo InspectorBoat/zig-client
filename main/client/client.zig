@@ -11,17 +11,25 @@ pub const Client = union(enum) {
     pub const Idle = struct {
         gpa: std.mem.Allocator,
 
-        pub fn initConnection(self: *@This(), io: std.Io, allocator: std.mem.Allocator, c2s_packet_allocator: std.mem.Allocator, name: []const u8, port: u16, player_name: []const u8) !void {
+        pub fn initConnection(
+            self: *@This(),
+            io: std.Io,
+            allocator: std.mem.Allocator,
+            name: []const u8,
+            port: u16,
+            player_name: []const u8,
+        ) !void {
             const gpa = self.gpa;
 
-            var connection_handle = try main.network.connection.initConnection(io, allocator, c2s_packet_allocator, name, port);
+            const connection_handle = try main.network.connection.initConnection(io, allocator, name, port, player_name);
+
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
+
             client.* = .{ .connecting = .{
                 .gpa = gpa,
 
                 .connection_handle = connection_handle,
             } };
-            try connection_handle.sendLoginSequence(io, player_name);
         }
     };
     pub const Connecting = struct {
@@ -191,6 +199,9 @@ pub const Client = union(enum) {
                 logTickStatistics(game.partial_tick, ticks_elapsed);
 
                 for (0..ticks_elapsed) |_| {
+                    const start: std.Io.Clock.Timestamp = .now(io, .cpu_thread);
+                    defer std.log.scoped(.tick_timing_noisy).debug("tick took {} ms", .{@as(f128, start.untilNow(io).raw.nanoseconds) / std.time.ns_per_ms});
+
                     game.world.pick();
                     try game.handleInputOnTick(io);
                     try game.world.tick(io, game.gpa, game);
@@ -203,19 +214,20 @@ pub const Client = union(enum) {
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     /// Disconnects if connection is closed
     pub fn tickConnection(self: *@This(), io: std.Io) !void {
-        const gpa, const connection_handle, const s2c_packet_queue = switch (self.*) {
+        const gpa, const connection_handle, const incoming_packets, const incoming_allocator = switch (self.*) {
             inline .game, .connecting => |client_state| .{
                 client_state.gpa,
                 client_state.connection_handle,
-                client_state.connection_handle.s2c_packet_queue,
+                &client_state.connection_handle.connection.incoming_packets,
+                &client_state.connection_handle.connection.incoming_allocator,
             },
             else => unreachable,
         };
 
         // Read and handle incoming s2c packets
         while (true) {
-            var s2c_packet, const tail_mark = s2c_packet_queue.pop() orelse break;
-            defer Connection.ringbuffer.freeFromTail(tail_mark);
+            var s2c_packet, const tail_mark = incoming_packets.pop() orelse break;
+            defer incoming_allocator.freeFromTail(tail_mark);
 
             std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet))});
 
@@ -236,7 +248,7 @@ pub const Client = union(enum) {
             }
         }
 
-        if (connection_handle.wants_disconnect.load(.acquire)) {
+        if (connection_handle.connection.wants_disconnect.load(.acquire)) {
             self.disconnect(io);
         }
     }
