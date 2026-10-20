@@ -99,10 +99,10 @@ pub const C2S = union(enum) {
                 switch (packet) {
                     inline else => |specific_packet| {
                         specific_packet.write(buffer) catch |e| {
-                            if (e == error.OutOfMemory)
-                                return error.OutOfMemory
+                            return if (e == error.OutOfMemory)
+                                error.OutOfMemory
                             else
-                                return error.IllegalPacket;
+                                error.IllegalPacket;
                         };
                     },
                 }
@@ -305,7 +305,11 @@ pub const S2C = union(enum) {
                         return @unionInit(
                             PacketMixin,
                             packet_type_info.field_names[opcode],
-                            packet_type_info.field_types[opcode].decode(allocator, buffer) catch return error.MalformedPacket,
+                            packet_type_info.field_types[opcode].decode(allocator, buffer) catch |e|
+                                return if (e == error.OutOfMemory)
+                                    error.OutOfMemory
+                                else
+                                    error.MalformedPacket,
                         );
                     },
                     else => |opcode| {

@@ -155,15 +155,21 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
                     .escape => window_input.window.setShouldClose(true),
+                    .h => if (key.action == .press) {
+                        renderer.debug_options.chunk_borders = !renderer.debug_options.chunk_borders;
+                    },
+                    .g => if (key.action == .press) {
+                        renderer.debug_options.inventory = !renderer.debug_options.inventory;
+                    },
                     .f => if (key.action == .press) {
-                        renderer.draw_mode = switch (renderer.draw_mode) {
+                        renderer.debug_options.terrain_draw_mode = switch (renderer.debug_options.terrain_draw_mode) {
                             .fill => .line,
                             .line => .fill,
-                            .point => .fill,
+                            .point => unreachable,
                         };
                     },
                     .k => if (key.action == .press) try renderer.recompileAllChunks(),
-                    .l => if (key.action == .press) {
+                    .r => if (key.action == .press) {
                         std.log.scoped(.render).info("reloading shaders", .{});
                         renderer.terrain_program.delete();
                         renderer.debug_program.delete();

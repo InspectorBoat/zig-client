@@ -47,7 +47,11 @@ debug_buffer: gl.Buffer,
 @"2d_debug_staging_buffer": GpuStagingBuffer,
 @"3d_vao": gl.VertexArray,
 @"2d_vao": gl.VertexArray,
-draw_mode: gl.DrawMode = .fill,
+debug_options: struct {
+    terrain_draw_mode: gl.DrawMode = .fill,
+    chunk_borders: bool = false,
+    inventory: bool = false,
+} = .{},
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -192,10 +196,6 @@ pub fn init2dVao() !gl.VertexArray {
     vao.attribFormat(0, 3, .float, false, 0);
     vao.attribBinding(0, 0);
 
-    // vao.enableVertexAttribute(1);
-    // vao.attribFormat(1, 3, .float, false, 0);
-    // vao.attribBinding(1, 1);
-
     return vao;
 }
 
@@ -320,34 +320,44 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
 
 pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     const mvp = getMvpMatrix(game.world.player, game.partial_tick);
-    self.terrain_program.use();
-    self.vao.bind();
-    self.terrain_program.uniform1i(2, 0);
-    self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
-    self.debug_program.uniformMatrix4(0, true, &.{mvp.data});
-    gl.polygonMode(.front_and_back, self.draw_mode);
+    {
+        self.terrain_program.use();
+        self.vao.bind();
+        self.terrain_program.uniform1i(2, 0);
+        self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
+        gl.polygonMode(.front_and_back, self.debug_options.terrain_draw_mode);
 
-    var entries = self.chunk_tracker.chunks.iterator();
-    while (entries.next()) |entry| {
-        const chunk_pos = entry.key_ptr.*;
-        switch (entry.value_ptr.*) {
-            .rendering => |sections| {
-                for (sections, 0..) |section, y| {
-                    self.renderSection(.{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z }, section.render_info orelse continue);
-                }
-            },
-            .waiting => {},
+        var entries = self.chunk_tracker.chunks.iterator();
+        while (entries.next()) |entry| {
+            const chunk_pos = entry.key_ptr.*;
+            switch (entry.value_ptr.*) {
+                .rendering => |sections| {
+                    for (sections, 0..) |section, y| {
+                        self.renderSection(.{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z }, section.render_info orelse continue);
+                    }
+                },
+                .waiting => {},
+            }
         }
     }
-    try self.bufferCrosshair(&game.world);
-    try self.bufferEntities(&game.world, game.partial_tick);
-    // try self.bufferChunkDebug(&game.world);
-    try self.bufferBlockBreaking(&game.world);
+    {
+        self.debug_program.uniformMatrix4(0, true, &.{mvp.data});
 
-    self.render3dDebug();
+        try self.bufferCrosshair(&game.world);
+        try self.bufferEntities(&game.world, game.partial_tick);
+        try self.bufferBlockBreaking(&game.world);
+        if (self.debug_options.chunk_borders) try self.bufferChunkDebug(&game.world);
 
-    try self.bufferInventory(&game.world);
-    self.render2dDebug();
+        self.render3dDebug();
+    }
+    {
+        const identity: za.Mat4 = .identity();
+        self.debug_program.uniformMatrix4(0, true, &.{identity.data});
+
+        if (self.debug_options.inventory) try self.bufferInventory(&game.world);
+
+        self.render2dDebug();
+    }
 }
 
 pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTracker.SectionRenderInfo) void {
@@ -456,9 +466,43 @@ pub fn bufferBlockBreaking(self: *@This(), world: *const World) !void {
 }
 
 pub fn bufferInventory(self: *@This(), world: *const World) !void {
-    _ = world;
-    _ = self;
-    // try self.@"2d_debug_staging_buffer".write2dDebugQuad(.{ .x = -0.2, .y = -0.2 }, .{ .x = 0.2, .y = 0.2 });
+    const window = render.window_input.window_size;
+    const width: f32 = @floatFromInt(window.x);
+    const height: f32 = @floatFromInt(window.y);
+
+    const pitch: f32 = 18;
+    const box: f32 = 16;
+    const gap: f32 = 4;
+    const grid_width: f32 = 9 * pitch;
+    const grid_height: f32 = 3 * pitch + gap + pitch;
+
+    const left: f32 = (width - grid_width) / 2;
+    const top: f32 = (height - grid_height) / 2;
+
+    // 0-8 is the hotbar, 9-35 is the main inventory, 36-39 is the armor
+    for (0..36) |i| {
+        const stack = world.main_inventory.stacks[i] orelse continue;
+        if (stack.size == 0) continue;
+
+        const hotbar = i < 9;
+        const row: f32 = if (hotbar) 3 else @floatFromInt((i - 9) / 9);
+        const col: f32 = @floatFromInt(i % 9);
+
+        const x0 = left + col * pitch;
+        const y0 = top + row * pitch + (if (hotbar) gap else 0);
+
+        // the 2d debug path wants clip space, with y pointing up
+        try self.@"2d_debug_staging_buffer".write2dDebugQuad(
+            .{
+                .x = (x0 / width) * 2 - 1,
+                .y = 1 - ((y0 + box) / height) * 2,
+            },
+            .{
+                .x = ((x0 + box) / width) * 2 - 1,
+                .y = 1 - (y0 / height) * 2,
+            },
+        );
+    }
 }
 
 pub fn render3dDebug(self: *@This()) void {
@@ -480,15 +524,19 @@ pub fn render3dDebug(self: *@This()) void {
 }
 
 pub fn render2dDebug(self: *@This()) void {
+    gl.disable(.depth_test);
+    gl.disable(.cull_face);
+
+    defer gl.enable(.depth_test);
+    defer gl.enable(.cull_face);
+
     self.debug_program.use();
     self.@"2d_vao".bind();
     self.@"2d_vao".vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
     gl.polygonMode(.front_and_back, .fill);
 
-    gl.disable(.depth_test);
     self.debug_buffer.subData(0, u8, self.@"2d_debug_staging_buffer".backer.items);
     gl.drawElements(.triangle_strip, self.@"2d_debug_staging_buffer".backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
-    gl.enable(.depth_test);
 
     self.@"2d_debug_staging_buffer".backer.items.len = 0;
 }

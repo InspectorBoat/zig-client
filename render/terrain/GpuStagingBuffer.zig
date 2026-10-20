@@ -95,11 +95,11 @@ pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !voi
 pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)) !void {
     @setRuntimeSafety(false);
 
-    const quad = [_]f32{
-        min.x, min.y, @bitCast(@as(u32, 0xffffffff)),
-        max.x, min.y, @bitCast(@as(u32, 0xffffffff)),
-        min.x, max.y, @bitCast(@as(u32, 0xffffffff)),
-        max.x, max.y, @bitCast(@as(u32, 0xffffffff)),
+    const quad: [12]f32 = .{
+        min.x, min.y, 0,
+        max.x, min.y, 0,
+        min.x, max.y, 0,
+        max.x, max.y, 0,
     };
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
 }

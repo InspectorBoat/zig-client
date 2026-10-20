@@ -38,7 +38,7 @@ pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
         },
         else => {
             if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
-            std.log.scoped(.net).info("{}, stopping network task", .{e});
+            std.log.scoped(.net).err("{}, stopping network task", .{e});
             return e;
         },
     };
@@ -102,21 +102,21 @@ pub fn receiveBytes(
     io: std.Io,
     bytes: *quarantine.FixedFifo(u8, 1024 * 1024),
 ) ReceiveBytesError!void {
-    var read_buffer: [262144]u8 = undefined;
-    // Stream.read is unimplemented, so we just use this for now
-    const read_bytes = self.stream.socket.receiveTimeout(
+    var buffer: [262144]u8 = undefined;
+
+    const message = self.stream.socket.receiveTimeout(
         io,
-        &read_buffer,
-        .{ .duration = .{ .raw = .fromMilliseconds(5), .clock = .real } },
+        &buffer,
+        .{ .duration = .{ .clock = .real, .raw = .fromMilliseconds(5) } },
     ) catch |err| switch (err) {
         error.Timeout => return,
         else => return err,
     };
-    std.log.scoped(.net).debug("read {} bytes", .{read_bytes.data.len});
+    std.log.scoped(.net).debug("read {} bytes", .{message.data.len});
     // TODO: Fix our queue implementation, make it growable
     // In fact, we should probably use a memory mapped ring buffer
     // so we never have to compact the buffer
-    try bytes.write(read_bytes.data);
+    try bytes.write(message.data);
 }
 
 pub const DecodePacketError = DecompressPacketError || PacketHeaderError || S2C.ReadPacketError || error{RingBufferFull};
@@ -381,7 +381,7 @@ pub const Handle = struct {
         } });
 
         const network_task = try io.concurrent(Connection.networkThreadImpl, .{ io, connection });
-        std.log.debug("starting network task", .{});
+        std.log.scoped(.net).info("starting network task", .{});
 
         return .{
             .network_task = network_task,
