@@ -27,25 +27,25 @@ outgoing_packets: SpscQueue(C2SWrapper),
 incoming_allocator: RingBuffer,
 outgoing_allocator: RingBuffer,
 
-pub const NetworkThreadError = TickError;
-pub fn networkThreadImpl(io: std.Io, connection: *@This()) NetworkThreadError!void {
+pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
     defer connection.wants_disconnect.store(true, .release);
+    std.log.scoped(.net).info("network task entered", .{});
 
     connection.tick(io) catch |e| switch (e) {
         error.Canceled => {
-            std.log.scoped(.net).info("network thread cancelled", .{});
+            std.log.scoped(.net).info("network task cancelled", .{});
             return;
         },
         else => {
             if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
-            std.log.scoped(.net).info("{}, stopping network thread", .{e});
+            std.log.scoped(.net).info("{}, stopping network task", .{e});
             return e;
         },
     };
 }
 
-pub const TickError = ReceiveBytesError || DecodePacketError || DispatchPacketError || SendPacketError;
-pub fn tick(self: *@This(), io: std.Io) TickError!void {
+pub const Error = ReceiveBytesError || DecodePacketError || DispatchPacketError || SendPacketError;
+pub fn tick(self: *@This(), io: std.Io) Error!void {
     var unread_bytes: quarantine.FixedFifo(u8, 1024 * 1024) = .init();
 
     while (true) {
@@ -94,13 +94,6 @@ pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: R
             }
         },
     }
-}
-
-pub fn connectStream(io: std.Io, ip: std.Io.net.IpAddress) ConnectError!std.Io.net.Stream {
-    return try ip.connect(io, .{
-        .mode = .stream,
-        .protocol = .tcp,
-    });
 }
 
 pub const ReceiveBytesError = std.Io.net.Socket.ReceiveTimeoutError || std.mem.Allocator.Error;
@@ -260,7 +253,6 @@ pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void 
 
     const uncompressed_len = packet_buffer.backer.items.len;
 
-    // compress packet
     var packet_compress_buffer: [2097152]u8 = undefined;
 
     const compress = self.compression_threshold >= 0 and uncompressed_len >= self.compression_threshold;
@@ -292,7 +284,7 @@ pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void 
 }
 
 pub const Handle = struct {
-    network_task: std.Io.Future(Connection.NetworkThreadError!void),
+    network_task: std.Io.Future(Connection.Error!void),
     connection: *Connection,
     pub fn sendPacket(
         self: *@This(),
@@ -332,6 +324,8 @@ pub const Handle = struct {
         self.connection.outgoing_packets.deinit(allocator);
         self.connection.incoming_allocator.deinit(allocator);
         self.connection.outgoing_allocator.deinit(allocator);
+
+        allocator.destroy(self.connection);
 
         std.log.scoped(.net).info("disconnected successfully", .{});
     }
@@ -387,6 +381,7 @@ pub const Handle = struct {
         } });
 
         const network_task = try io.concurrent(Connection.networkThreadImpl, .{ io, connection });
+        std.log.debug("starting network task", .{});
 
         return .{
             .network_task = network_task,

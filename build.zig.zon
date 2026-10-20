@@ -29,8 +29,8 @@
             .hash = "zigimg-0.1.0-8_eo2sBLGACBebrhQZUwRliZNSUyDn6szp99eip_6-Rw",
         },
         .zio = .{
-            .url = "git+https://github.com/lalinsky/zio#3c1c5d0b67514caca20aed646f2ad6bf261a10e2",
-            .hash = "zio-0.19.0-xHbVVLeXLADamdv-xiQM84sQyW5RAsa3jQiOhfME9Cro",
+            .url = "git+https://github.com/lalinsky/zio.git#e953d1f65315d827843128f6e1ed771ba0800814",
+            .hash = "zio-0.19.0-xHbVVKcZLQCJOtHuunD-DqOVkxWh1nBZK95K32OGKvAm",
         },
         .zsort = .{
             .url = "git+https://github.com/InspectorBoat/zsort.git#b9f92773002476a19239b9ee583d8eff2dc03a1f",

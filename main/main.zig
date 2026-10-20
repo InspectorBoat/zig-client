@@ -3,6 +3,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const render = @import("render");
 const util = @import("util");
+const zio = @import("zio");
 
 pub const block = @import("block/block.zig");
 pub const Inventory = @import("inventory/Inventory.zig");
@@ -38,15 +39,15 @@ pub const std_options: std.Options = .{
     .log_scope_levels = &.{
         .{ .scope = .tick_late, .level = .warn },
         .{ .scope = .tick_on_time, .level = .warn },
-        .{ .scope = .handle_packet_main, .level = .warn },
-        .{ .scope = .handle_packet_net, .level = .warn },
+        .{ .scope = .handle_packet_main, .level = .debug },
+        .{ .scope = .handle_packet_net, .level = .debug },
         .{ .scope = .world, .level = .warn },
-        .{ .scope = .decode_packet, .level = .warn },
-        .{ .scope = .send_packet, .level = .warn },
+        .{ .scope = .decode_packet, .level = .debug },
+        .{ .scope = .send_packet, .level = .debug },
         .{ .scope = .entity, .level = .warn },
         .{ .scope = .local_player_moved, .level = .warn },
         .{ .scope = .player, .level = .warn },
-        .{ .scope = .net, .level = .warn },
+        .{ .scope = .net, .level = .debug },
         .{ .scope = .resource_pack_states, .level = .warn },
         .{ .scope = .resource_pack, .level = .info },
         .{ .scope = .section_revision, .level = .warn },
@@ -56,35 +57,48 @@ pub const std_options: std.Options = .{
     },
 };
 
-pub fn main(init: std.process.Init) !void {
-    var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{
-        .stack_trace_frames = 15,
-    });
-    const gpa = gpa_impl.allocator();
-    defer _ = gpa_impl.deinit();
-    // const gpa = init.gpa;
+pub const main = if (build_options.zio) struct {
+    pub fn main() !void {
+        var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{ .stack_trace_frames = 15 });
+        defer _ = gpa_impl.deinit();
 
-    try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = init.io });
+        const gpa = gpa_impl.allocator();
+
+        var zio_runtime: *zio.Runtime = try .init(gpa, .{});
+        defer zio_runtime.deinit();
+
+        const io = zio_runtime.io();
+
+        try realMain(gpa, io);
+    }
+}.main else struct {
+    pub fn main(init: std.process.Init) !void {
+        try realMain(init.gpa, init.io);
+    }
+}.main;
+
+pub fn realMain(gpa: std.mem.Allocator, io: std.Io) !void {
+    try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = io });
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
     } };
 
-    try client.idle.initConnection(init.io, gpa, "127.0.0.1", 25565, "baz");
+    try client.idle.initConnection(io, gpa, "127.0.0.1", 25565, "baz");
 
     defer {
-        if (client != .idle) client.disconnect(init.io);
+        if (client != .idle) client.disconnect(io);
     }
 
     while (true) {
         try EventHandler.dispatch(Events.Frame, .{
             .client = &client,
             .input_queue = if (client == .game) &client.game.input_queue else null,
-            .io = init.io,
+            .io = io,
         });
 
-        if (client != .idle) try client.tickConnection(init.io);
-        if (client == .game) try client.updateGame(init.io);
+        if (client != .idle) try client.tickConnection(io);
+        if (client == .game) try client.updateGame(io);
 
         if (done) break;
     }
