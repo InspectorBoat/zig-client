@@ -82,15 +82,15 @@ pub fn pick(self: *@This()) void {
     self.crosshair = .rayTraceWorld(.{}, self, self.player.getEyePos(), self.player.base.rotation, 30);
 }
 
-pub fn tick(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
+pub fn tick(self: *@This(), allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = allocator;
 
     self.entity_tracker.processEntityRemovals();
     var entity_iter = self.entity_tracker.entities.keyIterator();
     while (entity_iter.next()) |maybe_entity| {
-        try maybe_entity.*.tick(io, game);
+        try maybe_entity.*.tick(game);
     }
-    try self.player.tick(io, game);
+    try self.player.tick(game);
 }
 
 pub fn loadChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !*Chunk {

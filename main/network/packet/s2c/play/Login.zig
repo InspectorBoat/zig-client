@@ -76,14 +76,14 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         scratch.writeJavaUtf("vanilla") catch unreachable;
         break :blk scratch.backer.items.*;
     };
-    try connecting.connection_handle.sendPlayPacket(io, .{
+    try connecting.connection_handle.sendPlayPacket(.{
         .custom_payload = .{
             .channel = "MC|Brand",
             .data = &brand,
         },
     });
 
-    try connecting.connection_handle.sendPlayPacket(io, .{ .client_settings = .{
+    try connecting.connection_handle.sendPlayPacket(.{ .client_settings = .{
         .language = "English",
         .view_distance = 2,
         .chat_visibility = .Full,

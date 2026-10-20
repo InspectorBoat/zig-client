@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const main = @import("main");
-
+const zio = @import("zio");
 const Vector2xz = main.Vector2xz;
 const World = main.World;
 const Connection = main.network.Connection;
@@ -65,13 +65,13 @@ pub const Client = union(enum) {
             }
         }
 
-        pub fn handleInputOnTick(self: *@This(), io: std.Io) !void {
+        pub fn handleInputOnTick(self: *@This()) !void {
             const interactions = @import("interactions.zig");
 
             const player = &self.world.player;
             const inputs = &self.input_manager;
 
-            try interactions.updateHotbarSlot(io, self, player);
+            try interactions.updateHotbarSlot(self, player);
 
             inputs.hand.attack_cooldown -|= 1;
             inputs.hand.auto_use_cooldown -|= 1;
@@ -125,26 +125,26 @@ pub const Client = union(enum) {
                 }
             }
 
-            for (0..drop_presses) |_| if (inputs.movement.sprint) try interactions.dropEntireStack(io, self) else try interactions.dropSingleItem(io, self);
+            for (0..drop_presses) |_| if (inputs.movement.sprint) try interactions.dropEntireStack(self) else try interactions.dropSingleItem(self);
 
             if (player.item_in_use != null) {
-                if (!inputs.hand.use) try interactions.stopUsingItem(io, self, player);
+                if (!inputs.hand.use) try interactions.stopUsingItem(self, player);
             } else {
-                for (0..attack_presses) |_| try interactions.attack(io, self, player);
-                for (0..use_presses) |_| try interactions.use(io, self, player);
-                for (0..pick_presses) |_| try interactions.pick(io, self, player);
+                for (0..attack_presses) |_| try interactions.attack(self, player);
+                for (0..use_presses) |_| try interactions.use(self, player);
+                for (0..pick_presses) |_| try interactions.pick(self, player);
             }
             if (inputs.hand.use and self.input_manager.hand.auto_use_cooldown == 0 and player.item_in_use == null) {
-                try interactions.use(io, self, player);
+                try interactions.use(self, player);
             }
 
             if (!inputs.hand.attack) self.input_manager.hand.attack_cooldown = 0;
 
             if (self.input_manager.hand.attack_cooldown == 0 and player.item_in_use == null) {
                 if (inputs.hand.attack and self.world.crosshair == .block)
-                    try interactions.updateBlockMining(io, self, player, self.world.crosshair.block.block_pos, self.world.crosshair.block.dir)
+                    try interactions.updateBlockMining(self, player, self.world.crosshair.block.block_pos, self.world.crosshair.block.dir)
                 else
-                    try interactions.stopMiningBlock(io, self);
+                    try interactions.stopMiningBlock(self);
             }
         }
 
@@ -202,8 +202,8 @@ pub const Client = union(enum) {
                     defer std.log.scoped(.tick_timing_noisy).debug("tick took {} ms", .{@as(f128, start.untilNow(io).raw.nanoseconds) / std.time.ns_per_ms});
 
                     game.world.pick();
-                    try game.handleInputOnTick(io);
-                    try game.world.tick(io, game.gpa, game);
+                    try game.handleInputOnTick();
+                    try game.world.tick(game.gpa, game);
                 }
             },
             else => unreachable,
@@ -213,6 +213,7 @@ pub const Client = union(enum) {
     /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
     /// Disconnects if connection is closed
     pub fn tickConnection(self: *@This(), io: std.Io) !void {
+        try zio.yield();
         const gpa, const connection_handle, const incoming_packets, const incoming_allocator = switch (self.*) {
             inline .game, .connecting => |client_state| .{
                 client_state.gpa,

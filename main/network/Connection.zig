@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const zio = @import("zio");
 const quarantine = @import("llm-code-quarantine");
 const main = @import("main");
 const util = @import("util");
@@ -18,8 +19,8 @@ compression_threshold: i32 = -1,
 
 wants_disconnect: std.atomic.Value(bool) = .init(false),
 
-ip: std.Io.net.IpAddress,
-stream: std.Io.net.Stream,
+ip: zio.net.IpAddress,
+stream: zio.net.Stream,
 
 incoming_packets: SpscQueue(S2CWrapper),
 outgoing_packets: SpscQueue(C2SWrapper),
@@ -27,11 +28,11 @@ outgoing_packets: SpscQueue(C2SWrapper),
 incoming_allocator: RingBuffer,
 outgoing_allocator: RingBuffer,
 
-pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
+pub fn networkThreadImpl(connection: *@This()) Error!void {
     defer connection.wants_disconnect.store(true, .release);
     std.log.scoped(.net).info("network task entered", .{});
 
-    connection.tick(io) catch |e| switch (e) {
+    connection.tick() catch |e| switch (e) {
         error.Canceled => {
             std.log.scoped(.net).info("network task cancelled", .{});
             return;
@@ -45,38 +46,41 @@ pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
 }
 
 pub const Error = ReceiveBytesError || DecodePacketError || DispatchPacketError || SendPacketError;
-pub fn tick(self: *@This(), io: std.Io) Error!void {
-    var unread_bytes: quarantine.FixedFifo(u8, 1024 * 1024) = .init();
+pub fn tick(self: *@This()) Error!void {
+    const unread_bytes: *quarantine.FixedFifo(u8, 1024 * 1024) = std.heap.page_allocator.create(quarantine.FixedFifo(u8, 1024 * 1024)) catch return;
+    unread_bytes.* = .init();
 
     while (true) {
+        try zio.maybeYield();
+
         // read from socket
-        try self.receiveBytes(io, &unread_bytes);
+        try self.receiveBytes(unread_bytes);
 
         // decode and dispatch
         while (true) {
-            const packet, const rewind_mark = (self.decodePacket(&unread_bytes) catch |e| switch (e) {
+            const packet, const rewind_mark = (self.decodePacket(unread_bytes) catch |e| switch (e) {
                 error.RingBufferFull => {
                     std.log.scoped(.backpressure).warn("ring buffer out of memory: {}/{}", .{ self.incoming_allocator.usedBytes(), self.incoming_allocator.buffer.len });
                     break;
                 },
                 else => return e,
             }) orelse break;
-            try self.dispatchS2CPacket(io, packet, rewind_mark);
+            try self.dispatchS2CPacket(packet, rewind_mark);
         }
 
         // encode and send outbound packets
-        try self.sendC2SPackets(io);
+        try self.sendC2SPackets();
     }
 }
 
-pub fn sendC2SPackets(self: *@This(), io: std.Io) SendPacketError!void {
+pub fn sendC2SPackets(self: *@This()) SendPacketError!void {
     while (self.outgoing_packets.pop()) |packet| {
-        try self.sendPacket(io, packet.@"0");
+        try self.sendPacket(packet.@"0");
     }
 }
 
 pub const DispatchPacketError = error{ PacketHandlingError, QueueFull };
-pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: RingBuffer.RewindMark) DispatchPacketError!void {
+pub fn dispatchS2CPacket(self: *@This(), packet: S2C, rewind_mark: RingBuffer.RewindMark) DispatchPacketError!void {
     var packet_mut = packet;
     switch (packet_mut) {
         inline else => |*specific_protocol| {
@@ -84,7 +88,7 @@ pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: R
                 inline else => |*specific_packet| {
                     if (specific_packet.handle_on_network_thread) {
                         std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
-                        specific_packet.handleOnNetworkThread(io, self) catch return error.PacketHandlingError;
+                        specific_packet.handleOnNetworkThread(undefined, self) catch return error.PacketHandlingError;
                         // free immediately
                         self.incoming_allocator.undoAllocations(rewind_mark);
                     } else {
@@ -96,27 +100,24 @@ pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: R
     }
 }
 
-pub const ReceiveBytesError = std.Io.net.Socket.ReceiveTimeoutError || std.mem.Allocator.Error;
+pub const ReceiveBytesError = (zio.ev.NetRecv.Error || zio.Timeoutable) || std.mem.Allocator.Error;
 pub fn receiveBytes(
     self: *@This(),
-    io: std.Io,
     bytes: *quarantine.FixedFifo(u8, 1024 * 1024),
 ) ReceiveBytesError!void {
     var read_buffer: [262144]u8 = undefined;
-    // Stream.read is unimplemented, so we just use this for now
-    const read_bytes = self.stream.socket.receiveTimeout(
-        io,
+    const read_bytes = self.stream.read(
         &read_buffer,
-        .{ .duration = .{ .raw = .fromMilliseconds(5), .clock = .real } },
+        .{ .duration = .zero },
     ) catch |err| switch (err) {
         error.Timeout => return,
         else => return err,
     };
-    std.log.scoped(.net).debug("read {} bytes", .{read_bytes.data.len});
+    std.log.scoped(.net).debug("read {} bytes", .{read_bytes});
     // TODO: Fix our queue implementation, make it growable
     // In fact, we should probably use a memory mapped ring buffer
     // so we never have to compact the buffer
-    try bytes.write(read_bytes.data);
+    try bytes.write(read_buffer[0..read_bytes]);
 }
 
 pub const DecodePacketError = DecompressPacketError || PacketHeaderError || S2C.ReadPacketError || error{RingBufferFull};
@@ -222,21 +223,21 @@ pub fn compressBuffer(uncompressed_buffer: *C2S.WriteBuffer, buffer: []u8) Compr
     return .fromOwnedSlice(output.buffered());
 }
 
-pub const SendPacketError = std.Io.net.Stream.Writer.Error || C2S.WritePacketError || CompressPacketError;
+pub const SendPacketError = C2S.WritePacketError || CompressPacketError || error{ Canceled, NetworkFailure };
 
-pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) SendPacketError!void {
-    try self.sendPacket(io, .{ .handshake = packet });
+pub fn sendHandshakePacket(self: *@This(), packet: C2S.Handshake) SendPacketError!void {
+    try self.sendPacket(.{ .handshake = packet });
 }
 
-pub fn sendLoginPacket(self: *@This(), io: std.Io, packet: C2S.Login) SendPacketError!void {
-    try self.sendPacket(io, .{ .login = packet });
+pub fn sendLoginPacket(self: *@This(), packet: C2S.Login) SendPacketError!void {
+    try self.sendPacket(.{ .login = packet });
 }
 
-pub fn sendPlayPacket(self: *@This(), io: std.Io, packet: C2S.Play) SendPacketError!void {
-    try self.sendPacket(io, .{ .play = packet });
+pub fn sendPlayPacket(self: *@This(), packet: C2S.Play) SendPacketError!void {
+    try self.sendPacket(.{ .play = packet });
 }
 
-pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void {
+pub fn sendPacket(self: *@This(), packet: C2S) SendPacketError!void {
     var packet_encode_buffer: [2097152]u8 = undefined;
     var packet_buffer: C2S.WriteBuffer = .initBuffer(&packet_encode_buffer);
 
@@ -277,48 +278,55 @@ pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void 
     std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len + header.backer.items.len});
 
     var buf: [1024]u8 = undefined;
-    var writer = self.stream.writer(io, &buf);
-    _ = writer.interface.write(header.backer.items) catch return writer.err.?;
-    _ = writer.interface.write(packet_buffer.backer.items) catch return writer.err.?;
-    writer.interface.flush() catch return writer.err.?;
+    var writer = self.stream.writer(&buf);
+    _ = writer.interface.write(header.backer.items) catch switch (writer.err.?) {
+        error.Canceled => return error.Canceled,
+        else => return error.NetworkFailure,
+    };
+    _ = writer.interface.write(packet_buffer.backer.items) catch switch (writer.err.?) {
+        error.Canceled => return error.Canceled,
+        else => return error.NetworkFailure,
+    };
+    writer.interface.flush() catch switch (writer.err.?) {
+        error.Canceled => return error.Canceled,
+        else => return error.NetworkFailure,
+    };
 }
 
 pub const Handle = struct {
-    network_task: std.Io.Future(Connection.Error!void),
+    network_task: zio.JoinHandle(Connection.Error!void),
     connection: *Connection,
     pub fn sendPacket(
         self: *@This(),
-        io: std.Io,
         packet: C2S,
     ) !void {
-        _ = io;
         try self.connection.outgoing_packets.push(.{ packet, undefined });
     }
 
-    pub fn sendHandshakePacket(self: *@This(), io: std.Io, packet: C2S.Handshake) !void {
-        try self.sendPacket(io, .{ .handshake = packet });
+    pub fn sendHandshakePacket(self: *@This(), packet: C2S.Handshake) !void {
+        try self.sendPacket(.{ .handshake = packet });
     }
 
-    pub fn sendLoginPacket(self: *@This(), io: std.Io, packet: C2S.Login) !void {
-        try self.sendPacket(io, .{ .login = packet });
+    pub fn sendLoginPacket(self: *@This(), packet: C2S.Login) !void {
+        try self.sendPacket(.{ .login = packet });
     }
 
-    pub fn sendPlayPacket(self: *@This(), io: std.Io, packet: C2S.Play) !void {
-        try self.sendPacket(io, .{ .play = packet });
+    pub fn sendPlayPacket(self: *@This(), packet: C2S.Play) !void {
+        try self.sendPacket(.{ .play = packet });
     }
 
     pub fn disconnect(
         self: *@This(),
-        io: std.Io,
+        _: std.Io,
         allocator: std.mem.Allocator,
     ) void {
         std.log.scoped(.net).info("sending cancel to network thread", .{});
 
         self.connection.wants_disconnect.store(true, .release);
 
-        self.network_task.cancel(io) catch {};
+        self.network_task.cancel();
 
-        self.connection.stream.close(io);
+        self.connection.stream.close();
 
         self.connection.incoming_packets.deinit(allocator);
         self.connection.outgoing_packets.deinit(allocator);
@@ -332,19 +340,16 @@ pub const Handle = struct {
 
     /// Spawns a new thread and initializes a new connection in that thread, then returns a handle to that connection
     pub fn init(
-        io: std.Io,
+        _: std.Io,
         allocator: std.mem.Allocator,
         address: []const u8,
         port: u16,
         player_name: []const u8,
     ) !@This() {
-        const ip: std.Io.net.IpAddress = try .parse(address, port);
+        const ip: zio.net.IpAddress = try .parseIp(address, port);
 
-        const stream: std.Io.net.Stream = try ip.connect(io, .{
-            .mode = .stream,
-            .protocol = .tcp,
-        });
-        errdefer stream.close(io);
+        const stream: zio.net.Stream = try ip.connect(.{});
+        errdefer stream.close();
 
         const connection = try allocator.create(Connection);
         errdefer allocator.destroy(connection);
@@ -370,17 +375,17 @@ pub const Handle = struct {
             .outgoing_allocator = outgoing_allocator,
         };
 
-        try connection.sendHandshakePacket(io, .{ .handshake = .{
+        try connection.sendHandshakePacket(.{ .handshake = .{
             .version = 47,
             .address = address,
             .port = @intCast(port),
             .protocol_id = 2,
         } });
-        try connection.sendLoginPacket(io, .{ .hello = .{
+        try connection.sendLoginPacket(.{ .hello = .{
             .player_name = player_name,
         } });
 
-        const network_task = try io.concurrent(Connection.networkThreadImpl, .{ io, connection });
+        const network_task = try zio.spawn(Connection.networkThreadImpl, .{connection});
         std.log.debug("starting network task", .{});
 
         return .{

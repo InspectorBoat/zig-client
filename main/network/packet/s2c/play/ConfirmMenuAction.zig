@@ -22,10 +22,11 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 }
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
+    _ = io;
     _ = allocator;
     // simply send the packet back for now, vanilla logic is more complicated
     std.log.scoped(.transaction).debug("transaction - {any}", .{self});
-    try game.connection_handle.sendPlayPacket(io, .{ .confirm_menu_action = .{
+    try game.connection_handle.sendPlayPacket(.{ .confirm_menu_action = .{
         .accepted = true,
         .action_id = self.action_id,
         .menu_network_id = @bitCast(self.menu_network_id),

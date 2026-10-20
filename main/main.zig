@@ -39,23 +39,25 @@ pub const std_options: std.Options = .{
     .log_scope_levels = &.{
         .{ .scope = .tick_late, .level = .warn },
         .{ .scope = .tick_on_time, .level = .warn },
-        .{ .scope = .handle_packet_main, .level = .debug },
-        .{ .scope = .handle_packet_net, .level = .debug },
+        .{ .scope = .handle_packet_main, .level = .warn },
+        .{ .scope = .handle_packet_net, .level = .warn },
         .{ .scope = .world, .level = .warn },
-        .{ .scope = .decode_packet, .level = .debug },
-        .{ .scope = .send_packet, .level = .debug },
+        .{ .scope = .decode_packet, .level = .warn },
+        .{ .scope = .send_packet, .level = .warn },
         .{ .scope = .entity, .level = .warn },
         .{ .scope = .local_player_moved, .level = .warn },
         .{ .scope = .player, .level = .warn },
-        .{ .scope = .net, .level = .debug },
+        .{ .scope = .net, .level = .info },
         .{ .scope = .resource_pack_states, .level = .warn },
         .{ .scope = .resource_pack, .level = .info },
         .{ .scope = .section_revision, .level = .warn },
-        .{ .scope = .ring_buffer, .level = .warn },
+        .{ .scope = .backpressure, .level = .debug },
         .{ .scope = .transaction, .level = .warn },
         .{ .scope = .tick_timing_noisy, .level = .warn },
     },
 };
+
+pub const zio_options: zio.Options = .{ .scheduling = .pinned };
 
 pub const main = if (build_options.zio) struct {
     pub fn main() !void {

@@ -146,11 +146,11 @@ pub const Entity = union(EntityType) {
 
     removed,
 
-    pub fn tick(entity: *@This(), io: std.Io, game: *Client.Game) !void {
+    pub fn tick(entity: *@This(), game: *Client.Game) !void {
         // std.std.log.scoped(.entity).debug("{}", .{std.meta.activeTag(entity.*)});
         switch (entity.*) {
             .removed => return,
-            .local_player => |*specific_entity| try specific_entity.tick(io, game),
+            .local_player => |*specific_entity| try specific_entity.tick(game),
             inline .cow, .item => |*specific_entity| try specific_entity.tick(game),
             // Unlisted types only get the snapshot below.
             inline else => |*specific_entity| specific_entity.base.tick(),
