@@ -57,12 +57,11 @@ pub fn onFrame(frame: Events.Frame) !void {
     const client = frame.client;
     glfw.pollEvents();
 
-    gl.clearColor(
-        if (client.* == .idle) 1.0 else 0.75,
-        if (client.* == .connecting) 1.0 else 0.75,
-        if (client.* == .game) 1.0 else 0.75,
-        1,
-    );
+    switch (client.*) {
+        .idle => gl.clearColor(1.0, 0.75, 0.75, 1),
+        .connecting => gl.clearColor(0.75, 1.0, 0.75, 1),
+        .game => gl.clearColor(0.719411765, 0.767843137, 0.921568627, 1),
+    }
     gl.clear(.{ .color = true, .depth = true });
 
     switch (client.*) {

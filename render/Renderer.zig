@@ -323,8 +323,20 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     {
         self.terrain_program.use();
         self.vao.bind();
-        self.terrain_program.uniform1i(2, 0);
+        self.terrain_program.uniform1i(16, 0);
         self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
+
+        self.terrain_program.uniform1i(2, @intFromBool(true));
+        self.terrain_program.uniform4f(3, 0.719411765, 0.767843137, 0.921568627, 1);
+        self.terrain_program.uniform1f(4, 100);
+        self.terrain_program.uniform1f(5, 200);
+        self.terrain_program.uniform1f(6, 0.01);
+        self.terrain_program.uniform1i(7, 9729);
+        self.terrain_program.uniform1i(8, 34139);
+
+        const mv = getMvMatrix(game.world.player, game.partial_tick);
+        self.terrain_program.uniformMatrix4(9, true, &.{mv.data});
+
         gl.polygonMode(.front_and_back, self.debug_options.terrain_draw_mode);
 
         var entries = self.chunk_tracker.chunks.iterator();
@@ -548,6 +560,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
 
     const projection: Mat4 = za.perspective(90.0, window_width / window_height, 0.05, 1000.0);
+
     const view: Mat4 = .mul(
         .fromEulerAngles(.new(player.base.rotation.pitch, 0, 0)),
         .fromEulerAngles(.new(0, player.base.rotation.yaw + 180, 0)),
@@ -560,6 +573,23 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     ));
 
     return .mul(projection, .mul(view, model));
+}
+
+pub fn getMvMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
+    const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
+
+    const view: Mat4 = .mul(
+        .fromEulerAngles(.new(player.base.rotation.pitch, 0, 0)),
+        .fromEulerAngles(.new(0, player.base.rotation.yaw + 180, 0)),
+    );
+
+    const model: Mat4 = .fromTranslate(.new(
+        @floatCast(-eye_pos.x),
+        @floatCast(-eye_pos.y),
+        @floatCast(-eye_pos.z),
+    ));
+
+    return .mul(view, model);
 }
 
 pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
