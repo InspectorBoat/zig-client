@@ -482,11 +482,11 @@ pub fn bufferInventory(self: *@This(), world: *const World) !void {
     const width: f32 = @floatFromInt(window.x);
     const height: f32 = @floatFromInt(window.y);
 
-    const pitch: f32 = 18;
-    const box: f32 = 16;
-    const gap: f32 = 4;
-    const grid_width: f32 = 9 * pitch;
-    const grid_height: f32 = 3 * pitch + gap + pitch;
+    const box_size: f32 = 40;
+    const spacing: f32 = 40;
+    const hotbar_gap: f32 = 10;
+    const grid_width: f32 = 9 * spacing;
+    const grid_height: f32 = 3 * spacing + hotbar_gap + spacing;
 
     const left: f32 = (width - grid_width) / 2;
     const top: f32 = (height - grid_height) / 2;
@@ -500,17 +500,16 @@ pub fn bufferInventory(self: *@This(), world: *const World) !void {
         const row: f32 = if (hotbar) 3 else @floatFromInt((i - 9) / 9);
         const col: f32 = @floatFromInt(i % 9);
 
-        const x0 = left + col * pitch;
-        const y0 = top + row * pitch + (if (hotbar) gap else 0);
-
+        const x0 = left + col * spacing;
+        const y0 = top + row * spacing + (if (hotbar) hotbar_gap else 0);
         // the 2d debug path wants clip space, with y pointing up
         try self.@"2d_debug_staging_buffer".write2dDebugQuad(
             .{
                 .x = (x0 / width) * 2 - 1,
-                .y = 1 - ((y0 + box) / height) * 2,
+                .y = 1 - ((y0 + box_size) / height) * 2,
             },
             .{
-                .x = ((x0 + box) / width) * 2 - 1,
+                .x = ((x0 + box_size) / width) * 2 - 1,
                 .y = 1 - (y0 / height) * 2,
             },
         );

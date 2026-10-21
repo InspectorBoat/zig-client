@@ -28,7 +28,7 @@ pub const event_listeners = .{
 
 pub fn onStartup(startup: Events.Startup) !void {
     const gpa = startup.gpa;
-    // innitialize glfw
+    // initialize glfw
     glfw_helper.setGlfwErrorCallback();
     try glfw_helper.initGlfw();
 
