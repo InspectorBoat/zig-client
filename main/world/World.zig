@@ -20,7 +20,7 @@ const EventHandler = main.EventHandler;
 const Events = main.Events;
 const HitResult = main.HitResult;
 const Inventory = main.Inventory;
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Menu = main.Menu;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
@@ -39,7 +39,7 @@ main_inventory: *Inventory,
 crafting_inventory: *Inventory,
 crafting_result_inventory: *Inventory,
 
-maybe_cursor_stack: ?ItemStack = null,
+maybe_cursor_stack: ?Item.Stack = null,
 
 player_inventory_menu: Menu,
 

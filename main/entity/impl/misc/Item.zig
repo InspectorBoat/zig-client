@@ -2,7 +2,7 @@ const main = @import("main");
 
 const Client = main.Client;
 const Entity = main.Entity;
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Vector3 = main.Vector3;
 const ScaledVector3 = main.network.ScaledVector;
 
@@ -42,6 +42,6 @@ pub fn tick(self: *@This(), game: *const Client.Game) !void {
     // TODO: check water
 }
 
-pub fn getItem(self: *@This()) ?ItemStack {
-    return (self.base.data_tracker.entries[10] orelse return null).ItemStack;
+pub fn getItem(self: *@This()) ?Item.Stack {
+    return (self.base.data_tracker.entries[10] orelse return null).Item.Stack;
 }

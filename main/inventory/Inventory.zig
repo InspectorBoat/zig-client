@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const ItemStack = @import("main").ItemStack;
+const Item = @import("main").Item;
 
-stacks: []?ItemStack,
+stacks: []?Item.Stack,
 type: Type,
 
 pub const Type = enum {
@@ -36,7 +36,7 @@ pub fn hasEmptyIndex(self: @This()) bool {
 
 pub fn init(allocator: std.mem.Allocator, @"type": Type, slot_count: usize) !*@This() {
     const self = try allocator.create(@This());
-    const slots = try allocator.alloc(?ItemStack, slot_count);
+    const slots = try allocator.alloc(?Item.Stack, slot_count);
     @memset(slots, null);
     self.* = .{ .stacks = slots, .type = @"type" };
     return self;
@@ -44,7 +44,7 @@ pub fn init(allocator: std.mem.Allocator, @"type": Type, slot_count: usize) !*@T
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     for (self.stacks) |*item_stack| {
-        ItemStack.deinit(allocator, item_stack);
+        Item.Stack.deinit(allocator, item_stack);
     }
     allocator.free(self.stacks);
     allocator.destroy(self);

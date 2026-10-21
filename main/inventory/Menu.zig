@@ -5,23 +5,22 @@ const main = @import("main");
 const Entity = main.Entity;
 const Inventory = main.Inventory;
 const Item = main.Item;
-const ItemStack = main.ItemStack;
 const World = main.World;
 
 network_id: i32,
 slots: []Slot,
 drag_state: DragState = .none,
 
-pub fn setSlot(self: *@This(), allocator: std.mem.Allocator, slot_index: SlotIndex, new_item_stack: ?ItemStack) void {
+pub fn setSlot(self: *@This(), allocator: std.mem.Allocator, slot_index: SlotIndex, new_item_stack: ?Item.Stack) void {
     const slot = self.slots[@backingInt(slot_index)];
 
     // free old stack, if present
-    ItemStack.deinit(allocator, &slot.backer.stacks[slot.index_into_backer]);
+    Item.Stack.deinit(allocator, &slot.backer.stacks[slot.index_into_backer]);
 
     slot.backer.stacks[slot.index_into_backer] = new_item_stack;
 }
 
-pub fn getSlot(self: *const @This(), slot_index: SlotIndex) ?ItemStack {
+pub fn getSlot(self: *const @This(), slot_index: SlotIndex) ?Item.Stack {
     const slot = self.slots[@backingInt(slot_index)];
 
     return slot.backer.stacks[slot.index_into_backer];
@@ -30,10 +29,10 @@ pub fn getSlot(self: *const @This(), slot_index: SlotIndex) ?ItemStack {
 pub fn clearSlot(self: *@This(), allocator: std.mem.Allocator, slot_index: SlotIndex) void {
     const slot = self.slots[@backingInt(slot_index)];
 
-    ItemStack.deinit(allocator, &slot.backer.stacks[slot.index_into_backer]);
+    Item.Stack.deinit(allocator, &slot.backer.stacks[slot.index_into_backer]);
 }
 
-pub fn getSlotPtr(self: *@This(), slot_index: SlotIndex) *?ItemStack {
+pub fn getSlotPtr(self: *@This(), slot_index: SlotIndex) *?Item.Stack {
     const slot = self.slots[@backingInt(slot_index)];
 
     return &slot.backer.stacks[slot.index_into_backer];
@@ -196,7 +195,7 @@ comptime {
     _ = &clickSlot;
 }
 
-pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, action: Action) !?ItemStack {
+pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, action: Action) !?Item.Stack {
     if (self.drag_state != .none and action != .drag) return null;
     switch (action) {
         .throw => |throw| {
@@ -250,7 +249,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
 
                         const maybe_stack = self.getSlotPtr(slot_index);
                         if (maybe_stack.* == null) {
-                            maybe_stack.* = try ItemStack.dupe(allocator, cursor_item);
+                            maybe_stack.* = try Item.Stack.dupe(allocator, cursor_item);
                             maybe_stack.*.?.size = 0;
                         }
                         const stack = &maybe_stack.*.?;
@@ -274,7 +273,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
 
                     world.maybe_cursor_stack.?.size -= consumed;
                     if (world.maybe_cursor_stack.?.size < 0) {
-                        ItemStack.deinit(allocator, &world.maybe_cursor_stack);
+                        Item.Stack.deinit(allocator, &world.maybe_cursor_stack);
                         world.maybe_cursor_stack = null;
                     }
                 },
@@ -315,7 +314,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                     // check if we can put items into the slot before continuing
                     if (slot.type.isItemAllowed(cursor_stack.item)) {
                         // if we can merge, try to merge cursor into slot
-                        if (ItemStack.canMerge(cursor_stack.*, slot_stack.*)) {
+                        if (Item.Stack.canMerge(cursor_stack.*, slot_stack.*)) {
                             const deposit_count = @min(
                                 if (mode == .all) cursor_stack.size else 1,
                                 slot.type.maxStackSize(cursor_stack.item) - slot_stack.size,
@@ -345,7 +344,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                     // furnaces, or crafting tables
                     // (they always false on isItemAllowed, since you cannot place items *into* them)
                     // this is also why this operation is all-or-nothing
-                    else if (ItemStack.canMerge(cursor_stack.*, slot_stack.*)) {
+                    else if (Item.Stack.canMerge(cursor_stack.*, slot_stack.*)) {
                         const size = slot_stack.size;
                         if (size > 0 and size + cursor_stack.size <= cursor_stack.item.maxStackSize()) {
                             cursor_stack.size += size;
@@ -395,7 +394,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
 }
 
 /// TODO: implement menu-specific logic
-fn canDragOverSlot(self: *const @This(), slot_index: SlotIndex, slot: Slot, stack: ItemStack) bool {
+fn canDragOverSlot(self: *const @This(), slot_index: SlotIndex, slot: Slot, stack: Item.Stack) bool {
     if (self.getSlot(slot_index)) |existing_item| {
         return existing_item.canMerge(stack) and slot.type.isItemAllowed(stack.item);
     } else return true;

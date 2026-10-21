@@ -3,7 +3,7 @@ const std = @import("std");
 const main = @import("main");
 const Uuid = @import("util").Uuid;
 
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Nbt = main.Nbt;
 const Vector3 = main.Vector3;
 const network = main.network;
@@ -147,8 +147,8 @@ pub fn readStringAllocating(self: *@This(), allocator: std.mem.Allocator, max_co
     return string;
 }
 
-pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?ItemStack {
-    var item_stack: ?ItemStack = null;
+pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?Item.Stack {
+    var item_stack: ?Item.Stack = null;
     const item_id = try self.read(i16);
     if (item_id >= 0) {
         item_stack = .{

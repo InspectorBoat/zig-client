@@ -8,7 +8,7 @@ const zio = @import("zio");
 pub const block = @import("block/block.zig");
 pub const Inventory = @import("inventory/Inventory.zig");
 pub const Menu = @import("inventory/Menu.zig");
-pub const item = @import("item/item.zig");
+pub const Item = @import("item/item.zig").Item;
 pub const math = @import("math/math.zig");
 pub const network = @import("network/network.zig");
 pub const World = @import("world/World.zig");
@@ -18,8 +18,6 @@ pub const EntityType = @import("entity/entity.zig").EntityType;
 pub const Nbt = @import("nbt/nbt.zig").Nbt;
 
 pub const Block = block.Block;
-pub const Item = item.Item;
-pub const ItemStack = item.ItemStack;
 pub const Box = math.Box;
 pub const Direction = math.Direction;
 pub const HitResult = math.HitResult;

@@ -1,10 +1,10 @@
 const main = @import("main");
 
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const C2S = main.network.packet.C2S;
 
 slot_id: i16,
-item_stack: ItemStack,
+item_stack: Item.Stack,
 
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.write(i16, self.slot_id);

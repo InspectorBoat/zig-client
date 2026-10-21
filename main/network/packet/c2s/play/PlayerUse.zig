@@ -1,13 +1,13 @@
 const main = @import("main");
 
 const Direction = main.Direction;
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Vector3 = main.Vector3;
 const C2S = main.network.packet.C2S;
 
 block_pos: ?Vector3(i32),
 face: ?Direction,
-stack: ?ItemStack,
+stack: ?Item.Stack,
 offset: ?Vector3(f32),
 
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {

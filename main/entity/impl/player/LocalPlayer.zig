@@ -4,7 +4,7 @@ const main = @import("main");
 
 const Client = main.Client;
 const Entity = main.Entity;
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Rotation2 = main.Rotation2;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
@@ -18,7 +18,7 @@ player: Entity.PlayerBase = .{},
 abilities: PlayerAbilities = .{},
 
 // TODO: This is not accurate; the vanilla client checks for pointer equality while we check for structural equality
-item_in_use: ?ItemStack = null,
+item_in_use: ?Item.Stack = null,
 item_use_timer: i32 = 0,
 
 air_speed: f32 = 0.02,
@@ -53,7 +53,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     if (self.item_in_use) |item_in_use| {
         // TODO: Vanilla uses a pointer equality check.
         // We need to figure out how to emulate it.
-        if (!ItemStack.deepEquals(item_in_use, self.getHeldStack(game))) {
+        if (!Item.Stack.deepEquals(item_in_use, self.getHeldStack(game))) {
             self.item_in_use = null;
         } else {
             self.item_use_timer -= 1;
@@ -230,7 +230,7 @@ pub fn pushAwayFrom(self: *@This(), game: *const Client.Game, x: f64, y: f64, z:
     }
 }
 
-pub fn getHeldStack(self: *@This(), game: *Client.Game) ?ItemStack {
+pub fn getHeldStack(self: *@This(), game: *Client.Game) ?Item.Stack {
     return game.world.main_inventory.stacks[self.hotbar_slot];
 }
 

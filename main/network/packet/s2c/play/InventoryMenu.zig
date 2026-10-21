@@ -3,12 +3,12 @@ const std = @import("std");
 const main = @import("main");
 
 const Client = main.Client;
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Menu = main.Menu;
 const S2C = main.network.packet.S2C;
 
 menu_network_id: i32,
-stacks: []const ?ItemStack,
+stacks: []const ?Item.Stack,
 
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
@@ -16,7 +16,7 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const menu_network_id = try buffer.read(u8);
     const stack_count: usize = @intCast(try buffer.read(i16));
-    const stacks = try allocator.alloc(?ItemStack, stack_count);
+    const stacks = try allocator.alloc(?Item.Stack, stack_count);
     for (stacks) |*stack| {
         stack.* = try buffer.readItemStackAllocating(allocator);
     }

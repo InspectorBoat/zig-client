@@ -3,12 +3,12 @@ const std = @import("std");
 const main = @import("main");
 
 const Client = main.Client;
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const S2C = main.network.packet.S2C;
 
 network_id: i32,
 equipment_slot: i32,
-stack: ?ItemStack,
+stack: ?Item.Stack,
 
 comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,

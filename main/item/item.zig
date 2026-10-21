@@ -1,10 +1,10 @@
 const main = @import("main");
 
-pub const ItemStack = @import("ItemStack.zig");
-
 const Block = main.Block;
 
 pub const Item = enum(u16) {
+    pub const Stack = @import("Stack.zig");
+
     stone = 1,
     grass = 2,
     dirt = 3,

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const main = @import("main");
 
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Rotation3 = main.Rotation3;
 const Vector3 = main.Vector3;
 
@@ -46,7 +46,7 @@ pub const DataValue = union(DataTypes) {
     i32: i32,
     f32: f32,
     String: []const u8,
-    ItemStack: ?ItemStack,
+    ItemStack: ?Item.Stack,
     BlockPos: Vector3(i32),
     Rotation: Rotation3(f32),
 };

@@ -1,10 +1,10 @@
 const main = @import("main");
 
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 
 hotbar_slot: u8 = 0,
 
-pub fn getHeldStack(self: *@This()) ?*ItemStack {
+pub fn getHeldStack(self: *@This()) ?*Item.Stack {
     _ = self; // autofix
     return null;
 }

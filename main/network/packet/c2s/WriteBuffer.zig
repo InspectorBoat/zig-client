@@ -3,7 +3,7 @@ const std = @import("std");
 const main = @import("main");
 const Uuid = @import("util").Uuid;
 
-const ItemStack = main.ItemStack;
+const Item = main.Item;
 const Nbt = main.Nbt;
 const Vector3 = main.Vector3;
 const network = main.network;
@@ -91,7 +91,7 @@ pub fn writeBlockPos(self: *@This(), block_pos: Vector3(i32)) !void {
     );
 }
 
-pub fn writeItemStack(self: *@This(), maybe_item_stack: ?ItemStack) !void {
+pub fn writeItemStack(self: *@This(), maybe_item_stack: ?Item.Stack) !void {
     if (maybe_item_stack) |item_stack| {
         try self.write(i16, @intCast(@backingInt(item_stack.item)));
         try self.write(i8, @truncate(item_stack.size));
@@ -249,7 +249,7 @@ test "writeJavaUtf" {
 
 test "readJavaUtfAllocating" {
     const allocator = std.testing.allocator;
-    // exactly what java's DataOutput.writeUTF produces for "hi"
+    // what DataOutput.writeUTF produces for "hi"
     const vanilla = [_]u8{ 0x00, 0x02, 'h', 'i' };
 
     var buffer: ReadBuffer = .{ .backer = &vanilla, .read_location = 0 };
@@ -268,26 +268,28 @@ test "writeItemStack" {
     try std.testing.expectEqualSlices(u8, &[_]u8{ 0xff, 0xff }, buffer.backer.items);
     buffer.clear();
 
-    const plain: ItemStack = .{ .item = .stone, .size = 3, .metadata = 0, .nbt = null };
+    const plain: Item.Stack = .{ .item = .stone, .size = 3, .metadata = 0, .nbt = null };
     try buffer.writeItemStack(plain);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x01, 0x03, 0x00, 0x00, 0x00 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0x00, 0x01, 0x03, 0x00, 0x00, 0x00 }, buffer.backer.items);
     buffer.clear();
 
-    // Nbt.String owns its buffer (deinit frees it), so an int is used here to keep
-    // the test free of ownership bookkeeping; the name still goes through writeJavaUtf
-    const entry: Nbt = .{ .int = .{ .value = 1 } };
-    var compound = try Nbt.Compound.init(allocator, .{ .s = entry });
+    var compound: Nbt.Compound = try .init(allocator, .{
+        .foo = @as(Nbt, .{ .string = .{ .value = try allocator.dupe(u8, "hello") } }),
+    });
     defer compound.deinit(allocator);
 
     try buffer.writeItemStack(.{ .item = .stone, .size = 3, .metadata = 0, .nbt = compound });
-    try std.testing.expectEqualSlices(u8, &[_]u8{
-        0x00, 0x01, //           item id
-        0x03, //                 count
-        0x00, 0x00, //           damage
-        0x0a, //                TAG_Compound
-        0x00, 0x00, //           empty name
-        0x03, 0x00, 0x01, 's', // TAG_Int "s"
-        0x00, 0x00, 0x00, 0x01, //   1
-        0x00, // TAG_End
-    }, buffer.backer.items);
+    // zig fmt: off
+    try std.testing.expectEqualSlices(u8, &(
+     .{ 0x00, 0x01 } ++              // item id
+     .{ 0x03 }       ++              // count
+     .{ 0x00, 0x00 } ++              // damage
+     .{ 0x0a }       ++              // compound tag
+     .{ 0x00, 0x00 } ++              // "" name
+     .{ 0x08 }       ++              // string tag
+     .{ 0x00, 0x03 } ++ "foo".* ++   // "foo" name
+     .{ 0x00, 0x05 } ++ "hello".* ++ // "hello" value
+     .{ 0x00 }                       // end tag (ends compound)
+    ), buffer.backer.items);
+    // zig fmt: on
 }
