@@ -13,8 +13,8 @@
     },
     .dependencies = .{
         .mach_glfw = .{
-            .url = "git+https://github.com/InspectorBoat/mach_glfw.git#8db971184228f28a09729c9e9ddc87b45fb01ad2",
-            .hash = "mach_glfw-0.2.0-HMuMvTdDBQCrTaZoPKUDPIRzFANYQrRnxVugCM3n_uJT",
+            .url = "git+https://github.com/InspectorBoat/mach_glfw.git#fffe6e2ee2c5ab7ea263f0e1ff6a9a6a6c4ad2ea",
+            .hash = "mach_glfw-0.2.0-HMuMvTtDBQA6fIRjmaXLPxM8180FS-79qI4hIDBCPtEG",
         },
         .zalgebra = .{
             .url = "git+https://github.com/kooparse/zalgebra#b5ebfef29a76fffdf1bc5424ac4c9f49fe323df2",
