@@ -16,18 +16,18 @@ const Box = main.Box;
 const Client = main.Client;
 const Direction = main.Direction;
 const Entity = main.Entity;
-const LocalPlayerEntity = main.Entity.LocalPlayer;
 const EventHandler = main.EventHandler;
 const Events = main.Events;
 const HitResult = main.HitResult;
 const Inventory = main.Inventory;
+const ItemStack = main.ItemStack;
 const Menu = main.Menu;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
 const S2C = main.network.packet.S2C;
 
 chunks: ChunkMap = .{},
-player: LocalPlayerEntity,
+player: Entity.LocalPlayer,
 entity_tracker: EntityTracker,
 tick_timer: TickTimer,
 difficulty: Difficulty,
@@ -38,6 +38,8 @@ game_mode: GameMode = .Survival,
 main_inventory: *Inventory,
 crafting_inventory: *Inventory,
 crafting_result_inventory: *Inventory,
+
+maybe_cursor_stack: ?ItemStack = null,
 
 player_inventory_menu: Menu,
 
@@ -55,11 +57,11 @@ pub fn init(
     io: std.Io,
     allocator: std.mem.Allocator,
     info: struct { difficulty: Difficulty, game_mode: GameMode, dimension: i8, hardcore: bool },
-    player: LocalPlayerEntity,
+    player: Entity.LocalPlayer,
 ) !@This() {
-    const main_inventory: *Inventory = try .init(allocator, 40);
-    const crafting_inventory: *Inventory = try .init(allocator, 4);
-    const crafting_result_inventory: *Inventory = try .init(allocator, 1);
+    const main_inventory: *Inventory = try .init(allocator, .player, 40);
+    const crafting_inventory: *Inventory = try .init(allocator, .player_crafting, 4);
+    const crafting_result_inventory: *Inventory = try .init(allocator, .crafting_result, 1);
 
     const player_inventory_menu: Menu = try .initPlayerMenu(allocator, main_inventory, crafting_inventory, crafting_result_inventory);
 

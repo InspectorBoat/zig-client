@@ -25,6 +25,23 @@ pub fn dupe(allocator: std.mem.Allocator, maybe_item_stack: ?@This()) !?@This() 
     return maybe_item_stack;
 }
 
+pub fn split(self: *@This(), allocator: std.mem.Allocator, items_to_split: i32) !@This() {
+    var new_stack: @This() = (try dupe(allocator, self.*)).?;
+    self.size -= items_to_split;
+    new_stack.size = items_to_split;
+    return new_stack;
+}
+
+pub fn canMerge(lhs: @This(), rhs: @This()) bool {
+    if (lhs.item == rhs.item and lhs.metadata == rhs.metadata) {
+        const lhs_has_nbt = lhs.nbt != null;
+        const rhs_has_nbt = rhs.nbt != null;
+        if (lhs_has_nbt and rhs_has_nbt) return Nbt.deepEquals(&.{ .compound = lhs.nbt.? }, &.{ .compound = rhs.nbt.? });
+        return lhs_has_nbt == rhs_has_nbt;
+    }
+    return false;
+}
+
 pub fn deinit(allocator: std.mem.Allocator, maybe_item_stack: *?@This()) void {
     if (maybe_item_stack.*) |*item_stack| if (item_stack.nbt) |*nbt| nbt.deinit(allocator);
 }

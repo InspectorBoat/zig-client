@@ -30,8 +30,13 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
+    _ = allocator;
+
+    if (self.network_id == game.world.player.base.network_id) {
+        game.world.player.base.velocity = self.velocity.normalize();
+        return;
+    }
 
     const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
     entity.setVelocityFromPacket(self.velocity.normalize());
-    _ = allocator;
 }

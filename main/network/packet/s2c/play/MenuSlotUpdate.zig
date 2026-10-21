@@ -7,7 +7,7 @@ const ItemStack = main.ItemStack;
 const S2C = main.network.packet.S2C;
 
 menu_network_id: i32,
-slot_id: i32,
+slot_id: i16,
 item_stack: ?ItemStack,
 
 comptime handle_on_network_thread: bool = false,
@@ -26,10 +26,20 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     const world = &game.world;
 
     switch (self.menu_network_id) {
-        0 => world.player_inventory_menu.setSlot(allocator, @intCast(self.slot_id), try .dupe(allocator, self.item_stack)),
+        0 => {
+            world.player_inventory_menu.setSlot(
+                allocator,
+                @fromBackingInt(@intCast(self.slot_id)),
+                try .dupe(allocator, self.item_stack),
+            );
+        },
         else => |menu_network_id| {
             if (world.menu != .other or world.menu.other.network_id != menu_network_id) return;
-            world.menu.other.setSlot(allocator, @intCast(self.slot_id), try .dupe(allocator, self.item_stack));
+            world.menu.other.setSlot(
+                allocator,
+                @fromBackingInt(@intCast(self.slot_id)),
+                try .dupe(allocator, self.item_stack),
+            );
         },
     }
 }

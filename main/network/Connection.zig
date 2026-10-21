@@ -5,7 +5,6 @@ const main = @import("main");
 const util = @import("util");
 
 const Connection = @This();
-pub const ConnectError = std.Io.net.IpAddress.ConnectError;
 const network = main.network;
 const Protocol = network.Protocol;
 const C2S = network.packet.C2S;

@@ -344,9 +344,16 @@ pub const Item = enum(u16) {
     record_11 = 2266,
     record_wait = 2267,
 
+    const item_attributes = @import("item_attributes.zig");
+
+    pub fn maxStackSize(self: @This()) u8 {
+        return item_attributes.max_stack_size.get(self);
+    }
+
     pub fn isBlock(self: @This()) bool {
         return @backingInt(self) <= @backingInt(Block.dark_oak_door);
     }
+
     pub fn getBlock(self: @This()) ?Block {
         return if (self.isBlock())
             @fromBackingInt(@intCast(@backingInt(self)))

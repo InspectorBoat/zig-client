@@ -3,12 +3,42 @@ const std = @import("std");
 const ItemStack = @import("main").ItemStack;
 
 stacks: []?ItemStack,
+type: Type,
 
-pub fn init(allocator: std.mem.Allocator, slot_count: usize) !*@This() {
+pub const Type = enum {
+    player,
+    player_crafting,
+    crafting_result,
+    crafting_table,
+    chest,
+    anvil,
+    brewing_stand,
+    horse,
+    dropper,
+    dispenser,
+    furnace,
+};
+
+pub fn getEmptyIndex(self: @This()) ?usize {
+    switch (self.type) {
+        // armor slots don't count
+        .player => for (self.stacks[0..36], 0..) |stack, i| {
+            if (stack == null) return i;
+        } else return null,
+
+        else => std.debug.panic("TODO!", .{}),
+    }
+}
+
+pub fn hasEmptyIndex(self: @This()) bool {
+    return self.getEmptyIndex() != null;
+}
+
+pub fn init(allocator: std.mem.Allocator, @"type": Type, slot_count: usize) !*@This() {
     const self = try allocator.create(@This());
     const slots = try allocator.alloc(?ItemStack, slot_count);
     @memset(slots, null);
-    self.* = .{ .stacks = slots };
+    self.* = .{ .stacks = slots, .type = @"type" };
     return self;
 }
 

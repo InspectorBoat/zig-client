@@ -38,6 +38,6 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         return;
 
     for (self.stacks, 0..) |new_stack, i| {
-        menu.setSlot(allocator, i, try .dupe(allocator, new_stack));
+        menu.setSlot(allocator, @fromBackingInt(@intCast(i)), try .dupe(allocator, new_stack));
     }
 }
