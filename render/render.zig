@@ -28,7 +28,6 @@ pub const event_listeners = .{
 
 pub fn onStartup(startup: Events.Startup) !void {
     const gpa = startup.gpa;
-
     // innitialize glfw
     glfw_helper.setGlfwErrorCallback();
     try glfw_helper.initGlfw();
@@ -159,6 +158,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                     },
                     .g => if (key.action == .press) {
                         renderer.debug_options.inventory = !renderer.debug_options.inventory;
+                        window_input.window.setInputModeCursor(if (renderer.debug_options.inventory) .normal else .disabled);
                     },
                     .f => if (key.action == .press) {
                         renderer.debug_options.terrain_draw_mode = switch (renderer.debug_options.terrain_draw_mode) {
@@ -192,6 +192,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             },
             .MouseButton => |button| {
                 if (button.action == .repeat) continue;
+                if (renderer.debug_options.inventory) continue;
                 switch (button.button) {
                     .left => try input_queue.queueOnTick(.{ .hand = .{ .attack = (button.action == .press) } }),
                     .right => try input_queue.queueOnTick(.{ .hand = .{ .use = (button.action == .press) } }),
@@ -202,6 +203,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
                 size = _size;
             },
             .CursorPos => |cursor_event| {
+                if (renderer.debug_options.inventory) continue;
                 cursor_delta = .add(cursor_delta, cursor_event.delta);
             },
             .ContentScale => |content_scale| {
@@ -215,6 +217,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             else => {},
         }
     }
+    if (renderer.debug_options.inventory) return;
     try input_queue.queueOnFrame(.{ .rotate = .intFromFloat(cursor_delta) });
 }
 

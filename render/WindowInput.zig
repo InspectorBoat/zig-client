@@ -126,6 +126,7 @@ pub fn maximizeCallback(window: glfw.Window, maximized: bool) void {
     window_input.events.pushBack(window_input.allocator, .{
         .Maximize = maximized,
     }) catch unreachable;
+    std.log.debug("window maximized: {}", .{maximized});
     window_input.maximized = maximized;
 }
 pub fn framebufferSizeCallback(window: glfw.Window, width: u32, height: u32) void {

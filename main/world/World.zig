@@ -292,7 +292,7 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
     };
     var x = min_pos.x;
     while (x < max_pos.x) : (x += 1) {
-        var y = min_pos.y;
+        var y = min_pos.y - 1;
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {
@@ -306,8 +306,10 @@ pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
                 var hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&hitboxes_buffer);
                 virtual_state.getCollisionHitboxes(&hitboxes);
 
-                for (hitboxes.items) |_| {
-                    collisions_count += 1;
+                for (hitboxes.items) |local_hitbox| {
+                    if (hitbox.intersects(local_hitbox.move(.{ .x = x, .y = y, .z = z }))) {
+                        collisions_count += 1;
+                    }
                 }
             }
         }
@@ -329,7 +331,7 @@ pub fn getCollisions(self: *const @This(), allocator: std.mem.Allocator, hitbox:
     };
     var x = min_pos.x;
     while (x < max_pos.x) : (x += 1) {
-        var y = min_pos.y;
+        var y = min_pos.y - 1;
         while (y < max_pos.y) : (y += 1) {
             var z = min_pos.z;
             while (z < max_pos.z) : (z += 1) {

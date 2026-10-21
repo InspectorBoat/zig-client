@@ -368,10 +368,10 @@ pub const VirtualState = union(Block) {
                 );
             },
             inline .fence, .nether_brick_fence, .spruce_fence, .birch_fence, .jungle_fence, .dark_oak_fence, .acacia_fence => |block| @unionInit(@This(), @tagName(block), .{
-                .north = fenceShouldConnectTo(world, block_pos.north(), block),
-                .east = fenceShouldConnectTo(world, block_pos.east(), block),
-                .south = fenceShouldConnectTo(world, block_pos.south(), block),
-                .west = fenceShouldConnectTo(world, block_pos.west(), block),
+                .north = fenceShouldConnectTo(block, world.getBlock(block_pos.north())),
+                .east = fenceShouldConnectTo(block, world.getBlock(block_pos.east())),
+                .south = fenceShouldConnectTo(block, world.getBlock(block_pos.south())),
+                .west = fenceShouldConnectTo(block, world.getBlock(block_pos.west())),
             }),
             inline .oak_stairs, .stone_stairs, .brick_stairs, .stone_brick_stairs, .nether_brick_stairs, .sandstone_stairs, .spruce_stairs, .birch_stairs, .jungle_stairs, .quartz_stairs, .acacia_stairs, .dark_oak_stairs, .red_sandstone_stairs => |block| @unionInit(@This(), @tagName(block), .{
                 .facing = physical.payload(block).facing,
@@ -567,8 +567,8 @@ pub const VirtualState = union(Block) {
     }
 };
 
-fn stemFacingFor(world: *const World, block_pos: Vector3(i32), self_block: Block) VirtualState.StemFacing {
-    const plant: Block = if (self_block == .pumpkin_stem) .melon_block else .pumpkin;
+fn stemFacingFor(world: *const World, block_pos: Vector3(i32), stem: Block) VirtualState.StemFacing {
+    const plant: Block = if (stem == .pumpkin_stem) .melon_block else .pumpkin;
     if (world.getBlock(block_pos.north()) == plant) return .north;
     if (world.getBlock(block_pos.east()) == plant) return .east;
     if (world.getBlock(block_pos.south()) == plant) return .south;
@@ -576,11 +576,14 @@ fn stemFacingFor(world: *const World, block_pos: Vector3(i32), self_block: Block
     return .up;
 }
 
-fn fenceShouldConnectTo(world: *const World, block_pos: Vector3(i32), self_block: Block) bool {
-    _ = world;
-    _ = block_pos;
-    _ = self_block;
-    return true;
+fn fenceShouldConnectTo(fence: Block, neighbour: Block) bool {
+    switch (neighbour) {
+        .barrier => return false,
+        else => {
+            if ((!neighbour.isFence() and neighbour.getMaterial() == fence.getMaterial()) or neighbour.isFenceGate()) return true;
+            return neighbour.getMaterial().blocksMovementAndNotTranslucent() and neighbour.isCube() and neighbour.getMaterial() != .pumpkin;
+        },
+    }
 }
 
 fn paneShouldConnectTo(neighbour: Block) bool {
