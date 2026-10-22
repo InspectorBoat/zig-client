@@ -68,7 +68,7 @@ pub fn onFrame(frame: Events.Frame) !void {
 
     switch (client.*) {
         .game => |*game| {
-            try handleInputIngame(frame.input_queue.?);
+            try handleInputIngame(game, frame.input_queue.?);
             try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
             try renderer.uploadCompilationResults(frame.io);
             try renderer.renderFrame(game);
@@ -143,12 +143,41 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
     }
 }
 
-pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
+pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQueue) !void {
     var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
             .Key => |key| {
                 if (key.action == .repeat) continue;
+                if (renderer.debug_options.inventory) {
+                    switch (key.key) {
+                        .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| {
+                            if (key.action == .release) continue;
+                            if (gui.onHotbarKey(
+                                &game.world,
+                                window_input.mousePosInClipSpace(),
+                                @intCast(@backingInt(num) - @backingInt(glfw.Key.one)),
+                            )) |action| {
+                                try input_queue.queueOnTick(.{ .inventory = action });
+                            }
+                            continue;
+                        },
+                        .q => {
+                            if (key.action == .release) continue;
+                            if (gui.onDropKey(
+                                &game.world,
+                                window_input.mousePosInClipSpace(),
+                                window_input.keys.get(.left_control),
+                            )) |action| {
+                                try input_queue.queueOnTick(.{ .inventory = action });
+                            }
+                            continue;
+                        },
+
+                        else => {},
+                    }
+                }
+
                 switch (key.key) {
                     .tab => if (key.action == .press) {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
@@ -194,9 +223,10 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             .MouseButton => |button| {
                 if (button.action == .repeat) continue;
                 if (renderer.debug_options.inventory) {
-                    const window_size: Vector2xy(f64) = .floatFromInt(window_input.window_size);
-                    const normalized: Vector2xy(f64) = .mul(.div(window_input.mouse_pos, window_size), .splat(2));
-                    gui.onClick(.floatCast(normalized));
+                    if (button.action == .release) continue;
+                    if (gui.onClick(&game.world, window_input.mousePosInClipSpace(), button.button)) |action| {
+                        try input_queue.queueOnTick(.{ .inventory = action });
+                    }
                     continue;
                 }
                 switch (button.button) {

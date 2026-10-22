@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const glfw = @import("mach-glfw");
+
 const main = @import("main");
 const render = @import("render");
 
@@ -17,14 +19,25 @@ pub fn debug(world: *const World) void {
     }
 }
 
-pub fn bufferInventory(self: *Renderer, world: *const World) !void {
-    debug(world);
-
+pub fn bufferInventory(self: *Renderer, world: *const World, cursor_pos: Vector2xy(f32)) !void {
     const box_size: f32 = 0.11;
 
     const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
     const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
     const aspect_ratio = window_width / window_height;
+
+    if (world.maybe_cursor_stack) |_| {
+        try self.@"2d_debug_staging_buffer".write2dDebugQuad(
+            .{
+                .x = cursor_pos.x - (box_size / 2 / if (aspect_ratio > 1) aspect_ratio else 1),
+                .y = cursor_pos.y - (box_size / 2 * if (aspect_ratio < 1) aspect_ratio else 1),
+            },
+            .{
+                .x = cursor_pos.x + (box_size / 2 / if (aspect_ratio > 1) aspect_ratio else 1),
+                .y = cursor_pos.y + (box_size / 2 * if (aspect_ratio < 1) aspect_ratio else 1),
+            },
+        );
+    }
 
     for (world.player_inventory_menu.slots, 0..) |_, i| {
         if (world.player_inventory_menu.getSlot(@fromBackingInt(@intCast(i))) == null) continue;
@@ -43,8 +56,77 @@ pub fn bufferInventory(self: *Renderer, world: *const World) !void {
     }
 }
 
-pub fn onClick(pos: Vector2xy(f32)) void {
-    std.log.debug("{}", .{pos});
+pub fn onClick(world: *const World, cursor_pos: Vector2xy(f32), button: glfw.MouseButton) ?Menu.Action {
+    const box_size: f32 = 0.11;
+    const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
+    const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
+    const aspect_ratio = window_width / window_height;
+
+    for (world.player_inventory_menu.slots, 0..) |_, i| {
+        const slot_pos = getSlotPosForMenu(&world.player_inventory_menu, @fromBackingInt(@intCast(i)));
+        const min: Vector2xy(f32) = .{
+            .x = (slot_pos.x - box_size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
+            .y = (slot_pos.y - box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
+        };
+        const max: Vector2xy(f32) = .{
+            .x = (slot_pos.x + box_size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
+            .y = (slot_pos.y + box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
+        };
+        if (cursor_pos.x >= min.x and cursor_pos.x <= max.x and cursor_pos.y >= min.y and cursor_pos.y <= max.y) {
+            return .{ .click = .{ @fromBackingInt(@intCast(i)), switch (button) {
+                .left => .all,
+                .right => .one_or_half,
+                else => continue,
+            } } };
+        }
+    }
+    return null;
+}
+
+pub fn onHotbarKey(world: *const World, cursor_pos: Vector2xy(f32), key: u4) ?Menu.Action {
+    const box_size: f32 = 0.11;
+    const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
+    const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
+    const aspect_ratio = window_width / window_height;
+
+    for (world.player_inventory_menu.slots, 0..) |_, i| {
+        const slot_pos = getSlotPosForMenu(&world.player_inventory_menu, @fromBackingInt(@intCast(i)));
+        const min: Vector2xy(f32) = .{
+            .x = (slot_pos.x - box_size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
+            .y = (slot_pos.y - box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
+        };
+        const max: Vector2xy(f32) = .{
+            .x = (slot_pos.x + box_size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
+            .y = (slot_pos.y + box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
+        };
+        if (cursor_pos.x >= min.x and cursor_pos.x <= max.x and cursor_pos.y >= min.y and cursor_pos.y <= max.y) {
+            return .{ .hotbar_swap = .{ @fromBackingInt(@intCast(i)), key } };
+        }
+    }
+    return null;
+}
+
+pub fn onDropKey(world: *const World, cursor_pos: Vector2xy(f32), all: bool) ?Menu.Action {
+    const box_size: f32 = 0.11;
+    const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
+    const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
+    const aspect_ratio = window_width / window_height;
+
+    for (world.player_inventory_menu.slots, 0..) |_, i| {
+        const slot_pos = getSlotPosForMenu(&world.player_inventory_menu, @fromBackingInt(@intCast(i)));
+        const min: Vector2xy(f32) = .{
+            .x = (slot_pos.x - box_size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
+            .y = (slot_pos.y - box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
+        };
+        const max: Vector2xy(f32) = .{
+            .x = (slot_pos.x + box_size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
+            .y = (slot_pos.y + box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
+        };
+        if (cursor_pos.x >= min.x and cursor_pos.x <= max.x and cursor_pos.y >= min.y and cursor_pos.y <= max.y) {
+            return .{ .throw = .{ @fromBackingInt(@intCast(i)), if (all) .all else .one } };
+        }
+    }
+    return null;
 }
 
 /// Given a menu and a slot inside it, returns where it should be positioned

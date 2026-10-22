@@ -8,6 +8,7 @@ const zigimg = @import("zigimg");
 
 const Block = main.Block;
 const Chunk = main.Chunk;
+const Vector2xy = main.Vector2xy;
 const Client = main.Client;
 const LocalPlayerEntity = main.Entity.LocalPlayer;
 const Vector2xz = main.Vector2xz;
@@ -372,7 +373,9 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
         const identity: za.Mat4 = .identity();
         self.debug_program.uniformMatrix4(0, true, &.{identity.data});
 
-        if (self.debug_options.inventory) try gui.bufferInventory(self, &game.world);
+        if (self.debug_options.inventory) {
+            try gui.bufferInventory(self, &game.world, render.window_input.mousePosInClipSpace());
+        }
 
         self.render2dDebug();
     }

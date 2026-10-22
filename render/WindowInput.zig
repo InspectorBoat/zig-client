@@ -45,6 +45,20 @@ pub fn deinit(self: *@This()) void {
     self.events.deinit(self.allocator);
 }
 
+pub fn mousePosInClipSpace(self: *const @This()) Vector2xy(f32) {
+    const window_size: Vector2xy(f32) = .floatFromInt(self.window_size);
+
+    const normalized: Vector2xy(f32) = .sub(
+        .mul(
+            .div(.floatCast(self.mouse_pos), window_size),
+            .splat(2),
+        ),
+        .splat(1),
+    );
+
+    return .floatCast(.{ .x = normalized.x, .y = -normalized.y });
+}
+
 pub fn setGlfwInputCallbacks(self: *@This()) void {
     self.window.setUserPointer(self);
 

@@ -2,6 +2,7 @@ const quarantine = @import("llm-code-quarantine");
 const main = @import("main");
 
 const Vector2xy = main.Vector2xy;
+const Menu = main.Menu;
 
 on_frame: quarantine.FixedFifo(Input, 256) = .init(),
 on_tick: quarantine.FixedFifo(Input, 128) = .init(),
@@ -32,14 +33,5 @@ pub const Input = union(enum) {
         scroll: i32,
         drop: bool,
     },
-    inventory: union(enum) {
-        toggle_screen,
-        click_stack: usize,
-        drag_stack: usize,
-        release_drag,
-        deposit_stack: usize,
-        release_deposit: usize,
-        drop_item: usize,
-        drop_full_stack: usize,
-    },
+    inventory: Menu.Action,
 };

@@ -36,6 +36,7 @@ pub const opengl_error_handling = .assert;
 pub const std_options: std.Options = .{
     .log_scope_levels = &.{
         .{ .scope = .tick_late, .level = .warn },
+        .{ .scope = .keepalive, .level = .warn },
         .{ .scope = .tick_on_time, .level = .warn },
         .{ .scope = .handle_packet_main, .level = .warn },
         .{ .scope = .handle_packet_net, .level = .warn },

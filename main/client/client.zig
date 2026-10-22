@@ -65,7 +65,7 @@ pub const Client = union(enum) {
             }
         }
 
-        pub fn handleInputOnTick(self: *@This(), io: std.Io) !void {
+        pub fn handleInputOnTick(self: *@This(), io: std.Io, allocator: std.mem.Allocator) !void {
             const interactions = @import("interactions.zig");
 
             const player = &self.world.player;
@@ -121,7 +121,7 @@ pub const Client = union(enum) {
                         }
                     },
                     .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
-                    .inventory => std.debug.panic("TODO!", .{}),
+                    .inventory => |action| try interactions.click(io, allocator, self, action),
                 }
             }
 
@@ -202,7 +202,7 @@ pub const Client = union(enum) {
                     defer std.log.scoped(.tick_timing_noisy).debug("tick took {} ms", .{@as(f128, start.untilNow(io).raw.nanoseconds) / std.time.ns_per_ms});
 
                     game.world.pick();
-                    try game.handleInputOnTick(io);
+                    try game.handleInputOnTick(io, game.gpa);
                     try game.world.tick(io, game.gpa, game);
                 }
             },

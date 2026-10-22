@@ -40,9 +40,7 @@ pub fn getSlot(self: *const @This(), slot_index: SlotIndex) ?Item.Stack {
 }
 
 pub fn clearSlot(self: *@This(), allocator: std.mem.Allocator, slot_index: SlotIndex) void {
-    const slot = self.slots[@backingInt(slot_index)];
-
-    Item.Stack.deinit(allocator, &slot.backer.stacks[slot.index_into_backer]);
+    self.setSlot(allocator, slot_index, null);
 }
 
 pub fn getSlotPtr(self: *@This(), slot_index: SlotIndex) *?Item.Stack {
@@ -215,12 +213,17 @@ comptime {
 }
 
 pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, action: Action) !?Item.Stack {
+    std.log.debug("cursor: {?}", .{world.maybe_cursor_stack});
+
     if (self.drag_state != .none and action != .drag) return null;
     switch (action) {
         .throw => |throw| {
             const slot_index, const mode = throw;
             switch (mode) {
-                .all => self.clearSlot(allocator, slot_index),
+                .all => {
+                    self.clearSlot(allocator, slot_index);
+                    std.log.debug("HI", .{});
+                },
                 .one => if (self.getSlotPtr(slot_index).*) |*item_stack| {
                     item_stack.size -= 1;
                     if (item_stack.size <= 0) self.clearSlot(allocator, slot_index);
@@ -308,17 +311,22 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
             const maybe_cursor_stack = &world.maybe_cursor_stack;
 
             // slot is empty, so just try to drop the cursor stack (if it's allowed)
+            std.log.debug("slot: {?}", .{maybe_slot_stack.*});
             if (maybe_slot_stack.* == null) {
+                std.log.debug("dropping into empty", .{});
                 if (maybe_cursor_stack.*) |*cursor_stack| if (slot.type.isItemAllowed(cursor_stack.item)) {
                     const deposit_count = @min(
                         if (mode == .all) cursor_stack.size else 1,
                         slot.type.maxStackSize(cursor_stack.item),
                     );
                     maybe_slot_stack.* = try cursor_stack.split(allocator, deposit_count);
+                    if (cursor_stack.size == 0) maybe_cursor_stack.* = null;
                 };
             }
             // check if we can take items from the slot before continuing
             else if (slot.canPickUp(&world.player)) {
+                std.log.debug("trying to pick up", .{});
+
                 const slot_stack = &maybe_slot_stack.*.?;
                 // if cursor is empty, try to pick up the items in the slot
                 if (maybe_cursor_stack.* == null) {
@@ -326,7 +334,10 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                     // TODO: use this logic instead for correctness with crafting operations
                     // slot.removeItem(withdrawal_count);
                     maybe_cursor_stack.* = try slot_stack.split(allocator, withdrawal_count);
-                    if (slot_stack.size == 0) maybe_slot_stack.* = null;
+                    if (slot_stack.size == 0) {
+                        maybe_slot_stack.* = null;
+                        std.log.debug("clearing slot: {?}", .{self.getSlot(slot_index)});
+                    }
                     slot.onItemRemoved();
                 } else {
                     const cursor_stack = &maybe_cursor_stack.*.?;
@@ -380,7 +391,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
             const slot_index, const hotbar_slot = hotbar_swap;
             // vanilla silently discards the action, but slot-clicking is entirely client-driven
             // so it should never happen anyways
-            std.debug.assert(hotbar_slot < 8);
+            std.debug.assert(hotbar_slot <= 8);
             const slot = self.slots[@backingInt(slot_index)];
             if (!slot.canPickUp(&world.player)) return null;
             const maybe_slot_stack = self.getSlot(slot_index);

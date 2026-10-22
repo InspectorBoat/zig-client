@@ -3,6 +3,7 @@ const std = @import("std");
 const main = @import("main");
 
 const Game = main.Client.Game;
+const Menu = main.Menu;
 const Direction = main.Direction;
 const LocalPlayer = main.Entity.LocalPlayer;
 const Vector3 = main.Vector3;
@@ -319,4 +320,9 @@ pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
         } });
         player.server_hotbar_slot = player.hotbar_slot;
     }
+}
+
+pub fn click(io: std.Io, allocator: std.mem.Allocator, game: *Game, action: Menu.Action) !void {
+    _ = io;
+    _ = try game.world.player_inventory_menu.clickSlot(allocator, &game.world, action);
 }
