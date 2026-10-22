@@ -108,7 +108,7 @@ pub fn getEntity(self: *@This(), game: *Client.Game) ?Entity {
         50 => return .{ .primed_tnt = .init(self.network_id, self.pos.normalize()) },
         78 => return .{ .armor_stand = .init(self.network_id, self.pos.normalize()) },
         51 => return .{ .ender_crystal = .init(self.network_id, self.pos.normalize()) },
-        2 => return .{ .item = .init(self.network_id, self.pos, self.velocity orelse .{ .raw = .origin() }) },
+        2 => return .{ .item = .init(self.network_id, self.pos, self.velocity orelse .{ .raw = .origin }) },
         70 => {
             self.data = 0;
             return .{ .falling_block = .init(self.network_id, self.pos.normalize()) };

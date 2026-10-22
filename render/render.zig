@@ -113,8 +113,7 @@ pub fn handleInputIdle(_: *const Client.Idle) void {
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
             },
-            .FramebufferSize => |_framebuffer_size| {
-                framebuffer_size = _framebuffer_size;
+            .FramebufferSize => |framebuffer_size| {
                 std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
@@ -135,8 +134,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
             },
-            .FramebufferSize => |_framebuffer_size| {
-                framebuffer_size = _framebuffer_size;
+            .FramebufferSize => |framebuffer_size| {
                 std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
@@ -146,7 +144,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 }
 
 pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
-    var cursor_delta: Vector2xy(f64) = .origin();
+    var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
             .Key => |key| {
@@ -195,15 +193,17 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             },
             .MouseButton => |button| {
                 if (button.action == .repeat) continue;
-                if (renderer.debug_options.inventory) continue;
+                if (renderer.debug_options.inventory) {
+                    const window_size: Vector2xy(f64) = .floatFromInt(window_input.window_size);
+                    const normalized: Vector2xy(f64) = .mul(.div(window_input.mouse_pos, window_size), .splat(2));
+                    gui.onClick(.floatCast(normalized));
+                    continue;
+                }
                 switch (button.button) {
                     .left => try input_queue.queueOnTick(.{ .hand = .{ .attack = (button.action == .press) } }),
                     .right => try input_queue.queueOnTick(.{ .hand = .{ .use = (button.action == .press) } }),
                     else => {},
                 }
-            },
-            .Size => |_size| {
-                size = _size;
             },
             .CursorPos => |cursor_event| {
                 if (renderer.debug_options.inventory) continue;
@@ -212,8 +212,7 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
             },
-            .FramebufferSize => |_framebuffer_size| {
-                framebuffer_size = _framebuffer_size;
+            .FramebufferSize => |framebuffer_size| {
                 std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
@@ -223,10 +222,6 @@ pub fn handleInputIngame(input_queue: *Client.InputQueue) !void {
     if (renderer.debug_options.inventory) return;
     try input_queue.queueOnFrame(.{ .rotate = .intFromFloat(cursor_delta) });
 }
-
-var size: Vector2xy(i32) = .{ .x = 1, .y = 1 };
-var framebuffer_size: Vector2xy(u32) = .{ .x = 1, .y = 1 };
-var scale: Vector2xy(f32) = .{ .x = 1, .y = 1 };
 
 test {
     try glfw_helper.initGlfw();

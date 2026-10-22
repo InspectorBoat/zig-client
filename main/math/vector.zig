@@ -7,11 +7,10 @@ pub fn Vector2xy(comptime Element: type) type {
         x: Element,
         y: Element,
 
-        pub fn origin() @This() {
-            return .{
-                .x = 0,
-                .y = 0,
-            };
+        pub const origin: @This() = .{ .x = 0, .y = 0 };
+
+        pub fn splat(n: Element) @This() {
+            return .{ .x = n, .y = n };
         }
 
         pub fn add(self: @This(), other: @This()) @This() {
@@ -27,6 +26,42 @@ pub fn Vector2xy(comptime Element: type) type {
                 .y = self.y - other.y,
             };
         }
+
+        pub fn mul(self: @This(), other: @This()) @This() {
+            return .{
+                .x = self.x * other.x,
+                .y = self.y * other.y,
+            };
+        }
+
+        pub fn div(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = self.x / divisor.x,
+                .y = self.y / divisor.y,
+            };
+        }
+
+        pub fn divFloor(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divFloor(self.x, divisor.x),
+                .y = @divFloor(self.y, divisor.y),
+            };
+        }
+
+        pub fn divCeil(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divCeil(self.x, divisor.x),
+                .y = @divCeil(self.y, divisor.y),
+            };
+        }
+
+        pub fn divTrunc(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divTrunc(self.x, divisor.x),
+                .y = @divTrunc(self.y, divisor.y),
+            };
+        }
+
         pub fn negate(self: @This()) @This() {
             return .{
                 .x = -self.x,
@@ -110,11 +145,10 @@ pub fn Vector2xz(comptime Element: type) type {
         x: Element,
         z: Element,
 
-        pub fn origin() @This() {
-            return .{
-                .x = 0,
-                .z = 0,
-            };
+        pub const origin: @This() = .{ .x = 0, .z = 0 };
+
+        pub fn splat(n: Element) @This() {
+            return .{ .x = n, .z = n };
         }
 
         pub fn add(self: @This(), other: @This()) @This() {
@@ -130,14 +164,39 @@ pub fn Vector2xz(comptime Element: type) type {
                 .z = self.z - other.z,
             };
         }
-        pub fn splat(n: Element) @This() {
-            return .{ .x = n, .z = n };
-        }
 
         pub fn mul(self: @This(), factor: @This()) @This() {
             return .{
                 .x = self.x * factor.x,
                 .z = self.z * factor.z,
+            };
+        }
+
+        pub fn div(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = self.x / divisor.x,
+                .z = self.z / divisor.z,
+            };
+        }
+
+        pub fn divFloor(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divFloor(self.x, divisor.x),
+                .z = @divFloor(self.z, divisor.z),
+            };
+        }
+
+        pub fn divCeil(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divCeil(self.x, divisor.x),
+                .z = @divCeil(self.z, divisor.z),
+            };
+        }
+
+        pub fn divTrunc(self: @This(), divisor: @This()) @This() {
+            return .{
+                .x = @divTrunc(self.x, divisor.x),
+                .z = @divTrunc(self.z, divisor.z),
             };
         }
 
@@ -225,9 +284,7 @@ pub fn Vector3(comptime Element: type) type {
         y: Element,
         z: Element,
 
-        pub fn origin() @This() {
-            return .{ .x = 0, .y = 0, .z = 0 };
-        }
+        pub const origin: @This() = .{ .x = 0, .y = 0, .z = 0 };
 
         pub fn splat(n: Element) @This() {
             return .{ .x = n, .y = n, .z = n };

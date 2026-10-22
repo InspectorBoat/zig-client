@@ -8,9 +8,10 @@ window: glfw.Window,
 events: std.Deque(Event),
 allocator: std.mem.Allocator,
 keys: std.EnumArray(glfw.Key, bool) = .initFill(false),
-mouse_pos: ?Vector2xy(f64) = null,
+mouse_pos: Vector2xy(f64) = .{ .x = 0, .y = 0 },
 maximized: bool = false,
 window_size: Vector2xy(i32) = .{ .x = 640, .y = 640 },
+framebuffer_size: Vector2xy(u32) = .{ .x = 640, .y = 640 },
 
 pub const Event = union(enum) {
     Pos: Vector2xy(i32),
@@ -137,6 +138,7 @@ pub fn framebufferSizeCallback(window: glfw.Window, width: u32, height: u32) voi
     window_input.events.pushBack(window_input.allocator, .{
         .FramebufferSize = .{ .x = width, .y = height },
     }) catch unreachable;
+    window_input.framebuffer_size = .{ .x = width, .y = height };
 }
 pub fn contentScaleCallback(window: glfw.Window, xscale: f32, yscale: f32) void {
     var window_input = window.getUserPointer(@This()) orelse {
@@ -182,7 +184,7 @@ pub fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
         return;
     };
     const pos: Vector2xy(f64) = .{ .x = xpos, .y = ypos };
-    const delta: Vector2xy(f64) = if (window_input.mouse_pos) |prev_pos| .sub(prev_pos, pos) else .{ .x = 0, .y = 0 };
+    const delta: Vector2xy(f64) = .sub(window_input.mouse_pos, pos);
 
     window_input.events.pushBack(window_input.allocator, .{
         .CursorPos = .{ .pos = pos, .delta = delta },

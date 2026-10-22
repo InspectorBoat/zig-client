@@ -7,8 +7,8 @@ const Rotation2 = main.Rotation2;
 const Vector3 = main.Vector3;
 
 interpolation_steps: i32 = 0,
-target_position: Vector3(f64) = .origin(),
-target_rotation: Rotation2(f32) = .origin(),
+target_position: Vector3(f64) = .origin,
+target_rotation: Rotation2(f32) = .origin,
 
 pub fn tick(self: *@This(), base: *Base) void {
     if (self.interpolation_steps > 0) {

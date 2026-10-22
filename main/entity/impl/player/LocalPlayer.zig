@@ -135,7 +135,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     // otherwise, if camera, update movement inputs, multiplying steer by 0.98
     if (!self.hasControl()) {
         inputs.movement.back, inputs.movement.forward, inputs.movement.left, inputs.movement.right, inputs.movement.jump = .{ false, false, false, false, false };
-        steer = .origin();
+        steer = .origin;
     } else {
         steer = .mul(steer, .splat(0.98));
     }

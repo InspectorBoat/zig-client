@@ -10,12 +10,12 @@ const ScaledVector = main.network.ScaledVector;
 
 /// This struct supplies fields that every entity needs
 network_id: i32 = undefined,
-pos: Vector3(f64) = .origin(),
-prev_pos: Vector3(f64) = .origin(),
-server_tracked_pos: ScaledVector(i32, 32) = .{ .raw = .origin() },
-rotation: Rotation2(f32) = .origin(),
-prev_rotation: Rotation2(f32) = .origin(),
-velocity: Vector3(f64) = .origin(),
+pos: Vector3(f64) = .origin,
+prev_pos: Vector3(f64) = .origin,
+server_tracked_pos: ScaledVector(i32, 32) = .{ .raw = .origin },
+rotation: Rotation2(f32) = .origin,
+prev_rotation: Rotation2(f32) = .origin,
+velocity: Vector3(f64) = .origin,
 colliding: struct {
     horizontal: bool = false,
     vertical: bool = false,

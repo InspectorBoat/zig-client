@@ -26,7 +26,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     var packet: @This() = .{
         .type = border_type,
         .max_size = 0,
-        .center_pos = .origin(),
+        .center_pos = .origin,
         .size_lerp_target = 0,
         .lerp_size = 0,
         .lerp_time = 0,

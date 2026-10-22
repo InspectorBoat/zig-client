@@ -124,7 +124,7 @@ pub const HitResult = union(HitType) {
             block.getRaytraceHitboxes(&local_hitboxes);
 
             for (local_hitboxes.items) |hitbox| {
-                if (Vector3(f64).equals(hitbox.min, .origin()) and Vector3(f64).equals(hitbox.max, .origin())) continue;
+                if (Vector3(f64).equals(hitbox.min, .origin) and Vector3(f64).equals(hitbox.max, .origin)) continue;
 
                 if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
                 if (options.ignore_liquids and block == .water) continue; // TODO: implement water level

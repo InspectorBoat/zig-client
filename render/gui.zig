@@ -19,10 +19,8 @@ pub fn debug(world: *const World) void {
 
 pub fn bufferInventory(self: *Renderer, world: *const World) !void {
     debug(world);
-    _ = &getSlotPosForMenu;
-    // const window = render.window_input.window_size;
 
-    const box_size: f32 = 0.1;
+    const box_size: f32 = 0.11;
 
     const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
     const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
@@ -45,6 +43,10 @@ pub fn bufferInventory(self: *Renderer, world: *const World) !void {
     }
 }
 
+pub fn onClick(pos: Vector2xy(f32)) void {
+    std.log.debug("{}", .{pos});
+}
+
 /// Given a menu and a slot inside it, returns where it should be positioned
 pub fn getSlotPosForMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vector2xy(f32) {
     switch (menu.type) {
@@ -65,8 +67,8 @@ pub fn getSlotPosForPlayerMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Ve
             const col: f32 = @floatFromInt(inventory_index % 9);
 
             return .{
-                .x = (col - 4.5) / 6,
-                .y = (row - 2) / 6,
+                .x = (col - 4.5) * 0.125,
+                .y = (row - 2) * 0.125 - 0.2 - @as(f32, if (hotbar) 0.05 else 0),
             };
         },
         .player_crafting => return .{ .x = 0, .y = 0 },
