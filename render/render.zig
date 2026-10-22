@@ -4,10 +4,13 @@ const glfw = @import("mach-glfw");
 const main = @import("main");
 const gl = @import("zgl");
 
-const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
-const Renderer = @import("Renderer.zig");
-const WindowInput = @import("WindowInput.zig");
-const glfw_helper = @import("glfw_helper.zig");
+pub const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
+pub const Renderer = @import("Renderer.zig");
+pub const WindowInput = @import("WindowInput.zig");
+pub const glfw_helper = @import("glfw_helper.zig");
+pub const gui = @import("gui.zig");
+pub const mesher = @import("mesher/mesher.zig");
+pub const resource_pack = @import("resource_pack/resource_pack.zig");
 
 const Client = main.Client;
 const EventHandler = main.EventHandler;

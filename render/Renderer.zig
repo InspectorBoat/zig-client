@@ -1,18 +1,10 @@
 const std = @import("std");
 
 const main = @import("main");
+const render = @import("render");
 const za = @import("zalgebra");
 const gl = @import("zgl");
 const zigimg = @import("zigimg");
-
-const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");
-const render = @import("render.zig");
-const BakedModel = @import("resource_pack/BakedModel.zig");
-const resource_pack = @import("resource_pack/resource_pack.zig");
-const ChunkTracker = @import("terrain/ChunkTracker.zig");
-const CompilationTask = @import("terrain/CompilationTask.zig");
-const CompilationTracker = @import("terrain/CompilationTracker.zig");
-const GpuStagingBuffer = @import("terrain/GpuStagingBuffer.zig");
 
 const Block = main.Block;
 const Chunk = main.Chunk;
@@ -21,6 +13,14 @@ const LocalPlayerEntity = main.Entity.LocalPlayer;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
 const World = main.World;
+const GpuMemoryAllocator = render.GpuMemoryAllocator;
+const gui = render.gui;
+const ChunkTracker = render.mesher.ChunkTracker;
+const CompilationTask = render.mesher.CompilationTask;
+const CompilationTracker = render.mesher.CompilationTracker;
+const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
+const resource_pack = render.resource_pack;
+const BakedModel = resource_pack.BakedModel;
 const Mat4 = za.Mat4;
 
 pub const TextureHandle = enum(u16) { _ };
@@ -366,7 +366,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
         const identity: za.Mat4 = .identity();
         self.debug_program.uniformMatrix4(0, true, &.{identity.data});
 
-        if (self.debug_options.inventory) try self.bufferInventory(&game.world);
+        if (self.debug_options.inventory) try gui.bufferInventory(self, &game.world);
 
         self.render2dDebug();
     }
@@ -473,45 +473,6 @@ pub fn bufferBlockBreaking(self: *@This(), world: *const World) !void {
         try self.@"3d_debug_staging_buffer".writeDebugCube(
             .sub(center, .splat(radius)),
             .add(center, .splat(radius)),
-        );
-    }
-}
-
-pub fn bufferInventory(self: *@This(), world: *const World) !void {
-    const window = render.window_input.window_size;
-    const width: f32 = @floatFromInt(window.x);
-    const height: f32 = @floatFromInt(window.y);
-
-    const box_size: f32 = 40;
-    const spacing: f32 = 40;
-    const hotbar_gap: f32 = 10;
-    const grid_width: f32 = 9 * spacing;
-    const grid_height: f32 = 3 * spacing + hotbar_gap + spacing;
-
-    const left: f32 = (width - grid_width) / 2;
-    const top: f32 = (height - grid_height) / 2;
-
-    // 0-8 is the hotbar, 9-35 is the main inventory, 36-39 is the armor
-    for (0..36) |i| {
-        const stack = world.main_inventory.stacks[i] orelse continue;
-        if (stack.size == 0) continue;
-
-        const hotbar = i < 9;
-        const row: f32 = if (hotbar) 3 else @floatFromInt((i - 9) / 9);
-        const col: f32 = @floatFromInt(i % 9);
-
-        const x0 = left + col * spacing;
-        const y0 = top + row * spacing + (if (hotbar) hotbar_gap else 0);
-        // the 2d debug path wants clip space, with y pointing up
-        try self.@"2d_debug_staging_buffer".write2dDebugQuad(
-            .{
-                .x = (x0 / width) * 2 - 1,
-                .y = 1 - ((y0 + box_size) / height) * 2,
-            },
-            .{
-                .x = ((x0 + box_size) / width) * 2 - 1,
-                .y = 1 - (y0 / height) * 2,
-            },
         );
     }
 }

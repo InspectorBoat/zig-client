@@ -1,8 +1,9 @@
 const std = @import("std");
 
 const main = @import("main");
+const render = @import("render");
 
-const CompilationTask = @import("CompilationTask.zig");
+const CompilationTask = render.mesher.CompilationTask;
 
 gpa: std.mem.Allocator,
 free_slots: std.heap.memory_pool.Extra(CompilationSlot, .{ .growable = false }),

@@ -1,10 +1,12 @@
 const std = @import("std");
 
-const Direction = @import("main").Direction;
-const Vector2xy = @import("main").Vector2xy;
-const Vector3 = @import("main").Vector3;
+const main = @import("main");
+const render = @import("render");
 
-const Renderer = @import("../Renderer.zig");
+const Direction = main.Direction;
+const Vector2xy = main.Vector2xy;
+const Vector3 = main.Vector3;
+const Renderer = render.Renderer;
 
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,

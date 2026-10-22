@@ -1,16 +1,19 @@
 const std = @import("std");
 
+const main = @import("main");
+const render = @import("render");
 const zigimg = @import("zigimg");
-const Block = @import("main").Block;
-const Direction = @import("main").Direction;
-const Vector3 = @import("main").Vector3;
 const allValues = @import("util").allValues;
 
-const Renderer = @import("../Renderer.zig");
-const BakedModel = @import("BakedModel.zig");
-const BlockModelTemplate = @import("BlockModelTemplate.zig");
-const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
-const StateToModelMap = @import("StateToModelMap.zig");
+pub const BakedModel = @import("BakedModel.zig");
+pub const BlockModelTemplate = @import("BlockModelTemplate.zig");
+pub const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
+pub const StateToModelMap = @import("StateToModelMap.zig");
+
+const Block = main.Block;
+const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const Renderer = render.Renderer;
 
 // Takes ownership of resource_pack_dir
 

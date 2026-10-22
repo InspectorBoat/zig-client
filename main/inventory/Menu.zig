@@ -7,6 +7,19 @@ const Inventory = main.Inventory;
 const Item = main.Item;
 const World = main.World;
 
+pub const Type = enum {
+    player,
+    crafting_table,
+    chest,
+    anvil,
+    brewing_stand,
+    horse,
+    dropper,
+    dispenser,
+    furnace,
+};
+
+type: Type,
 network_id: i32,
 slots: []Slot,
 drag_state: DragState = .none,
@@ -49,47 +62,53 @@ pub fn initPlayerMenu(
         main_inventory.stacks.len + crafting_inventory.stacks.len + crafting_result_inventory.stacks.len,
     );
 
+    // crafting result
     slots.appendAssumeCapacity(.{
         .backer = crafting_result_inventory,
         .type = .crafting_result,
         .index_into_backer = 0,
     });
 
+    // 2x2 crafting slots
     for (0..4) |i| {
         slots.appendAssumeCapacity(.{
             .backer = crafting_inventory,
             .type = .generic,
-            .index_into_backer = i,
+            .index_into_backer = @intCast(i),
         });
     }
 
+    // armor
     inline for (0..4, .{ .helmet, .chestplate, .leggings, .boots }) |i, armor_piece| {
         slots.appendAssumeCapacity(.{
             .backer = main_inventory,
             .type = armor_piece,
-            .index_into_backer = main_inventory.stacks.len - 1 - i,
+            .index_into_backer = @intCast(main_inventory.stacks.len - 1 - i),
         });
     }
 
+    // main 3 rows
     for (1..4) |i| {
         for (0..9) |j| {
             slots.appendAssumeCapacity(.{
                 .backer = main_inventory,
                 .type = .generic,
-                .index_into_backer = j + i * 9,
+                .index_into_backer = @intCast(j + i * 9),
             });
         }
     }
 
+    // hotbar
     for (0..9) |i| {
         slots.appendAssumeCapacity(.{
             .backer = main_inventory,
             .type = .generic,
-            .index_into_backer = i,
+            .index_into_backer = @intCast(i),
         });
     }
 
     return .{
+        .type = .player,
         .network_id = 0,
         .slots = slots.toOwnedSliceAssert(),
     };
@@ -100,9 +119,9 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
 }
 
 pub const Slot = struct {
-    type: Type,
+    type: Slot.Type,
     backer: *Inventory,
-    index_into_backer: usize,
+    index_into_backer: u8,
 
     pub fn canPickUp(self: @This(), player: *const Entity.LocalPlayer) bool {
         _ = self;
@@ -148,7 +167,7 @@ pub const Slot = struct {
     };
 };
 
-const SlotIndex = enum(u8) { _ };
+pub const SlotIndex = enum(u8) { _ };
 
 pub const Action = union(enum) {
     /// interact with the hovered slot
