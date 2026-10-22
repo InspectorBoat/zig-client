@@ -86,7 +86,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
         arena.allocator(),
         try .openDirAbsolute(io, "/home/inspectorboat/src/zig-client/vanilla-pack", .{}),
     );
-    const texture = initTexture(allocator, named_block_textures);
+    const texture = try initTexture(allocator, named_block_textures);
 
     std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
     return .{
@@ -227,7 +227,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 ///
 /// Layer N is `named_block_textures.values()[N]`, which is the same index
 /// `ResolvedBlockModel.Element.Face.TextureHandle` resolves to.
-pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array_hash_map.String(zigimg.Image)) gl.Texture {
+pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array_hash_map.String(zigimg.Image)) !gl.Texture {
     const texture: gl.Texture = .create(.@"2d_array");
 
     // every block sprite is 16x16; anything else is truncated to its top-left
@@ -239,13 +239,8 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     const bytes_per_layer = layer_size * layer_size * channels;
 
     texture.storage3D(1, .rgba8, layer_size, layer_size, layer_count);
-    if (layer_count == 0) {
-        texture.bindTo(0);
-        return texture;
-    }
 
-    // build the whole array contiguously so it uploads in one call
-    const texture_data = allocator.alloc(u8, bytes_per_layer * layer_count) catch @panic("out of memory");
+    const texture_data = try allocator.alloc(u8, bytes_per_layer * layer_count);
     defer allocator.free(texture_data);
     @memset(texture_data, 0);
 
@@ -253,15 +248,20 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     var converted: usize = 0;
     var failed: usize = 0;
 
+    defer std.log.scoped(.resource_pack).debug(
+        "{d} sprite layers: {d} truncated to {d}x{d}, {d} converted, {d} failed",
+        .{ layer_count, truncated, layer_size, layer_size, converted, failed },
+    );
+
     for (named_block_textures.keys(), named_block_textures.values(), 0..) |name, *image, layer| {
         if (image.width != layer_size or image.height != layer_size) truncated += 1;
 
-        // most sprites decode straight to rgba8; anything else (rgb24,
-        // palette, greyscale) goes through zigimg's converter
+        // most sprites decode straight to rgba8; anything else
+        // we convert with zigimg
         var owned_storage: ?zigimg.color.PixelStorage = null;
         defer if (owned_storage) |s| s.deinit(allocator);
 
-        if (std.meta.activeTag(image.pixels) != .rgba32) {
+        if (image.pixels != .rgba32) {
             owned_storage = zigimg.PixelFormatConverter.convert(allocator, &image.pixels, .rgba32) catch {
                 std.log.scoped(.resource_pack).warn("could not convert {s} to rgba8, leaving it blank", .{name});
                 failed += 1;
@@ -275,6 +275,17 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
             else => owned_storage.?.rgba32,
         };
 
+        // This is a really shitty hack,
+        // but I'm tired of looking at monochrome grass all day
+        const tint: Vector3(f32) = if (std.mem.eql(u8, name, "grass_top") or std.mem.eql(u8, name, "grass_side_overlay"))
+            .{ .x = 0.52, .y = 0.7, .z = 0.3 }
+        else if (std.mem.eql(u8, name, "tallgrass") or std.mem.startsWith(u8, name, "double_plant_grass"))
+            .{ .x = 0.45, .y = 0.6, .z = 0.3 }
+        else if (std.mem.containsAtLeast(u8, name, 1, "leaves"))
+            .{ .x = 0.22, .y = 0.45, .z = 0.15 }
+        else
+            .splat(1);
+
         const dst = texture_data[layer * bytes_per_layer ..][0..bytes_per_layer];
         const rows = @min(image.height, layer_size);
         const cols = @min(image.width, layer_size);
@@ -282,18 +293,13 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
             for (0..cols) |x| {
                 const color = pixels[y * image.width + x];
                 const out = (y * layer_size + x) * channels;
-                dst[out + 0] = color.r;
-                dst[out + 1] = color.g;
-                dst[out + 2] = color.b;
+                dst[out + 0] = @round(@as(f32, color.r) * tint.x);
+                dst[out + 1] = @round(@as(f32, color.g) * tint.y);
+                dst[out + 2] = @round(@as(f32, color.b) * tint.z);
                 dst[out + 3] = color.a;
             }
         }
     }
-
-    std.log.scoped(.resource_pack).debug(
-        "{d} sprite layers: {d} truncated to {d}x{d}, {d} converted, {d} failed",
-        .{ layer_count, truncated, layer_size, layer_size, converted, failed },
-    );
 
     texture.subImage3D(
         0,
