@@ -247,8 +247,11 @@ pub fn bake(
 
     var faces: std.ArrayList(Face) = try .initCapacity(gpa, face_count);
 
-    for (model.elements) |element| {
-        bakeElement(&faces, element, x_rotation, y_rotation, uvlock);
+    // look, it's a long story, okay
+    var i = model.elements.len;
+    while (i > 0) {
+        i -= 1;
+        bakeElement(&faces, model.elements[i], x_rotation, y_rotation, uvlock);
     }
 
     return .{ .faces = try faces.toOwnedSlice(gpa) };
