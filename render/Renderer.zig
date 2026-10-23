@@ -457,10 +457,6 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
         },
         .entity => |entity| {
             _ = entity;
-            // try self.@"3d_debug_staging_buffer".writeDebugCube(
-            //     .sub(.floatCast(entity.pos), .{ .x = 0.25, .y = 0.25, .z = 0.25 }),
-            //     .add(.floatCast(entity.pos), .{ .x = 0.25, .y = 0.25, .z = 0.25 }),
-            // );
         },
         .miss => return,
     }

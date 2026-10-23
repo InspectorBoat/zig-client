@@ -31,16 +31,23 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-    if (std.mem.eql(u8, "minecraft:chest", self.menu_type)) {
-        game.world.openMenu(allocator, .{
-            .other = try .initChestMenu(
-                allocator,
-                self.menu_network_id,
-                game.world.main_inventory,
-                try .init(allocator, .chest, @intCast(self.size)),
-            ),
-        });
-    } else {
-        std.debug.panic("TODO!", .{});
-    }
+
+    const menu: main.Menu = if (std.mem.eql(u8, "minecraft:chest", self.menu_type)) try .initChestMenu(
+        allocator,
+        self.menu_network_id,
+        game.world.main_inventory,
+        try .init(allocator, .chest, @intCast(self.size)),
+    ) else if (std.mem.eql(u8, "minecraft:hopper", self.menu_type)) try .initHopperMenu(
+        allocator,
+        self.menu_network_id,
+        game.world.main_inventory,
+        try .init(allocator, .hopper, @intCast(self.size)),
+    ) else if (std.mem.eql(u8, "minecraft:dispenser", self.menu_type) or std.mem.eql(u8, "minecraft:dropper", self.menu_type)) try .initDispenserMenu(
+        allocator,
+        self.menu_network_id,
+        game.world.main_inventory,
+        try .init(allocator, .dispenser, @intCast(self.size)),
+    ) else std.debug.panic("TODO!", .{});
+
+    game.world.openMenu(allocator, .{ .other = menu });
 }

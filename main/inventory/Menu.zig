@@ -12,6 +12,7 @@ pub const Type = union(enum) {
     player,
     crafting_table: *Inventory,
     chest,
+    hopper,
     anvil,
     brewing_stand,
     horse,
@@ -73,7 +74,6 @@ pub fn initPlayerMenu(
         .type = .crafting_result,
         .index_into_backer = 0,
     });
-
     // 2x2 crafting
     for (0..4) |i| {
         slots.appendAssumeCapacity(.{
@@ -82,7 +82,6 @@ pub fn initPlayerMenu(
             .index_into_backer = @intCast(i),
         });
     }
-
     // armor
     inline for (0..4, .{ .helmet, .chestplate, .leggings, .boots }) |i, armor_piece| {
         slots.appendAssumeCapacity(.{
@@ -91,26 +90,7 @@ pub fn initPlayerMenu(
             .index_into_backer = @intCast(main_inventory.stacks.len - 1 - i),
         });
     }
-
-    // main 3 rows
-    for (1..4) |row| {
-        for (0..9) |col| {
-            slots.appendAssumeCapacity(.{
-                .backer = main_inventory,
-                .type = .generic,
-                .index_into_backer = @intCast(row * 9 + col),
-            });
-        }
-    }
-
-    // hotbar
-    for (0..9) |col| {
-        slots.appendAssumeCapacity(.{
-            .backer = main_inventory,
-            .type = .generic,
-            .index_into_backer = @intCast(col),
-        });
-    }
+    appendPlayerSlots(&slots, main_inventory);
 
     return .{
         .type = .player,
@@ -121,7 +101,6 @@ pub fn initPlayerMenu(
 
 pub fn initChestMenu(allocator: std.mem.Allocator, network_id: i16, player_inventory: *Inventory, chest_inventory: *Inventory) !@This() {
     std.debug.assert(chest_inventory.type == .chest);
-    std.debug.assert(player_inventory.type == .player);
     const rows = @divFloor(chest_inventory.stacks.len, 9);
     var slots: std.ArrayList(Slot) = try .initCapacity(allocator, rows * 9 + 36);
 
@@ -134,6 +113,60 @@ pub fn initChestMenu(allocator: std.mem.Allocator, network_id: i16, player_inven
             });
         }
     }
+    appendPlayerSlots(&slots, player_inventory);
+
+    return .{
+        .network_id = network_id,
+        .slots = slots.toOwnedSliceAssert(),
+        .type = .chest,
+    };
+}
+
+pub fn initHopperMenu(allocator: std.mem.Allocator, network_id: i16, player_inventory: *Inventory, hopper_inventory: *Inventory) !@This() {
+    std.debug.assert(hopper_inventory.type == .hopper);
+    var slots: std.ArrayList(Slot) = try .initCapacity(allocator, hopper_inventory.stacks.len + 36);
+
+    for (0..hopper_inventory.stacks.len) |i| {
+        slots.appendAssumeCapacity(.{
+            .type = .generic,
+            .backer = hopper_inventory,
+            .index_into_backer = @intCast(i),
+        });
+    }
+    appendPlayerSlots(&slots, player_inventory);
+
+    return .{
+        .network_id = network_id,
+        .slots = slots.toOwnedSliceAssert(),
+        .type = .hopper,
+    };
+}
+
+pub fn initDispenserMenu(allocator: std.mem.Allocator, network_id: i16, player_inventory: *Inventory, dispenser_inventory: *Inventory) !@This() {
+    std.debug.assert(dispenser_inventory.type == .dispenser);
+    var slots: std.ArrayList(Slot) = try .initCapacity(allocator, 9 + 36);
+
+    for (0..3) |row| {
+        for (0..3) |col| {
+            slots.appendAssumeCapacity(.{
+                .type = .generic,
+                .backer = dispenser_inventory,
+                .index_into_backer = @intCast(row * 3 + col),
+            });
+        }
+    }
+    appendPlayerSlots(&slots, player_inventory);
+
+    return .{
+        .network_id = network_id,
+        .slots = slots.toOwnedSliceAssert(),
+        .type = .dispenser,
+    };
+}
+
+fn appendPlayerSlots(slots: *std.ArrayList(Slot), player_inventory: *Inventory) void {
+    std.debug.assert(player_inventory.type == .player);
+    // main 3 rows
     for (1..4) |row| {
         for (0..9) |col| {
             slots.appendAssumeCapacity(.{
@@ -143,6 +176,7 @@ pub fn initChestMenu(allocator: std.mem.Allocator, network_id: i16, player_inven
             });
         }
     }
+    // hotbar
     for (0..9) |col| {
         slots.appendAssumeCapacity(.{
             .type = .generic,
@@ -150,12 +184,6 @@ pub fn initChestMenu(allocator: std.mem.Allocator, network_id: i16, player_inven
             .index_into_backer = @intCast(col),
         });
     }
-
-    return .{
-        .network_id = network_id,
-        .slots = slots.toOwnedSliceAssert(),
-        .type = .chest,
-    };
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -344,49 +372,49 @@ test "click parts" {
     try std.testing.expectEqual(@as(i8, 0), click_all.click_data);
     try std.testing.expectEqual(@as(i8, 0), click_all.action);
 
-    const click_half: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = slot, .count = .one_or_half } }, menu);
+    const click_half: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = slot, .count = .one_or_half } }, &menu);
     try std.testing.expectEqual(@as(i8, 1), click_half.click_data);
     try std.testing.expectEqual(@as(i8, 0), click_half.action);
 
-    const throw_cursor: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = null, .count = .one_or_half } }, menu);
+    const throw_cursor: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = null, .count = .one_or_half } }, &menu);
     try std.testing.expectEqual(@as(i16, -999), throw_cursor.slot_id);
     try std.testing.expectEqual(@as(i8, 1), throw_cursor.click_data);
     try std.testing.expectEqual(@as(i8, 0), throw_cursor.action);
 
-    const quick_move: Action.WireFormat = .convert(.{ .quick_move = .{ .slot_index = slot } }, menu);
+    const quick_move: Action.WireFormat = .convert(.{ .quick_move = .{ .slot_index = slot } }, &menu);
     try std.testing.expectEqual(@as(i16, 5), quick_move.slot_id);
     try std.testing.expectEqual(@as(i8, 1), quick_move.action);
 
-    const hotbar_swap: Action.WireFormat = .convert(.{ .hotbar_swap = .{ .slot_index = slot, .hotbar_slot = 3 } }, menu);
+    const hotbar_swap: Action.WireFormat = .convert(.{ .hotbar_swap = .{ .slot_index = slot, .hotbar_slot = 3 } }, &menu);
     try std.testing.expectEqual(@as(i16, 5), hotbar_swap.slot_id);
     try std.testing.expectEqual(@as(i8, 3), hotbar_swap.click_data);
     try std.testing.expectEqual(@as(i8, 2), hotbar_swap.action);
 
-    const clone: Action.WireFormat = .convert(.{ .clone = .{ .slot_index = slot } }, menu);
+    const clone: Action.WireFormat = .convert(.{ .clone = .{ .slot_index = slot } }, &menu);
     try std.testing.expectEqual(@as(i16, 5), clone.slot_id);
     try std.testing.expectEqual(@as(i8, 3), clone.action);
 
-    const throw: Action.WireFormat = .convert(.{ .throw = .{ .slot_index = slot, .count = .all } }, menu);
+    const throw: Action.WireFormat = .convert(.{ .throw = .{ .slot_index = slot, .count = .all } }, &menu);
     try std.testing.expectEqual(@as(i16, 5), throw.slot_id);
-    try std.testing.expectEqual(@as(i8, 0), throw.click_data);
+    try std.testing.expectEqual(@as(i8, 1), throw.click_data);
     try std.testing.expectEqual(@as(i8, 4), throw.action);
 
-    const collect: Action.WireFormat = .convert(.{ .collect = .{ .slot_index = slot } }, menu);
+    const collect: Action.WireFormat = .convert(.{ .collect = .{ .slot_index = slot } }, &menu);
     try std.testing.expectEqual(@as(i16, 5), collect.slot_id);
     try std.testing.expectEqual(@as(i8, 6), collect.action);
 
-    const begin: Action.WireFormat = .convert(.{ .drag = .{ .begin = .split } }, menu);
+    const begin: Action.WireFormat = .convert(.{ .drag = .{ .begin = .split } }, &menu);
     try std.testing.expectEqual(@as(i16, -999), begin.slot_id);
     try std.testing.expectEqual(@as(i8, 0), begin.click_data);
     try std.testing.expectEqual(@as(i8, 5), begin.action);
 
     menu.drag_state = .{ .dragging = .{ .mode = .single } };
-    const add_slot: Action.WireFormat = .convert(.{ .drag = .{ .add_slot = slot } }, menu);
+    const add_slot: Action.WireFormat = .convert(.{ .drag = .{ .add_slot = slot } }, &menu);
     try std.testing.expectEqual(@as(i16, 5), add_slot.slot_id);
     try std.testing.expectEqual(@as(i8, 1 | (1 << 2)), add_slot.click_data);
     try std.testing.expectEqual(@as(i8, 5), add_slot.action);
 
-    const finish: Action.WireFormat = .convert(.{ .drag = .finish }, menu);
+    const finish: Action.WireFormat = .convert(.{ .drag = .finish }, &menu);
     try std.testing.expectEqual(@as(i16, -999), finish.slot_id);
     try std.testing.expectEqual(@as(i8, 2 | (1 << 2)), finish.click_data);
     try std.testing.expectEqual(@as(i8, 5), finish.action);

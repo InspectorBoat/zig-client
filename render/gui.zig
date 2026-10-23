@@ -163,6 +163,8 @@ pub fn getSlotPosForMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vector2x
     switch (menu.type) {
         .player => return getSlotPosForPlayerMenu(menu, slot_index),
         .chest => return getSlotPosForChestMenu(menu, slot_index),
+        .hopper => return getSlotPosForHopperMenu(menu, slot_index),
+        .dispenser => return getSlotPosForDispenserMenu(menu, slot_index),
         else => std.debug.panic("TODO", .{}),
     }
 }
@@ -216,6 +218,67 @@ pub fn getSlotPosForChestMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vec
             return .{
                 .x = (col - 4.5) * 0.125,
                 .y = (rows - row) * 0.125,
+            };
+        },
+        else => unreachable,
+    }
+}
+
+pub fn getSlotPosForHopperMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vector2xy(f32) {
+    std.debug.assert(menu.type == .hopper);
+    const slot = menu.slots[@backingInt(slot_index)];
+    switch (slot.backer.type) {
+        .player => {
+            const inventory_index = slot.index_into_backer;
+
+            const hotbar = inventory_index < 9;
+            const row: f32 = if (hotbar) 0 else @floatFromInt(4 - inventory_index / 9);
+            const col: f32 = @floatFromInt(inventory_index % 9);
+
+            return .{
+                .x = (col - 4.5) * 0.125,
+                .y = (row - 2) * 0.125 - 0.2 - @as(f32, if (hotbar) 0.05 else 0),
+            };
+        },
+        .hopper => {
+            const inventory_index = slot.index_into_backer;
+
+            const col: f32 = @floatFromInt(inventory_index);
+
+            return .{
+                .x = (col - 2.5) * 0.125,
+                .y = 0.125,
+            };
+        },
+        else => unreachable,
+    }
+}
+
+pub fn getSlotPosForDispenserMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vector2xy(f32) {
+    std.debug.assert(menu.type == .dispenser);
+    const slot = menu.slots[@backingInt(slot_index)];
+    switch (slot.backer.type) {
+        .player => {
+            const inventory_index = slot.index_into_backer;
+
+            const hotbar = inventory_index < 9;
+            const row: f32 = if (hotbar) 0 else @floatFromInt(4 - inventory_index / 9);
+            const col: f32 = @floatFromInt(inventory_index % 9);
+
+            return .{
+                .x = (col - 4.5) * 0.125,
+                .y = (row - 2) * 0.125 - 0.2 - @as(f32, if (hotbar) 0.05 else 0),
+            };
+        },
+        .dispenser => {
+            const inventory_index = slot.index_into_backer;
+
+            const row: f32 = @floatFromInt(inventory_index / 3);
+            const col: f32 = @floatFromInt(inventory_index % 3);
+
+            return .{
+                .x = (col - 1.5) * 0.125,
+                .y = (3 - row) * 0.125,
             };
         },
         else => unreachable,

@@ -11,11 +11,11 @@ pub const Type = enum {
     crafting_result,
     crafting_table,
     chest,
+    hopper,
+    dispenser,
     anvil,
     brewing_stand,
     horse,
-    dropper,
-    dispenser,
     furnace,
 };
 
