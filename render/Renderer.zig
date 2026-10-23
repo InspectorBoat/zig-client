@@ -373,7 +373,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
         const identity: za.Mat4 = .identity();
         self.debug_program.uniformMatrix4(0, true, &.{identity.data});
 
-        if (self.debug_options.inventory) {
+        if (game.world.menu_screen_open) {
             try gui.bufferInventory(self, &game.world, render.window_input.mousePosInClipSpace());
         }
 

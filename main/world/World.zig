@@ -43,7 +43,9 @@ maybe_cursor_stack: ?Item.Stack = null,
 
 player_inventory_menu: Menu,
 
-menu: union(enum) { none, player_menu, other: Menu } = .none,
+menu: union(enum) { player_menu, other: Menu } = .player_menu,
+
+menu_screen_open: bool = false,
 
 crosshair: HitResult = .miss,
 
@@ -52,6 +54,35 @@ mining_state: ?struct {
     progress: f32 = 0,
     face: Direction,
 } = null,
+
+pub fn getMenu(self: *const @This()) *const Menu {
+    if (self.menu == .other) std.debug.assert(self.menu_screen_open);
+    return if (self.menu == .player_menu) &self.player_inventory_menu else &self.menu.other;
+}
+pub fn getMenuPtr(self: *@This()) *Menu {
+    if (self.menu == .other) std.debug.assert(self.menu_screen_open);
+    return if (self.menu == .player_menu) &self.player_inventory_menu else &self.menu.other;
+}
+pub fn openMenu(self: *@This(), allocator: std.mem.Allocator, menu: @FieldType(@This(), "menu")) void {
+    self.closeMenu(allocator);
+
+    // Holy shit this is a disgusting hack, we need to do things right but whatever
+    // TODO: Kill notch for making the client with so many bullshit edge cases
+    const game: *Client.Game = @fieldParentPtr("world", self);
+    game.input_manager.hand = .{};
+    game.input_manager.movement = .{};
+
+    self.menu = menu;
+    self.menu_screen_open = true;
+}
+pub fn closeMenu(self: *@This(), allocator: std.mem.Allocator) void {
+    if (!self.menu_screen_open) return;
+
+    if (self.menu == .other) self.menu.other.deinit(allocator);
+
+    self.menu = .player_menu;
+    self.menu_screen_open = false;
+}
 
 pub fn init(
     io: std.Io,

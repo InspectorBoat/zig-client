@@ -29,9 +29,11 @@ pub const Input = union(enum) {
         attack: bool,
         pick: bool,
         use: bool,
-        hotkey: struct { i32, bool },
+        hotkey: i32,
         scroll: i32,
         drop: bool,
     },
+    open_screen,
+    close_screen,
     inventory: Menu.Action,
 };

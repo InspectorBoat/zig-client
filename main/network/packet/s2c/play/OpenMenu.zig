@@ -5,7 +5,7 @@ const main = @import("main");
 const Client = main.Client;
 const S2C = main.network.packet.S2C;
 
-menu_network_id: i32,
+menu_network_id: u8,
 menu_type: []const u8,
 display_name: []const u8,
 size: i32,
@@ -31,10 +31,16 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-    _ = allocator;
-    _ = game;
-
-    if (std.mem.eql(u8, "minecraft:container", self.menu_type)) {}
-
-    std.debug.panic("TODO!", .{});
+    if (std.mem.eql(u8, "minecraft:chest", self.menu_type)) {
+        game.world.openMenu(allocator, .{
+            .other = try .initChestMenu(
+                allocator,
+                self.menu_network_id,
+                game.world.main_inventory,
+                try .init(allocator, .chest, @intCast(self.size)),
+            ),
+        });
+    } else {
+        std.debug.panic("TODO!", .{});
+    }
 }

@@ -20,8 +20,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
-    _ = allocator;
-    _ = game;
     _ = self;
+    // TODO: FREE
+    game.world.closeMenu(allocator);
 }

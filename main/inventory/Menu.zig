@@ -6,10 +6,11 @@ const Entity = main.Entity;
 const Inventory = main.Inventory;
 const Item = main.Item;
 const World = main.World;
+const Menu = @This();
 
-pub const Type = enum {
+pub const Type = union(enum) {
     player,
-    crafting_table,
+    crafting_table: *Inventory,
     chest,
     anvil,
     brewing_stand,
@@ -23,6 +24,12 @@ type: Type,
 network_id: i32,
 slots: []Slot,
 drag_state: DragState = .none,
+next_transaction_id: i16 = 0,
+
+pub fn nextTransactionId(self: *@This()) i16 {
+    self.next_transaction_id += 1;
+    return self.next_transaction_id;
+}
 
 pub fn setSlot(self: *@This(), allocator: std.mem.Allocator, slot_index: SlotIndex, new_item_stack: ?Item.Stack) void {
     const slot = self.slots[@backingInt(slot_index)];
@@ -67,7 +74,7 @@ pub fn initPlayerMenu(
         .index_into_backer = 0,
     });
 
-    // 2x2 crafting slots
+    // 2x2 crafting
     for (0..4) |i| {
         slots.appendAssumeCapacity(.{
             .backer = crafting_inventory,
@@ -86,22 +93,22 @@ pub fn initPlayerMenu(
     }
 
     // main 3 rows
-    for (1..4) |i| {
-        for (0..9) |j| {
+    for (1..4) |row| {
+        for (0..9) |col| {
             slots.appendAssumeCapacity(.{
                 .backer = main_inventory,
                 .type = .generic,
-                .index_into_backer = @intCast(j + i * 9),
+                .index_into_backer = @intCast(row * 9 + col),
             });
         }
     }
 
     // hotbar
-    for (0..9) |i| {
+    for (0..9) |col| {
         slots.appendAssumeCapacity(.{
             .backer = main_inventory,
             .type = .generic,
-            .index_into_backer = @intCast(i),
+            .index_into_backer = @intCast(col),
         });
     }
 
@@ -109,6 +116,45 @@ pub fn initPlayerMenu(
         .type = .player,
         .network_id = 0,
         .slots = slots.toOwnedSliceAssert(),
+    };
+}
+
+pub fn initChestMenu(allocator: std.mem.Allocator, network_id: i16, player_inventory: *Inventory, chest_inventory: *Inventory) !@This() {
+    std.debug.assert(chest_inventory.type == .chest);
+    std.debug.assert(player_inventory.type == .player);
+    const rows = @divFloor(chest_inventory.stacks.len, 9);
+    var slots: std.ArrayList(Slot) = try .initCapacity(allocator, rows * 9 + 36);
+
+    for (0..rows) |row| {
+        for (0..9) |col| {
+            slots.appendAssumeCapacity(.{
+                .type = .generic,
+                .backer = chest_inventory,
+                .index_into_backer = @intCast(row * 9 + col),
+            });
+        }
+    }
+    for (1..4) |row| {
+        for (0..9) |col| {
+            slots.appendAssumeCapacity(.{
+                .type = .generic,
+                .backer = player_inventory,
+                .index_into_backer = @intCast(row * 9 + col),
+            });
+        }
+    }
+    for (0..9) |col| {
+        slots.appendAssumeCapacity(.{
+            .type = .generic,
+            .backer = player_inventory,
+            .index_into_backer = @intCast(col),
+        });
+    }
+
+    return .{
+        .network_id = network_id,
+        .slots = slots.toOwnedSliceAssert(),
+        .type = .chest,
     };
 }
 
@@ -167,71 +213,198 @@ pub const Slot = struct {
 
 pub const SlotIndex = enum(u8) { _ };
 
-pub const Action = union(enum) {
+pub const Action = union(Action.Type) {
+    pub const Type = enum(i8) {
+        click = 0,
+        quick_move = 1,
+        hotbar_swap = 2,
+        clone = 3,
+        throw = 4,
+        drag = 5,
+        collect = 6,
+    };
+
+    pub const Click = struct {
+        maybe_slot_index: ?SlotIndex,
+        count: enum(u1) { all = 0, one_or_half = 1 },
+    };
+    pub const QuickMove = struct {
+        slot_index: SlotIndex,
+    };
+    pub const HotbarSwap = struct {
+        slot_index: SlotIndex,
+        hotbar_slot: u4,
+    };
+    pub const Clone = struct {
+        slot_index: SlotIndex,
+    };
+    pub const Throw = struct {
+        slot_index: SlotIndex,
+        count: enum(u1) { one = 0, all = 1 },
+    };
+    pub const Drag = union(Drag.Stage) {
+        pub const Stage = enum(i8) { begin = 0, add_slot = 1, finish = 2 };
+        pub const Mode = enum(i8) { split = 0, single = 1, duplicate = 2 };
+
+        begin: Mode,
+        add_slot: SlotIndex,
+        finish,
+    };
+    pub const Collect = struct {
+        slot_index: SlotIndex,
+    };
     /// interact with the hovered slot
+    /// if the slot index is null:
+    ///     throw (all or one of) the items held by the cursor out of the inventory
     /// if the cursor slot is empty: try to pick up all or half of the items in the hovered slot
     /// if the hovered slot is empty: try to deposit the all or one of the cursor items into the hovered slot
     /// if both the cursor and the hovered slot contain items:
     ///     if the hovered slot is the result of a crafting operation, try to pick up *all* of the slot's items into the cursor
     ///     if the hovered slot's items and the cursor's items are mergable, try to deposit all or one of the cursor's items into the slot
     ///     otherwise, try to swap the cursor and the hovered slot's items
-    click: struct { SlotIndex, enum { all, one_or_half } },
-    /// throw the items held by the cursor out of the inventory
-    /// vanilla implements this as a special slot index in `click`
-    throw_cursor: enum { all, one },
+    click: Click,
     /// shift-click an item between two areas of the menu
-    quick_move: SlotIndex,
+    quick_move: QuickMove,
     /// swap hovered slot with hotbar slot (0-8), indexed directly into the player inventory
     /// ignores slot-specific *size* restrictions
-    hotbar_swap: struct { SlotIndex, u4 },
+    hotbar_swap: HotbarSwap,
     /// clone the hovered slot into the cursor
     /// creative mode only
-    clone,
+    clone: Clone,
     /// throw the items in the hovered slot out of the inventory
-    throw: struct { SlotIndex, enum { all, one } },
+    throw: Throw,
     /// spread the cursor's held stack between slots
     /// there are three modes:
-    ///     single - drops a single item in
-    drag: union(enum) {
-        begin: DragMode,
-        add_slot: SlotIndex,
-        finish,
-    },
-    /// TODO
-    move_all,
+    ///     single - drops a single item per stack
+    ///     split - spread the stack evenly
+    ///     duplicate - duplicate a full stack to each slot, creative only
+    drag: Drag,
+    /// collect the matching stacks of the hovered slot into the cursor
+    collect: Collect,
+
+    pub const WireFormat = struct {
+        slot_id: i16,
+        click_data: i8,
+        action: i8,
+
+        /// Converts a click action into the parts of a `menu_click_slot` packet.
+        pub fn convert(action: Action, menu: *const Menu) Action.WireFormat {
+            const action_id: i8 = @backingInt(action);
+            const slot_id: i16 = switch (action) {
+                .click => |click| if (click.maybe_slot_index) |slot_index| @backingInt(slot_index) else -999,
+                .quick_move => |quick_move| @backingInt(quick_move.slot_index),
+                .hotbar_swap => |hotbar_swap| @backingInt(hotbar_swap.slot_index),
+                .clone => |clone| @backingInt(clone.slot_index),
+                .throw => |throw| @backingInt(throw.slot_index),
+                .drag => |drag| switch (drag) {
+                    .begin => -999,
+                    .add_slot => |slot_index| @backingInt(slot_index),
+                    .finish => -999,
+                },
+                .collect => |collect| @backingInt(collect.slot_index),
+            };
+            const click_data: i8 = switch (action) {
+                .click => |click| @backingInt(click.count),
+                .quick_move => 0,
+                .hotbar_swap => |hotbar_swap| hotbar_swap.hotbar_slot,
+                .clone => 0,
+                .throw => |throw| @backingInt(throw.count),
+                .drag => |drag| blk: {
+                    const drag_mode = switch (drag) {
+                        .begin => |mode| mode,
+                        else => menu.drag_state.dragging.mode,
+                    };
+                    const drag_stage: Action.Drag.Stage = drag;
+                    break :blk @backingInt(drag_mode) << 2 | @backingInt(drag_stage);
+                },
+                .collect => 0,
+            };
+
+            return .{
+                .action = action_id,
+                .click_data = click_data,
+                .slot_id = slot_id,
+            };
+        }
+    };
 };
 
 pub const DragState = union(enum) {
     none,
-    dragging: struct { mode: DragMode, slot_indices: std.bit_set.Array(u64, 256) = .empty },
+    dragging: struct { mode: Action.Drag.Mode, slot_indices: std.bit_set.Array(u64, 256) = .empty },
 };
 
-pub const DragMode = enum { split, single, duplicate };
+test "click parts" {
+    var slots: [0]Slot = .{};
+    var menu: @This() = .{ .type = .player, .network_id = 0, .slots = &slots };
+    const slot: SlotIndex = @fromBackingInt(@intCast(5));
 
-comptime {
-    _ = &clickSlot;
+    const click_all: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = slot, .count = .all } }, &menu);
+    try std.testing.expectEqual(@as(i16, 5), click_all.slot_id);
+    try std.testing.expectEqual(@as(i8, 0), click_all.click_data);
+    try std.testing.expectEqual(@as(i8, 0), click_all.action);
+
+    const click_half: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = slot, .count = .one_or_half } }, menu);
+    try std.testing.expectEqual(@as(i8, 1), click_half.click_data);
+    try std.testing.expectEqual(@as(i8, 0), click_half.action);
+
+    const throw_cursor: Action.WireFormat = .convert(.{ .click = .{ .maybe_slot_index = null, .count = .one_or_half } }, menu);
+    try std.testing.expectEqual(@as(i16, -999), throw_cursor.slot_id);
+    try std.testing.expectEqual(@as(i8, 1), throw_cursor.click_data);
+    try std.testing.expectEqual(@as(i8, 0), throw_cursor.action);
+
+    const quick_move: Action.WireFormat = .convert(.{ .quick_move = .{ .slot_index = slot } }, menu);
+    try std.testing.expectEqual(@as(i16, 5), quick_move.slot_id);
+    try std.testing.expectEqual(@as(i8, 1), quick_move.action);
+
+    const hotbar_swap: Action.WireFormat = .convert(.{ .hotbar_swap = .{ .slot_index = slot, .hotbar_slot = 3 } }, menu);
+    try std.testing.expectEqual(@as(i16, 5), hotbar_swap.slot_id);
+    try std.testing.expectEqual(@as(i8, 3), hotbar_swap.click_data);
+    try std.testing.expectEqual(@as(i8, 2), hotbar_swap.action);
+
+    const clone: Action.WireFormat = .convert(.{ .clone = .{ .slot_index = slot } }, menu);
+    try std.testing.expectEqual(@as(i16, 5), clone.slot_id);
+    try std.testing.expectEqual(@as(i8, 3), clone.action);
+
+    const throw: Action.WireFormat = .convert(.{ .throw = .{ .slot_index = slot, .count = .all } }, menu);
+    try std.testing.expectEqual(@as(i16, 5), throw.slot_id);
+    try std.testing.expectEqual(@as(i8, 0), throw.click_data);
+    try std.testing.expectEqual(@as(i8, 4), throw.action);
+
+    const collect: Action.WireFormat = .convert(.{ .collect = .{ .slot_index = slot } }, menu);
+    try std.testing.expectEqual(@as(i16, 5), collect.slot_id);
+    try std.testing.expectEqual(@as(i8, 6), collect.action);
+
+    const begin: Action.WireFormat = .convert(.{ .drag = .{ .begin = .split } }, menu);
+    try std.testing.expectEqual(@as(i16, -999), begin.slot_id);
+    try std.testing.expectEqual(@as(i8, 0), begin.click_data);
+    try std.testing.expectEqual(@as(i8, 5), begin.action);
+
+    menu.drag_state = .{ .dragging = .{ .mode = .single } };
+    const add_slot: Action.WireFormat = .convert(.{ .drag = .{ .add_slot = slot } }, menu);
+    try std.testing.expectEqual(@as(i16, 5), add_slot.slot_id);
+    try std.testing.expectEqual(@as(i8, 1 | (1 << 2)), add_slot.click_data);
+    try std.testing.expectEqual(@as(i8, 5), add_slot.action);
+
+    const finish: Action.WireFormat = .convert(.{ .drag = .finish }, menu);
+    try std.testing.expectEqual(@as(i16, -999), finish.slot_id);
+    try std.testing.expectEqual(@as(i8, 2 | (1 << 2)), finish.click_data);
+    try std.testing.expectEqual(@as(i8, 5), finish.action);
 }
 
 pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, action: Action) !?Item.Stack {
-    std.log.debug("cursor: {?}", .{world.maybe_cursor_stack});
-
     if (self.drag_state != .none and action != .drag) return null;
     switch (action) {
         .throw => |throw| {
-            const slot_index, const mode = throw;
-            switch (mode) {
+            switch (throw.count) {
                 .all => {
-                    self.clearSlot(allocator, slot_index);
-                    std.log.debug("HI", .{});
+                    self.clearSlot(allocator, throw.slot_index);
                 },
-                .one => if (self.getSlotPtr(slot_index).*) |*item_stack| {
+                .one => if (self.getSlotPtr(throw.slot_index).*) |*item_stack| {
                     item_stack.size -= 1;
-                    if (item_stack.size <= 0) self.clearSlot(allocator, slot_index);
+                    if (item_stack.size <= 0) self.clearSlot(allocator, throw.slot_index);
                 },
             }
-        },
-        .throw_cursor => {
-            // TODO
         },
         .drag => |drag| {
             const cursor_item = world.maybe_cursor_stack orelse {
@@ -301,10 +474,31 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                 },
             }
         },
-        .clone => std.debug.panic("TODO!", .{}),
-        .move_all => std.debug.panic("TODO!", .{}),
+        .clone => |slot_index| {
+            _ = slot_index;
+            std.debug.panic("TODO!", .{});
+        },
+        .collect => |slot_index| {
+            _ = slot_index;
+            std.debug.panic("TODO!", .{});
+        },
         .click => |click| {
-            const slot_index, const mode = click;
+            const slot_index = click.maybe_slot_index orelse {
+                // throw cursor stack
+                switch (click.count) {
+                    .all => {
+                        world.maybe_cursor_stack = null;
+                    },
+                    .one_or_half => if (world.maybe_cursor_stack) |*cursor_stack| {
+                        cursor_stack.size -= 1;
+                        if (cursor_stack.size <= 0) world.maybe_cursor_stack = null;
+                    },
+                }
+
+                return null;
+            };
+            const count = click.count;
+
             const slot = self.slots[@backingInt(slot_index)];
 
             const maybe_slot_stack = self.getSlotPtr(slot_index);
@@ -316,7 +510,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                 std.log.debug("dropping into empty", .{});
                 if (maybe_cursor_stack.*) |*cursor_stack| if (slot.type.isItemAllowed(cursor_stack.item)) {
                     const deposit_count = @min(
-                        if (mode == .all) cursor_stack.size else 1,
+                        if (count == .all) cursor_stack.size else 1,
                         slot.type.maxStackSize(cursor_stack.item),
                     );
                     maybe_slot_stack.* = try cursor_stack.split(allocator, deposit_count);
@@ -330,7 +524,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                 const slot_stack = &maybe_slot_stack.*.?;
                 // if cursor is empty, try to pick up the items in the slot
                 if (maybe_cursor_stack.* == null) {
-                    const withdrawal_count = if (mode == .all) slot_stack.size else @divFloor(slot_stack.size + 1, 2);
+                    const withdrawal_count = if (count == .all) slot_stack.size else @divFloor(slot_stack.size + 1, 2);
                     // TODO: use this logic instead for correctness with crafting operations
                     // slot.removeItem(withdrawal_count);
                     maybe_cursor_stack.* = try slot_stack.split(allocator, withdrawal_count);
@@ -346,7 +540,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
                         // if we can merge, try to merge cursor into slot
                         if (Item.Stack.canMerge(cursor_stack.*, slot_stack.*)) {
                             const deposit_count = @min(
-                                if (mode == .all) cursor_stack.size else 1,
+                                if (count == .all) cursor_stack.size else 1,
                                 slot.type.maxStackSize(cursor_stack.item) - slot_stack.size,
                                 cursor_stack.item.maxStackSize() - slot_stack.size,
                             );
@@ -388,7 +582,9 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
         },
         .quick_move => std.debug.panic("TODO!", .{}),
         .hotbar_swap => |hotbar_swap| {
-            const slot_index, const hotbar_slot = hotbar_swap;
+            const slot_index = hotbar_swap.slot_index;
+            const hotbar_slot = hotbar_swap.hotbar_slot;
+
             // vanilla silently discards the action, but slot-clicking is entirely client-driven
             // so it should never happen anyways
             std.debug.assert(hotbar_slot <= 8);

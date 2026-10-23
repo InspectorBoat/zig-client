@@ -144,12 +144,14 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 }
 
 pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQueue) !void {
+    window_input.window.setInputModeCursor(if (game.world.menu_screen_open) .normal else .disabled);
+
     var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
             .Key => |key| {
                 if (key.action == .repeat) continue;
-                if (renderer.debug_options.inventory) {
+                if (game.world.menu_screen_open) {
                     switch (key.key) {
                         .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| {
                             if (key.action == .release) continue;
@@ -186,9 +188,12 @@ pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQue
                     .h => if (key.action == .press) {
                         renderer.debug_options.chunk_borders = !renderer.debug_options.chunk_borders;
                     },
-                    .g => if (key.action == .press) {
+                    .e => if (key.action == .press) {
+                        if (game.world.menu_screen_open)
+                            try input_queue.queueOnTick(.close_screen)
+                        else
+                            try input_queue.queueOnTick(.open_screen);
                         renderer.debug_options.inventory = !renderer.debug_options.inventory;
-                        window_input.window.setInputModeCursor(if (renderer.debug_options.inventory) .normal else .disabled);
                     },
                     .f => if (key.action == .press) {
                         renderer.debug_options.terrain_draw_mode = switch (renderer.debug_options.terrain_draw_mode) {
@@ -216,17 +221,24 @@ pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQue
 
                     .q => try input_queue.queueOnTick(.{ .hand = .{ .drop = (key.action == .press) } }),
 
-                    .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| try input_queue.queueOnTick(.{ .hand = .{ .hotkey = .{ @backingInt(num) - @backingInt(glfw.Key.one), key.action == .press } } }),
+                    .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| if (key.action == .press)
+                        try input_queue.queueOnTick(.{ .hand = .{ .hotkey = @backingInt(num) - @backingInt(glfw.Key.one) } }),
                     else => {},
                 }
             },
             .MouseButton => |button| {
                 if (button.action == .repeat) continue;
-                if (renderer.debug_options.inventory) {
+                if (game.world.menu_screen_open) {
                     if (button.action == .release) continue;
-                    if (gui.onClick(&game.world, window_input.mousePosInClipSpace(), button.button)) |action| {
-                        try input_queue.queueOnTick(.{ .inventory = action });
-                    }
+                    if (button.button != .left and button.button != .right and button.button != .middle) continue;
+                    try input_queue.queueOnTick(.{
+                        .inventory = gui.onClick(
+                            &game.world,
+                            window_input.mousePosInClipSpace(),
+                            button.button,
+                        ),
+                    });
+
                     continue;
                 }
                 switch (button.button) {
@@ -236,8 +248,11 @@ pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQue
                 }
             },
             .CursorPos => |cursor_event| {
-                if (renderer.debug_options.inventory) continue;
+                if (game.world.menu_screen_open) continue;
                 cursor_delta = .add(cursor_delta, cursor_event.delta);
+            },
+            .Scroll => |scroll| {
+                try input_queue.queueOnTick(.{ .hand = .{ .scroll = @round(scroll.y) } });
             },
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
@@ -249,7 +264,7 @@ pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQue
             else => {},
         }
     }
-    if (renderer.debug_options.inventory) return;
+    if (game.world.menu_screen_open) return;
     try input_queue.queueOnFrame(.{ .rotate = .intFromFloat(cursor_delta) });
 }
 

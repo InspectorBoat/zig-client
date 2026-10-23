@@ -131,4 +131,5 @@ test {
     _ = Nbt;
     _ = network.packet.C2S.WriteBuffer;
     _ = network.packet.S2C.ReadBuffer;
+    _ = Menu;
 }

@@ -61,6 +61,8 @@ pub const Client = union(enum) {
                         player.base.rotation.pitch = @max(@min(90, player.base.rotation.pitch), -90);
                     },
                     .inventory => std.debug.panic("Inventory action on frame - don't do this! Queue on tick instead!", .{}),
+                    .open_screen => std.debug.panic("Screen action on frame - don't do this! Queue on tick instead!", .{}),
+                    .close_screen => std.debug.panic("Screen action on frame - don't do this! Queue on tick instead!", .{}),
                 }
             }
         }
@@ -73,11 +75,27 @@ pub const Client = union(enum) {
 
             try interactions.updateHotbarSlot(io, self, player);
 
-            inputs.hand.attack_cooldown -|= 1;
-            inputs.hand.auto_use_cooldown -|= 1;
+            // If a menu was open at the start:
+            // No hand inputs or movements this tick
+            // Attack cooldown = 10000
+
+            // TODO: Vanilla processes events in a different order than we do:
+            // They do mouse, then keyboard
+            // while ours can be interleaved (we handle immediately and queue,
+            // vanilla handles on tick)
+            // This is an observable difference, although *technically* it could
+            // also happen on vanilla if you had really weird keybindings
+            // Also, we don't distinguish the menu the input was done on,
+            // So we could do an input on one menu, then have the server open another menu,
+            // then that could cause an OOB
+            // So we need to rethink our approach to handling keybinds,
+            // and probably bring them more in line with vanilla
+            const menu_screen_open = self.world.menu_screen_open;
+
+            inputs.cooldown.attack -|= 1;
+            inputs.cooldown.auto_use -|= 1;
 
             var drop_presses: usize, var attack_presses: usize, var use_presses: usize, var pick_presses: usize = .{ 0, 0, 0, 0 };
-            _ = &pick_presses;
             while (self.input_queue.on_tick.readItem()) |queued_input| {
                 switch (queued_input) {
                     .hand => |hand| {
@@ -103,10 +121,20 @@ pub const Client = union(enum) {
                                 },
                                 false => inputs.hand.use = false,
                             },
-                            .hotkey => |hotkey| {
-                                if (hotkey.@"1") self.world.player.hotbar_slot = @intCast(hotkey.@"0");
+                            .pick => |pick| switch (pick) {
+                                true => {
+                                    pick_presses += 1;
+                                    inputs.hand.pick = true;
+                                },
+                                false => inputs.hand.pick = false,
                             },
-                            else => {},
+                            .hotkey => |hotkey| {
+                                self.world.player.hotbar_slot = @intCast(hotkey);
+                            },
+                            .scroll => |scroll| {
+                                self.world.player.hotbar_slot += @intCast(@mod(scroll, 9));
+                                self.world.player.hotbar_slot = @mod(self.world.player.hotbar_slot, 9);
+                            },
                         }
                     },
                     .movement => |movement| {
@@ -121,8 +149,36 @@ pub const Client = union(enum) {
                         }
                     },
                     .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
-                    .inventory => |action| try interactions.click(io, allocator, self, action),
+                    .close_screen => {
+                        if (self.world.menu_screen_open) {
+                            try self.connection_handle.sendPlayPacket(io, .{ .close_menu = .{
+                                .menu_network_id = @intCast(self.world.getMenu().network_id),
+                            } });
+                        }
+                        self.world.closeMenu(allocator);
+                    },
+                    .open_screen => {
+                        self.world.openMenu(allocator, .player_menu);
+                    },
+                    .inventory => |action| {
+                        try interactions.click(
+                            io,
+                            allocator,
+                            self,
+                            self.world.getMenuPtr(),
+                            action,
+                        );
+                    },
                 }
+            }
+
+            if (menu_screen_open) {
+                attack_presses = 0;
+                use_presses = 0;
+                pick_presses = 0;
+                inputs.hand = .{};
+                inputs.movement = .{};
+                inputs.cooldown.attack = 10000;
             }
 
             for (0..drop_presses) |_| if (inputs.movement.sprint) try interactions.dropEntireStack(io, self) else try interactions.dropSingleItem(io, self);
@@ -134,13 +190,13 @@ pub const Client = union(enum) {
                 for (0..use_presses) |_| try interactions.use(io, self, player);
                 for (0..pick_presses) |_| try interactions.pick(io, self, player);
             }
-            if (inputs.hand.use and self.input_manager.hand.auto_use_cooldown == 0 and player.item_in_use == null) {
+            if (inputs.hand.use and self.input_manager.cooldown.auto_use == 0 and player.item_in_use == null) {
                 try interactions.use(io, self, player);
             }
 
-            if (!inputs.hand.attack) self.input_manager.hand.attack_cooldown = 0;
+            if (!inputs.hand.attack) self.input_manager.cooldown.attack = 0;
 
-            if (self.input_manager.hand.attack_cooldown == 0 and player.item_in_use == null) {
+            if (self.input_manager.cooldown.attack == 0 and player.item_in_use == null) {
                 if (inputs.hand.attack and self.world.crosshair == .block)
                     try interactions.updateBlockMining(io, self, player, self.world.crosshair.block.block_pos, self.world.crosshair.block.dir)
                 else
@@ -149,11 +205,12 @@ pub const Client = union(enum) {
         }
 
         pub const InputManager = struct {
+            cooldown: struct {
+                attack: usize = 0,
+                auto_use: usize = 0,
+                mining: usize = 0,
+            } = .{},
             hand: struct {
-                attack_cooldown: usize = 0,
-                auto_use_cooldown: usize = 0,
-                mining_cooldown: usize = 0,
-
                 attack: bool = false,
                 use: bool = false,
                 pick: bool = false,

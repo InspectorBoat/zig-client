@@ -9,12 +9,12 @@ const LocalPlayer = main.Entity.LocalPlayer;
 const Vector3 = main.Vector3;
 
 pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
-    if (game.input_manager.hand.attack_cooldown > 0) return;
+    if (game.input_manager.cooldown.attack > 0) return;
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
     switch (game.world.crosshair) {
         .entity => |entity| try attackEntity(io, game, entity.entity_network_id),
         .block => |block| try startMiningBlock(io, game, player, block.block_pos, block.dir),
-        .miss => game.input_manager.hand.attack_cooldown = 10,
+        .miss => game.input_manager.cooldown.attack = 10,
     }
 }
 
@@ -45,7 +45,7 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
             .face = dir,
         } });
         try instaMineBlock(game, block_pos);
-        game.input_manager.hand.mining_cooldown = 5;
+        game.input_manager.cooldown.mining = 5;
         return;
     }
 
@@ -111,8 +111,8 @@ pub fn finishMiningBlock(game: *Game, block_pos: Vector3(i32)) !void {
 pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
     try updateHotbarSlot(io, game, player);
 
-    if (game.input_manager.hand.mining_cooldown > 0) {
-        game.input_manager.hand.mining_cooldown -|= 1;
+    if (game.input_manager.cooldown.mining > 0) {
+        game.input_manager.cooldown.mining -|= 1;
         return;
     }
     if (game.world.game_mode == .Creative) {
@@ -122,7 +122,7 @@ pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_po
             .face = dir,
         } });
         try instaMineBlock(game, block_pos);
-        game.input_manager.hand.mining_cooldown = 5;
+        game.input_manager.cooldown.mining = 5;
         return;
     }
     const mining_state = &(game.world.mining_state orelse return try startMiningBlock(io, game, player, block_pos, dir));
@@ -143,7 +143,7 @@ pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_po
         } });
         try finishMiningBlock(game, block_pos);
         game.world.mining_state = null;
-        game.input_manager.hand.mining_cooldown = 5;
+        game.input_manager.cooldown.mining = 5;
     }
 }
 
@@ -168,7 +168,7 @@ pub fn dropEntireStack(io: std.Io, game: *Game) !void {
 pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     if (game.world.mining_state != null) return;
 
-    game.input_manager.hand.auto_use_cooldown = 4;
+    game.input_manager.cooldown.auto_use = 4;
 
     const interaction_consumed = switch (game.world.crosshair) {
         .entity => try interactEntityAt(io, game, player) or try interactEntity(io, game, player),
@@ -322,7 +322,17 @@ pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     }
 }
 
-pub fn click(io: std.Io, allocator: std.mem.Allocator, game: *Game, action: Menu.Action) !void {
-    _ = io;
-    _ = try game.world.player_inventory_menu.clickSlot(allocator, &game.world, action);
+pub fn click(io: std.Io, allocator: std.mem.Allocator, game: *Game, menu: *Menu, action: Menu.Action) !void {
+    const stack = try menu.clickSlot(allocator, &game.world, action);
+    const wire_format: Menu.Action.WireFormat = .convert(action, menu);
+    try game.connection_handle.sendPlayPacket(io, .{
+        .menu_click_slot = .{
+            .menu_network_id = @intCast(menu.network_id),
+            .slot_id = wire_format.slot_id,
+            .action = wire_format.action,
+            .transaction_id = game.world.player_inventory_menu.nextTransactionId(), // yes, this is correct
+            .click_data = wire_format.click_data,
+            .item_stack = stack,
+        },
+    });
 }
