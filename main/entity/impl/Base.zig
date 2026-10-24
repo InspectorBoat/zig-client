@@ -293,6 +293,18 @@ pub fn setPosition(self: *@This(), pos: Vector3(f64)) void {
     };
 }
 
+pub fn setSize(self: *@This(), width: f32, height: f32) void {
+    if (width != self.width or height != self.height) {
+        self.width = width;
+        self.height = height;
+        const new_hitbox: Box(f64) = .{
+            .min = self.hitbox.min,
+            .max = .add(self.hitbox.min, .{ .x = width, .y = height, .z = width }),
+        };
+        self.hitbox = new_hitbox;
+    }
+}
+
 /// Sets `self.rotation` to rotation modulo 360
 pub fn setRotation(self: *@This(), rotation: Rotation2(f32)) void {
     self.rotation = Rotation2(f32){

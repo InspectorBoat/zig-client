@@ -58,6 +58,8 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 
     if (self.getEntity(game)) |entity| {
         _ = try game.world.addEntity(entity);
+    } else {
+        std.log.scoped(.entity).warn("server sent AddEntity with unknown type!", .{});
     }
 }
 

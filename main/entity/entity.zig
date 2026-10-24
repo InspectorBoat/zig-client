@@ -150,10 +150,12 @@ pub const Entity = union(EntityType) {
         // std.std.log.scoped(.entity).debug("{}", .{std.meta.activeTag(entity.*)});
         switch (entity.*) {
             .removed => return,
-            .local_player => |*specific_entity| try specific_entity.tick(io, game),
-            inline .cow, .item => |*specific_entity| try specific_entity.tick(game),
-            // Unlisted types only get the snapshot below.
-            inline else => |*specific_entity| specific_entity.base.tick(),
+            .local_player => |*player| try player.tick(io, game),
+            inline else => |*specific_entity| {
+                if (@hasDecl(@TypeOf(specific_entity.*), "tick")) {
+                    try specific_entity.tick(game);
+                } else specific_entity.base.tick();
+            },
         }
     }
 
