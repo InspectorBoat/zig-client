@@ -347,7 +347,9 @@ pub fn closeScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void 
 }
 
 pub fn openScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
-    _ = io;
     if (game.world.menu_screen_open) return;
+    try game.connection_handle.sendPlayPacket(io, .{ .client_status = .{
+        .status = .OpenInventoryAchievement,
+    } });
     game.world.openMenu(allocator, .player_menu);
 }
