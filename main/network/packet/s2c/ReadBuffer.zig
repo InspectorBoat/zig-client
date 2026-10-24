@@ -155,13 +155,19 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
             .size = try self.read(i8),
             .metadata = try self.read(i16),
             .item = @fromBackingInt(@intCast(item_id)),
-            .nbt = switch (try Nbt.readDiscardName(allocator, self)) {
-                .compound => |compound| compound,
-                else => null,
-            },
+            .nbt = try self.readNbtCompoundAllocating(allocator),
         };
     }
     return item_stack;
+}
+
+pub fn readNbtCompoundAllocating(self: *@This(), allocator: std.mem.Allocator) !?Nbt.Compound {
+    const nbt: Nbt = try .readDiscardName(allocator, self);
+    return switch (nbt) {
+        .end => null,
+        .compound => |compound| compound,
+        else => error.ExpectedNbtCompound,
+    };
 }
 
 /// Uses a u16 and java's """""""""slight modification""""""""" of utf8

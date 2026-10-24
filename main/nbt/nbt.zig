@@ -6,21 +6,6 @@ const C2S = main.network.packet.C2S;
 const S2C = main.network.packet.S2C;
 
 pub const Nbt = union(Tag) {
-    pub const Tag = enum(i8) {
-        end = 0,
-        byte = 1,
-        short = 2,
-        int = 3,
-        long = 4,
-        float = 5,
-        double = 6,
-        byte_array = 7,
-        string = 8,
-        list = 9,
-        compound = 10,
-        int_array = 11,
-    };
-
     end: End,
     byte: Byte,
     short: Short,
@@ -34,11 +19,33 @@ pub const Nbt = union(Tag) {
     compound: Compound,
     int_array: IntArray,
 
+    pub const Tag = enum(i8) {
+        end = 0,
+        byte = 1,
+        short = 2,
+        int = 3,
+        long = 4,
+        float = 5,
+        double = 6,
+        byte_array = 7,
+        string = 8,
+        list = 9,
+        compound = 10,
+        int_array = 11,
+
+        pub fn read(buffer: *S2C.ReadBuffer) !@This() {
+            return std.enums.fromInt(@This(), try buffer.read(i8)) orelse return error.InvalidNbtTag;
+        }
+        pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
+            try buffer.write(i8, @backingInt(self));
+        }
+    };
+
     pub const ReadError = error{
         OutOfMemory,
         StringTooLarge,
         EndOfBuffer,
-        InvalidNbtElementType,
+        InvalidNbtTag,
         BadListLength,
     };
 
@@ -51,13 +58,13 @@ pub const Nbt = union(Tag) {
         try self.writeWithName(buffer, "");
     }
 
-    pub fn writeWithName(self: *const @This(), buffer: *C2S.WriteBuffer, key: []const u8) WriteError!void {
-        try buffer.write(i8, @backingInt(self.*));
+    pub fn writeWithName(self: *const @This(), buffer: *C2S.WriteBuffer, name: []const u8) WriteError!void {
+        try @as(Tag, self.*).write(buffer);
         switch (self.*) {
             .end => {},
-            inline else => |*specific_element| {
-                try buffer.writeJavaUtf(key);
-                try specific_element.write(buffer);
+            inline else => |*known_element| {
+                try buffer.writeJavaUtf(name);
+                try known_element.write(buffer);
             },
         }
     }
@@ -66,54 +73,49 @@ pub const Nbt = union(Tag) {
         const read_result = try readWithName(allocator, buffer);
         // TODO: this is lazy
         if (read_result.name) |name| allocator.free(name);
-        return read_result.element;
+        return read_result.nbt;
     }
 
-    pub fn readElementType(buffer: *S2C.ReadBuffer) !Tag {
-        return std.enums.fromInt(Tag, try buffer.read(i8)) orelse return error.InvalidNbtElementType;
-    }
-
-    pub fn readWithName(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!struct { name: ?[]const u8, element: Nbt } {
+    pub fn readWithName(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!struct { name: ?[]const u8, nbt: Nbt } {
         // read the byte telling us the tag of the element
-        switch (try readElementType(buffer)) {
-            .end => return .{ .name = null, .element = .{ .end = .{} } },
+        switch (try Tag.read(buffer)) {
+            .end => return .{ .name = null, .nbt = .end },
 
-            inline else => |element_type| {
+            inline else => |tag| {
                 const name = try buffer.readJavaUtfAllocating(allocator);
-                // the type of the nbt element corresponding to the tag
-                const ElementType = @FieldType(Nbt, @tagName(element_type));
                 return .{
                     .name = name,
-                    .element = @unionInit(
+                    .nbt = @unionInit(
                         Nbt,
-                        @tagName(element_type),
-                        try ElementType.read(allocator, buffer),
+                        @tagName(tag),
+                        try .read(allocator, buffer),
                     ),
                 };
             },
         }
     }
 
-    pub fn deepEquals(self: *const @This(), other: *const @This()) bool {
-        switch (self.*) {
-            inline else => |*specific_element| {
-                return specific_element.deepEquals(other);
+    pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+        if (@as(Tag, lhs.*) != @as(Tag, rhs.*)) return false;
+        switch (lhs.*) {
+            inline else => |known_lhs, tag| {
+                return known_lhs.deepEquals(&@field(rhs, @tagName(tag)));
             },
         }
     }
 
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         switch (self.*) {
-            inline else => |*specific_element| {
-                specific_element.deinit(allocator);
+            inline else => |*element| {
+                element.deinit(allocator);
             },
         }
     }
 
     pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) error{OutOfMemory}!@This() {
         switch (self.*) {
-            inline else => |*specific_element, specific_element_tag| {
-                return @unionInit(@This(), @tagName(specific_element_tag), try specific_element.dupe(allocator));
+            inline else => |*element, tag| {
+                return @unionInit(@This(), @tagName(tag), try element.dupe(allocator));
             },
         }
     }
@@ -125,8 +127,8 @@ pub const Nbt = union(Tag) {
             return .{};
         }
 
-        pub fn deepEquals(_: *const @This(), other: *const Nbt) bool {
-            return other.* == .end;
+        pub fn deepEquals(_: *const @This(), _: *const @This()) bool {
+            return true;
         }
 
         pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
@@ -150,13 +152,8 @@ pub const Nbt = union(Tag) {
                 };
             }
 
-            pub fn deepEquals(self: *const @This(), other: *const Nbt) bool {
-                switch (other.*) {
-                    inline else => |element| {
-                        if (@TypeOf(element) != @This()) return false;
-                        return element.value == self.value;
-                    },
-                }
+            pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+                return lhs.value == rhs.value;
             }
 
             pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -179,37 +176,37 @@ pub const Nbt = union(Tag) {
     pub const Double = Number(f64);
 
     pub const ByteArray = struct {
-        values: []const i8,
+        items: []const i8,
 
         pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
-            try buffer.write(i32, @intCast(self.values.len));
-            for (self.values) |element| {
+            try buffer.write(i32, @intCast(self.items.len));
+            for (self.items) |element| {
                 try buffer.write(i32, @intCast(element));
             }
         }
 
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
-            const element_count: usize = @intCast(try buffer.read(i32));
-            const values = try allocator.alloc(i8, element_count);
-            const bytes = try buffer.readBytesNonAllocating(element_count * @sizeOf(i8));
+            const len: usize = @intCast(try buffer.read(i32));
+            const items = try allocator.alloc(i8, len);
+            const bytes = try buffer.readBytesNonAllocating(len * @sizeOf(i8));
 
-            @memcpy(values, @as([]const i8, @ptrCast(bytes)));
+            @memcpy(items, @as([]const i8, @ptrCast(bytes)));
+
             return .{
-                .values = values,
+                .items = items,
             };
         }
 
-        pub fn deepEquals(self: *const @This(), other: *const Nbt) bool {
-            if (other.* != .byte_array) return false;
-            return std.mem.eql(i8, self.values, other.byte_array.values);
+        pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+            return std.mem.eql(i8, lhs.items, rhs.items);
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-            allocator.free(self.values);
+            allocator.free(self.items);
         }
 
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
-            return .{ .values = try allocator.dupe(i8, self.values) };
+            return .{ .items = try allocator.dupe(i8, self.items) };
         }
     };
 
@@ -226,9 +223,8 @@ pub const Nbt = union(Tag) {
             };
         }
 
-        pub fn deepEquals(self: *const @This(), other: *const Nbt) bool {
-            if (other.* != .string) return false;
-            return std.mem.eql(u8, self.value, other.string.value);
+        pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+            return std.mem.eql(u8, lhs.value, rhs.value);
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
@@ -241,205 +237,213 @@ pub const Nbt = union(Tag) {
     };
 
     pub const List = struct {
-        elements: []Nbt,
-        element_type: Tag,
+        bytes: [*]u8,
+        len: usize,
+        tag: Tag,
 
         pub fn init(
-            comptime nbt_element_type: Tag,
             allocator: std.mem.Allocator,
-            specific_elements: []const @FieldType(Nbt, @tagName(nbt_element_type)),
+            comptime tag: Tag,
+            init_items: []const @FieldType(Nbt, @tagName(tag)),
         ) !@This() {
-            var elements = try allocator.alloc(Nbt, specific_elements.len);
-            _ = &elements;
-            for (specific_elements, elements) |specific_element, *element| {
-                element.* = @unionInit(Nbt, @tagName(nbt_element_type), specific_element);
-            }
+            const _items = try allocator.alloc(@FieldType(Nbt, @tagName(tag)), init_items.len);
+            @memcpy(_items, init_items);
             return .{
-                .elements = elements,
-                .element_type = nbt_element_type,
+                .bytes = @ptrCast(_items.ptr),
+                .len = _items.len,
+                .tag = tag,
             };
         }
 
         pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
-            const element_type: Tag = if (self.elements.len == 0) .end else self.elements[0];
+            try self.tag.write(buffer);
+            try buffer.write(i32, @intCast(self.len));
 
-            try buffer.write(i8, @backingInt(element_type));
-            try buffer.write(i32, @intCast(self.elements.len));
-
-            for (self.elements) |*element| {
-                switch (element.*) {
-                    inline else => |*specific_element| {
-                        try specific_element.write(buffer);
-                    },
-                }
+            switch (self.tag) {
+                inline else => |known_tag| {
+                    for (self.items(known_tag)) |*item| {
+                        try item.write(buffer);
+                    }
+                },
             }
         }
 
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
-            const element_type = try Nbt.readElementType(buffer);
-            const element_count: usize = @intCast(try buffer.read(i32));
+            const tag: Tag = try .read(buffer);
+            const len: usize = @intCast(try buffer.read(i32));
 
-            if (element_type == .end and element_count != 0) return error.BadListLength;
+            if (tag == .end and len != 0) return error.BadListLength;
 
-            const elements = try allocator.alloc(Nbt, element_count);
-            switch (element_type) {
-                inline else => |specific_element_type| {
-                    const NbtElementType = @FieldType(Nbt, @tagName(specific_element_type));
-                    for (elements) |*element| {
-                        element.* = @unionInit(Nbt, @tagName(specific_element_type), try NbtElementType.read(allocator, buffer));
+            switch (tag) {
+                inline else => |known_tag| {
+                    const Item = @FieldType(Nbt, @tagName(known_tag));
+                    const _items = try allocator.alloc(Item, len);
+                    for (_items) |*item| {
+                        item.* = try .read(allocator, buffer);
                     }
+                    return .{
+                        .bytes = @ptrCast(_items),
+                        .len = _items.len,
+                        .tag = tag,
+                    };
                 },
             }
-            return .{
-                .elements = elements,
-                .element_type = element_type,
-            };
         }
 
-        pub fn deepEquals(self: *const @This(), other: *const Nbt) bool {
-            if (other.* != .list) return false;
-            if (self.elements.len != other.*.list.elements.len) return false;
-            for (self.elements, other.*.list.elements) |*i, *j| {
-                if (!i.deepEquals(j)) return false;
+        pub fn items(self: *const @This(), comptime tag: Tag) []@FieldType(Nbt, @tagName(tag)) {
+            std.debug.assert(tag == self.tag);
+            return @as(
+                [*]@FieldType(Nbt, @tagName(tag)),
+                @ptrCast(@alignCast(self.bytes)),
+            )[0..self.len];
+        }
+
+        pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+            if (lhs.len != rhs.len) return false;
+            if (lhs.tag != rhs.tag) return false;
+            switch (lhs.tag) {
+                inline else => |tag| {
+                    for (lhs.items(tag), rhs.items(tag)) |*i, *j| {
+                        if (!i.deepEquals(j)) return false;
+                    }
+                    return true;
+                },
             }
-            return true;
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-            for (self.elements) |*element| {
-                element.deinit(allocator);
+            switch (self.tag) {
+                inline else => |tag| {
+                    for (self.items(tag)) |*item| {
+                        item.deinit(allocator);
+                    }
+                    allocator.free(self.items(tag));
+                },
             }
-            allocator.free(self.elements);
         }
 
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
-            const new_elements = try allocator.alloc(Nbt, self.elements.len);
-            for (new_elements, self.elements) |*new_element, *old_element| {
-                new_element.* = try old_element.dupe(allocator);
+            switch (self.tag) {
+                inline else => |tag| {
+                    return try .init(allocator, tag, self.items(tag));
+                },
             }
-            return .{ .element_type = self.element_type, .elements = new_elements };
         }
     };
 
     pub const Compound = struct {
-        elements: std.StringHashMapUnmanaged(Nbt),
+        items: std.StringHashMapUnmanaged(Nbt),
 
         pub fn init(
             allocator: std.mem.Allocator,
             initializer: anytype,
         ) !@This() {
-            var compound: @This() = .{
-                .elements = .{},
-            };
+            var items: std.StringHashMapUnmanaged(Nbt) = .empty;
             inline for (@typeInfo(@TypeOf(initializer)).@"struct".field_names) |field_name| {
                 const name = try allocator.dupe(u8, field_name);
-                try compound.elements.put(allocator, name, @field(initializer, field_name));
+                try items.put(allocator, name, @field(initializer, field_name));
             }
-            return compound;
+            return .{ .items = items };
         }
 
         pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
-            var entries = self.elements.iterator();
+            var entries = self.items.iterator();
             while (entries.next()) |entry| {
                 const key = entry.key_ptr.*;
                 const element = entry.value_ptr;
                 try element.writeWithName(buffer, key);
             }
-            // write end
-            var end: Nbt = .{ .end = .{} };
-            try end.writeBlankName(buffer);
+
+            try Tag.end.write(buffer);
         }
 
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
-            var elements = std.StringHashMapUnmanaged(Nbt){};
+            var items: std.StringHashMapUnmanaged(Nbt) = .empty;
 
             var read_result = try Nbt.readWithName(allocator, buffer);
-            while (read_result.element != .end) : (read_result = try Nbt.readWithName(allocator, buffer)) {
-                try elements.put(allocator, read_result.name.?, read_result.element);
+            while (read_result.nbt != .end) : (read_result = try Nbt.readWithName(allocator, buffer)) {
+                try items.put(allocator, read_result.name.?, read_result.nbt);
             }
 
-            return .{
-                .elements = elements,
-            };
+            return .{ .items = items };
         }
 
-        pub fn deepEquals(self: *const @This(), other: *const Nbt) bool {
-            if (other.* != .compound) return false;
-            if (self.elements.size != other.*.compound.elements.size) return false;
-            var self_entries = self.elements.iterator();
-            while (self_entries.next()) |self_entry| {
-                if (other.*.compound.elements.getPtr(self_entry.key_ptr.*)) |other_element| {
-                    if (!self_entry.value_ptr.deepEquals(other_element)) return false;
-                } else {
-                    return false;
-                }
+        pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+            if (lhs.items.size != rhs.items.size) return false;
+            var lhs_entries = lhs.items.iterator();
+            while (lhs_entries.next()) |lhs_entry| {
+                const rhs_item = rhs.items.getPtr(lhs_entry.key_ptr.*) orelse return false;
+                const lhs_item = lhs_entry.value_ptr;
+                if (!lhs_item.deepEquals(rhs_item)) return false;
             }
             return true;
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-            var entries = self.elements.iterator();
+            var entries = self.items.iterator();
             while (entries.next()) |*entry| {
                 const name = entry.key_ptr.*;
                 allocator.free(name);
-                const element = entry.value_ptr;
-                element.deinit(allocator);
+                const item = entry.value_ptr;
+                item.deinit(allocator);
             }
-            self.elements.deinit(allocator);
+            self.items.deinit(allocator);
         }
 
         pub fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
-            var new_elements: std.StringHashMapUnmanaged(Nbt) = .{};
-            var iterator = self.elements.iterator();
+            var new_items: std.StringHashMapUnmanaged(Nbt) = .empty;
+            try new_items.ensureTotalCapacity(allocator, self.items.size);
+
+            var iterator = self.items.iterator();
             while (iterator.next()) |entry| {
-                try new_elements.put(allocator, try allocator.dupe(u8, entry.key_ptr.*), try entry.value_ptr.dupe(allocator));
+                new_items.putAssumeCapacityNoClobber(
+                    try allocator.dupe(u8, entry.key_ptr.*),
+                    try entry.value_ptr.dupe(allocator),
+                );
             }
-            return .{ .elements = new_elements };
+            return .{ .items = new_items };
         }
     };
 
     pub const IntArray = struct {
-        values: []const i32,
+        items: []const i32,
 
         pub fn init(
             allocator: std.mem.Allocator,
             values: []const i32,
         ) !@This() {
             return .{
-                .values = try allocator.dupe(i32, values),
+                .items = try allocator.dupe(i32, values),
             };
         }
 
         pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
-            try buffer.write(i32, @intCast(self.values.len));
-            for (self.values) |element| {
-                try buffer.write(i32, element);
+            try buffer.write(i32, @intCast(self.items.len));
+            for (self.items) |item| {
+                try buffer.write(i32, item);
             }
         }
 
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
-            const element_count: usize = @intCast(try buffer.read(i32));
+            const len: usize = @intCast(try buffer.read(i32));
 
-            const values = try allocator.alloc(i32, element_count);
-            for (values) |*value| {
-                value.* = try buffer.read(i32);
+            const items = try allocator.alloc(i32, len);
+            for (items) |*item| {
+                item.* = try buffer.read(i32);
             }
-            return .{
-                .values = values,
-            };
+            return .{ .items = items };
         }
 
-        pub fn deepEquals(self: *const @This(), other: *const Nbt) bool {
-            if (other.* != .int_array) return false;
-            return std.mem.eql(i32, self.values, other.int_array.values);
+        pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
+            return std.mem.eql(i32, lhs.items, rhs.items);
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-            allocator.free(self.values);
+            allocator.free(self.items);
         }
 
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
-            return .{ .values = try allocator.dupe(i32, self.values) };
+            return .{ .items = try allocator.dupe(i32, self.items) };
         }
     };
 };
@@ -467,7 +471,7 @@ test Nbt {
                 ) },
                 .qux = Nbt{ .double = .{ .value = 52.1 } },
                 .foobar = Nbt{
-                    .list = try .init(.double, std.testing.allocator, &.{
+                    .list = try .init(std.testing.allocator, .double, &.{
                         .{ .value = 1 },
                         .{ .value = 52 },
                         .{ .value = 15 },
@@ -489,4 +493,43 @@ test Nbt {
     defer read_nbt.deinit(std.testing.allocator);
 
     try std.testing.expect(nbt.deepEquals(&read_nbt));
+
+    try std.testing.expectEqual(15, nbt.compound.items.getPtr("foobar").?.list.items(.double)[2].value);
+}
+
+test "dupe" {
+    var nbt: Nbt = .{
+        .compound = try .init(
+            std.testing.allocator,
+            .{
+                .foo = Nbt{ .byte = .{ .value = 121 } },
+                .bar = Nbt{ .int_array = try .init(
+                    std.testing.allocator,
+                    @as([]const i32, &.{ 0xEADBEEF, 0xCAB1312, 0xAFEBABE }),
+                ) },
+                .qux = Nbt{ .double = .{ .value = 52.1 } },
+                .foobar = Nbt{
+                    .list = try .init(std.testing.allocator, .double, &.{
+                        .{ .value = 1 },
+                        .{ .value = 52 },
+                        .{ .value = 15 },
+                    }),
+                },
+            },
+        ),
+    };
+    defer nbt.deinit(std.testing.allocator);
+
+    var duped = try nbt.dupe(std.testing.allocator);
+    defer duped.deinit(std.testing.allocator);
+
+    duped.compound.items.getPtr("foobar").?.list.items(.double)[2].value = 0.2;
+    try std.testing.expectEqual(15, nbt.compound.items.getPtr("foobar").?.list.items(.double)[2].value);
+
+    duped.compound.items.getPtr("bar").?.deinit(std.testing.allocator);
+    std.testing.allocator.free(duped.compound.items.fetchRemove("bar").?.key);
+    duped.compound.items.getPtr("qux").?.deinit(std.testing.allocator);
+    std.testing.allocator.free(duped.compound.items.fetchRemove("qux").?.key);
+
+    try std.testing.expectEqual(4, nbt.compound.items.size);
 }
