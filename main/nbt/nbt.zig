@@ -187,8 +187,8 @@ pub const Nbt = union(Tag) {
 
         pub fn write(self: *const @This(), buffer: *C2S.WriteBuffer) WriteError!void {
             try buffer.write(i32, @intCast(self.items.len));
-            for (self.items) |element| {
-                try buffer.write(i32, @intCast(element));
+            for (self.items) |item| {
+                try buffer.write(i32, @intCast(item));
             }
         }
 
@@ -357,8 +357,8 @@ pub const Nbt = union(Tag) {
             var entries = self.items.iterator();
             while (entries.next()) |entry| {
                 const key = entry.key_ptr.*;
-                const element = entry.value_ptr;
-                try element.writeWithName(buffer, key);
+                const item = entry.value_ptr;
+                try item.writeWithName(buffer, key);
             }
 
             try Tag.end.write(buffer);

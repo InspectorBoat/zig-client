@@ -32,6 +32,7 @@ pub fn split(self: *@This(), allocator: std.mem.Allocator, items_to_split: i32) 
     return new_stack;
 }
 
+/// Check for item, metadata, and nbt equality
 pub fn canMerge(lhs: @This(), rhs: @This()) bool {
     if (lhs.item == rhs.item and lhs.metadata == rhs.metadata) {
         const lhs_has_nbt = lhs.nbt != null;
@@ -46,16 +47,8 @@ pub fn deinit(allocator: std.mem.Allocator, maybe_item_stack: *?@This()) void {
     if (maybe_item_stack.*) |*item_stack| if (item_stack.nbt) |*nbt| nbt.deinit(allocator);
 }
 
-// TODO: Fix this awful code
-//
-pub fn deepEquals(maybe_lhs: ?@This(), maybe_rhs: ?@This()) bool {
-    if (maybe_lhs) |lhs| {
-        if (maybe_rhs) |rhs| {
-            return lhs.item == rhs.item and lhs.metadata == rhs.metadata and lhs.size == rhs.size and blk: {
-                break :blk if (lhs.nbt) |lhs_nbt| Nbt.Compound.deepEquals(&lhs_nbt, &(rhs.nbt orelse break :blk false)) else rhs.nbt == null;
-            };
-        } else return false;
-    } else return maybe_rhs == null;
+pub fn deepEquals(lhs: @This(), rhs: @This()) bool {
+    return lhs.size == rhs.size and canMerge(lhs, rhs);
 }
 
 pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
@@ -65,5 +58,5 @@ pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlay
     _ = dir;
     _ = player;
     _ = pos;
-    return true;
+    return false;
 }

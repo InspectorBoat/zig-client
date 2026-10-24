@@ -53,11 +53,11 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     if (self.item_in_use) |item_in_use| {
         // TODO: Vanilla uses a pointer equality check.
         // We need to figure out how to emulate it.
-        if (!Item.Stack.deepEquals(item_in_use, self.getHeldStack(game))) {
+        const maybe_held_stack = self.getHeldStack(game);
+        if (maybe_held_stack != null and Item.Stack.deepEquals(item_in_use, maybe_held_stack.?))
+            self.item_use_timer -= 1
+        else
             self.item_in_use = null;
-        } else {
-            self.item_use_timer -= 1;
-        }
     }
 
     // clear vehicle
