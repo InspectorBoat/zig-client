@@ -1,9 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-
 message: []const u8,
 
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
@@ -11,3 +5,9 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     var iterator = message_view.iterator();
     try buffer.writeString(iterator.peek(100));
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;

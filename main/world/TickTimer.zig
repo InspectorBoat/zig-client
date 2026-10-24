@@ -1,5 +1,3 @@
-const std = @import("std");
-
 tps: f32 = 20.0,
 start: std.Io.Timestamp,
 last: std.Io.Timestamp,
@@ -46,3 +44,5 @@ pub fn lastTick(timestamp: std.Io.Timestamp, tps: f32) std.Io.Timestamp {
 
     return .{ .nanoseconds = @divFloor(timestamp.nanoseconds, nanos_per_tick) * nanos_per_tick };
 }
+
+const std = @import("std");

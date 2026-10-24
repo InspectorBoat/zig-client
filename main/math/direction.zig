@@ -1,5 +1,3 @@
-const Vector3 = @import("vector.zig").Vector3;
-
 pub const Direction = enum(i8) {
     down = 0,
     up = 1,
@@ -62,3 +60,5 @@ pub const Direction = enum(i8) {
         }
     }
 };
+
+const Vector3 = @import("vector.zig").Vector3;

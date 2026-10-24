@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const GameMode = main.World.GameMode;
-const GameProfile = main.network.GameProfile;
-const S2C = main.network.packet.S2C;
-
 action: Action,
 entries: []const Entry,
 
@@ -98,3 +89,12 @@ pub const Entry = struct {
     game_profile: ?GameProfile = null,
     display_name: ?[]const u8 = null,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const GameMode = main.World.GameMode;
+const GameProfile = main.network.GameProfile;
+const S2C = main.network.packet.S2C;

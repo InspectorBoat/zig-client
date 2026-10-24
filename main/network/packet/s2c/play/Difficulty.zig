@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Difficulty = main.World.Difficulty;
-const S2C = main.network.packet.S2C;
-
 difficulty: Difficulty,
 
 comptime handle_on_network_thread: bool = false,
@@ -24,3 +16,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = allocator;
     game.world.difficulty = self.difficulty;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Difficulty = main.World.Difficulty;
+const S2C = main.network.packet.S2C;

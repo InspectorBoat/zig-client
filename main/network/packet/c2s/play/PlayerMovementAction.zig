@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-
 network_id: i32,
 action: Action,
 data: i32,
@@ -21,3 +17,7 @@ pub const Action = enum(i32) {
     RidingJump,
     OpenHorseInventory,
 };
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;

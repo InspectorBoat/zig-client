@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-const render = @import("render");
-
-const CompilationTask = render.mesher.CompilationTask;
-
 gpa: std.mem.Allocator,
 free_slots: std.heap.memory_pool.Extra(CompilationSlot, .{ .growable = false }),
 /// Every slot handed out but not yet collected with popCompleted, running or not.
@@ -91,3 +84,10 @@ pub fn deinit(self: *@This(), io: std.Io) void {
     }
     self.free_slots.deinit(self.gpa);
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const render = @import("render");
+
+const CompilationTask = render.mesher.CompilationTask;

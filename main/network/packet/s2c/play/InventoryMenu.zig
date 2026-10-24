@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Item = main.Item;
-const Menu = main.Menu;
-const S2C = main.network.packet.S2C;
-
 menu_network_id: i32,
 stacks: []const ?Item.Stack,
 
@@ -41,3 +32,12 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         menu.setSlot(allocator, @fromBackingInt(@intCast(i)), try .dupe(allocator, new_stack));
     }
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Item = main.Item;
+const Menu = main.Menu;
+const S2C = main.network.packet.S2C;

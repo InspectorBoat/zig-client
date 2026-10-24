@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Difficulty = main.World.Difficulty;
-const GameMode = main.World.GameMode;
-const GeneratorType = main.World.GeneratorType;
-const S2C = main.network.packet.S2C;
-
 dimension_id: i32,
 difficulty: Difficulty,
 game_mode: GameMode,
@@ -34,3 +24,13 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Difficulty = main.World.Difficulty;
+const GameMode = main.World.GameMode;
+const GeneratorType = main.World.GeneratorType;
+const S2C = main.network.packet.S2C;

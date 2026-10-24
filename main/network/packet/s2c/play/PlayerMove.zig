@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;
-const S2C = main.network.packet.S2C;
-
 pos: Vector3(f64),
 rotation: Rotation2(f32),
 relative_arguments: RelativeArguments,
@@ -107,3 +98,12 @@ pub const RelativeArguments = packed struct {
         });
     }
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;

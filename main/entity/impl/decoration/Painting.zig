@@ -1,8 +1,3 @@
-const main = @import("main");
-
-const Entity = main.Entity;
-const Vector3 = main.Vector3;
-
 base: Entity.Base,
 painting_type: PaintingType,
 
@@ -38,3 +33,8 @@ pub const PaintingType = enum {
     Skeleton,
     DonkeyKong,
 };
+
+const main = @import("main");
+
+const Entity = main.Entity;
+const Vector3 = main.Vector3;

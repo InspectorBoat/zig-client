@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Item = main.Item;
-const S2C = main.network.packet.S2C;
-
 menu_network_id: i32,
 slot_id: i16,
 item_stack: ?Item.Stack,
@@ -40,3 +32,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         );
     }
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Item = main.Item;
+const S2C = main.network.packet.S2C;

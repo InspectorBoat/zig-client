@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn PackedStructArray(comptime Element: type, comptime length: usize) type {
     return struct {
         int_array: std.PackedIntArray(std.meta.Int(.unsigned, @bitSizeOf(Element)), length),
@@ -11,3 +9,5 @@ pub fn PackedStructArray(comptime Element: type, comptime length: usize) type {
         }
     };
 }
+
+const std = @import("std");

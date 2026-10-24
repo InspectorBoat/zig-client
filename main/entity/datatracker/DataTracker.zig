@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Item = main.Item;
-const Rotation3 = main.Rotation3;
-const Vector3 = main.Vector3;
-
 entries: [24]?DataValue = blk: {
     var result: [24]?DataValue = @splat(null);
     result[0] = .{ .i8 = 0 };
@@ -50,3 +42,11 @@ pub const DataValue = union(DataTypes) {
     BlockPos: Vector3(i32),
     Rotation: Rotation3(f32),
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Item = main.Item;
+const Rotation3 = main.Rotation3;
+const Vector3 = main.Vector3;

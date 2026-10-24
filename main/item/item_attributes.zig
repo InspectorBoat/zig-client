@@ -1,7 +1,3 @@
-const std = @import("std");
-
-const Item = @import("main").Item;
-
 pub const max_stack_size: std.EnumArray(Item, u8) = .init(.{
     .stone = 64,
     .grass = 64,
@@ -341,3 +337,7 @@ pub const max_stack_size: std.EnumArray(Item, u8) = .init(.{
     .record_11 = 1,
     .record_wait = 1,
 });
+
+const std = @import("std");
+
+const Item = @import("main").Item;

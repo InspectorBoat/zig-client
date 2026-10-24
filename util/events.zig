@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn getDispatcher(comptime Events: type, comptime listeners: anytype) type {
     comptime {
         validate(Events, listeners);
@@ -53,3 +51,5 @@ fn isVoidErrorUnion(comptime @"type": type) bool {
     if (info != .error_union) return false;
     return info.error_union.payload == void;
 }
+
+const std = @import("std");

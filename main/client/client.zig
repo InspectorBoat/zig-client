@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Vector2xz = main.Vector2xz;
-const World = main.World;
-const Connection = main.network.Connection;
-
 pub const Client = union(enum) {
     idle: Idle,
     connecting: Connecting,
@@ -339,3 +331,11 @@ pub const Client = union(enum) {
         if (ticks_elapsed > 1) std.log.scoped(.tick_late).warn("lag spike - ticking {} times at once", .{ticks_elapsed});
     }
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Vector2xz = main.Vector2xz;
+const World = main.World;
+const Connection = main.network.Connection;

@@ -1,14 +1,3 @@
-const std = @import("std");
-
-const glfw = @import("mach-glfw");
-const main = @import("main");
-const render = @import("render");
-
-const Menu = main.Menu;
-const Vector2xy = main.Vector2xy;
-const World = main.World;
-const Renderer = render.Renderer;
-
 var done = false;
 pub fn debug(world: *const World) void {
     defer done = true;
@@ -283,3 +272,14 @@ pub fn getSlotPosForDispenserMenu(menu: *const Menu, slot_index: Menu.SlotIndex)
         else => unreachable,
     }
 }
+
+const std = @import("std");
+
+const glfw = @import("mach-glfw");
+const main = @import("main");
+const render = @import("render");
+
+const Menu = main.Menu;
+const Vector2xy = main.Vector2xy;
+const World = main.World;
+const Renderer = render.Renderer;

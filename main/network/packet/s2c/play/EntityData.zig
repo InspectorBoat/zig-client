@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const DataTracker = main.Entity.DataTracker;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 entries: []const DataTrackerEntry,
 
@@ -61,3 +53,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const DataTracker = main.Entity.DataTracker;
+const S2C = main.network.packet.S2C;

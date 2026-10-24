@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Vector2xz = main.Vector2xz;
-const S2C = main.network.packet.S2C;
-
 type: Type,
 max_size: i32,
 center_pos: Vector2xz(f64),
@@ -92,3 +84,11 @@ pub const Type = enum(i32) {
     SetWarningTime,
     SetWarningBlocks,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Vector2xz = main.Vector2xz;
+const S2C = main.network.packet.S2C;

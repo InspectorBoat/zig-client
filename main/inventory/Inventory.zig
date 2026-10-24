@@ -1,7 +1,3 @@
-const std = @import("std");
-
-const Item = @import("main").Item;
-
 stacks: []?Item.Stack,
 type: Type,
 
@@ -49,3 +45,7 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     allocator.free(self.stacks);
     allocator.destroy(self);
 }
+
+const std = @import("std");
+
+const Item = @import("main").Item;

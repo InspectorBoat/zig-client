@@ -1,5 +1,3 @@
-const std = @import("std");
-
 const ModuleSet = struct {
     main: *std.Build.Module,
     render: *std.Build.Module,
@@ -150,6 +148,8 @@ pub fn build(b: *std.Build) void {
 
     const run_fix = b.addRunArtifact(zsort);
     run_fix.setCwd(b.path("."));
-    run_fix.addArgs(&.{ "fix", ".", "--remove-unused" });
+    run_fix.addArgs(&.{ "fix", ".", "--remove-unused", "--bottom" });
     b.step("fix", "Fix imports").dependOn(&run_fix.step);
 }
+
+const std = @import("std");

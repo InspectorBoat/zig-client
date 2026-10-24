@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Game = main.Client.Game;
-const Direction = main.Direction;
-const LocalPlayer = main.Entity.LocalPlayer;
-const Menu = main.Menu;
-const Vector3 = main.Vector3;
-
 pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     if (game.input_manager.cooldown.attack > 0) return;
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
@@ -353,3 +343,13 @@ pub fn openScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
     } });
     game.world.openMenu(allocator, .player_menu);
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Game = main.Client.Game;
+const Direction = main.Direction;
+const LocalPlayer = main.Entity.LocalPlayer;
+const Menu = main.Menu;
+const Vector3 = main.Vector3;

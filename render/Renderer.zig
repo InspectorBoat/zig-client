@@ -1,30 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-const render = @import("render");
-const za = @import("zalgebra");
-const gl = @import("zgl");
-const zigimg = @import("zigimg");
-
-const Block = main.Block;
-const Chunk = main.Chunk;
-const Client = main.Client;
-const LocalPlayerEntity = main.Entity.LocalPlayer;
-const Vector2xz = main.Vector2xz;
-const Vector3 = main.Vector3;
-const World = main.World;
-const GpuMemoryAllocator = render.GpuMemoryAllocator;
-const gui = render.gui;
-const ChunkTracker = render.mesher.ChunkTracker;
-const CompilationTask = render.mesher.CompilationTask;
-const CompilationTracker = render.mesher.CompilationTracker;
-const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
-const resource_pack = render.resource_pack;
-const BakedModel = resource_pack.BakedModel;
-const Mat4 = za.Mat4;
-
-pub const TextureHandle = enum(u16) { _ };
-
 allocator: std.mem.Allocator,
 vao: gl.VertexArray,
 terrain_program: gl.Program,
@@ -52,6 +25,8 @@ debug_options: struct {
     chunk_borders: bool = false,
     inventory: bool = false,
 } = .{},
+
+pub const TextureHandle = enum(u16) { _ };
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -582,7 +557,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std
             chunk_info.* = .{ .rendering = @splat(.{}) };
         }
         if (chunk_info.* == .rendering) {
-            const chunk: *const Chunk = world.chunks.get(chunk_pos).?;
+            const chunk: *const World.Chunk = world.chunks.get(chunk_pos).?;
 
             // Only dispatch task if section actually exists, even if adjacent chunks update
             for (&chunk_info.rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
@@ -743,3 +718,27 @@ pub fn deinit(self: *@This(), io: std.Io) !void {
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {
     return (end - start) * progress + start;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const render = @import("render");
+const za = @import("zalgebra");
+const gl = @import("zgl");
+const zigimg = @import("zigimg");
+
+const Block = main.Block;
+const Client = main.Client;
+const LocalPlayerEntity = main.Entity.LocalPlayer;
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
+const World = main.World;
+const GpuMemoryAllocator = render.GpuMemoryAllocator;
+const gui = render.gui;
+const ChunkTracker = render.mesher.ChunkTracker;
+const CompilationTask = render.mesher.CompilationTask;
+const CompilationTracker = render.mesher.CompilationTracker;
+const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
+const resource_pack = render.resource_pack;
+const BakedModel = resource_pack.BakedModel;
+const Mat4 = za.Mat4;

@@ -1,14 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Direction = main.Direction;
-const Entity = main.Entity;
-const Item = main.Item;
-const Nbt = main.Nbt;
-const Vector3 = main.Vector3;
-const World = main.World;
-
 nbt: ?Nbt.Compound,
 item: Item,
 size: i32,
@@ -60,3 +49,14 @@ pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlay
     _ = pos;
     return false;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Direction = main.Direction;
+const Entity = main.Entity;
+const Item = main.Item;
+const Nbt = main.Nbt;
+const Vector3 = main.Vector3;
+const World = main.World;

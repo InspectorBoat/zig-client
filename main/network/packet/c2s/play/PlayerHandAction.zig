@@ -1,9 +1,3 @@
-const main = @import("main");
-
-const Direction = main.Direction;
-const Vector3 = main.Vector3;
-const C2S = main.network.packet.C2S;
-
 block_pos: Vector3(i32),
 face: Direction,
 action: Action,
@@ -22,3 +16,9 @@ pub const Action = enum(i32) {
     drop_single_item,
     stop_using_item,
 };
+
+const main = @import("main");
+
+const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const C2S = main.network.packet.C2S;

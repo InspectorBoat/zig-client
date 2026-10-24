@@ -1,15 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Entity = main.Entity;
-const EntityType = main.EntityType;
-const ScaledRotation1 = main.network.ScaledRotation1;
-const ScaledRotation2 = main.network.ScaledRotation2;
-const ScaledVector = main.network.ScaledVector;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 entity_type: i32,
 pos: ScaledVector(i32, 32.0),
@@ -68,20 +56,31 @@ pub fn getEntity(self: *@This()) ?Entity {
     switch (self.entity_type) {
         inline 1, 2, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 30, 40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 120, 200 => |entity_type_int| {
             @setEvalBranchQuota(1000000);
-            const entity_type = comptime std.enums.fromInt(EntityType, entity_type_int) orelse unreachable;
-            const SpecificEntity = @FieldType(Entity, @tagName(entity_type));
-            if (!@hasField(SpecificEntity, "living")) {
-                std.debug.panic("{}\n", .{SpecificEntity});
+            const entity_type: Entity.Type = @fromBackingInt(entity_type_int);
+            const KnownEntity = @FieldType(Entity, @tagName(entity_type));
+            if (!@hasField(KnownEntity, "living")) {
+                std.debug.panic("Server tried to initialize non-living entity {} with AddMob!\n", .{KnownEntity});
             }
-            var specific_entity: SpecificEntity = .initLiving(self.network_id, self.pos.normalize(), self.rotation.normalize());
-            specific_entity.base.server_tracked_pos = self.pos;
+            var known_entity: KnownEntity = .initLiving(self.network_id, self.pos.normalize(), self.rotation.normalize());
+            known_entity.base.server_tracked_pos = self.pos;
             return @unionInit(
                 Entity,
                 @tagName(entity_type),
-                specific_entity,
+                known_entity,
             );
         },
-        else => unreachable,
+        else => std.debug.panic("Unknown entity type id {}", .{self.entity_type}),
     }
     unreachable;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Entity = main.Entity;
+const ScaledRotation1 = main.network.ScaledRotation1;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;

@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Vector2xz = main.Vector2xz;
-const S2C = main.network.packet.S2C;
-pub const ChunkData = S2C.Play.WorldChunk.ChunkData;
-
 chunk_positions: []const Vector2xz(i32),
 chunk_datas: []ChunkData,
 has_light: bool,
@@ -63,3 +54,12 @@ pub fn findBufferSize(sections: std.bit_set.IntegerBitSet(16), has_sky_light: bo
     const biomes = 256;
     return @intCast(block_states + block_light + sky_light + biomes);
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Vector2xz = main.Vector2xz;
+const S2C = main.network.packet.S2C;
+pub const ChunkData = S2C.Play.WorldChunk.ChunkData;

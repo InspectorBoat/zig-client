@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-
 hash: []const u8,
 reponse: Response,
 
@@ -16,3 +12,7 @@ pub const Response = enum(i32) {
     FailedDownload = 2,
     Accepted = 3,
 };
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;

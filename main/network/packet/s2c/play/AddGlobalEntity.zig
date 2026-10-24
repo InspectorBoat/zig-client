@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const ScaledVector = main.network.ScaledVector;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 pos: ScaledVector(i32, 32.0),
 type: i32,
@@ -38,3 +30,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;

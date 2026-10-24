@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Connection = main.network.Connection;
-const S2C = main.network.packet.S2C;
-
 time_millis: i32,
 
 comptime handle_on_network_thread: bool = true,
@@ -20,3 +13,10 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, server_connection: *Con
     std.log.scoped(.keepalive).debug("keepalive with id {}", .{self.time_millis});
     try server_connection.sendPlayPacket(io, .{ .keep_alive = .{ .time_millis = self.time_millis } });
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Connection = main.network.Connection;
+const S2C = main.network.packet.S2C;

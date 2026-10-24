@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 message: []const u8,
 type: i8,
 
@@ -25,3 +18,10 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = allocator;
     _ = game;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

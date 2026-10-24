@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 action: Action,
 
@@ -36,3 +29,10 @@ pub const Action = enum(u8) {
     MagicCrit = 5,
     _,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

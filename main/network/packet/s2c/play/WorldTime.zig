@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 time: i64,
 time_of_day: i64,
 
@@ -26,3 +19,10 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

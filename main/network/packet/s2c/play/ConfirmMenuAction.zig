@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 menu_network_id: u8,
 action_id: i16,
 accepted: bool,
@@ -35,3 +28,10 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         } });
     }
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

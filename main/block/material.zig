@@ -1,7 +1,3 @@
-const std = @import("std");
-
-const Block = @import("block.zig").Block;
-
 pub const liquid: std.EnumSet(Material) = .initMany(&.{
     .water, .lava,
 });
@@ -117,3 +113,7 @@ pub const Material = enum {
         return !translucent.contains(self) and self.blocksMovement();
     }
 };
+
+const std = @import("std");
+
+const Block = @import("block.zig").Block;

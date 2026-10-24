@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Vector3 = main.Vector3;
-const S2C = main.network.packet.S2C;
-
 pos: Vector3(f64),
 power: f32,
 damaged_blocks: []const Vector3(i32),
@@ -54,3 +46,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;

@@ -1,15 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-const render = @import("render");
-const PackedNibbleArray = @import("util").PackedNibbleArray;
-
-const VirtualState = main.Block.VirtualState;
-const Vector3 = main.Vector3;
-const World = main.World;
-const CompilationTracker = render.mesher.CompilationTracker;
-const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
-
 block_states: [18][18][18]VirtualState,
 block_light: PackedNibbleArray(18, 18, 18),
 sky_light: PackedNibbleArray(18, 18, 18),
@@ -118,3 +106,15 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
         .quads = quads,
     };
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const render = @import("render");
+const PackedNibbleArray = @import("util").PackedNibbleArray;
+
+const VirtualState = main.Block.VirtualState;
+const Vector3 = main.Vector3;
+const World = main.World;
+const CompilationTracker = render.mesher.CompilationTracker;
+const GpuStagingBuffer = render.mesher.GpuStagingBuffer;

@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-
 comptime id: i32 = 0,
 
 version: i32,
@@ -15,3 +11,7 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.write(i16, self.port);
     try buffer.writeVarInt(self.protocol_id);
 }
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;

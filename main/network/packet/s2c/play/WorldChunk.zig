@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Vector2xz = main.Vector2xz;
-const S2C = main.network.packet.S2C;
-
 chunk_pos: Vector2xz(i32),
 chunk_data: ChunkData,
 full: bool,
@@ -48,3 +40,11 @@ pub const ChunkData = struct {
     buffer: S2C.ReadBuffer,
     sections: std.bit_set.Integer(16),
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Vector2xz = main.Vector2xz;
+const S2C = main.network.packet.S2C;

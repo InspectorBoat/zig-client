@@ -1,11 +1,3 @@
-/// BlockModelTemplate, but we walked the parent chain and resolved
-/// all texture references, ambient occlusion, and elements
-const Vector2xy = @import("main").Vector2xy;
-const Vector3 = @import("main").Vector3;
-
-const BlockModelTemplate = @import("BlockModelTemplate.zig");
-const TextureHandle = @import("../Renderer.zig").TextureHandle;
-
 elements: []Element,
 ambientocclusion: bool,
 
@@ -48,3 +40,11 @@ pub const Element = struct {
         pub const Angle = BlockModelTemplate.Element.Rotation.Angle;
     };
 };
+
+/// BlockModelTemplate, but we walked the parent chain and resolved
+/// all texture references, ambient occlusion, and elements
+const Vector2xy = @import("main").Vector2xy;
+const Vector3 = @import("main").Vector3;
+
+const BlockModelTemplate = @import("BlockModelTemplate.zig");
+const TextureHandle = @import("../Renderer.zig").TextureHandle;

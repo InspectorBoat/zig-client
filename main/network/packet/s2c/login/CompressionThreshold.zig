@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Connection = main.network.Connection;
-const S2C = main.network.packet.S2C;
-
 compression_threshold: i32,
 
 comptime handle_on_network_thread: bool = true,
@@ -20,3 +13,10 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     _ = io;
     connection.compression_threshold = self.compression_threshold;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Connection = main.network.Connection;
+const S2C = main.network.packet.S2C;

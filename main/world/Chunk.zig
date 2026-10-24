@@ -1,11 +1,4 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Section = main.Section;
-const Vector2xz = main.Vector2xz;
-
-sections: [16]?*Section,
+sections: [16]?*World.Section,
 biomes: [256]u8,
 chunk_pos: Vector2xz(i32),
 
@@ -18,3 +11,10 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     }
     allocator.destroy(self);
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Vector2xz = main.Vector2xz;
+const World = main.World;

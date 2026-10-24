@@ -1,31 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-pub const Chunk = @import("Chunk.zig");
-pub const ChunkMap = @import("ChunkMap.zig");
-pub const EntityTracker = @import("EntityTracker.zig");
-pub const Section = @import("Section.zig");
-pub const TickTimer = @import("TickTimer.zig");
-pub const Difficulty = @import("difficulty.zig").Difficulty;
-pub const GameMode = @import("gamemode.zig").GameMode;
-pub const GeneratorType = @import("generatortype.zig").GeneratorType;
-
-const Block = main.Block;
-const Box = main.Box;
-const Client = main.Client;
-const Direction = main.Direction;
-const Entity = main.Entity;
-const EventHandler = main.EventHandler;
-const Events = main.Events;
-const HitResult = main.HitResult;
-const Inventory = main.Inventory;
-const Item = main.Item;
-const Menu = main.Menu;
-const Vector2xz = main.Vector2xz;
-const Vector3 = main.Vector3;
-const S2C = main.network.packet.S2C;
-
 chunks: ChunkMap = .{},
 player: Entity.LocalPlayer,
 entity_tracker: EntityTracker,
@@ -440,3 +412,31 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     const milliseconds_elapsed: f64 = 0;
     std.log.scoped(.world).info("average ms/tick: {d} ms", .{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+pub const Chunk = @import("Chunk.zig");
+pub const ChunkMap = @import("ChunkMap.zig");
+pub const EntityTracker = @import("EntityTracker.zig");
+pub const Section = @import("Section.zig");
+pub const TickTimer = @import("TickTimer.zig");
+pub const Difficulty = @import("difficulty.zig").Difficulty;
+pub const GameMode = @import("gamemode.zig").GameMode;
+pub const GeneratorType = @import("generatortype.zig").GeneratorType;
+
+const Block = main.Block;
+const Box = main.Box;
+const Client = main.Client;
+const Direction = main.Direction;
+const Entity = main.Entity;
+const EventHandler = main.EventHandler;
+const Events = main.Events;
+const HitResult = main.HitResult;
+const Inventory = main.Inventory;
+const Item = main.Item;
+const Menu = main.Menu;
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;

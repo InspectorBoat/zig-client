@@ -1,39 +1,22 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const attributes = @import("block_attributes.zig");
-const material = @import("material.zig");
-
-const Direction = main.Direction;
-const LocalPlayer = main.Entity.LocalPlayer;
-const Vector3 = main.Vector3;
-const World = main.World;
-
 // Before 1.13, each block in a chunk is stored in 16 bits:
 // <id: 12 bits>|<metadata: 4 bits>
 // The id denotes the specific type of the block (such as dirt, water, torches,
 // packed ice, etc.) Generally, metadata denotes the transient state of the block
 // - e.g. for levers, powered vs unpowered and what face it is attached to.
-
 // However, for other blocks like stone, it acts like a second block id, since
 // andesite, diorite, granite, and their polished variants are all just metadata
 // variants of the same block type (stone). Other blocks like this include wool,
 // leaves, and wooden fences.
-
 // As if this system wasn't bad enough, you may notice that some blocks should
 // actually require more than 4 bits to store their block state! For example,
 // redstone dust stores power level (0-15), then for each cardinal direction,
 // whether there is a flat, rising, or no connection. That's 16*3*3*3*3, or
 // 1296 states, which obviously can't fit within 4 bits.
-
 // What actually happens is that the game just recomputes them on demand based
 // on the neighboring blocks.
-
 // (See vanilla's Block.resolveVirtualProperties. Note that it is only called for
 // rendering and in the client debug overlay, but identical logic is used throughout
 // for other tasks like getting collisions.)
-
 // For an especially unhinged (pun intended) example: Doors have facing (n/e/s/w),
 // open (bool), hinge (left/right), powered (bool), and half (upper/lower). `Half`
 // is always a stored property, but only the lower half stores facing and open, and
@@ -543,3 +526,15 @@ pub const Block = enum(u8) {
             player_mining_speed_multiplier / hardness / 30.0;
     }
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const attributes = @import("block_attributes.zig");
+const material = @import("material.zig");
+
+const Direction = main.Direction;
+const LocalPlayer = main.Entity.LocalPlayer;
+const Vector3 = main.Vector3;
+const World = main.World;

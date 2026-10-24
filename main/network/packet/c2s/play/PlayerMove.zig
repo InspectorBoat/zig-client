@@ -1,9 +1,3 @@
-const main = @import("main");
-
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;
-const C2S = main.network.packet.C2S;
-
 on_ground: bool,
 
 pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
@@ -51,3 +45,9 @@ pub const PositionAndAngles = struct {
         try buffer.write(bool, self.on_ground);
     }
 };
+
+const main = @import("main");
+
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
+const C2S = main.network.packet.C2S;

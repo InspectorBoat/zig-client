@@ -1,20 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-const render = @import("render");
-const zigimg = @import("zigimg");
-const allValues = @import("util").allValues;
-
-pub const BakedModel = @import("BakedModel.zig");
-pub const BlockModelTemplate = @import("BlockModelTemplate.zig");
-pub const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
-pub const StateToModelMap = @import("StateToModelMap.zig");
-
-const Block = main.Block;
-const Direction = main.Direction;
-const Vector3 = main.Vector3;
-const Renderer = render.Renderer;
-
 // Takes ownership of resource_pack_dir
 
 pub fn init(
@@ -469,3 +452,20 @@ pub fn loadImagesInDir(io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !s
     }
     return images;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const render = @import("render");
+const zigimg = @import("zigimg");
+const allValues = @import("util").allValues;
+
+pub const BakedModel = @import("BakedModel.zig");
+pub const BlockModelTemplate = @import("BlockModelTemplate.zig");
+pub const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
+pub const StateToModelMap = @import("StateToModelMap.zig");
+
+const Block = main.Block;
+const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const Renderer = render.Renderer;

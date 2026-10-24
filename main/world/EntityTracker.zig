@@ -1,9 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Entity = main.Entity;
-
 entities: std.AutoHashMap(*Entity, void),
 entities_by_network_id: std.AutoHashMap(i32, *Entity),
 pool: std.heap.MemoryPool(Entity),
@@ -63,3 +57,9 @@ pub fn processEntityRemovals(self: *@This()) void {
 pub fn getEntityByNetworkId(self: *@This(), network_id: i32) ?*Entity {
     return self.entities_by_network_id.get(network_id);
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Entity = main.Entity;

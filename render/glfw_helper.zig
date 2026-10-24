@@ -1,8 +1,3 @@
-const std = @import("std");
-
-const glfw = @import("mach-glfw");
-const gl = @import("zgl");
-
 pub fn initGlfw() error{GlfwInitFailed}!void {
     if (!glfw.init(.{ .platform = .wayland })) {
         std.log.err("failed to init glfw: {?s}", .{glfw.getErrorString()});
@@ -59,3 +54,8 @@ pub fn loadGlPointers() !void {
 pub fn getProcAddress(_: void, proc: [:0]const u8) ?gl.binding.FunctionPointer {
     return glfw.getProcAddress(proc);
 }
+
+const std = @import("std");
+
+const glfw = @import("mach-glfw");
+const gl = @import("zgl");

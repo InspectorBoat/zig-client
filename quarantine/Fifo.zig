@@ -10,10 +10,9 @@
 //! This exists because `std.Deque` is a wrapping ring with no contiguous-slice
 //! accessor. For a plain growable queue, use `std.Deque` instead.
 
-const std = @import("std");
-
 /// A FIFO queue with a comptime capacity that stores its items inline.
 /// Writing beyond the capacity returns `error.OutOfMemory`.
+
 pub fn FixedFifo(comptime T: type, comptime capacity: usize) type {
     return struct {
         const Self = @This();
@@ -159,3 +158,5 @@ test "FixedFifo readable slice stays contiguous and correct" {
     }
     try std.testing.expectEqualSlices(u8, all[17..64], fifo.readableSlice());
 }
+
+const std = @import("std");

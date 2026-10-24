@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Direction = main.Direction;
-const HitResult = main.HitResult;
-const Vector3 = main.Vector3;
-
 min: Vector3(f64),
 max: Vector3(f64),
 
@@ -398,3 +390,11 @@ pub fn Box(comptime Element: type) type {
         }
     };
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Direction = main.Direction;
+const HitResult = main.HitResult;
+const Vector3 = main.Vector3;

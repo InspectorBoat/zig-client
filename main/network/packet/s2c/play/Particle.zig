@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const ParticleType = @import("../../../../particle/particletype.zig").ParticleType;
-
-const Client = main.Client;
-const Vector3 = main.Vector3;
-const S2C = main.network.packet.S2C;
-
 type: ParticleType,
 pos: Vector3(f32),
 velocity: Vector3(f32),
@@ -66,3 +56,13 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const ParticleType = @import("../../../../particle/particletype.zig").ParticleType;
+
+const Client = main.Client;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;

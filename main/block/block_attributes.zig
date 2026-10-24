@@ -1,7 +1,3 @@
-const std = @import("std");
-
-const Block = @import("block.zig").Block;
-
 pub const is_cube: std.enums.EnumSet(Block) = .initMany(&.{
     .air,                .barrier,               .bedrock,       .bookshelf,      .brick_block,       .brown_mushroom_block,
     .clay,               .coal_block,            .coal_ore,      .cobblestone,    .command_block,     .crafting_table,
@@ -301,3 +297,7 @@ pub const hardness: std.EnumArray(Block, f32) = .init(.{
     .acacia_door = 3.0,
     .dark_oak_door = 3.0,
 });
+
+const std = @import("std");
+
+const Block = @import("block.zig").Block;

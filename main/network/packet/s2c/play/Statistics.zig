@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Stat = @import("../../../../stat/Stat.zig");
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 stats: []const StatEntry,
 
 comptime handle_on_network_thread: bool = false,
@@ -30,3 +21,12 @@ pub const StatEntry = struct {
     stat: Stat,
     value: i32,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Stat = @import("../../../../stat/Stat.zig");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

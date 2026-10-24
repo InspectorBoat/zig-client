@@ -1,8 +1,3 @@
-const main = @import("main");
-
-const Client = main.Client;
-const GameMode = main.World.GameMode;
-
 game_mode: GameMode = .NotSet,
 hunger: struct {
     food_level: i32 = 20,
@@ -17,3 +12,8 @@ pub fn isSpectator(self: *const @This(), game: *const Client.Game) bool {
     _ = game;
     return false;
 }
+
+const main = @import("main");
+
+const Client = main.Client;
+const GameMode = main.World.GameMode;

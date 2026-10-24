@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Vector3 = main.Vector3;
-const S2C = main.network.packet.S2C;
-
 block_pos: Vector3(i32),
 state: u16,
 
@@ -30,3 +22,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         .validateRaw(self.state),
     );
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;

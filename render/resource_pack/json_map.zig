@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn JsonMap(Element: type) type {
     return struct {
         map: std.StringHashMapUnmanaged(Element),
@@ -36,3 +34,5 @@ pub fn JsonMap(Element: type) type {
         }
     };
 }
+
+const std = @import("std");

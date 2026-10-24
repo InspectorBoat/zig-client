@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const Rotation2 = main.Rotation2;
-
 pub fn ScaledRotation2(comptime Element: type, comptime Factor: comptime_float) type {
     return struct {
         yaw: Element,
@@ -25,3 +21,7 @@ pub fn ScaledRotation1(comptime Element: type, comptime Factor: comptime_float) 
         }
     };
 }
+
+const main = @import("main");
+
+const Rotation2 = main.Rotation2;

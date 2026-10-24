@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const MapDecoration = @import("../../../../world/MapDecoration.zig");
-
-const Client = main.Client;
-const Vector2xy = main.Vector2xy;
-const S2C = main.network.packet.S2C;
-
 map_id: i32,
 scale: i8,
 decorations: []const MapDecoration,
@@ -31,3 +21,13 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const MapDecoration = @import("../../../../world/MapDecoration.zig");
+
+const Client = main.Client;
+const Vector2xy = main.Vector2xy;
+const S2C = main.network.packet.S2C;

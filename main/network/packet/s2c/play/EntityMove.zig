@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const ScaledRotation2 = main.network.ScaledRotation2;
-const ScaledVector = main.network.ScaledVector;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 
 comptime handle_on_network_thread: bool = false,
@@ -147,3 +138,12 @@ pub const PositionAndAngles = struct {
         }
     }
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;

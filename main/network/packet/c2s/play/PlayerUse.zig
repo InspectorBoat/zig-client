@@ -1,10 +1,3 @@
-const main = @import("main");
-
-const Direction = main.Direction;
-const Item = main.Item;
-const Vector3 = main.Vector3;
-const C2S = main.network.packet.C2S;
-
 block_pos: ?Vector3(i32),
 face: ?Direction,
 stack: ?Item.Stack,
@@ -20,3 +13,10 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.write(i8, @intFromFloat(offset.y * 16.0));
     try buffer.write(i8, @intFromFloat(offset.z * 16.0));
 }
+
+const main = @import("main");
+
+const Direction = main.Direction;
+const Item = main.Item;
+const Vector3 = main.Vector3;
+const C2S = main.network.packet.C2S;

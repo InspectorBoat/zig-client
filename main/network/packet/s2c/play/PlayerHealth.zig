@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 health: f32,
 hunger: i32,
 saturation: f32,
@@ -29,3 +22,10 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     game.world.player.player.hunger.food_level = self.hunger;
     game.world.player.player.hunger.saturation_level = self.saturation;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

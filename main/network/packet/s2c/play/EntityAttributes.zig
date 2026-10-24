@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-const Uuid = @import("util").Uuid;
-
-const Client = main.Client;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 entries: []const Entry,
 
@@ -64,3 +56,11 @@ pub const Modifier = struct {
     value: f64,
     operation: i8,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+const Uuid = @import("util").Uuid;
+
+const Client = main.Client;
+const S2C = main.network.packet.S2C;

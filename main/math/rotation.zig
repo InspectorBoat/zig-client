@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn Rotation2(comptime Element: type) type {
     return struct {
         yaw: Element,
@@ -37,3 +35,5 @@ pub fn Rotation3(comptime Element: type) type {
         }
     };
 }
+
+const std = @import("std");

@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-
 is_invulnerable: bool,
 is_flying: bool,
 allow_flying: bool,
@@ -27,3 +23,7 @@ pub const AbilityFlags = packed struct {
     is_flying: bool,
     is_invulnerable: bool,
 };
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;

@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn PackedNibbleArray(x_size: usize, y_size: usize, z_size: usize) type {
     return struct {
         const len = @divCeil(x_size * y_size * z_size, 2);
@@ -48,3 +46,5 @@ test "PackedNibbleArray" {
         }
     }
 }
+
+const std = @import("std");

@@ -1,36 +1,3 @@
-const std = @import("std");
-
-const build_options = @import("build_options");
-const render = @import("render");
-const util = @import("util");
-const zio = @import("zio");
-
-pub const block = @import("block/block.zig");
-pub const Inventory = @import("inventory/Inventory.zig");
-pub const Menu = @import("inventory/Menu.zig");
-pub const math = @import("math/math.zig");
-pub const network = @import("network/network.zig");
-pub const World = @import("world/World.zig");
-pub const Client = @import("client/client.zig").Client;
-pub const Entity = @import("entity/entity.zig").Entity;
-pub const EntityType = @import("entity/entity.zig").EntityType;
-pub const Item = @import("item/item.zig").Item;
-pub const Nbt = @import("nbt/nbt.zig").Nbt;
-
-pub const Block = block.Block;
-pub const Box = math.Box;
-pub const Direction = math.Direction;
-pub const HitResult = math.HitResult;
-pub const HitType = math.HitType;
-pub const MathHelper = math.MathHelper;
-pub const Rotation2 = math.Rotation2;
-pub const Rotation3 = math.Rotation3;
-pub const Vector2xy = math.Vector2xy;
-pub const Vector2xz = math.Vector2xz;
-pub const Vector3 = math.Vector3;
-pub const Chunk = World.Chunk;
-pub const Section = World.Section;
-
 pub const opengl_error_handling = .assert;
 
 pub const std_options: std.Options = .{
@@ -110,7 +77,7 @@ pub fn exit(_: Events.Exit) void {
 
 pub const Events = struct {
     pub const Startup = struct { gpa: std.mem.Allocator, io: std.Io };
-    pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const Chunk, world: *const World };
+    pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const World.Chunk, world: *const World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
     pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io };
@@ -133,3 +100,33 @@ test {
     _ = network.packet.S2C.ReadBuffer;
     _ = Menu;
 }
+
+const std = @import("std");
+
+const build_options = @import("build_options");
+const render = @import("render");
+const util = @import("util");
+const zio = @import("zio");
+
+pub const block = @import("block/block.zig");
+pub const Inventory = @import("inventory/Inventory.zig");
+pub const Menu = @import("inventory/Menu.zig");
+pub const math = @import("math/math.zig");
+pub const network = @import("network/network.zig");
+pub const World = @import("world/World.zig");
+pub const Client = @import("client/client.zig").Client;
+pub const Entity = @import("entity/entity.zig").Entity;
+pub const Item = @import("item/item.zig").Item;
+pub const Nbt = @import("nbt/nbt.zig").Nbt;
+
+pub const Block = block.Block;
+pub const Box = math.Box;
+pub const Direction = math.Direction;
+pub const HitResult = math.HitResult;
+pub const HitType = math.HitType;
+pub const MathHelper = math.MathHelper;
+pub const Rotation2 = math.Rotation2;
+pub const Rotation3 = math.Rotation3;
+pub const Vector2xy = math.Vector2xy;
+pub const Vector2xz = math.Vector2xz;
+pub const Vector3 = math.Vector3;

@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn EnumBoolArray(comptime Enum: type) type {
     return struct {
         set: std.EnumSet(Enum),
@@ -24,3 +22,5 @@ pub fn EnumBoolArray(comptime Enum: type) type {
         }
     };
 }
+
+const std = @import("std");

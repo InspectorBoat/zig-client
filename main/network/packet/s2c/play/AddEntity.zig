@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Entity = main.Entity;
-const ScaledRotation2 = main.network.ScaledRotation2;
-const ScaledVector = main.network.ScaledVector;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 pos: ScaledVector(i32, 32.0),
 velocity: ?ScaledVector(i32, 8000.0),
@@ -119,3 +109,13 @@ pub fn getEntity(self: *@This(), game: *Client.Game) ?Entity {
     }
     return null;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Entity = main.Entity;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;

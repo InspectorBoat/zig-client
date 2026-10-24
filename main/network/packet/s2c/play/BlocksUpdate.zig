@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Vector2xz = main.Vector2xz;
-const Vector3 = main.Vector3;
-const S2C = main.network.packet.S2C;
-
 chunk_pos: Vector2xz(i32),
 updates: []const BlockUpdate,
 
@@ -50,3 +41,12 @@ pub const BlockUpdate = struct {
     pos: Vector3(i32),
     state: u16,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
+const S2C = main.network.packet.S2C;

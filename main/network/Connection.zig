@@ -1,17 +1,3 @@
-const std = @import("std");
-
-const quarantine = @import("llm-code-quarantine");
-const main = @import("main");
-const util = @import("util");
-
-const Connection = @This();
-const network = main.network;
-const Protocol = network.Protocol;
-const C2S = network.packet.C2S;
-const S2C = network.packet.S2C;
-const RingBuffer = util.RingBuffer;
-const SpscQueue = util.SpscQueue;
-
 protocol: Protocol = .Login,
 compression_threshold: i32 = -1,
 
@@ -391,3 +377,17 @@ pub const Handle = struct {
 
 pub const S2CWrapper = struct { S2C.Play, RingBuffer.TailMark };
 pub const C2SWrapper = struct { C2S, RingBuffer.TailMark };
+
+const std = @import("std");
+
+const quarantine = @import("llm-code-quarantine");
+const main = @import("main");
+const util = @import("util");
+
+const Connection = @This();
+const network = main.network;
+const Protocol = network.Protocol;
+const C2S = network.packet.C2S;
+const S2C = network.packet.S2C;
+const RingBuffer = util.RingBuffer;
+const SpscQueue = util.SpscQueue;

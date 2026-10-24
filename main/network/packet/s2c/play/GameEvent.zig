@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const World = main.World;
-const S2C = main.network.packet.S2C;
-
 event: Event,
 data: f32,
 
@@ -55,3 +47,11 @@ pub const Event = enum(i32) {
     PlayElderGuardianJumpscare = 10,
     _,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const World = main.World;
+const S2C = main.network.packet.S2C;

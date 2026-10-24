@@ -1,11 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const ScaledVector = main.network.ScaledVector;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 velocity: ScaledVector(i32, 8000.0),
 
@@ -40,3 +32,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     const entity = game.world.getEntityByNetworkId(self.network_id) orelse return;
     entity.setVelocityFromPacket(self.velocity.normalize());
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;

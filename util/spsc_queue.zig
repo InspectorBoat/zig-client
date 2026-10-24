@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn SpscQueue(Element: type) type {
     return struct {
         buffer: []Element,
@@ -44,3 +42,5 @@ pub fn SpscQueue(Element: type) type {
         }
     };
 }
+
+const std = @import("std");

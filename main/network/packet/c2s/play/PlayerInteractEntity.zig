@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Vector3 = main.Vector3;
-const C2S = main.network.packet.C2S;
-
 target_network_id: i32,
 action: Action,
 
@@ -23,3 +16,10 @@ pub const Action = union(enum(i32)) {
     attack = 1,
     interact_at: Vector3(f64) = 2,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Vector3 = main.Vector3;
+const C2S = main.network.packet.C2S;

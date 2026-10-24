@@ -1,5 +1,3 @@
-const std = @import("std");
-
 bytes: [16]u8,
 ///                                0         10        20        30
 ///                                012345678901234567890123456789012345
@@ -21,3 +19,5 @@ pub fn fromAscii(string: []const u8) !@This() {
     const parsed_int = try std.fmt.parseInt(u128, without_dashes, 16);
     return .{ .bytes = std.mem.toBytes(parsed_int) };
 }
+
+const std = @import("std");

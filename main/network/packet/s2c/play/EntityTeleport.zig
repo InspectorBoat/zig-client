@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const ScaledRotation2 = main.network.ScaledRotation2;
-const ScaledVector = main.network.ScaledVector;
-const S2C = main.network.packet.S2C;
-
 network_id: i32,
 pos: ScaledVector(i32, 32.0),
 rotation: ScaledRotation2(i32, 256.0 / 360.0),
@@ -48,3 +39,12 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         },
     }
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const ScaledRotation2 = main.network.ScaledRotation2;
+const ScaledVector = main.network.ScaledVector;
+const S2C = main.network.packet.S2C;

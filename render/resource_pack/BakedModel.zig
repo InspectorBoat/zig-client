@@ -1,14 +1,3 @@
-const std = @import("std");
-
-const za = @import("zalgebra");
-const Direction = @import("main").Direction;
-const Vector2xy = @import("main").Vector2xy;
-const Vector3 = @import("main").Vector3;
-
-const Renderer = @import("../Renderer.zig");
-const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
-const StateToModelMap = @import("StateToModelMap.zig");
-
 faces: []const Face,
 
 const Face = struct {
@@ -362,3 +351,14 @@ fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f32 {
         .@"45" => 45,
     };
 }
+
+const std = @import("std");
+
+const za = @import("zalgebra");
+const Direction = @import("main").Direction;
+const Vector2xy = @import("main").Vector2xy;
+const Vector3 = @import("main").Vector3;
+
+const Renderer = @import("../Renderer.zig");
+const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
+const StateToModelMap = @import("StateToModelMap.zig");

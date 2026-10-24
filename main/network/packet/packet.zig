@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub const C2S = union(enum) {
     pub const WritePacketError = error{ OutOfMemory, IllegalPacket };
 
@@ -321,3 +319,5 @@ pub const S2C = union(enum) {
         };
     }
 };
+
+const std = @import("std");

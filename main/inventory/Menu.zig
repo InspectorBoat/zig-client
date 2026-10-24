@@ -1,12 +1,8 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Menu = @This();
-const Entity = main.Entity;
-const Inventory = main.Inventory;
-const Item = main.Item;
-const World = main.World;
+type: Type,
+network_id: i32,
+slots: []Slot,
+drag_state: DragState = .none,
+next_transaction_id: i16 = 0,
 
 pub const Type = union(enum) {
     player,
@@ -20,12 +16,6 @@ pub const Type = union(enum) {
     dispenser,
     furnace,
 };
-
-type: Type,
-network_id: i32,
-slots: []Slot,
-drag_state: DragState = .none,
-next_transaction_id: i16 = 0,
 
 pub fn nextTransactionId(self: *@This()) i16 {
     self.next_transaction_id += 1;
@@ -653,3 +643,13 @@ fn canDragOverSlot(self: *const @This(), slot_index: SlotIndex, slot: Slot, stac
         return existing_item.canMerge(stack) and slot.type.isItemAllowed(stack.item);
     } else return true;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Menu = @This();
+const Entity = main.Entity;
+const Inventory = main.Inventory;
+const Item = main.Item;
+const World = main.World;

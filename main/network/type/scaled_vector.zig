@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const Vector3 = main.Vector3;
-
 pub fn ScaledVector(comptime Element: type, comptime Factor: comptime_float) type {
     switch (@typeInfo(Element)) {
         .int, .float => {},
@@ -27,3 +23,7 @@ pub fn ScaledVector(comptime Element: type, comptime Factor: comptime_float) typ
         }
     };
 }
+
+const main = @import("main");
+
+const Vector3 = main.Vector3;

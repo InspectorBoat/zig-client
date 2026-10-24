@@ -1,15 +1,5 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const World = main.World;
-const Difficulty = World.Difficulty;
-const GameMode = World.GameMode;
-const GeneratorType = World.GeneratorType;
-const S2C = main.network.packet.S2C;
-
 /// the network id of the player
+
 network_id: i32,
 hardcore: bool,
 game_mode: GameMode,
@@ -100,3 +90,14 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         .world = world,
     } };
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const World = main.World;
+const Difficulty = World.Difficulty;
+const GameMode = World.GameMode;
+const GeneratorType = World.GeneratorType;
+const S2C = main.network.packet.S2C;

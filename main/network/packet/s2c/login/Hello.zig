@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Connection = main.network.Connection;
-const S2C = main.network.packet.S2C;
-
 key: []const u8,
 public_key: []const u8,
 nonce: []const u8,
@@ -25,3 +18,10 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     _ = self;
     _ = connection;
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Connection = main.network.Connection;
+const S2C = main.network.packet.S2C;

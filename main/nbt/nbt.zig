@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-const S2C = main.network.packet.S2C;
-
 pub const Nbt = union(Tag) {
     end: End,
     byte: Byte,
@@ -540,3 +533,10 @@ test "dupe" {
 
     try std.testing.expectEqual(4, nbt.compound.items.size);
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;
+const S2C = main.network.packet.S2C;

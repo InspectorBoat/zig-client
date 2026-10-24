@@ -1,16 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Entity = main.Entity;
-const Item = main.Item;
-const Rotation2 = main.Rotation2;
-const Vector2xz = main.Vector2xz;
-const Vector3 = main.Vector3;
-const Direction = main.math.Direction;
-const MathHelper = main.math.MathHelper;
-
 base: Entity.Base,
 living: Entity.LivingBase = .{},
 player: Entity.PlayerBase = .{},
@@ -492,3 +479,16 @@ pub const PlayerAbilities = struct {
     fly_speed: f32 = 0.0,
     walk_speed: f32 = 0.0,
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Entity = main.Entity;
+const Item = main.Item;
+const Rotation2 = main.Rotation2;
+const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
+const Direction = main.math.Direction;
+const MathHelper = main.math.MathHelper;

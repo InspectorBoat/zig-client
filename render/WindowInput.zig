@@ -1,8 +1,3 @@
-const std = @import("std");
-
-const glfw = @import("mach-glfw");
-const Vector2xy = @import("main").Vector2xy;
-
 window: glfw.Window,
 
 events: std.Deque(Event),
@@ -233,3 +228,8 @@ pub fn dropCallback(window: glfw.Window, paths: [][*:0]const u8) void {
         .Drop = .{ .paths = paths },
     }) catch unreachable;
 }
+
+const std = @import("std");
+
+const glfw = @import("mach-glfw");
+const Vector2xy = @import("main").Vector2xy;

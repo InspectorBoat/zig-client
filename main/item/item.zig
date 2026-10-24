@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const Block = main.Block;
-
 pub const Item = enum(u16) {
     pub const Stack = @import("Stack.zig");
 
@@ -409,3 +405,7 @@ pub const Item = enum(u16) {
             null;
     }
 };
+
+const main = @import("main");
+
+const Block = main.Block;

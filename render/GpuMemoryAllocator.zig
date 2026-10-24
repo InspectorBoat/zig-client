@@ -1,8 +1,3 @@
-const builtin = @import("builtin");
-const std = @import("std");
-
-const gl = @import("zgl");
-
 const FreeSegment = struct {
     node: std.SinglyLinkedList.Node,
     segment: Segment,
@@ -115,3 +110,8 @@ test alloc {
         _ = gpu_mem_alloc.alloc(1024) catch break;
     }
 }
+
+const builtin = @import("builtin");
+const std = @import("std");
+
+const gl = @import("zgl");

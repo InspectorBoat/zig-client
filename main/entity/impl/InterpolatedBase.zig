@@ -1,11 +1,3 @@
-const main = @import("main");
-
-const Base = @import("Base.zig");
-
-const MathHelper = main.MathHelper;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;
-
 interpolation_steps: i32 = 0,
 target_position: Vector3(f64) = .origin,
 target_rotation: Rotation2(f32) = .origin,
@@ -35,3 +27,11 @@ pub fn beginInterp(self: *@This(), target_pos: Vector3(f64), target_rotation: Ro
     self.target_rotation = target_rotation;
     self.interpolation_steps = interpolation_steps;
 }
+
+const main = @import("main");
+
+const Base = @import("Base.zig");
+
+const MathHelper = main.MathHelper;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;

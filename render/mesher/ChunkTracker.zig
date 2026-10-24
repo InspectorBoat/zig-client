@@ -1,10 +1,3 @@
-const std = @import("std");
-
-const Vector2xz = @import("main").Vector2xz;
-const Vector3 = @import("main").Vector3;
-
-const GpuMemoryAllocator = @import("../GpuMemoryAllocator.zig");
-
 chunks: std.AutoHashMapUnmanaged(Vector2xz(i32), ChunkCompileStatus) = .empty,
 
 pub const init: @This() = .{};
@@ -158,3 +151,10 @@ pub fn removeChunk(self: *@This(), chunk_pos: Vector2xz(i32)) void {
         if (east.* == .waiting) east.waiting.west_present = false;
     }
 }
+
+const std = @import("std");
+
+const Vector2xz = @import("main").Vector2xz;
+const Vector3 = @import("main").Vector3;
+
+const GpuMemoryAllocator = @import("../GpuMemoryAllocator.zig");

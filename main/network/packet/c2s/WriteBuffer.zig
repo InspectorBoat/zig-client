@@ -1,16 +1,5 @@
-const std = @import("std");
-
-const main = @import("main");
-const Uuid = @import("util").Uuid;
-
-const Item = main.Item;
-const Nbt = main.Nbt;
-const Vector3 = main.Vector3;
-const network = main.network;
-const VarIntByte = network.VarIntByte;
-const ReadBuffer = network.packet.S2C.ReadBuffer;
-
 /// A buffer to write packet data (c2s)
+
 backer: std.ArrayList(u8),
 
 pub fn initBuffer(buffer: []u8) @This() {
@@ -293,3 +282,15 @@ test "writeItemStack" {
     ), buffer.backer.items);
     // zig fmt: on
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const Uuid = @import("util").Uuid;
+
+const Item = main.Item;
+const Nbt = main.Nbt;
+const Vector3 = main.Vector3;
+const network = main.network;
+const VarIntByte = network.VarIntByte;
+const ReadBuffer = network.packet.S2C.ReadBuffer;

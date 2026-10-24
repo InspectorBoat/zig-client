@@ -1,8 +1,3 @@
-/// Pretty much directly parsed from json
-const Direction = @import("main").Direction;
-
-const JsonMap = @import("json_map.zig").JsonMap;
-
 parent: ?[]const u8 = null,
 textures: ?JsonMap([]const u8) = null,
 elements: ?[]Element = null,
@@ -67,3 +62,8 @@ pub const Display = struct {
         scale: ?Vector3 = null,
     };
 };
+
+/// Pretty much directly parsed from json
+const Direction = @import("main").Direction;
+
+const JsonMap = @import("json_map.zig").JsonMap;

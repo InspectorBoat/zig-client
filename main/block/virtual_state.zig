@@ -1,16 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const physical_state = @import("physical_state.zig");
-const Block = @import("block.zig").Block;
-
-const Box = main.Box;
-const Direction = main.Direction;
-const Vector3 = main.Vector3;
-const World = main.World;
-const PhysicalState = physical_state.PhysicalState;
-
 pub const VirtualState = union(Block) {
     pub const StairShape = enum(u3) { straight, inner_left, inner_right, outer_left, outer_right };
     pub const StemFacing = enum(u3) { up = 0, north = 1, south = 2, west = 3, east = 4 };
@@ -1136,3 +1123,16 @@ fn stair_collisions(collisions: *std.ArrayList(Box(f64)), facing: PhysicalState.
             .new(1 - bx1, y0, s0, 1 - bx0, y1, s1));
     }
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const physical_state = @import("physical_state.zig");
+const Block = @import("block.zig").Block;
+
+const Box = main.Box;
+const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const World = main.World;
+const PhysicalState = physical_state.PhysicalState;

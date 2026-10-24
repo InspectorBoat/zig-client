@@ -1,7 +1,3 @@
-const std = @import("std");
-
-const Direction = @import("direction.zig").Direction;
-
 pub fn Vector2xy(comptime Element: type) type {
     return struct {
         x: Element,
@@ -518,3 +514,7 @@ pub fn Vector3(comptime Element: type) type {
         }
     };
 }
+
+const std = @import("std");
+
+const Direction = @import("direction.zig").Direction;

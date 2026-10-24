@@ -1,7 +1,3 @@
-const main = @import("main");
-
-const C2S = main.network.packet.C2S;
-
 sideways_input: f32,
 forwards_input: f32,
 jumping: bool,
@@ -21,3 +17,7 @@ pub const JumpSneakFlags = packed struct {
     jumping: bool,
     sneaking: bool,
 };
+
+const main = @import("main");
+
+const C2S = main.network.packet.C2S;

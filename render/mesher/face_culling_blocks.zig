@@ -1,6 +1,3 @@
-const Block = @import("main").Block;
-const EnumBoolArray = @import("util").EnumBoolArray;
-
 pub const @"export": EnumBoolArray(Block) = .init(.{
     .air = false,
     .stone = true,
@@ -201,3 +198,6 @@ pub const @"export": EnumBoolArray(Block) = .init(.{
     .acacia_door = false,
     .dark_oak_door = false,
 });
+
+const Block = @import("main").Block;
+const EnumBoolArray = @import("util").EnumBoolArray;

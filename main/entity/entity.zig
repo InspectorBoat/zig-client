@@ -1,83 +1,4 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;
-const World = main.World;
-
-pub const EntityType = enum(i32) {
-    item = 1,
-    xp_orb = 2,
-    egg = 7,
-    lead_knot = 8,
-    painting = 9,
-    arrow = 10,
-    snowball = 11,
-    fireball = 12,
-    small_fireball = 13,
-    ender_pearl = 14,
-    ender_eye = 15,
-    potion = 16,
-    experience_bottle = 17,
-    item_frame = 18,
-    wither_skull = 19,
-    primed_tnt = 20,
-    falling_block = 21,
-    fireworks = 22,
-    armor_stand = 30,
-    command_block_minecart = 40,
-    boat = 41,
-    minecart = 42,
-    chest_minecart = 43,
-    furnace_minecart = 44,
-    tnt_minecart = 45,
-    hopper_minecart = 46,
-    spawner_minecart = 47,
-    creeper = 50,
-    skeleton = 51,
-    spider = 52,
-    giant = 53,
-    zombie = 54,
-    slime = 55,
-    ghast = 56,
-    zombie_pigman = 57,
-    enderman = 58,
-    cave_spider = 59,
-    silverfish = 60,
-    blaze = 61,
-    magma_cube = 62,
-    ender_dragon = 63,
-    wither = 64,
-    bat = 65,
-    witch = 66,
-    endermite = 67,
-    guardian = 68,
-    pig = 90,
-    sheep = 91,
-    cow = 92,
-    chicken = 93,
-    squid = 94,
-    wolf = 95,
-    mooshroom = 96,
-    snow_golem = 97,
-    ocelot = 98,
-    iron_golem = 99,
-    equine = 100,
-    rabbit = 101,
-    villager = 120,
-    ender_crystal = 200,
-
-    fishing_bobber,
-    local_player,
-    remote_player,
-    lightning,
-
-    removed,
-};
-
-pub const Entity = union(EntityType) {
+pub const Entity = union(Type) {
     item: Item,
     xp_orb: XpOrb,
     egg: Egg,
@@ -145,6 +66,76 @@ pub const Entity = union(EntityType) {
     lightning: Lightning,
 
     removed,
+
+    pub const Type = enum(i32) {
+        item = 1,
+        xp_orb = 2,
+        egg = 7,
+        lead_knot = 8,
+        painting = 9,
+        arrow = 10,
+        snowball = 11,
+        fireball = 12,
+        small_fireball = 13,
+        ender_pearl = 14,
+        ender_eye = 15,
+        potion = 16,
+        experience_bottle = 17,
+        item_frame = 18,
+        wither_skull = 19,
+        primed_tnt = 20,
+        falling_block = 21,
+        fireworks = 22,
+        armor_stand = 30,
+        command_block_minecart = 40,
+        boat = 41,
+        minecart = 42,
+        chest_minecart = 43,
+        furnace_minecart = 44,
+        tnt_minecart = 45,
+        hopper_minecart = 46,
+        spawner_minecart = 47,
+        creeper = 50,
+        skeleton = 51,
+        spider = 52,
+        giant = 53,
+        zombie = 54,
+        slime = 55,
+        ghast = 56,
+        zombie_pigman = 57,
+        enderman = 58,
+        cave_spider = 59,
+        silverfish = 60,
+        blaze = 61,
+        magma_cube = 62,
+        ender_dragon = 63,
+        wither = 64,
+        bat = 65,
+        witch = 66,
+        endermite = 67,
+        guardian = 68,
+        pig = 90,
+        sheep = 91,
+        cow = 92,
+        chicken = 93,
+        squid = 94,
+        wolf = 95,
+        mooshroom = 96,
+        snow_golem = 97,
+        ocelot = 98,
+        iron_golem = 99,
+        equine = 100,
+        rabbit = 101,
+        villager = 120,
+        ender_crystal = 200,
+
+        fishing_bobber,
+        local_player,
+        remote_player,
+        lightning,
+
+        removed,
+    };
 
     pub fn tick(entity: *@This(), io: std.Io, game: *Client.Game) !void {
         // std.std.log.scoped(.entity).debug("{}", .{std.meta.activeTag(entity.*)});
@@ -237,7 +228,7 @@ pub const Entity = union(EntityType) {
         _ = fmt;
         _ = options;
         try writer.print("type={s} id={}", .{
-            @tagName(@as(EntityType, self)),
+            @tagName(@as(Type, self)),
             switch (self) {
                 .removed => 0,
                 inline else => |specific_entity| specific_entity.base.network_id,
@@ -321,3 +312,12 @@ pub const Entity = union(EntityType) {
 
     pub const DataTracker = @import("datatracker/DataTracker.zig");
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
+const World = main.World;

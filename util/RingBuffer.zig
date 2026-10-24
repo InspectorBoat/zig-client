@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub const TailMark = struct {
     index: usize,
     /// TODO: actually you *can* move a ring buffer (just like how you can move an arraylist)
@@ -185,3 +183,5 @@ test "RingBuffer" {
         try fifo.pushBack(std.testing.allocator, ring_alloc.commit(rewind_mark));
     }
 }
+
+const std = @import("std");

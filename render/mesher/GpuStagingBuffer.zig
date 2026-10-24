@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-const render = @import("render");
-
-const Direction = main.Direction;
-const Vector2xy = main.Vector2xy;
-const Vector3 = main.Vector3;
-const Renderer = render.Renderer;
-
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,
 
@@ -105,3 +95,13 @@ pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)
     };
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const render = @import("render");
+
+const Direction = main.Direction;
+const Vector2xy = main.Vector2xy;
+const Vector3 = main.Vector3;
+const Renderer = render.Renderer;

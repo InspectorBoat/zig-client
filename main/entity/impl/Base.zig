@@ -1,14 +1,5 @@
-const main = @import("main");
-
-const Box = main.Box;
-const Client = main.Client;
-const Entity = main.Entity;
-const DataTracker = main.Entity.DataTracker;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;
-const ScaledVector = main.network.ScaledVector;
-
 /// This struct supplies fields that every entity needs
+
 network_id: i32 = undefined,
 pos: Vector3(f64) = .origin,
 prev_pos: Vector3(f64) = .origin,
@@ -362,3 +353,13 @@ pub fn setFlag(self: *@This(), index: u3, value: bool) !void {
         try self.data_tracker.update(0, .{ .i8 = entry_zero & ~(@as(i8, 1) << index) });
     }
 }
+
+const main = @import("main");
+
+const Box = main.Box;
+const Client = main.Client;
+const Entity = main.Entity;
+const DataTracker = main.Entity.DataTracker;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
+const ScaledVector = main.network.ScaledVector;

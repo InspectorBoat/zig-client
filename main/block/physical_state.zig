@@ -1,13 +1,3 @@
-const std = @import("std");
-
-const Block = @import("main").Block;
-const Direction = @import("main").Direction;
-const Entity = @import("main").Entity;
-const Vector3 = @import("main").Vector3;
-const World = @import("main").World;
-
-const attributes = @import("block_attributes.zig");
-
 pub const PhysicalState = packed struct(u16) {
     properties: Properties,
     block: Block,
@@ -529,3 +519,13 @@ pub const PhysicalState = packed struct(u16) {
     pub const Age02 = enum(u2) { @"0", @"1", @"2" };
     pub const ComparatorMode = enum(u1) { compare, subtract };
 };
+
+const std = @import("std");
+
+const Block = @import("main").Block;
+const Direction = @import("main").Direction;
+const Entity = @import("main").Entity;
+const Vector3 = @import("main").Vector3;
+const World = @import("main").World;
+
+const attributes = @import("block_attributes.zig");

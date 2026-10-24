@@ -1,17 +1,4 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Box = main.Box;
-const Direction = main.Direction;
-const MathHelper = main.MathHelper;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;
-const World = main.World;
-
-pub const HitType = enum { block, entity, miss };
-
-pub const HitResult = union(HitType) {
+pub const HitResult = union(Type) {
     block: struct {
         block_pos: Vector3(i32),
         /// in local space already
@@ -24,6 +11,8 @@ pub const HitResult = union(HitType) {
         dir: Direction,
     },
     miss,
+
+    pub const Type = enum { block, entity, miss };
 
     const RayTraceOptions = struct {
         ignore_liquids: bool = true,
@@ -351,3 +340,14 @@ pub const HitResult = union(HitType) {
         };
     }
 };
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Box = main.Box;
+const Direction = main.Direction;
+const MathHelper = main.MathHelper;
+const Rotation2 = main.Rotation2;
+const Vector3 = main.Vector3;
+const World = main.World;

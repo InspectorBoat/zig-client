@@ -1,15 +1,5 @@
-const std = @import("std");
-
-const main = @import("main");
-const Uuid = @import("util").Uuid;
-
-const Item = main.Item;
-const Nbt = main.Nbt;
-const Vector3 = main.Vector3;
-const network = main.network;
-const VarIntByte = network.VarIntByte;
-
 /// A buffer to read incoming packet data (s2c)
+
 backer: []const u8,
 read_location: usize,
 
@@ -320,3 +310,14 @@ test readVarInt {
     try std.testing.expectEqual(255, read_buffer.readVarInt());
     try std.testing.expectEqual(25565, read_buffer.readVarInt());
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const Uuid = @import("util").Uuid;
+
+const Item = main.Item;
+const Nbt = main.Nbt;
+const Vector3 = main.Vector3;
+const network = main.network;
+const VarIntByte = network.VarIntByte;

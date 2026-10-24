@@ -1,12 +1,3 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Client = main.Client;
-const C2S = main.network.packet.C2S;
-pub const AbilityFlags = C2S.Play.PlayerAbilities.AbilityFlags;
-const S2C = main.network.packet.S2C;
-
 is_invulnerable: bool,
 is_flying: bool,
 allow_flying: bool,
@@ -46,3 +37,12 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         .walk_speed = self.walk_speed,
     };
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Client = main.Client;
+const C2S = main.network.packet.C2S;
+pub const AbilityFlags = C2S.Play.PlayerAbilities.AbilityFlags;
+const S2C = main.network.packet.S2C;

@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub const GeneratorType = enum {
     Default,
     Flat,
@@ -19,3 +17,5 @@ pub const GeneratorType = enum {
         .{ "default_1_1", .Default_1_1 },
     });
 };
+
+const std = @import("std");

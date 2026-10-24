@@ -1,14 +1,6 @@
-const std = @import("std");
-
-const main = @import("main");
-
-const Self = @This();
-const Chunk = main.Chunk;
-const Vector2xz = main.Vector2xz;
-
 const Entry = struct {
     pos: Vector2xz(i32),
-    chunk: *Chunk,
+    chunk: *World.Chunk,
 };
 
 metadata: std.bit_set.ArrayBitSet(usize, 64 * 64) = .empty,
@@ -23,17 +15,17 @@ pub inline fn contains(self: *const @This(), pos: Vector2xz(i32)) bool {
     return self.metadata.isSet(toIndex(pos));
 }
 
-pub inline fn get(self: *const @This(), pos: Vector2xz(i32)) ?*const Chunk {
+pub inline fn get(self: *const @This(), pos: Vector2xz(i32)) ?*const World.Chunk {
     if (!self.contains(pos)) return null;
     return self.items[toIndex(pos)].chunk;
 }
 
-pub inline fn getPtr(self: *@This(), pos: Vector2xz(i32)) ?*Chunk {
+pub inline fn getPtr(self: *@This(), pos: Vector2xz(i32)) ?*World.Chunk {
     if (!self.contains(pos)) return null;
     return self.items[toIndex(pos)].chunk;
 }
 
-pub inline fn put(self: *@This(), pos: Vector2xz(i32), chunk: *Chunk) !void {
+pub inline fn put(self: *@This(), pos: Vector2xz(i32), chunk: *World.Chunk) !void {
     if (self.contains(pos)) {
         if (!self.items[toIndex(pos)].pos.equals(pos)) std.debug.panic("Chunk collision: stored={} new={}", .{ self.items[toIndex(pos)].pos, pos });
         return error.ChunkAlreadyPresent;
@@ -48,7 +40,7 @@ pub inline fn remove(self: *@This(), pos: Vector2xz(i32)) !void {
     self.metadata.unset(toIndex(pos));
 }
 
-pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*Chunk {
+pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*World.Chunk {
     if (!self.contains(pos)) return error.MissingChunk;
     self.metadata.unset(toIndex(pos));
     return self.items[toIndex(pos)].chunk;
@@ -57,7 +49,7 @@ pub inline fn fetchRemove(self: *@This(), pos: Vector2xz(i32)) !*Chunk {
 const Iterator = struct {
     index: usize = 0,
     map: *Self,
-    pub fn next(self: *@This()) ?*Chunk {
+    pub fn next(self: *@This()) ?*World.Chunk {
         while (true) {
             defer self.index += 1;
 
@@ -86,3 +78,11 @@ test toIndex {
     try std.testing.expectEqual(1, toIndex(.{ .x = 64, .z = -63 }));
     try std.testing.expectEqual(65, toIndex(.{ .x = 65, .z = -63 }));
 }
+
+const std = @import("std");
+
+const main = @import("main");
+
+const Self = @This();
+const Vector2xz = main.Vector2xz;
+const World = main.World;

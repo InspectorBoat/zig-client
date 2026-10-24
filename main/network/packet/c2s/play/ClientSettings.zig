@@ -1,9 +1,3 @@
-const main = @import("main");
-
-const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
-
-const C2S = main.network.packet.C2S;
-
 language: []const u8,
 view_distance: i8,
 chat_visibility: ChatVisibility,
@@ -28,3 +22,9 @@ pub const SkinLayersFlags = packed struct {
     hat: bool = true,
     _: u1 = 0,
 };
+
+const main = @import("main");
+
+const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
+
+const C2S = main.network.packet.C2S;
