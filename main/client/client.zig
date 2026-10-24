@@ -7,6 +7,10 @@ const World = main.World;
 const Connection = main.network.Connection;
 
 pub const Client = union(enum) {
+    idle: Idle,
+    connecting: Connecting,
+    game: Game,
+
     pub const Idle = struct {
         gpa: std.mem.Allocator,
 
@@ -90,6 +94,9 @@ pub const Client = union(enum) {
             // then that could cause an OOB
             // So we need to rethink our approach to handling keybinds,
             // and probably bring them more in line with vanilla
+
+            // Note that it is possible to *open* the inventory
+            // and perform another action on the same tick
             const menu_screen_open = self.world.menu_screen_open;
 
             inputs.cooldown.attack -|= 1;
@@ -105,7 +112,7 @@ pub const Client = union(enum) {
                                     drop_presses += 1;
                                     inputs.hand.drop = true;
                                 },
-                                false => inputs.hand.drop = false,
+                                false => inputs.hand.attack = false,
                             },
                             .attack => |attack| switch (attack) {
                                 true => {
@@ -128,9 +135,7 @@ pub const Client = union(enum) {
                                 },
                                 false => inputs.hand.pick = false,
                             },
-                            .hotkey => |hotkey| {
-                                self.world.player.hotbar_slot = @intCast(hotkey);
-                            },
+                            .hotkey => |hotkey| self.world.player.hotbar_slot = @intCast(hotkey),
                             .scroll => |scroll| {
                                 self.world.player.hotbar_slot += @intCast(@mod(scroll, 9));
                                 self.world.player.hotbar_slot = @mod(self.world.player.hotbar_slot, 9);
@@ -148,18 +153,8 @@ pub const Client = union(enum) {
                             .sneak => |sneak| inputs.movement.sneak = sneak,
                         }
                     },
-                    .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
-                    .close_screen => {
-                        if (self.world.menu_screen_open) {
-                            try self.connection_handle.sendPlayPacket(io, .{ .close_menu = .{
-                                .menu_network_id = @intCast(self.world.getMenu().network_id),
-                            } });
-                        }
-                        self.world.closeMenu(allocator);
-                    },
-                    .open_screen => {
-                        self.world.openMenu(allocator, .player_menu);
-                    },
+                    .close_screen => try interactions.closeScreen(io, allocator, self),
+                    .open_screen => try interactions.openScreen(io, allocator, self),
                     .inventory => |action| {
                         try interactions.click(
                             io,
@@ -169,6 +164,7 @@ pub const Client = union(enum) {
                             action,
                         );
                     },
+                    .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
                 }
             }
 
@@ -209,6 +205,7 @@ pub const Client = union(enum) {
                 attack: usize = 0,
                 auto_use: usize = 0,
                 mining: usize = 0,
+                auto_jump: usize = 0,
             } = .{},
             hand: struct {
                 attack: bool = false,
@@ -235,12 +232,7 @@ pub const Client = union(enum) {
     };
 
     pub const InputQueue = @import("InputQueue.zig");
-    pub const Input = InputQueue.Input;
     pub const State = std.meta.Tag(@This());
-
-    idle: Idle,
-    connecting: Connecting,
-    game: Game,
 
     ///Handle inputs, and tick world if necessary
     pub fn updateGame(self: *@This(), io: std.Io) !void {

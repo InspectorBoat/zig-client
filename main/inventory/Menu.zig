@@ -2,11 +2,11 @@ const std = @import("std");
 
 const main = @import("main");
 
+const Menu = @This();
 const Entity = main.Entity;
 const Inventory = main.Inventory;
 const Item = main.Item;
 const World = main.World;
-const Menu = @This();
 
 pub const Type = union(enum) {
     player,

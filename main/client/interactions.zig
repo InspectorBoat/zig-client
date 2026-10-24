@@ -3,9 +3,9 @@ const std = @import("std");
 const main = @import("main");
 
 const Game = main.Client.Game;
-const Menu = main.Menu;
 const Direction = main.Direction;
 const LocalPlayer = main.Entity.LocalPlayer;
+const Menu = main.Menu;
 const Vector3 = main.Vector3;
 
 pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
@@ -335,4 +335,19 @@ pub fn click(io: std.Io, allocator: std.mem.Allocator, game: *Game, menu: *Menu,
             .item_stack = stack,
         },
     });
+}
+
+pub fn closeScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
+    if (game.world.menu_screen_open) {
+        try game.connection_handle.sendPlayPacket(io, .{ .close_menu = .{
+            .menu_network_id = @intCast(game.world.getMenu().network_id),
+        } });
+        game.world.closeMenu(allocator);
+    }
+}
+
+pub fn openScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
+    _ = io;
+    if (game.world.menu_screen_open) return;
+    game.world.openMenu(allocator, .player_menu);
 }

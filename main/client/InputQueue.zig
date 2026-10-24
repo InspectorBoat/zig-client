@@ -1,8 +1,8 @@
 const quarantine = @import("llm-code-quarantine");
 const main = @import("main");
 
-const Vector2xy = main.Vector2xy;
 const Menu = main.Menu;
+const Vector2xy = main.Vector2xy;
 
 on_frame: quarantine.FixedFifo(Input, 256) = .init(),
 on_tick: quarantine.FixedFifo(Input, 128) = .init(),

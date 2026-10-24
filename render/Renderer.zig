@@ -8,7 +8,6 @@ const zigimg = @import("zigimg");
 
 const Block = main.Block;
 const Chunk = main.Chunk;
-const Vector2xy = main.Vector2xy;
 const Client = main.Client;
 const LocalPlayerEntity = main.Entity.LocalPlayer;
 const Vector2xz = main.Vector2xz;

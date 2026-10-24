@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const glfw = @import("mach-glfw");
-
 const main = @import("main");
 const render = @import("render");
 
