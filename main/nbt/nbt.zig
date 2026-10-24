@@ -70,14 +70,21 @@ pub const Nbt = union(Tag) {
     }
 
     pub fn readDiscardName(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
-        const read_result = try readWithName(allocator, buffer);
-        // TODO: this is lazy
-        if (read_result.name) |name| allocator.free(name);
-        return read_result.nbt;
+        switch (try Tag.read(buffer)) {
+            .end => return .end,
+
+            inline else => |tag| {
+                _ = try buffer.readJavaUtfNonAllocating();
+                return @unionInit(
+                    Nbt,
+                    @tagName(tag),
+                    try .read(allocator, buffer),
+                );
+            },
+        }
     }
 
     pub fn readWithName(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!struct { name: ?[]const u8, nbt: Nbt } {
-        // read the byte telling us the tag of the element
         switch (try Tag.read(buffer)) {
             .end => return .{ .name = null, .nbt = .end },
 
