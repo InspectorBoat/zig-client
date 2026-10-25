@@ -71,7 +71,7 @@ pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: R
                         std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
                         specific_packet.handleOnNetworkThread(io, self) catch return error.PacketHandlingError;
                         // free immediately
-                        self.incoming_allocator.undoAllocations(rewind_mark);
+                        self.incoming_allocator.rewind(rewind_mark);
                     } else {
                         self.incoming_packets.push(.{ packet.play, self.incoming_allocator.commit(rewind_mark) }) catch return error.QueueFull;
                     }
@@ -136,8 +136,8 @@ pub fn decodePacket(self: *@This(), unread_bytes: *quarantine.FixedFifo(u8, 1024
     }
 
     // if we fail the allocation, roll back packet buffer and allocations
-    const allocator_rewind_mark = self.incoming_allocator.beginRewind();
-    errdefer self.incoming_allocator.undoAllocations(allocator_rewind_mark);
+    const allocator_rewind_mark = self.incoming_allocator.beginRegion();
+    errdefer self.incoming_allocator.rewind(allocator_rewind_mark);
 
     switch (self.protocol) {
         // only the client ever sends packets in the handshake protocol

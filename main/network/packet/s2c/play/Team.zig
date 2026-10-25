@@ -34,13 +34,12 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     }
 
     if (packet.action == 0 or packet.action == 3 or packet.action == 4) {
-        const member_count = try buffer.readVarInt();
-        var members: std.ArrayList([]const u8) = .empty;
-        try members.ensureTotalCapacity(allocator, @intCast(member_count));
-        for (0..@intCast(member_count)) |_| {
-            try members.append(allocator, try buffer.readStringAllocating(allocator, 40));
+        const member_count: usize = @intCast(try buffer.readVarInt());
+        const members: [][]const u8 = try allocator.alloc([]const u8, member_count);
+        for (members) |*member| {
+            member.* = try buffer.readStringAllocating(allocator, 40);
         }
-        packet.members = members.items;
+        packet.members = members;
     }
 
     return packet;

@@ -39,7 +39,12 @@ pub const main = if (build_options.zio) struct {
     }
 }.main else struct {
     pub fn main(init: std.process.Init) !void {
-        try realMain(init.gpa, init.io);
+        var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{ .stack_trace_frames = 15 });
+        // defer _ = gpa_impl.deinit();
+
+        const gpa = gpa_impl.allocator();
+
+        try realMain(gpa, init.io);
     }
 }.main;
 

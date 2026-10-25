@@ -1,5 +1,4 @@
 /// A buffer to read incoming packet data (s2c)
-
 backer: []const u8,
 read_location: usize,
 
@@ -91,7 +90,7 @@ pub fn readBytesNonAllocating(self: *@This(), count: usize) ![]const u8 {
 }
 
 /// return value is not backed by the buffer
-pub fn readBytesAllocating(self: *@This(), allocator: std.mem.Allocator, count: usize) ![]const u8 {
+pub fn readBytesAllocating(self: *@This(), allocator: std.mem.Allocator, count: usize) ![]u8 {
     const direct_slice = try self.readBytesNonAllocating(count);
     const slice = try allocator.alloc(u8, count);
     @memcpy(slice, direct_slice);
@@ -105,7 +104,7 @@ pub fn readByteSliceNonAllocating(self: *@This()) ![]const u8 {
 }
 
 /// return value is not backed by the buffer
-pub fn readByteSliceAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
+pub fn readByteSliceAllocating(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
     const byte_length = try self.readVarInt();
     return try self.readBytesAllocating(allocator, @intCast(byte_length));
 }
@@ -115,7 +114,7 @@ pub fn readRemainingBytesNonAllocating(self: *@This()) []const u8 {
     return self.readBytesNonAllocating(self.remainingBytes()) catch unreachable;
 }
 
-pub fn readRemainingBytesAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
+pub fn readRemainingBytesAllocating(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
     return try self.readBytesAllocating(allocator, self.remainingBytes());
 }
 
@@ -130,7 +129,7 @@ pub fn readStringNonAllocating(self: *@This(), max_code_points: usize) ![]const 
 }
 
 /// return value is not backed by the buffer
-pub fn readStringAllocating(self: *@This(), allocator: std.mem.Allocator, max_code_points: usize) ![]const u8 {
+pub fn readStringAllocating(self: *@This(), allocator: std.mem.Allocator, max_code_points: usize) ![]u8 {
     const direct_string = try self.readStringNonAllocating(max_code_points);
     const string = try allocator.alloc(u8, direct_string.len);
     @memcpy(string, direct_string);

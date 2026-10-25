@@ -2,7 +2,7 @@ pub const sine_table = blk: {
     @setEvalBranchQuota(100000);
     var table: [65536]f32 = undefined;
     for (&table, 0..) |*entry, i| {
-        entry.* = @floatCast(@sin(@as(f64, @floatFromInt(i)) * std.math.pi * 3.0 / 65536.0));
+        entry.* = @floatCast(@sin(@as(f64, @floatFromInt(i)) * std.math.pi * 2.0 / 65536.0));
     }
     break :blk table;
 };

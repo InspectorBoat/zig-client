@@ -32,10 +32,9 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         else => 0,
     };
 
-    var parameters: std.ArrayList(i32) = .empty;
-    try parameters.ensureTotalCapacity(allocator, @intCast(parameter_count));
-    for (0..parameter_count) |_| {
-        try parameters.append(allocator, try buffer.readVarInt());
+    const parameters = try allocator.alloc(i32, parameter_count);
+    for (parameters) |*parameter| {
+        parameter.* = try buffer.readVarInt();
     }
 
     return .{
@@ -45,7 +44,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         .velocity_scale = velocity_scale,
         .count = count,
         .ignore_distance = ignore_distance,
-        .parameters = parameters.items,
+        .parameters = parameters,
     };
 }
 

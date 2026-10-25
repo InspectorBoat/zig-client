@@ -229,13 +229,14 @@ pub fn receiveChunk(
     self: *@This(),
     allocator: std.mem.Allocator,
     chunk_pos: Vector2xz(i32),
-    chunk_data: *S2C.Play.WorldChunk.ChunkData,
+    chunk_data: S2C.Play.WorldChunk.ChunkData,
     full: bool,
     has_sky_light: bool,
 ) !void {
     std.log.scoped(.world).debug("updating chunk at {}", .{chunk_pos});
 
     const chunk = self.chunks.getPtr(chunk_pos).?;
+    var buffer: S2C.ReadBuffer = .fromOwnedSlice(chunk_data.buffer);
     // copy block state data
     for (0..16) |section_y| {
         if (chunk_data.sections.isSet(@intCast(section_y))) {
@@ -244,7 +245,7 @@ pub fn receiveChunk(
             }
             const section = chunk.sections[section_y].?;
 
-            const raw_block_states = @as(*align(1) const [4096]u16, @ptrCast(try chunk_data.buffer.readArrayNonAllocating(4096 * 2)));
+            const raw_block_states = @as(*align(1) const [4096]u16, @ptrCast(try buffer.readArrayNonAllocating(4096 * 2)));
             for (raw_block_states, &section.block_states) |raw_block_state, *concrete_block_state| {
                 concrete_block_state.* = .validateRaw(raw_block_state);
             }
@@ -261,7 +262,7 @@ pub fn receiveChunk(
     for (0..16) |section_y| {
         if (chunk_data.sections.isSet(@intCast(section_y))) {
             const section = chunk.sections[section_y].?;
-            @memcpy(&section.block_light.bytes, try chunk_data.buffer.readArrayNonAllocating(2048));
+            @memcpy(&section.block_light.bytes, try buffer.readArrayNonAllocating(2048));
         }
     }
     // copy sky light data
@@ -269,13 +270,13 @@ pub fn receiveChunk(
         for (0..16) |section_y| {
             if (chunk_data.sections.isSet(@intCast(section_y))) {
                 const section = chunk.sections[section_y].?;
-                @memcpy(&section.sky_light.bytes, try chunk_data.buffer.readBytesNonAllocating(2048));
+                @memcpy(&section.sky_light.bytes, try buffer.readBytesNonAllocating(2048));
             }
         }
     }
     // copy biome data
     if (full) {
-        @memcpy(&chunk.biomes, try chunk_data.buffer.readBytesNonAllocating(256));
+        @memcpy(&chunk.biomes, try buffer.readBytesNonAllocating(256));
     }
 
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });

@@ -6,10 +6,10 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const action = try buffer.readEnum(Action) orelse return error.InvalidPlayerInfo;
-    const entry_count = try buffer.readVarInt();
-    var entries: std.ArrayList(Entry) = .empty;
-    for (0..@intCast(entry_count)) |_| {
-        const entry: Entry = switch (action) {
+    const entry_count: usize = @intCast(try buffer.readVarInt());
+    const entries = try allocator.alloc(Entry, entry_count);
+    for (entries) |*entry| {
+        entry.* = switch (action) {
             .AddPlayer => .{
                 .game_profile = .{
                     .uuid = try buffer.readUuid(),
@@ -17,8 +17,8 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
                     .properties = get_properties: {
                         var properties: std.StringHashMapUnmanaged(GameProfile.Property) = .empty;
 
-                        const property_count = try buffer.readVarInt();
-                        for (0..@intCast(property_count)) |_| {
+                        const property_count: usize = @intCast(try buffer.readVarInt());
+                        for (0..property_count) |_| {
                             const name = try buffer.readStringAllocating(allocator, 32767);
 
                             try properties.put(allocator, name, .{
@@ -36,34 +36,25 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
                 .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
             },
             .UpdateGameMode => .{
-                .game_profile = .{
-                    .uuid = try buffer.readUuid(),
-                },
+                .game_profile = .{ .uuid = try buffer.readUuid() },
                 .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
             },
             .UpdatePing => .{
-                .game_profile = .{
-                    .uuid = try buffer.readUuid(),
-                },
+                .game_profile = .{ .uuid = try buffer.readUuid() },
                 .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
             },
             .UpdateDisplayName => .{
-                .game_profile = .{
-                    .uuid = try buffer.readUuid(),
-                },
+                .game_profile = .{ .uuid = try buffer.readUuid() },
                 .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
             },
             .RemovePlayer => .{
-                .game_profile = .{
-                    .uuid = try buffer.readUuid(),
-                },
+                .game_profile = .{ .uuid = try buffer.readUuid() },
             },
         };
-        try entries.append(allocator, entry);
     }
     return .{
         .action = action,
-        .entries = entries.items,
+        .entries = entries,
     };
 }
 

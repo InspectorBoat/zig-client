@@ -1,18 +1,10 @@
-pub const TailMark = struct {
-    index: usize,
-    /// TODO: actually you *can* move a ring buffer (just like how you can move an arraylist)
-    /// so it would have to be a sentinel but i'm lazy
-    owner: void = {},
-    serial: usize,
-};
+buffer: []u8,
+/// The next allocation can start at this byte
+logical_alloc_index: usize = 0,
+/// Bytes before this index are free
+logical_free_index: std.atomic.Value(usize) = .init(0),
 
-pub const RewindMark = struct {
-    index: usize,
-    /// TODO: actually you *can* move a ring buffer (just like how you can move an arraylist)
-    /// so it would have to be a sentinel but i'm lazy
-    owner: void = {},
-    // no serial, because you can only ever have one out at a time anyways
-};
+safety: Safety = .{},
 
 const Safety = struct {
     /// serial of the next tail mark that will get freed
@@ -23,13 +15,15 @@ const Safety = struct {
     active_rewind_index: ?usize = null,
 };
 
-buffer: []u8,
-/// The next allocation can start at this byte
-logical_alloc_index: usize = 0,
-/// Bytes before this index are free
-logical_free_index: std.atomic.Value(usize) = .init(0),
+pub const TailMark = struct {
+    index: usize,
+    serial: usize,
+};
 
-safety: Safety = .{},
+pub const RewindMark = struct {
+    index: usize,
+    // no serial, because you can only ever have one out at a time anyways
+};
 
 pub fn initBuffer(buffer: []u8) @This() {
     return .{ .buffer = buffer };
@@ -53,7 +47,9 @@ pub fn usedBytes(self: *const @This()) usize {
     return self.logical_alloc_index - self.logical_free_index.load(.acquire);
 }
 
-pub fn alloc(self: *@This(), n: usize, alignment: std.mem.Alignment) ![*]u8 {
+pub fn allocInner(self: *@This(), n: usize, alignment: std.mem.Alignment) ![*]u8 {
+    std.debug.assert(self.safety.active_rewind_index != null);
+
     // reset state if we couldn't allocate
     const initial_logical_alloc_index = self.logical_alloc_index;
     errdefer self.logical_alloc_index = initial_logical_alloc_index;
@@ -78,39 +74,99 @@ pub fn alloc(self: *@This(), n: usize, alignment: std.mem.Alignment) ![*]u8 {
     }
 }
 
-pub fn rawAlloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usize) ?[*]u8 {
-    _ = ra;
-    const self: *@This() = @ptrCast(@alignCast(ctx));
-    return self.alloc(n, alignment) catch null;
+pub fn resizeInner(
+    self: *@This(),
+    memory: []u8,
+    new_len: usize,
+) !void {
+    std.debug.assert(self.safety.active_rewind_index != null);
+
+    const initial_logical_alloc_index = self.logical_alloc_index;
+    errdefer self.logical_alloc_index = initial_logical_alloc_index;
+
+    // at last allocation
+    if (memory.ptr + memory.len == self.buffer.ptr + self.toPhysicalIndex(self.logical_alloc_index)) {
+        // just reclaim and return
+        if (new_len <= memory.len) {
+            self.logical_alloc_index -= memory.len - new_len;
+            return;
+        } else {
+            // edge case not handled by consumeClamp (it would happily restart at the beginning)
+            if (self.toPhysicalIndex(self.logical_alloc_index) == 0) return error.WouldSplit;
+            const additional_bytes = new_len - memory.len;
+            // ok
+            if (try self.consumeClamp(new_len - memory.len) == additional_bytes) return;
+            // can't fit at edge
+            return error.WouldSplit;
+        }
+    } else if (new_len <= memory.len) {
+        return;
+    } else return error.NoResize;
 }
 
-// I keep on shattering time
-pub fn beginRewind(self: *@This()) RewindMark {
+pub fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+    _ = ret_addr;
+    const self: *@This() = @ptrCast(@alignCast(ctx));
+    return self.allocInner(len, alignment) catch null;
+}
+
+pub fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+    _ = ret_addr;
+    _ = alignment;
+    const self: *@This() = @ptrCast(@alignCast(ctx));
+    return if (self.resizeInner(memory, new_len))
+        true
+    else |_|
+        false;
+}
+
+pub fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+    _ = ret_addr;
+    _ = alignment;
+    const self: *@This() = @ptrCast(@alignCast(ctx));
+    return if (self.resizeInner(memory, new_len))
+        memory.ptr
+    else |_|
+        null;
+}
+
+pub fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+    _ = ret_addr;
+    _ = alignment;
+    const self: *@This() = @ptrCast(@alignCast(ctx));
+    self.resizeInner(memory, 0) catch {};
+}
+
+/// Begins an allocation region.
+/// At any point, the caller may call rewind, passing it the returned
+/// `RewindMark`. This consumes the token and undoes all allocations
+/// since `beginRegion` was called.
+/// Alternatively, the caller may call `commit` and receive a `TailMark`
+/// which can be passed to a FIFO queue, and freed when reached.
+pub fn beginRegion(self: *@This()) RewindMark {
     std.debug.assert(self.safety.active_rewind_index == null);
     self.safety.active_rewind_index = self.logical_alloc_index;
     return .{ .index = self.logical_alloc_index };
 }
 
-// Run it back
-pub fn undoAllocations(self: *@This(), mark: RewindMark) void {
+pub fn rewind(self: *@This(), mark: RewindMark) void {
     std.debug.assert(self.safety.active_rewind_index != null);
     std.debug.assert(mark.index == self.safety.active_rewind_index.?);
-    // if you trigger this check, it's probably the RingBuffer that has a bug,
-    // not the consuming code (unless it does something really stupid like forging
-    // counterfeit Marks)
+    // if this assert fails, it's probably the RingBuffer that has a bug,
+    // not the consuming code (unless it does something really stupid like
+    // forge counterfeit Marks)
     std.debug.assert(mark.index >= self.logical_free_index.load(.acquire) and mark.index <= self.logical_alloc_index);
 
     self.logical_alloc_index = mark.index;
     self.safety.active_rewind_index = null;
 }
 
-// I got this blade in my hand for your punishment
 pub fn commit(self: *@This(), mark: RewindMark) TailMark {
     std.debug.assert(self.safety.active_rewind_index != null);
     std.debug.assert(mark.index == self.safety.active_rewind_index.?);
-    // if you trigger this check, it's probably the RingBuffer that has a bug,
-    // not the consuming code (unless it does something really stupid like forging
-    // counterfeit Marks)
+    // if this assert fails, it's probably the RingBuffer that has a bug,
+    // not the consuming code (unless it does something really stupid like
+    // forge counterfeit Marks)
     std.debug.assert(mark.index >= self.logical_free_index.load(.acquire) and mark.index <= self.logical_alloc_index);
     self.safety.active_rewind_index = null;
     defer self.safety.next_tail_serial += 1;
@@ -119,9 +175,9 @@ pub fn commit(self: *@This(), mark: RewindMark) TailMark {
 
 pub fn freeFromTail(self: *@This(), mark: TailMark) void {
     std.debug.assert(mark.serial == self.safety.oldest_tail_serial);
-    // if you trigger this check, it's probably the RingBuffer that has a bug,
-    // not the consuming code (unless it does something really stupid like forging
-    // counterfeit Marks)
+    // if this assert fails, it's probably the RingBuffer that has a bug,
+    // not the consuming code (unless it does something really stupid like
+    // forge counterfeit Marks)
     std.debug.assert(mark.index >= self.logical_free_index.load(.acquire));
 
     self.logical_free_index.store(mark.index, .release);
@@ -144,10 +200,10 @@ pub fn allocator(self: *@This()) std.mem.Allocator {
     return .{
         .ptr = self,
         .vtable = &.{
-            .alloc = rawAlloc,
-            .resize = std.mem.Allocator.noResize,
-            .remap = std.mem.Allocator.noRemap,
-            .free = std.mem.Allocator.noFree,
+            .alloc = alloc,
+            .resize = resize,
+            .remap = remap,
+            .free = free,
         },
     };
 }
@@ -167,11 +223,11 @@ test "RingBuffer" {
     defer fifo.deinit(std.testing.allocator);
 
     for (0..1024) |_| {
-        const rewind_mark = ring_alloc.beginRewind();
+        const rewind_mark = ring_alloc.beginRegion();
         const alloc_size = rand.intRangeAtMost(usize, 32, 64);
 
-        _ = ring_alloc.alloc(alloc_size, .@"1") catch {
-            ring_alloc.undoAllocations(rewind_mark);
+        _ = ring_alloc.allocInner(alloc_size, .@"1") catch {
+            ring_alloc.rewind(rewind_mark);
             while (fifo.popFront()) |item| {
                 ring_alloc.freeFromTail(item);
             }

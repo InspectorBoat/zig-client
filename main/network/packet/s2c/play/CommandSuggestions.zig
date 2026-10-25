@@ -6,14 +6,13 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const suggestion_count = try buffer.readVarInt();
 
-    var suggestions: std.ArrayList([]const u8) = .empty;
-    try suggestions.ensureTotalCapacity(allocator, @intCast(suggestion_count));
-    for (0..@intCast(suggestion_count)) |_| {
-        try suggestions.append(allocator, try buffer.readStringAllocating(allocator, 32767));
+    const suggestions: [][]const u8 = try allocator.alloc([]const u8, @intCast(suggestion_count));
+    for (suggestions) |*suggestion| {
+        suggestion.* = try buffer.readStringAllocating(allocator, 32767);
     }
 
     return .{
-        .suggestions = suggestions.items,
+        .suggestions = suggestions,
     };
 }
 

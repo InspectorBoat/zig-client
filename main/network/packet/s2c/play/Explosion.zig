@@ -14,15 +14,14 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     };
     const power = try buffer.read(f32);
 
-    const block_count = try buffer.read(i32);
-    var damaged_blocks: std.ArrayList(Vector3(i32)) = .empty;
-    try damaged_blocks.ensureTotalCapacity(allocator, @intCast(block_count));
-    for (0..@intCast(block_count)) |_| {
-        try damaged_blocks.append(allocator, .{
-            .x = @as(i32, @intFromFloat(pos.x)) + try buffer.read(i8),
-            .y = @as(i32, @intFromFloat(pos.y)) + try buffer.read(i8),
-            .z = @as(i32, @intFromFloat(pos.z)) + try buffer.read(i8),
-        });
+    const block_count: usize = @intCast(try buffer.read(i32));
+    const damaged_blocks = try allocator.alloc(Vector3(i32), block_count);
+    for (damaged_blocks) |*damaged_block| {
+        damaged_block.* = .{
+            .x = std.math.lossyCast(i32, pos.x) + try buffer.read(i8),
+            .y = std.math.lossyCast(i32, pos.y) + try buffer.read(i8),
+            .z = std.math.lossyCast(i32, pos.z) + try buffer.read(i8),
+        };
     }
 
     const player_velocity: Vector3(f32) = .{
@@ -34,7 +33,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
         .pos = pos,
         .power = power,
-        .damaged_blocks = damaged_blocks.items,
+        .damaged_blocks = damaged_blocks,
         .player_velocity = player_velocity,
     };
 }

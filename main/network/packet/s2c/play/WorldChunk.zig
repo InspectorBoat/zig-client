@@ -14,7 +14,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         .full = try buffer.read(bool),
         .chunk_data = .{
             .sections = .{ .mask = try buffer.read(u16) },
-            .buffer = .fromOwnedSlice(try buffer.readByteSliceAllocating(allocator)),
+            .buffer = try buffer.readByteSliceAllocating(allocator),
         },
     };
 }
@@ -33,11 +33,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
             _ = game.world.loadChunk(allocator, self.chunk_pos) catch {}; // TODO: Figure out why this happens
         }
     }
-    try game.world.receiveChunk(allocator, self.chunk_pos, &self.chunk_data, self.full, true);
+    try game.world.receiveChunk(allocator, self.chunk_pos, self.chunk_data, self.full, true);
 }
 
 pub const ChunkData = struct {
-    buffer: S2C.ReadBuffer,
+    buffer: []u8,
     sections: std.bit_set.Integer(16),
 };
 

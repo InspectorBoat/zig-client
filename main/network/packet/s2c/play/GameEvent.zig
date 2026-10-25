@@ -21,7 +21,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
         .InvalidBed => {},
         .BeginRaining => {},
         .StopRaining => {},
-        .SetGameMode => game.world.game_mode = std.enums.fromInt(World.GameMode, @as(i32, @trunc(self.data))) orelse .Survival,
+        .SetGameMode => {
+            // TODO: THIS IS FUCKED
+            // use MathHelper.floor when it gets added
+            game.world.game_mode = std.enums.fromInt(World.GameMode, @as(i32, @trunc(self.data))) orelse .Survival;
+        },
         .OpenCredits => {},
         .DemoMessage => {},
         .PlayArrowHitSound => {},
@@ -32,8 +36,6 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     }
 }
 
-/// Ids handleGameEvent acts on; unknown ids are ignored, so the packet stores
-/// the raw value rather than an enum.
 pub const Event = enum(i32) {
     InvalidBed = 0,
     BeginRaining = 1,

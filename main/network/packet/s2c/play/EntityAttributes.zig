@@ -8,32 +8,31 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const network_id = try buffer.readVarInt();
     const entry_count = try buffer.read(i32);
 
-    var entries: std.ArrayList(Entry) = .empty;
-    try entries.ensureTotalCapacity(allocator, @intCast(entry_count));
-    for (0..@intCast(entry_count)) |_| {
+    const entries = try allocator.alloc(Entry, @intCast(entry_count));
+    for (entries) |*entry| {
         const id = try buffer.readStringAllocating(allocator, 64);
         const base_value = try buffer.read(f64);
 
-        const modifier_count = try buffer.readVarInt();
+        const modifier_count: usize = @intCast(try buffer.readVarInt());
 
-        var modifiers: std.ArrayList(Modifier) = .empty;
-        for (0..@intCast(modifier_count)) |_| {
+        const modifiers = try allocator.alloc(Modifier, modifier_count);
+        for (modifiers) |*modifier| {
             const uuid = try buffer.readUuid();
             const value = try buffer.read(f64);
             const operation = try buffer.read(i8);
-            try modifiers.append(allocator, .{ .uuid = uuid, .value = value, .operation = operation });
+            modifier.* = .{ .uuid = uuid, .value = value, .operation = operation };
         }
 
-        try entries.append(allocator, .{
+        entry.* = .{
             .id = id,
             .base_value = base_value,
-            .modifiers = modifiers.items,
-        });
+            .modifiers = modifiers,
+        };
     }
 
     return .{
         .network_id = network_id,
-        .entries = entries.items,
+        .entries = entries,
     };
 }
 
