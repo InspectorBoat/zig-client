@@ -1,5 +1,6 @@
 //! ModelTemplate, but we walked the parent chain and resolved
 //! all texture references, ambient occlusion, and elements
+
 geometry: Geometry,
 ambientocclusion: bool,
 
@@ -48,7 +49,6 @@ pub const Element = struct {
     };
 };
 
-const Vector2xy = @import("main").Vector2xy;
 const Vector3 = @import("main").Vector3;
 
 const ModelTemplate = @import("ModelTemplate.zig");

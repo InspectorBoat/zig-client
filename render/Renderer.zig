@@ -231,14 +231,13 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     for (named_block_textures.keys(), named_block_textures.values(), 0..) |name, *image, layer| {
         if (image.width != layer_size or image.height != layer_size) truncated += 1;
 
-        // most sprites decode straight to rgba8; anything else
-        // we convert with zigimg
+        // convert everything to rgba32
         var owned_storage: ?zigimg.color.PixelStorage = null;
         defer if (owned_storage) |s| s.deinit(allocator);
 
         if (image.pixels != .rgba32) {
             owned_storage = zigimg.PixelFormatConverter.convert(allocator, &image.pixels, .rgba32) catch {
-                std.log.scoped(.resource_pack).warn("could not convert {s} to rgba8, leaving it blank", .{name});
+                std.log.scoped(.resource_pack).warn("could not convert {s} to rgba32, leaving it blank", .{name});
                 failed += 1;
                 continue;
             };
@@ -252,9 +251,9 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
 
         // This is a really shitty hack,
         // but I'm tired of looking at monochrome grass all day
-        const tint: Vector3(f32) = if (std.mem.eql(u8, name, "grass_top") or std.mem.eql(u8, name, "grass_side_overlay"))
+        const tint: Vector3(f32) = if (std.mem.eql(u8, name, "blocks/grass_top") or std.mem.eql(u8, name, "blocks/grass_side_overlay"))
             .{ .x = 0.52, .y = 0.7, .z = 0.3 }
-        else if (std.mem.eql(u8, name, "tallgrass") or std.mem.startsWith(u8, name, "double_plant_grass"))
+        else if (std.mem.eql(u8, name, "blocks/tallgrass") or std.mem.startsWith(u8, name, "blocks/double_plant_grass"))
             .{ .x = 0.45, .y = 0.6, .z = 0.3 }
         else if (std.mem.containsAtLeast(u8, name, 1, "leaves"))
             .{ .x = 0.22, .y = 0.45, .z = 0.15 }

@@ -28,7 +28,7 @@ pub fn init(
     );
     const resolved_models = try resolveModels(arena, model_templates, textures);
     return .{
-        try createLookupTable(gpa, resolved_models, state_to_model_maps),
+        try createLookupTable(gpa, textures, resolved_models, state_to_model_maps),
         textures,
     };
 }
@@ -245,6 +245,7 @@ pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction)
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
 pub fn createLookupTable(
     gpa: std.mem.Allocator,
+    textures: std.array_hash_map.String(zigimg.Image),
     resolved_block_models: std.StringHashMapUnmanaged(ResolvedModel),
     state_to_model_maps: std.StringHashMapUnmanaged(StateToModelMap),
 ) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
@@ -274,7 +275,7 @@ pub fn createLookupTable(
             defer gpa.free(model_name);
             const resolved_block_model = resolved_block_models.get(model_name) orelse return error.ModelNotFound;
 
-            const baked_model: BakedModel = try .bake(gpa, resolved_block_model, model_variant.x, model_variant.y, model_variant.uvlock);
+            const baked_model: BakedModel = try .bake(gpa, textures, resolved_block_model, model_variant.x, model_variant.y, model_variant.uvlock);
 
             try lookup_table.put(gpa, @unionInit(Block.VirtualState, @tagName(block), properties), baked_model);
 
