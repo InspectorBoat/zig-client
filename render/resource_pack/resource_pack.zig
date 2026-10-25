@@ -152,9 +152,9 @@ pub fn resolveGeneratedItem(
 ) ![5]?Renderer.TextureHandle {
     var resolved_textures: [5]?Renderer.TextureHandle = @splat(null);
 
-    inline for (.{ "layer0", "layer1", "layer2", "layer3", "layer4" }, &resolved_textures) |layer, *resolved_texture| {
+    inline for (.{ "#layer0", "#layer1", "#layer2", "#layer3", "#layer4" }, &resolved_textures) |layer, *resolved_texture| {
         const texture_name = resolveTextureVariable(texture_variables, layer) catch break;
-        resolved_texture.* = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse return error.MissingTexture));
+        resolved_texture.* = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse break));
     }
     return resolved_textures;
 }
@@ -220,6 +220,7 @@ pub fn resolveTextureVariable(texture_variables: std.StringHashMapUnmanaged([]co
             return value;
         }
     }
+    if (!std.mem.startsWith(u8, value, "#")) return value;
     // There are only N elements, so if the walk takes more than N steps,
     // we must have revisited a node and have entered a cycle
     return error.CyclicVariable;

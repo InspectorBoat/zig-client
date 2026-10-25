@@ -228,7 +228,23 @@ pub fn bake(
     uvlock: bool,
 ) !@This() {
     var face_count: usize = 0;
-    const elements = if (model.geometry == .elements) model.geometry.elements else std.debug.panic("TODO!", .{});
+    const elements = if (model.geometry == .elements) model.geometry.elements else {
+        const ir: IntermediateFace = .{
+            .facing = .up,
+            .xy = .{ .splat(0), .splat(16) },
+            .z = 0,
+            .geometry_rotation = null,
+            .uv = .{ .{ .x = 0, .y = 16 }, .{ .x = 16, .y = 0 } },
+            .cullface = null,
+            .texture_rotation = .@"0",
+            .texture = model.geometry.generated_item[0].?,
+        };
+
+        var faces: std.ArrayList(Face) = try .initCapacity(gpa, face_count);
+        try faces.append(gpa, ir.bake());
+
+        return .{ .faces = try faces.toOwnedSlice(gpa) };
+    };
     for (elements) |element| {
         inline for (std.enums.values(Direction)) |dir| {
             face_count += @intFromBool(@field(element.faces, @tagName(dir)) != null);
