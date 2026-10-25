@@ -16,31 +16,35 @@ pub fn init(
         try resource_pack_dir.openDir(io, "assets/minecraft/blockstates", .{ .iterate = true }),
     );
     const model_templates = try parseJsonInDir(
-        BlockModelTemplate,
+        ModelTemplate,
         io,
         arena,
-        try resource_pack_dir.openDir(io, "assets/minecraft/models/block", .{ .iterate = true }),
+        try resource_pack_dir.openDir(io, "assets/minecraft/models", .{ .iterate = true }),
     );
     const textures = try loadImagesInDir(
         io,
         arena,
-        try resource_pack_dir.openDir(io, "assets/minecraft/textures/blocks", .{ .iterate = true }),
+        try resource_pack_dir.openDir(io, "assets/minecraft/textures", .{ .iterate = true }),
     );
-    const resolved_models = try resolveBlockModels(arena, model_templates, textures);
-    return .{ try createLookupTable(gpa, resolved_models, state_to_model_maps), textures };
+    const resolved_models = try resolveModels(arena, model_templates, textures);
+    return .{
+        try createLookupTable(gpa, resolved_models, state_to_model_maps),
+        textures,
+    };
 }
 
 /// Parses all files in a directory from JSON into T
 /// Takes ownership of dir
+/// Recursively checks all files
 pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.StringHashMapUnmanaged(T) {
     defer dir.close(io);
     var states: std.StringHashMapUnmanaged(T) = .empty;
 
-    var iter = dir.iterate();
+    var iter = try dir.walk(arena);
     while (try iter.next(io)) |entry| {
         if (entry.kind != .file) continue;
 
-        const file = try dir.openFile(io, entry.name, .{});
+        const file = try dir.openFile(io, entry.path, .{});
         defer file.close(io);
 
         var buf: [1024]u8 = undefined;
@@ -50,21 +54,21 @@ pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io
         defer reader.deinit();
         const parsed_model = try std.json.parseFromTokenSourceLeaky(T, arena, &reader, .{ .ignore_unknown_fields = true });
 
-        try states.put(arena, try arena.dupe(u8, std.fs.path.stem(entry.name)), parsed_model);
+        try states.put(arena, try arena.dupe(u8, entry.path[0 .. entry.path.len - ".json".len]), parsed_model);
     }
     return states;
 }
 
 /// Resolves all block model templates parsed in the previous step.
-pub fn resolveBlockModels(
+pub fn resolveModels(
     arena: std.mem.Allocator,
-    model_templates: std.StringHashMapUnmanaged(BlockModelTemplate),
+    model_templates: std.StringHashMapUnmanaged(ModelTemplate),
     textures: std.array_hash_map.String(zigimg.Image),
-) !std.StringHashMapUnmanaged(ResolvedBlockModel) {
-    var resolved_models: std.StringHashMapUnmanaged(ResolvedBlockModel) = .empty;
+) !std.StringHashMapUnmanaged(ResolvedModel) {
+    var resolved_models: std.StringHashMapUnmanaged(ResolvedModel) = .empty;
     var iter = model_templates.keyIterator();
     while (iter.next()) |model_name| {
-        const resolved_model = resolveBlockModel(arena, model_name.*, model_templates, textures) catch |e| switch (e) {
+        const resolved_model = resolveModel(arena, model_name.*, model_templates, textures) catch |e| switch (e) {
             // we are iterating the hashmap keys, so this is impossible
             error.MissingModel => unreachable,
             // model is a template, not a problem
@@ -74,7 +78,8 @@ pub fn resolveBlockModels(
             },
             error.MissingParent, error.NoElements, error.CyclicVariable => {
                 std.log.scoped(.resource_pack).err("{} resolving {s}", .{ e, model_name.* });
-                return e;
+                std.debug.dumpErrorReturnTrace(@errorReturnTrace() orelse continue);
+                continue;
             },
             else => return e,
         };
@@ -85,14 +90,17 @@ pub fn resolveBlockModels(
 
 /// Takes (the name of) a block model template and walks the parent chain,
 /// resolving all texture references, ambient occlusion, and elements
-pub fn resolveBlockModel(
+pub fn resolveModel(
     arena: std.mem.Allocator,
     model_name_to_resolve: []const u8,
-    models: std.StringHashMapUnmanaged(BlockModelTemplate),
+    models: std.StringHashMapUnmanaged(ModelTemplate),
     textures: std.array_hash_map.String(zigimg.Image),
-) !ResolvedBlockModel {
+) !ResolvedModel {
     var maybe_ambient_occlusion: ?bool = null;
-    var maybe_elements: ?[]BlockModelTemplate.Element = null;
+    var maybe_geometry: ?union(enum) {
+        elements: []ModelTemplate.Element,
+        generated_item,
+    } = null;
     var texture_variables: std.StringHashMapUnmanaged([]const u8) = .empty;
 
     if (!models.contains(model_name_to_resolve)) return error.MissingModel;
@@ -100,9 +108,15 @@ pub fn resolveBlockModel(
     // first: walk the parent chain and merge texture variable maps and elements
     var maybe_model_name: ?[]const u8 = model_name_to_resolve;
     while (maybe_model_name) |model_name| {
-        const model = models.get(model_name) orelse return error.MissingParent;
+        const model = models.get(model_name) orelse {
+            if (std.mem.eql(u8, "builtin/generated", model_name) or std.mem.eql(u8, "builtin/entity", model_name) or std.mem.eql(u8, "builtin/compass", model_name) or std.mem.eql(u8, "builtin/clock", model_name)) {
+                maybe_geometry = .generated_item;
+                break;
+            }
+            return error.MissingParent;
+        };
 
-        defer maybe_model_name = if (model.parent) |parent| parent["block/".len..] else null;
+        defer maybe_model_name = if (model.parent) |parent| parent else null;
 
         // merge texture variables
         if (model.textures) |*model_texture_variables| {
@@ -113,14 +127,45 @@ pub fn resolveBlockModel(
         }
 
         // take elements & ambient occlusion, parent cannot override child
-        if (maybe_elements == null) maybe_elements = model.elements;
+        if (maybe_geometry == null and model.elements != null) maybe_geometry = .{ .elements = model.elements.? };
         if (maybe_ambient_occlusion == null) maybe_ambient_occlusion = model.ambientocclusion;
     }
 
-    const elements = maybe_elements orelse return error.NoElements;
-    if (elements.len == 0) return error.NoElements;
+    switch (maybe_geometry orelse return error.NoElements) {
+        .elements => |elements| {
+            const resolved_elements = try resolveElements(arena, texture_variables, textures, elements);
+            return .{
+                .ambientocclusion = maybe_ambient_occlusion orelse true,
+                .geometry = .{ .elements = resolved_elements },
+            };
+        },
+        .generated_item => return .{
+            .ambientocclusion = maybe_ambient_occlusion orelse true,
+            .geometry = .{ .generated_item = try resolveGeneratedItem(texture_variables, textures) },
+        },
+    }
+}
 
-    const resolved_elements: []ResolvedBlockModel.Element = try arena.alloc(ResolvedBlockModel.Element, elements.len);
+pub fn resolveGeneratedItem(
+    texture_variables: std.StringHashMapUnmanaged([]const u8),
+    textures: std.array_hash_map.String(zigimg.Image),
+) ![5]?Renderer.TextureHandle {
+    var resolved_textures: [5]?Renderer.TextureHandle = @splat(null);
+
+    inline for (.{ "layer0", "layer1", "layer2", "layer3", "layer4" }, &resolved_textures) |layer, *resolved_texture| {
+        const texture_name = resolveTextureVariable(texture_variables, layer) catch break;
+        resolved_texture.* = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse return error.MissingTexture));
+    }
+    return resolved_textures;
+}
+
+pub fn resolveElements(
+    arena: std.mem.Allocator,
+    texture_variables: std.StringHashMapUnmanaged([]const u8),
+    textures: std.array_hash_map.String(zigimg.Image),
+    elements: []const ModelTemplate.Element,
+) ![]ResolvedModel.Element {
+    const resolved_elements: []ResolvedModel.Element = try arena.alloc(ResolvedModel.Element, elements.len);
 
     for (elements, resolved_elements) |element, *resolved_element| {
         resolved_element.* = .{
@@ -137,12 +182,8 @@ pub fn resolveBlockModel(
         };
         inline for (.{ .north, .south, .west, .east, .up, .down }) |direction| {
             if (@field(element.faces, @tagName(direction))) |face| {
-                // TODO: All this stem stripping is a shitty hack, we should figure out how vanilla actually does it
-                const texture_name = (try resolveTextureVariable(texture_variables, face.texture))["blocks/".len..];
-                const texture_handle: Renderer.TextureHandle = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse {
-                    std.log.scoped(.resource_pack).err("model {s} references nonexistent texture {s}", .{ model_name_to_resolve, texture_name });
-                    return error.MissingTexture;
-                }));
+                const texture_name = try resolveTextureVariable(texture_variables, face.texture);
+                const texture_handle: Renderer.TextureHandle = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse return error.MissingTexture));
                 @field(resolved_element.faces, @tagName(direction)) = .{
                     .uv = face.uv orelse try computeAutoUv(resolved_element.from, resolved_element.to, direction),
                     .texture = texture_handle,
@@ -155,10 +196,7 @@ pub fn resolveBlockModel(
         }
     }
 
-    return .{
-        .ambientocclusion = maybe_ambient_occlusion orelse true,
-        .elements = resolved_elements,
-    };
+    return resolved_elements;
 }
 
 /// Recursively resolves a texture variable
@@ -203,10 +241,10 @@ pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction)
     // zig fmt: on
 }
 
-/// Create a lookup table mapping from Block.VirtualState -> BakedBlockModel
+/// Create a lookup table mapping from Block.VirtualState -> BakedModel
 pub fn createLookupTable(
     gpa: std.mem.Allocator,
-    resolved_block_models: std.StringHashMapUnmanaged(ResolvedBlockModel),
+    resolved_block_models: std.StringHashMapUnmanaged(ResolvedModel),
     state_to_model_maps: std.StringHashMapUnmanaged(StateToModelMap),
 ) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
     var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
@@ -230,7 +268,10 @@ pub fn createLookupTable(
                 // TODO: support this
                 .multi => |multi| multi[0],
             };
-            const resolved_block_model = resolved_block_models.get(model_variant.model) orelse return error.ModelNotFound;
+
+            const model_name = try gpa.print("block/{s}", .{model_variant.model});
+            defer gpa.free(model_name);
+            const resolved_block_model = resolved_block_models.get(model_name) orelse return error.ModelNotFound;
 
             const baked_model: BakedModel = try .bake(gpa, resolved_block_model, model_variant.x, model_variant.y, model_variant.uvlock);
 
@@ -434,21 +475,21 @@ pub fn skipField(comptime block: Block, comptime field_name: []const u8, propert
 pub fn loadImagesInDir(io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.array_hash_map.String(zigimg.Image) {
     defer dir.close(io);
     var images: std.array_hash_map.String(zigimg.Image) = .empty;
-    var iter = dir.iterate();
+    var iter = try dir.walk(arena);
     while (try iter.next(io)) |entry| {
         if (entry.kind != .file) continue;
 
         // vanilla ships a `.png.mcmeta` metadata file for some sprites (animated ones),
         // so this directory is not all-png and the extension must be filtered
-        if (!std.mem.eql(u8, std.fs.path.extension(entry.name), ".png")) continue;
+        if (!std.mem.eql(u8, std.fs.path.extension(entry.basename), ".png")) continue;
 
-        const file = try dir.openFile(io, entry.name, .{});
+        const file = try dir.openFile(io, entry.path, .{});
         defer file.close(io);
 
         var buf: [1024]u8 = undefined;
         const image: zigimg.Image = try .fromFile(arena, io, file, &buf);
 
-        try images.put(arena, try arena.dupe(u8, std.fs.path.stem(entry.name)), image);
+        try images.put(arena, try arena.dupe(u8, entry.path[0 .. entry.path.len - ".png".len]), image);
     }
     return images;
 }
@@ -461,8 +502,8 @@ const zigimg = @import("zigimg");
 const allValues = @import("util").allValues;
 
 pub const BakedModel = @import("BakedModel.zig");
-pub const BlockModelTemplate = @import("BlockModelTemplate.zig");
-pub const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
+pub const ModelTemplate = @import("ModelTemplate.zig");
+pub const ResolvedModel = @import("ResolvedModel.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
 
 const Block = main.Block;

@@ -20,7 +20,7 @@ const IntermediateFace = struct {
     uv: [2]Vector2xy(f32),
 
     cullface: ?Direction,
-    texture_rotation: ResolvedBlockModel.Element.Face.TextureRotation,
+    texture_rotation: ResolvedModel.Element.Face.TextureRotation,
 
     texture: Renderer.TextureHandle,
     flip_winding: bool = false,
@@ -222,13 +222,14 @@ const IntermediateFace = struct {
 
 pub fn bake(
     gpa: std.mem.Allocator,
-    model: ResolvedBlockModel,
+    model: ResolvedModel,
     x_rotation: StateToModelMap.ModelVariant.Angle,
     y_rotation: StateToModelMap.ModelVariant.Angle,
     uvlock: bool,
 ) !@This() {
     var face_count: usize = 0;
-    for (model.elements) |element| {
+    const elements = if (model.geometry == .elements) model.geometry.elements else std.debug.panic("TODO!", .{});
+    for (elements) |element| {
         inline for (std.enums.values(Direction)) |dir| {
             face_count += @intFromBool(@field(element.faces, @tagName(dir)) != null);
         }
@@ -237,19 +238,19 @@ pub fn bake(
     var faces: std.ArrayList(Face) = try .initCapacity(gpa, face_count);
 
     // look, it's a long story, okay
-    var i = model.elements.len;
+    var i = elements.len;
     while (i > 0) {
         i -= 1;
-        bakeElement(&faces, model.elements[i], x_rotation, y_rotation, uvlock);
+        bakeElement(&faces, elements[i], x_rotation, y_rotation, uvlock);
     }
 
-    return .{ .faces = try faces.toOwnedSlice(gpa) };
+    return .{ .faces = faces.toOwnedSliceAssert() };
 }
 
 /// Decompose into faces, then apply transforms and bake
 pub fn bakeElement(
     baked_faces: *std.ArrayList(Face),
-    element: ResolvedBlockModel.Element,
+    element: ResolvedModel.Element,
     x_rotation: StateToModelMap.ModelVariant.Angle,
     y_rotation: StateToModelMap.ModelVariant.Angle,
     uvlock: bool,
@@ -282,16 +283,11 @@ pub fn bakeElement(
             for (0..@backingInt(y_rotation)) |_| ir.rotateY();
 
             if (uvlock) {
-                // ir.uv = .{
-                //     .{ .x = @max(ir.xy[0].x, ir.xy[1].x), .y = @max(ir.xy[0].y, ir.xy[1].y) },
-                //     .{ .x = @min(ir.xy[0].x, ir.xy[1].x), .y = @min(ir.xy[0].y, ir.xy[1].y) },
-                // };
                 if (ir.flip_winding) ir.flip_uv_winding = true;
                 ir.uv = .{
                     .{ .x = ir.xy[0].x, .y = ir.xy[0].y },
                     .{ .x = ir.xy[1].x, .y = ir.xy[1].y },
                 };
-                // ir.texture_rotation = .@"90";
             }
 
             baked_faces.appendAssumeCapacity(ir.bake());
@@ -342,7 +338,7 @@ fn rotationAxis(axis: Direction) za.Vec3 {
     // zig fmt: on
 }
 
-fn rotationAngle(angle: ResolvedBlockModel.Element.Rotation.Angle) f32 {
+fn rotationAngle(angle: ResolvedModel.Element.Rotation.Angle) f32 {
     return switch (angle) {
         .@"-45" => -45,
         .@"-22.5" => -22.5,
@@ -360,5 +356,5 @@ const Vector2xy = @import("main").Vector2xy;
 const Vector3 = @import("main").Vector3;
 
 const Renderer = @import("../Renderer.zig");
-const ResolvedBlockModel = @import("ResolvedBlockModel.zig");
+const ResolvedModel = @import("ResolvedModel.zig");
 const StateToModelMap = @import("StateToModelMap.zig");

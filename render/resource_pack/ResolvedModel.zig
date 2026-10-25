@@ -1,5 +1,12 @@
-elements: []Element,
+//! ModelTemplate, but we walked the parent chain and resolved
+//! all texture references, ambient occlusion, and elements
+geometry: Geometry,
 ambientocclusion: bool,
+
+pub const Geometry = union(enum) {
+    elements: []Element,
+    generated_item: [5]?TextureHandle,
+};
 
 pub const Element = struct {
     from: Vector3(f32),
@@ -26,8 +33,8 @@ pub const Element = struct {
         rotation: TextureRotation,
         cull: ?bool,
 
-        pub const CullFace = BlockModelTemplate.Element.Face.CullFace;
-        pub const TextureRotation = BlockModelTemplate.Element.Face.TextureRotation;
+        pub const CullFace = ModelTemplate.Element.Face.CullFace;
+        pub const TextureRotation = ModelTemplate.Element.Face.TextureRotation;
     };
 
     pub const Rotation = struct {
@@ -36,15 +43,13 @@ pub const Element = struct {
         angle: Angle,
         rescale: bool,
 
-        pub const Axis = BlockModelTemplate.Element.Rotation.Axis;
-        pub const Angle = BlockModelTemplate.Element.Rotation.Angle;
+        pub const Axis = ModelTemplate.Element.Rotation.Axis;
+        pub const Angle = ModelTemplate.Element.Rotation.Angle;
     };
 };
 
-/// BlockModelTemplate, but we walked the parent chain and resolved
-/// all texture references, ambient occlusion, and elements
 const Vector2xy = @import("main").Vector2xy;
 const Vector3 = @import("main").Vector3;
 
-const BlockModelTemplate = @import("BlockModelTemplate.zig");
+const ModelTemplate = @import("ModelTemplate.zig");
 const TextureHandle = @import("../Renderer.zig").TextureHandle;
