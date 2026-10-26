@@ -7,6 +7,7 @@ pub fn init(
     resource_pack_dir: std.Io.Dir,
 ) !struct {
     std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
+    std.AutoHashMapUnmanaged(u16, BakedModel),
     std.array_hash_map.String(zigimg.Image),
 } {
     const state_to_model_maps = try parseJsonInDir(
@@ -28,7 +29,8 @@ pub fn init(
     );
     const resolved_models = try resolveModels(arena, model_templates, textures);
     return .{
-        try createLookupTable(gpa, textures, resolved_models, state_to_model_maps),
+        try createBlockStateToModelTable(gpa, textures, resolved_models, state_to_model_maps),
+        try createItemStackToModelTable(gpa, textures, resolved_models),
         textures,
     };
 }
@@ -243,13 +245,14 @@ pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction)
 }
 
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
-pub fn createLookupTable(
+pub fn createBlockStateToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(zigimg.Image),
-    resolved_block_models: std.StringHashMapUnmanaged(ResolvedModel),
+    resolved_models: std.StringHashMapUnmanaged(ResolvedModel),
     state_to_model_maps: std.StringHashMapUnmanaged(StateToModelMap),
 ) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
     var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
+    defer std.log.scoped(.resource_pack).info("lookup table contains {} models", .{lookup_table.size});
     @setEvalBranchQuota(1000000);
     var total: usize = 0;
     inline for (std.enums.values(Block)) |block| {
@@ -273,9 +276,9 @@ pub fn createLookupTable(
 
             const model_name = try gpa.print("block/{s}", .{model_variant.model});
             defer gpa.free(model_name);
-            const resolved_block_model = resolved_block_models.get(model_name) orelse return error.ModelNotFound;
+            const resolved_model = resolved_models.get(model_name) orelse return error.ModelNotFound;
 
-            const baked_model: BakedModel = try .bake(gpa, textures, resolved_block_model, model_variant.x, model_variant.y, model_variant.uvlock);
+            const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
 
             try lookup_table.put(gpa, @unionInit(Block.VirtualState, @tagName(block), properties), baked_model);
 
@@ -507,6 +510,7 @@ pub const BakedModel = @import("BakedModel.zig");
 pub const ModelTemplate = @import("ModelTemplate.zig");
 pub const ResolvedModel = @import("ResolvedModel.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
+const createItemStackToModelTable = @import("item.zig").createItemStackToModelTable;
 
 const Block = main.Block;
 const Direction = main.Direction;

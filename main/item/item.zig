@@ -404,6 +404,36 @@ pub const Item = enum(u16) {
         else
             null;
     }
+
+    pub const FishType = enum(u2) {
+        cod,
+        salmon,
+        clownfish,
+        pufferfish,
+    };
+
+    pub const CookedFishType = enum(u1) {
+        cod,
+        salmon,
+    };
+
+    pub const SkullType = enum(u3) {
+        skeleton,
+        wither,
+        zombie,
+        player,
+        creeper,
+    };
+
+    pub const CoalType = enum(u1) {
+        coal,
+        charcoal,
+    };
+
+    pub const GoldenAppleType = enum(u1) {
+        golden_apple,
+        enchanted_golden_apple,
+    };
 };
 
 const main = @import("main");

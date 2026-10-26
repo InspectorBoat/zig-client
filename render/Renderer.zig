@@ -55,12 +55,13 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
     var arena: std.heap.ArenaAllocator = .init(allocator);
     defer arena.deinit();
-    const blockstate_to_model_lookup_table, const named_block_textures = try resource_pack.init(
+    const blockstate_to_model_lookup_table, const item_to_model_lookup_table, const named_block_textures = try resource_pack.init(
         io,
         allocator,
         arena.allocator(),
         try .openDirAbsolute(io, "/home/inspectorboat/src/zig-client/vanilla-pack", .{}),
     );
+    _ = item_to_model_lookup_table;
     const texture = try initTexture(allocator, named_block_textures);
 
     std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
