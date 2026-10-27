@@ -307,11 +307,10 @@ const std = @import("std");
 const glfw = @import("mach-glfw");
 const main = @import("main");
 const render = @import("render");
-const resource_pack = render.resource_pack;
+const za = @import("zalgebra");
 
-const Vector3 = main.Vector3;
 const Menu = main.Menu;
 const Vector2xy = main.Vector2xy;
 const World = main.World;
 const Renderer = render.Renderer;
-const za = @import("zalgebra");
+const resource_pack = render.resource_pack;

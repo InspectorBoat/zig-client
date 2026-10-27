@@ -1,20 +1,8 @@
-fn toIndexWithMetadata(item: Item, metadata: anytype) u16 {
-    return (@backingInt(item) << 4) | switch (@typeInfo(@TypeOf(metadata))) {
-        .int, .comptime_int => metadata,
-        .@"enum" => @backingInt(metadata),
-        .bool => @intFromBool(metadata),
-        else => unreachable,
-    };
-}
-
-fn toIndex(item: Item) u16 {
-    return @backingInt(item) << 4;
-}
-
+/// Create a lookup table mapping from Item.Stack -> BakedModel
 pub fn createItemStackToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(zigimg.Image),
-    resolved_models: std.StringArrayHashMapUnmanaged(ResolvedModel),
+    resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
 ) !std.AutoHashMapUnmanaged(u16, BakedModel) {
     var lookup_table: std.AutoHashMapUnmanaged(u16, BakedModel) = .empty;
 
@@ -25,8 +13,20 @@ pub fn createItemStackToModelTable(
         const identifier = try gpa.print("item/{s}", .{entry.value_ptr.*});
         defer gpa.free(identifier);
         const resolved_model = resolved_models.get(identifier) orelse {
-            std.log.scoped(.resource_pack).err("missing model {s}", .{identifier});
+            std.log.scoped(.resource_pack).err("{s}:{} uses missing model {s}", .{
+                @tagName(@as(Item, @fromBackingInt(entry.key_ptr.* >> 4))),
+                entry.key_ptr.* & 0xf,
+                identifier,
+            });
             return error.MissingModel;
+        } catch |e| {
+            std.log.scoped(.resource_pack).err("{s}:{} uses broken model {s} ({})", .{
+                @tagName(@as(Item, @fromBackingInt(entry.key_ptr.* >> 4))),
+                entry.key_ptr.* & 0xf,
+                identifier,
+                e,
+            });
+            continue;
         };
         std.log.scoped(.resource_pack).debug("baking model {s}", .{identifier});
         try lookup_table.put(gpa, stack, try .bake(gpa, textures, resolved_model, .@"0", .@"0", false));
@@ -548,13 +548,27 @@ pub fn createItemStackToIdentifierTable(gpa: std.mem.Allocator) !std.AutoHashMap
     // TODO: potion, spawn egg, banner, enchanted book, filled map
 }
 
+fn toIndexWithMetadata(item: Item, metadata: anytype) u16 {
+    return (@backingInt(item) << 4) | switch (@typeInfo(@TypeOf(metadata))) {
+        .int, .comptime_int => metadata,
+        .@"enum" => @backingInt(metadata),
+        .bool => @intFromBool(metadata),
+        else => unreachable,
+    };
+}
+
+fn toIndex(item: Item) u16 {
+    return @backingInt(item) << 4;
+}
+
 const std = @import("std");
 
 const main = @import("main");
+const render = @import("render");
 const zigimg = @import("zigimg");
-
-const BakedModel = @import("BakedModel.zig");
-const ResolvedModel = @import("ResolvedModel.zig");
 
 const Block = main.Block;
 const Item = main.Item;
+const BakedModel = render.resource_pack.BakedModel;
+const ModelError = render.resource_pack.ModelError;
+const ResolvedModel = render.resource_pack.ResolvedModel;

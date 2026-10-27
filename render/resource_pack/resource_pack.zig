@@ -11,16 +11,20 @@ pub fn init(
 } {
     const state_to_model_maps = try parseJsonInDir(
         StateToModelMap,
+        StateError,
         io,
         arena,
         try resource_pack_dir.openDir(io, "assets/minecraft/blockstates", .{ .iterate = true }),
     );
-    const model_templates = try parseJsonInDir(
+    var model_templates = try parseJsonInDir(
         ModelTemplate,
+        TemplateError,
         io,
         arena,
         try resource_pack_dir.openDir(io, "assets/minecraft/models", .{ .iterate = true }),
     );
+    try validateTemplates(gpa, &model_templates);
+
     const textures = try loadImagesInDir(
         io,
         arena,
@@ -34,12 +38,11 @@ pub fn init(
     };
 }
 
-/// Parses all files in a directory from JSON into T
+/// Recursively parses all files in a directory from JSON into T
 /// Takes ownership of dir
-/// Recursively checks all files
-pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.StringArrayHashMapUnmanaged(T) {
+pub fn parseJsonInDir(T: type, E: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.array_hash_map.String(E!T) {
     defer dir.close(io);
-    var states: std.StringArrayHashMapUnmanaged(T) = .empty;
+    var states: std.array_hash_map.String(E!T) = .empty;
 
     var iter = try dir.walk(arena);
     while (try iter.next(io)) |entry| {
@@ -53,37 +56,180 @@ pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io
 
         var reader: std.json.Reader = .init(arena, &file_reader.interface);
         defer reader.deinit();
-        const parsed_model = try std.json.parseFromTokenSourceLeaky(T, arena, &reader, .{ .ignore_unknown_fields = true });
+        const parsed_model = std.json.parseFromTokenSourceLeaky(T, arena, &reader, .{ .ignore_unknown_fields = true }) catch |e| switch (e) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => error.SyntaxError,
+        };
 
         try states.put(arena, try arena.dupe(u8, entry.path[0 .. entry.path.len - ".json".len]), parsed_model);
     }
     return states;
 }
 
+pub const StateError = error{SyntaxError};
+
+pub const TemplateError = error{
+    Malformed,
+    Orphaned,
+    Cycle,
+    SyntaxError,
+
+    MalformedAncestor,
+    OrphanedAncestor,
+    CyclicAncestor,
+    SyntaxErrorAncestor,
+};
+
+/// Detects:
+/// - Templates that are part of, or feed into cycles
+/// - Orphaned (and transitively orphaned) templates
+///     - An orphaned template is a template with a missing parent
+/// - Malformed (and transitively malformed) templates
+///     - A template is malformed if it has both a parent and elements,
+///     - or has neither a parent nor elements
+pub fn validateTemplates(
+    gpa: std.mem.Allocator,
+    templates: *std.array_hash_map.String(TemplateError!ModelTemplate),
+) !void {
+    const Node = enum(u8) {
+        unvisited,
+        current_path,
+
+        ok,
+
+        malformed,
+        syntax_error,
+        orphaned,
+        cycle,
+    };
+    const nodes: []Node = try gpa.alloc(Node, templates.count());
+    defer gpa.free(nodes);
+    @memset(nodes, .unvisited);
+
+    var stack: std.ArrayList(usize) = .empty;
+    defer stack.deinit(gpa);
+
+    for (0..templates.count()) |i| {
+        stack.items.len = 0;
+
+        var index: usize = i;
+
+        if (nodes[index] != .unvisited) continue;
+
+        const path_result: Node, const maybe_error_index: ?usize = while (true) switch (nodes[index]) {
+            // This is the only branch where we find a new cycle
+            .current_path => {
+                std.log.scoped(.resource_pack).err("Found cyclic model dependency!", .{});
+                // Print all the elements of the cycle
+
+                const cycle_start = std.mem.findScalar(usize, stack.items, index).?;
+
+                for (stack.items[cycle_start..]) |walked_index| {
+                    std.log.scoped(.resource_pack).err("{s} depends on {s}", .{
+                        templates.keys()[walked_index],
+                        (templates.values()[walked_index] catch unreachable).parent.?,
+                    });
+                }
+
+                break .{ .cycle, cycle_start };
+            },
+            .cycle => break .{ .cycle, null },
+            .malformed => break .{ .malformed, null },
+            .orphaned => break .{ .orphaned, null },
+            .syntax_error => break .{ .syntax_error, null },
+            .ok => break .{ .ok, null },
+            .unvisited => {
+                try stack.append(gpa, index);
+                nodes[index] = .current_path;
+
+                if (templates.values()[index]) |*template| {
+                    const name = templates.keys()[index];
+                    if (template.elements == null and template.parent == null) {
+                        std.log.scoped(.resource_pack).err("{s} has no parent or elements", .{name});
+                        templates.values()[index] = error.Malformed;
+                    } else if (template.elements != null and template.parent != null) {
+                        std.log.scoped(.resource_pack).err("{s} declares both parent and elements", .{name});
+                        break .{ .malformed, stack.items.len - 1 };
+                    } else if (template.elements) |elements| {
+                        for (elements, 0..) |element, j| {
+                            inline for (std.enums.values(Direction)) |dir| {
+                                if (@field(element.faces, @tagName(dir)) != null) break;
+                            } else std.log.scoped(.resource_pack).warn("element {} of {s} has no faces", .{ j, name });
+                        }
+                    }
+
+                    if (template.parent) |parent| {
+                        if (std.mem.eql(u8, "builtin/generated", parent) or
+                            std.mem.eql(u8, "builtin/entity", parent) or
+                            std.mem.eql(u8, "builtin/compass", parent) or
+                            std.mem.eql(u8, "builtin/clock", parent))
+                            break .{ .ok, null };
+
+                        index = templates.getIndex(parent) orelse break .{ .orphaned, stack.items.len - 1 };
+                    } else break .{ .ok, null };
+                } else |e| switch (e) {
+                    error.SyntaxError => break .{ .syntax_error, stack.items.len - 1 },
+                    else => unreachable,
+                }
+            },
+        };
+
+        for (stack.items) |walked_index| nodes[walked_index] = path_result;
+        switch (path_result) {
+            .cycle, .malformed, .orphaned, .syntax_error => |e| {
+                for (stack.items[0 .. maybe_error_index orelse stack.items.len]) |walked_index| {
+                    templates.values()[walked_index] = switch (e) {
+                        .cycle => error.CyclicAncestor,
+                        .malformed => error.MalformedAncestor,
+                        .orphaned => error.OrphanedAncestor,
+                        .syntax_error => error.SyntaxErrorAncestor,
+                        else => unreachable,
+                    };
+                }
+                if (maybe_error_index) |error_index| for (stack.items[error_index..]) |walked_index| {
+                    templates.values()[walked_index] = switch (e) {
+                        .cycle => error.Cycle,
+                        .malformed => error.Malformed,
+                        .orphaned => error.Orphaned,
+                        .syntax_error => error.SyntaxError,
+                        else => unreachable,
+                    };
+                };
+            },
+            .ok => {},
+            .unvisited, .current_path => unreachable,
+        }
+    }
+}
+
+pub const ModelError = TemplateError || error{
+    CyclicVariable,
+    FailedUvMapping,
+    MissingTexture,
+    Incomplete,
+};
+
 /// Resolves all block model templates parsed in the previous step.
 pub fn resolveModels(
     arena: std.mem.Allocator,
-    model_templates: std.StringArrayHashMapUnmanaged(ModelTemplate),
+    templates: std.array_hash_map.String(TemplateError!ModelTemplate),
     textures: std.array_hash_map.String(zigimg.Image),
-) !std.StringArrayHashMapUnmanaged(ResolvedModel) {
-    var resolved_models: std.StringArrayHashMapUnmanaged(ResolvedModel) = .empty;
-    for (model_templates.keys(), model_templates.values()) |template_name, template| {
-        const resolved_model = resolveTemplate(arena, template, model_templates, textures) catch |e| switch (e) {
-            // model is a template, not a problem
-            error.MissingTextureVariableReference => {
-                std.log.scoped(.resource_pack).debug("incomplete model {s}", .{template_name});
-                continue;
-            },
-            error.MissingParent, error.NoGeometry, error.CyclicVariable => {
-                std.log.scoped(.resource_pack).err("{} resolving {s}", .{ e, template_name });
-                std.debug.dumpErrorReturnTrace(@errorReturnTrace() orelse continue);
-                continue;
-            },
-            else => return e,
-        };
-        try resolved_models.put(arena, template_name, resolved_model);
+) !std.array_hash_map.String(ModelError!ResolvedModel) {
+    var models: std.array_hash_map.String(ModelError!ResolvedModel) = .empty;
+
+    for (templates.keys(), templates.values()) |name, template| {
+        if (template) |working_template| {
+            const model = resolveTemplate(arena, working_template, templates, textures) catch |e| switch (e) {
+                error.OutOfMemory => return error.OutOfMemory,
+                error.MissingTextureVariableReference => error.Incomplete,
+                inline else => |known_e| known_e,
+            };
+            try models.put(arena, name, model);
+        } else |err| {
+            try models.put(arena, name, err);
+        }
     }
-    return resolved_models;
+    return models;
 }
 
 /// Takes (the name of) a block model template and walks the parent chain,
@@ -91,75 +237,76 @@ pub fn resolveModels(
 pub fn resolveTemplate(
     arena: std.mem.Allocator,
     template: ModelTemplate,
-    templates: std.StringArrayHashMapUnmanaged(ModelTemplate),
+    templates: std.array_hash_map.String(TemplateError!ModelTemplate),
     textures: std.array_hash_map.String(zigimg.Image),
 ) !ResolvedModel {
-    var maybe_ambient_occlusion: ?bool = null;
-    var maybe_geometry: ?union(enum) {
-        elements: []ModelTemplate.Element,
-        generated_item,
-    } = null;
-    var merged_texture_variables: std.StringArrayHashMapUnmanaged([]const u8) = .empty;
+    var merged_template: struct {
+        texture_variables: std.array_hash_map.String([]const u8) = .empty,
+        geometry: ?union(enum) {
+            elements: []ModelTemplate.Element,
+            generated_item,
+        } = null,
+        ambient_occlusion: ?bool = null,
+        display: ModelTemplate.Display = .{},
+    } = .{};
 
     // first: walk the parent chain and merge texture variable maps and elements
     var template_lineage: ModelTemplate = template;
     while (true) {
-        if (template_lineage.textures) |*texture_variables| {
-            var iter = texture_variables.map.iterator();
-            while (iter.next()) |entry| {
-                try merged_texture_variables.put(arena, entry.key_ptr.*, entry.value_ptr.*);
+        if (template_lineage.textures) |texture_variables| {
+            for (texture_variables.map.keys(), texture_variables.map.values()) |key, value| {
+                try merged_template.texture_variables.put(arena, key, value);
             }
         }
 
-        if (maybe_geometry == null and template_lineage.elements != null) maybe_geometry = .{ .elements = template_lineage.elements.? };
-        if (maybe_ambient_occlusion == null) maybe_ambient_occlusion = template_lineage.ambientocclusion;
+        std.debug.assert(merged_template.geometry == null);
+        if (template_lineage.elements) |elements| merged_template.geometry = .{ .elements = elements };
+        if (merged_template.ambient_occlusion == null) merged_template.ambient_occlusion = template_lineage.ambientocclusion;
 
         if (template_lineage.parent) |parent| {
-            template_lineage = templates.get(parent) orelse {
-                if (std.mem.eql(u8, "builtin/generated", parent) or
-                    std.mem.eql(u8, "builtin/entity", parent) or
-                    std.mem.eql(u8, "builtin/compass", parent) or
-                    std.mem.eql(u8, "builtin/clock", parent))
-                {
-                    maybe_geometry = .generated_item;
-                    break;
-                }
-                return error.MissingParent;
-            };
-        } else break;
+            if (std.mem.eql(u8, "builtin/generated", parent) or std.mem.eql(u8, "builtin/entity", parent) or std.mem.eql(u8, "builtin/compass", parent) or std.mem.eql(u8, "builtin/clock", parent)) {
+                std.debug.assert(merged_template.geometry == null);
+                merged_template.geometry = .generated_item;
+                break;
+            }
+            template_lineage = (templates.get(parent).? catch unreachable);
+        } else {
+            std.debug.assert(merged_template.geometry != null);
+            break;
+        }
     }
 
-    switch (maybe_geometry orelse return error.NoGeometry) {
-        .elements => |elements| {
-            const resolved_elements = try resolveElements(arena, merged_texture_variables, textures, elements);
-            return .{
-                .ambientocclusion = maybe_ambient_occlusion orelse true,
-                .geometry = .{ .elements = resolved_elements },
-            };
+    return switch (merged_template.geometry.?) {
+        .elements => |elements| .{
+            .ambientocclusion = merged_template.ambient_occlusion orelse true,
+            .geometry = .{ .elements = try resolveElements(arena, merged_template.texture_variables, textures, elements) },
         },
-        .generated_item => return .{
-            .ambientocclusion = maybe_ambient_occlusion orelse true,
-            .geometry = .{ .generated_item = try resolveGeneratedItem(merged_texture_variables, textures) },
+        .generated_item => .{
+            .ambientocclusion = merged_template.ambient_occlusion orelse false,
+            .geometry = .{ .generated_item = try resolveGeneratedItem(merged_template.texture_variables, textures) },
         },
-    }
+    };
 }
 
 pub fn resolveGeneratedItem(
-    texture_variables: std.StringArrayHashMapUnmanaged([]const u8),
+    texture_variables: std.array_hash_map.String([]const u8),
     textures: std.array_hash_map.String(zigimg.Image),
 ) ![5]?Renderer.TextureHandle {
     var resolved_textures: [5]?Renderer.TextureHandle = @splat(null);
 
     inline for (.{ "#layer0", "#layer1", "#layer2", "#layer3", "#layer4" }, &resolved_textures) |layer, *resolved_texture| {
-        const texture_name = resolveTextureVariable(texture_variables, layer) catch break;
-        resolved_texture.* = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse break));
+        const texture_name = resolveTextureVariable(texture_variables, layer) catch |e| switch (e) {
+            error.CyclicVariable => return error.CyclicVariable,
+            error.MissingTextureVariableReference => break,
+        };
+        resolved_texture.* = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse return error.MissingTexture));
     }
     return resolved_textures;
 }
 
 pub fn resolveElements(
     arena: std.mem.Allocator,
-    texture_variables: std.StringArrayHashMapUnmanaged([]const u8),
+    texture_variables: std.array_hash_map.String([]const u8),
     textures: std.array_hash_map.String(zigimg.Image),
     elements: []const ModelTemplate.Element,
 ) ![]ResolvedModel.Element {
@@ -198,7 +345,7 @@ pub fn resolveElements(
 }
 
 /// Recursively resolves a texture variable
-pub fn resolveTextureVariable(texture_variables: std.StringArrayHashMapUnmanaged([]const u8), variable: []const u8) ![]const u8 {
+pub fn resolveTextureVariable(texture_variables: std.array_hash_map.String([]const u8), variable: []const u8) ![]const u8 {
     if (!std.mem.startsWith(u8, variable, "#")) {
         std.log.scoped(.resource_pack_model).warn("variable {s} does not start with #", .{variable});
     }
@@ -240,237 +387,6 @@ pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction)
     // zig fmt: on
 }
 
-/// Create a lookup table mapping from Block.VirtualState -> BakedModel
-pub fn createBlockStateToModelTable(
-    gpa: std.mem.Allocator,
-    textures: std.array_hash_map.String(zigimg.Image),
-    resolved_models: std.StringArrayHashMapUnmanaged(ResolvedModel),
-    state_to_model_maps: std.StringArrayHashMapUnmanaged(StateToModelMap),
-) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
-    var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
-    defer std.log.scoped(.resource_pack).info("lookup table contains {} models", .{lookup_table.size});
-    @setEvalBranchQuota(1000000);
-    var total: usize = 0;
-    inline for (std.enums.values(Block)) |block| {
-        const all_states = allValues(@FieldType(Block.VirtualState, @tagName(block)));
-        for (all_states) |properties| {
-            const block_name_key = getNameString(block, gpa, properties) catch |e| switch (e) {
-                error.NoModel => continue,
-                else => return e,
-            };
-            defer gpa.free(block_name_key);
-            const properties_key = try getPropertiesString(block, gpa, properties);
-            defer gpa.free(properties_key);
-
-            const state_to_model_map = state_to_model_maps.get(block_name_key) orelse return error.MapNotFound;
-            const model_variants = state_to_model_map.variants.map.get(properties_key) orelse return error.VariantNotFound;
-            const model_variant = switch (model_variants) {
-                .single => |single| single,
-                // TODO: support this
-                .multi => |multi| multi[0],
-            };
-
-            const model_name = try gpa.print("block/{s}", .{model_variant.model});
-            defer gpa.free(model_name);
-            const resolved_model = resolved_models.get(model_name) orelse return error.ModelNotFound;
-
-            const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
-
-            try lookup_table.put(gpa, @unionInit(Block.VirtualState, @tagName(block), properties), baked_model);
-
-            total += 1;
-        }
-    }
-    std.log.scoped(.resource_pack_states).debug("{} states with models", .{total});
-    return lookup_table;
-}
-
-pub fn getNameString(
-    comptime block: Block,
-    gpa: std.mem.Allocator,
-    properties: @FieldType(Block.VirtualState, @tagName(block)),
-) (error{NoModel} || std.mem.Allocator.Error)![]const u8 {
-    var string: std.ArrayList(u8) = .empty;
-    errdefer string.deinit(gpa);
-    switch (block) {
-        .air,
-        .flowing_water,
-        .water,
-        .flowing_lava,
-        .lava,
-        .piston_extension,
-        .chest,
-        .trapped_chest,
-        .ender_chest,
-        .standing_sign,
-        .wall_sign,
-        .standing_banner,
-        .wall_banner,
-        .skull,
-        .end_portal,
-        .barrier,
-
-        .flower_pot, // todo
-        .quartz_block, // todo
-        => return error.NoModel,
-
-        .deadbush => try string.appendSlice(gpa, "dead_bush"),
-        .yellow_flower => try string.appendSlice(gpa, "dandelion"),
-        .double_stone_slab2 => try string.appendSlice(gpa, "red_sandstone_double_slab"),
-        .stone_slab2 => try string.appendSlice(gpa, "red_sandstone_slab"),
-
-        .stone,
-        .sand,
-        .prismarine,
-        .stonebrick,
-        .double_plant,
-        .dirt,
-        .red_flower,
-        .red_sandstone,
-        .sandstone,
-        .tallgrass,
-        => try string.appendSlice(gpa, @tagName(properties.variant)),
-
-        .stained_hardened_clay,
-        .stained_glass,
-        .stained_glass_pane,
-        .wool,
-        .carpet,
-        => try string.print(gpa, "{s}_{s}", .{ @tagName(properties.color), @tagName(block) }),
-
-        .planks,
-        .sapling,
-        .monster_egg,
-        => try string.print(gpa, "{s}_{s}", .{ @tagName(properties.variant), @tagName(block) }),
-
-        .log, .log2 => try string.print(gpa, "{s}_log", .{@tagName(properties.variant)}),
-        .leaves, .leaves2 => try string.print(gpa, "{s}_leaves", .{@tagName(properties.variant)}),
-        .double_wooden_slab, .double_stone_slab => try string.print(gpa, "{s}_double_slab", .{@tagName(properties.variant)}),
-        .wooden_slab, .stone_slab => try string.print(gpa, "{s}_slab", .{@tagName(properties.variant)}),
-        .cobblestone_wall => try string.print(gpa, "{s}_wall", .{@tagName(properties.variant)}),
-
-        else => try string.appendSlice(gpa, @tagName(block)),
-    }
-    return try string.toOwnedSlice(gpa);
-}
-
-pub fn getPropertiesString(
-    comptime block: Block,
-    gpa: std.mem.Allocator,
-    properties: @FieldType(Block.VirtualState, @tagName(block)),
-) ![]const u8 {
-    var string: std.ArrayList(u8) = .empty;
-    errdefer string.deinit(gpa);
-
-    const field_names_const = @typeInfo(@FieldType(Block.VirtualState, @tagName(block))).@"struct".field_names;
-    comptime var field_names = field_names_const[0..field_names_const.len].*;
-    comptime std.mem.sort([:0]const u8, &field_names, {}, struct {
-        fn lessThan(_: void, lhs: [:0]const u8, rhs: [:0]const u8) bool {
-            return std.mem.lessThanZ(u8, lhs, rhs);
-        }
-    }.lessThan);
-    // TODO: seamless slabs
-    inline for (field_names) |field_name| {
-        if (!skipField(block, field_name, properties)) {
-            if (string.items.len > 0) try string.append(gpa, ',');
-            try string.appendSlice(gpa, field_name);
-            try string.append(gpa, '=');
-            const property = @field(properties, field_name);
-
-            switch (@typeInfo(@TypeOf(property))) {
-                .@"enum" => try string.appendSlice(gpa, @tagName(property)),
-                .int => try string.print(gpa, "{}", .{property}),
-                .bool => try string.appendSlice(gpa, if (property) "true" else "false"),
-                else => unreachable,
-            }
-        }
-    }
-    if (string.items.len == 0) try string.appendSlice(gpa, "normal");
-    return string.toOwnedSlice(gpa);
-}
-
-pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState, @tagName(block))) bool {
-    if (block == .dirt and properties.variant != .podzol and std.mem.eql(u8, field_name, "snowy")) return true;
-    if ((block == .leaves or block == .leaves2) and (std.mem.eql(u8, field_name, "not_decayable") or std.mem.eql(u8, field_name, "check_decay"))) return true;
-    if ((block == .double_stone_slab or block == .double_stone_slab2) and std.mem.eql(u8, field_name, "seamless")) return true;
-    switch (block) {
-        .bed => if (std.mem.eql(u8, field_name, "occupied")) return true,
-
-        .tnt => if (std.mem.eql(u8, field_name, "explode")) return true,
-
-        .fire => if (std.mem.eql(u8, field_name, "age")) return true,
-
-        .redstone_wire => if (std.mem.eql(u8, field_name, "power")) return true,
-
-        .flower_pot => if (std.mem.eql(u8, field_name, "legacy_data")) return true,
-
-        .jukebox => if (std.mem.eql(u8, field_name, "has_record")) return true,
-
-        .cactus, .reeds => if (std.mem.eql(u8, field_name, "age")) return true,
-
-        .pumpkin_stem, .melon_stem => if (properties.facing != .up and std.mem.eql(u8, field_name, "age")) return true,
-
-        .tripwire => if (std.mem.eql(u8, field_name, "powered") or std.mem.eql(u8, field_name, "disarmed")) return true,
-
-        .hopper => if (std.mem.eql(u8, field_name, "enabled")) return true,
-
-        .wooden_door,
-        .spruce_door,
-        .birch_door,
-        .jungle_door,
-        .acacia_door,
-        .dark_oak_door,
-        .iron_door,
-        .fence_gate,
-        .spruce_fence_gate,
-        .birch_fence_gate,
-        .jungle_fence_gate,
-        .dark_oak_fence_gate,
-        .acacia_fence_gate,
-        => if (std.mem.eql(u8, field_name, "powered")) return true,
-
-        .dispenser,
-        .dropper,
-        .command_block,
-        => if (std.mem.eql(u8, field_name, "triggered")) return true,
-
-        .stained_hardened_clay,
-        .stained_glass,
-        .stained_glass_pane,
-        .wool,
-        .carpet,
-        => if (std.mem.eql(u8, field_name, "color")) return true,
-
-        .stone,
-        .sand,
-        .prismarine,
-        .stonebrick,
-        .double_plant,
-        .dirt,
-        .red_flower,
-        .red_sandstone,
-        .sandstone,
-        .tallgrass,
-        .planks,
-        .sapling,
-        .monster_egg,
-        .log,
-        .log2,
-        .leaves,
-        .leaves2,
-        .double_wooden_slab,
-        .double_stone_slab,
-        .wooden_slab,
-        .stone_slab,
-        .cobblestone_wall,
-        => if (std.mem.eql(u8, field_name, "variant")) return true,
-
-        else => {},
-    }
-
-    return false;
-}
-
 /// Decodes every image in a directory
 /// Takes ownership of dir
 pub fn loadImagesInDir(io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.array_hash_map.String(zigimg.Image) {
@@ -506,6 +422,7 @@ pub const BakedModel = @import("BakedModel.zig");
 pub const ModelTemplate = @import("ModelTemplate.zig");
 pub const ResolvedModel = @import("ResolvedModel.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
+const createBlockStateToModelTable = @import("block.zig").createBlockStateToModelTable;
 const createItemStackToModelTable = @import("item.zig").createItemStackToModelTable;
 
 const Block = main.Block;
