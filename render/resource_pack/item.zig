@@ -14,7 +14,7 @@ fn toIndex(item: Item) u16 {
 pub fn createItemStackToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(zigimg.Image),
-    resolved_models: std.StringHashMapUnmanaged(ResolvedModel),
+    resolved_models: std.StringArrayHashMapUnmanaged(ResolvedModel),
 ) !std.AutoHashMapUnmanaged(u16, BakedModel) {
     var lookup_table: std.AutoHashMapUnmanaged(u16, BakedModel) = .empty;
 

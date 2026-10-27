@@ -1,9 +1,9 @@
 pub fn JsonMap(Element: type) type {
     return struct {
-        map: std.StringHashMapUnmanaged(Element),
+        map: std.StringArrayHashMapUnmanaged(Element),
 
         pub fn jsonParse(arena: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
-            var map: std.StringHashMapUnmanaged(Element) = .empty;
+            var map: std.StringArrayHashMapUnmanaged(Element) = .empty;
 
             if (.object_begin != try source.next()) return error.UnexpectedToken;
 

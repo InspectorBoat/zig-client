@@ -37,9 +37,9 @@ pub fn init(
 /// Parses all files in a directory from JSON into T
 /// Takes ownership of dir
 /// Recursively checks all files
-pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.StringHashMapUnmanaged(T) {
+pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.StringArrayHashMapUnmanaged(T) {
     defer dir.close(io);
-    var states: std.StringHashMapUnmanaged(T) = .empty;
+    var states: std.StringArrayHashMapUnmanaged(T) = .empty;
 
     var iter = try dir.walk(arena);
     while (try iter.next(io)) |entry| {
@@ -63,38 +63,35 @@ pub fn parseJsonInDir(T: type, io: std.Io, arena: std.mem.Allocator, dir: std.Io
 /// Resolves all block model templates parsed in the previous step.
 pub fn resolveModels(
     arena: std.mem.Allocator,
-    model_templates: std.StringHashMapUnmanaged(ModelTemplate),
+    model_templates: std.StringArrayHashMapUnmanaged(ModelTemplate),
     textures: std.array_hash_map.String(zigimg.Image),
-) !std.StringHashMapUnmanaged(ResolvedModel) {
-    var resolved_models: std.StringHashMapUnmanaged(ResolvedModel) = .empty;
-    var iter = model_templates.keyIterator();
-    while (iter.next()) |model_name| {
-        const resolved_model = resolveModel(arena, model_name.*, model_templates, textures) catch |e| switch (e) {
-            // we are iterating the hashmap keys, so this is impossible
-            error.MissingModel => unreachable,
+) !std.StringArrayHashMapUnmanaged(ResolvedModel) {
+    var resolved_models: std.StringArrayHashMapUnmanaged(ResolvedModel) = .empty;
+    for (model_templates.keys(), model_templates.values()) |template_name, template| {
+        const resolved_model = resolveTemplate(arena, template, model_templates, textures) catch |e| switch (e) {
             // model is a template, not a problem
             error.MissingTextureVariableReference => {
-                std.log.scoped(.resource_pack).debug("incomplete model {s}", .{model_name.*});
+                std.log.scoped(.resource_pack).debug("incomplete model {s}", .{template_name});
                 continue;
             },
-            error.MissingParent, error.NoElements, error.CyclicVariable => {
-                std.log.scoped(.resource_pack).err("{} resolving {s}", .{ e, model_name.* });
+            error.MissingParent, error.NoGeometry, error.CyclicVariable => {
+                std.log.scoped(.resource_pack).err("{} resolving {s}", .{ e, template_name });
                 std.debug.dumpErrorReturnTrace(@errorReturnTrace() orelse continue);
                 continue;
             },
             else => return e,
         };
-        try resolved_models.put(arena, model_name.*, resolved_model);
+        try resolved_models.put(arena, template_name, resolved_model);
     }
     return resolved_models;
 }
 
 /// Takes (the name of) a block model template and walks the parent chain,
 /// resolving all texture references, ambient occlusion, and elements
-pub fn resolveModel(
+pub fn resolveTemplate(
     arena: std.mem.Allocator,
-    model_name_to_resolve: []const u8,
-    models: std.StringHashMapUnmanaged(ModelTemplate),
+    template: ModelTemplate,
+    templates: std.StringArrayHashMapUnmanaged(ModelTemplate),
     textures: std.array_hash_map.String(zigimg.Image),
 ) !ResolvedModel {
     var maybe_ambient_occlusion: ?bool = null;
@@ -102,39 +99,39 @@ pub fn resolveModel(
         elements: []ModelTemplate.Element,
         generated_item,
     } = null;
-    var texture_variables: std.StringHashMapUnmanaged([]const u8) = .empty;
-
-    if (!models.contains(model_name_to_resolve)) return error.MissingModel;
+    var merged_texture_variables: std.StringArrayHashMapUnmanaged([]const u8) = .empty;
 
     // first: walk the parent chain and merge texture variable maps and elements
-    var maybe_model_name: ?[]const u8 = model_name_to_resolve;
-    while (maybe_model_name) |model_name| {
-        const model = models.get(model_name) orelse {
-            if (std.mem.eql(u8, "builtin/generated", model_name) or std.mem.eql(u8, "builtin/entity", model_name) or std.mem.eql(u8, "builtin/compass", model_name) or std.mem.eql(u8, "builtin/clock", model_name)) {
-                maybe_geometry = .generated_item;
-                break;
-            }
-            return error.MissingParent;
-        };
-
-        defer maybe_model_name = if (model.parent) |parent| parent else null;
-
-        // merge texture variables
-        if (model.textures) |*model_texture_variables| {
-            var iter = model_texture_variables.map.iterator();
+    var template_lineage: ModelTemplate = template;
+    while (true) {
+        if (template_lineage.textures) |*texture_variables| {
+            var iter = texture_variables.map.iterator();
             while (iter.next()) |entry| {
-                try texture_variables.put(arena, entry.key_ptr.*, entry.value_ptr.*);
+                try merged_texture_variables.put(arena, entry.key_ptr.*, entry.value_ptr.*);
             }
         }
 
-        // take elements & ambient occlusion, parent cannot override child
-        if (maybe_geometry == null and model.elements != null) maybe_geometry = .{ .elements = model.elements.? };
-        if (maybe_ambient_occlusion == null) maybe_ambient_occlusion = model.ambientocclusion;
+        if (maybe_geometry == null and template_lineage.elements != null) maybe_geometry = .{ .elements = template_lineage.elements.? };
+        if (maybe_ambient_occlusion == null) maybe_ambient_occlusion = template_lineage.ambientocclusion;
+
+        if (template_lineage.parent) |parent| {
+            template_lineage = templates.get(parent) orelse {
+                if (std.mem.eql(u8, "builtin/generated", parent) or
+                    std.mem.eql(u8, "builtin/entity", parent) or
+                    std.mem.eql(u8, "builtin/compass", parent) or
+                    std.mem.eql(u8, "builtin/clock", parent))
+                {
+                    maybe_geometry = .generated_item;
+                    break;
+                }
+                return error.MissingParent;
+            };
+        } else break;
     }
 
-    switch (maybe_geometry orelse return error.NoElements) {
+    switch (maybe_geometry orelse return error.NoGeometry) {
         .elements => |elements| {
-            const resolved_elements = try resolveElements(arena, texture_variables, textures, elements);
+            const resolved_elements = try resolveElements(arena, merged_texture_variables, textures, elements);
             return .{
                 .ambientocclusion = maybe_ambient_occlusion orelse true,
                 .geometry = .{ .elements = resolved_elements },
@@ -142,13 +139,13 @@ pub fn resolveModel(
         },
         .generated_item => return .{
             .ambientocclusion = maybe_ambient_occlusion orelse true,
-            .geometry = .{ .generated_item = try resolveGeneratedItem(texture_variables, textures) },
+            .geometry = .{ .generated_item = try resolveGeneratedItem(merged_texture_variables, textures) },
         },
     }
 }
 
 pub fn resolveGeneratedItem(
-    texture_variables: std.StringHashMapUnmanaged([]const u8),
+    texture_variables: std.StringArrayHashMapUnmanaged([]const u8),
     textures: std.array_hash_map.String(zigimg.Image),
 ) ![5]?Renderer.TextureHandle {
     var resolved_textures: [5]?Renderer.TextureHandle = @splat(null);
@@ -162,7 +159,7 @@ pub fn resolveGeneratedItem(
 
 pub fn resolveElements(
     arena: std.mem.Allocator,
-    texture_variables: std.StringHashMapUnmanaged([]const u8),
+    texture_variables: std.StringArrayHashMapUnmanaged([]const u8),
     textures: std.array_hash_map.String(zigimg.Image),
     elements: []const ModelTemplate.Element,
 ) ![]ResolvedModel.Element {
@@ -201,7 +198,7 @@ pub fn resolveElements(
 }
 
 /// Recursively resolves a texture variable
-pub fn resolveTextureVariable(texture_variables: std.StringHashMapUnmanaged([]const u8), variable: []const u8) ![]const u8 {
+pub fn resolveTextureVariable(texture_variables: std.StringArrayHashMapUnmanaged([]const u8), variable: []const u8) ![]const u8 {
     if (!std.mem.startsWith(u8, variable, "#")) {
         std.log.scoped(.resource_pack_model).warn("variable {s} does not start with #", .{variable});
     }
@@ -247,8 +244,8 @@ pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction)
 pub fn createBlockStateToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(zigimg.Image),
-    resolved_models: std.StringHashMapUnmanaged(ResolvedModel),
-    state_to_model_maps: std.StringHashMapUnmanaged(StateToModelMap),
+    resolved_models: std.StringArrayHashMapUnmanaged(ResolvedModel),
+    state_to_model_maps: std.StringArrayHashMapUnmanaged(StateToModelMap),
 ) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
     var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
     defer std.log.scoped(.resource_pack).info("lookup table contains {} models", .{lookup_table.size});
