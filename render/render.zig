@@ -49,7 +49,7 @@ pub fn onFrame(frame: Events.Frame) !void {
 
     switch (client.*) {
         .game => |*game| {
-            try handleInputIngame(game, frame.input_queue.?);
+            try handleInputIngame(frame.io, game, frame.input_queue.?);
             try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
             try renderer.uploadCompilationResults(frame.io);
             try renderer.renderFrame(game);
@@ -124,7 +124,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
     }
 }
 
-pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQueue) !void {
+pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
     window_input.window.setInputModeCursor(if (game.world.menu_screen_open) .normal else .disabled);
 
     var cursor_delta: Vector2xy(f64) = .origin;
@@ -188,8 +188,8 @@ pub fn handleInputIngame(game: *const Client.Game, input_queue: *Client.InputQue
                         std.log.scoped(.render).info("reloading shaders", .{});
                         renderer.terrain_program.delete();
                         renderer.debug_program.delete();
-                        renderer.terrain_program = try Renderer.initProgram(renderer.allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
-                        renderer.debug_program = try Renderer.initProgram(renderer.allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
+                        renderer.terrain_program = try Renderer.initProgram(io, renderer.allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
+                        renderer.debug_program = try Renderer.initProgram(io, renderer.allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
                     },
 
                     .w => try input_queue.queueOnTick(.{ .movement = .{ .forward = (key.action == .press) } }),

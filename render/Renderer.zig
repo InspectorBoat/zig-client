@@ -32,7 +32,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     gl.enable(.cull_face);
 
-    const terrain_program = try initProgram(allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
+    const terrain_program = try initProgram(io, allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
     const index_buffer = try initIndexBuffer(allocator);
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
@@ -40,7 +40,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const compilation_tracker: CompilationTracker = try .init(allocator, 128);
     const chunk_tracker: ChunkTracker = .init;
 
-    const debug_program = try initProgram(allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
+    const debug_program = try initProgram(io, allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
     const debug_buffer: gl.Buffer = .create();
     debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
     const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
@@ -88,10 +88,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     };
 }
 
-pub fn initProgram(allocator: std.mem.Allocator, vertex_shader_path: []const u8, frag_shader_path: []const u8) !gl.Program {
-    var threaded: std.Io.Threaded = .init_single_threaded;
-    const io = threaded.io();
-
+pub fn initProgram(io: std.Io, allocator: std.mem.Allocator, vertex_shader_path: []const u8, frag_shader_path: []const u8) !gl.Program {
     const vertex_shader_source = try std.Io.Dir.cwd().readFileAlloc(
         io,
         vertex_shader_path,
