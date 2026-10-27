@@ -7,26 +7,37 @@ pub fn debug(world: *const World) void {
     }
 }
 
-pub fn bufferInventory(self: *Renderer, world: *const World, cursor_pos: Vector2xy(f32)) !void {
-    const box_size: f32 = 0.11;
+pub fn bufferInventory(self: *Renderer, world: *const World, item_models_lookup: std.AutoHashMapUnmanaged(u16, resource_pack.BakedModel), cursor_pos: Vector2xy(f32)) !void {
+    const size: f32 = 0.11;
 
     const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
     const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
+
     const aspect_ratio = window_width / window_height;
 
     if (world.maybe_cursor_stack) |cursor_stack| {
-        const size: f32 = @floatCast(@as(f64, cursor_stack.size) / @as(f64, cursor_stack.item.maxStackSize()) * box_size);
+        const model = item_models_lookup.get(@backingInt(cursor_stack.item) << 4).?;
 
-        try self.@"2d_debug_staging_buffer".write2dDebugQuad(
-            .{
-                .x = cursor_pos.x - (size / 2 / if (aspect_ratio > 1) aspect_ratio else 1),
-                .y = cursor_pos.y - (size / 2 * if (aspect_ratio < 1) aspect_ratio else 1),
-            },
-            .{
-                .x = cursor_pos.x + (size / 2 / if (aspect_ratio > 1) aspect_ratio else 1),
-                .y = cursor_pos.y + (size / 2 * if (aspect_ratio < 1) aspect_ratio else 1),
-            },
-        );
+        const translate: za.Mat4 = .fromTranslate(.new(cursor_pos.x, cursor_pos.y, 0));
+
+        const scale: za.Mat4 = .fromScale(.new(
+            size / if (aspect_ratio > 1) aspect_ratio else 1,
+            size * if (aspect_ratio < 1) aspect_ratio else 1,
+            1,
+        ));
+        const center: za.Mat4 = .fromTranslate(.new(-0.5, -0.5, -0.5));
+        const transform: za.Mat4 = .mul(.mul(translate, scale), center);
+        for (model.faces) |face| {
+            var positions = face.pos;
+            for (&positions) |*pos| {
+                const za_pos = transform.mulByVec3(
+                    .new(pos.x, pos.y, pos.z),
+                );
+                pos.* = .{ .x = za_pos.x(), .y = za_pos.y(), .z = za_pos.z() };
+            }
+
+            try self.@"2d_debug_staging_buffer".write3dDebugQuad(positions, face.uv, face.texture);
+        }
     }
 
     const menu = world.getMenu();
@@ -34,22 +45,38 @@ pub fn bufferInventory(self: *Renderer, world: *const World, cursor_pos: Vector2
     for (menu.slots, 0..) |_, i| {
         const slot_stack = menu.getSlot(@fromBackingInt(@intCast(i))) orelse continue;
 
-        const pos = getSlotPosForMenu(menu, @fromBackingInt(@intCast(i)));
+        const model = item_models_lookup.get(@backingInt(slot_stack.item) << 4).?;
 
-        const size: f32 = @floatCast(@as(f64, slot_stack.size) / @as(f64, slot_stack.item.maxStackSize()) * box_size);
+        const slot_pos = getSlotPosForMenu(menu, @fromBackingInt(@intCast(i)));
 
-        try self.@"2d_debug_staging_buffer".write2dDebugQuad(
-            .{
-                .x = (pos.x - size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
-                .y = (pos.y - size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
-            },
-            .{
-                .x = (pos.x + size / 2) / if (aspect_ratio > 1) aspect_ratio else 1,
-                .y = (pos.y + size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
-            },
-        );
+        const translate: za.Mat4 = .fromTranslate(.new(
+            (slot_pos.x) / if (aspect_ratio > 1) aspect_ratio else 1,
+            (slot_pos.y) * if (aspect_ratio < 1) aspect_ratio else 1,
+            0,
+        ));
+        const scale: za.Mat4 = .fromScale(.new(
+            size / if (aspect_ratio > 1) aspect_ratio else 1,
+            size * if (aspect_ratio < 1) aspect_ratio else 1,
+            size,
+        ));
+        const center: za.Mat4 = .fromTranslate(.new(-0.5, -0.5, -0.5));
+        const rotate: za.Mat4 = .fromEulerAngles(.new(0, r, 0));
+
+        const transform: za.Mat4 = .mul(.mul(.mul(translate, scale), rotate), center);
+
+        for (model.faces) |face| {
+            var positions = face.pos;
+            for (&positions) |*pos| {
+                const za_pos = transform.mulByVec3(.new(pos.x, pos.y, pos.z));
+                pos.* = .{ .x = za_pos.x(), .y = za_pos.y(), .z = -za_pos.z() };
+            }
+            try self.@"2d_debug_staging_buffer".write3dDebugQuad(positions, face.uv, face.texture);
+        }
     }
+    r += 0.2;
 }
+
+var r: f32 = 0;
 
 pub fn onClick(world: *const World, cursor_pos: Vector2xy(f32), button: glfw.MouseButton) Menu.Action {
     const box_size: f32 = 0.11;
@@ -163,6 +190,8 @@ pub fn getSlotPosForPlayerMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Ve
     switch (slot.backer.type) {
         .player => {
             const inventory_index = slot.index_into_backer;
+
+            if (inventory_index >= 36) return .{ .x = 100, .y = 100 };
 
             const hotbar = inventory_index < 9;
             const row: f32 = if (hotbar) 0 else @floatFromInt(4 - inventory_index / 9);
@@ -278,8 +307,11 @@ const std = @import("std");
 const glfw = @import("mach-glfw");
 const main = @import("main");
 const render = @import("render");
+const resource_pack = render.resource_pack;
 
+const Vector3 = main.Vector3;
 const Menu = main.Menu;
 const Vector2xy = main.Vector2xy;
 const World = main.World;
 const Renderer = render.Renderer;
+const za = @import("zalgebra");

@@ -47,7 +47,7 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
 
         for (1..17) |y| {
             for (1..17) |z| {
-                const model = render.renderer.lookup_table.get(task.block_states[x][y][z]) orelse continue;
+                const model = render.renderer.blockstate_to_model_lookup.get(task.block_states[x][y][z]) orelse continue;
 
                 for (model.faces) |face| {
                     const pos_vec: Vector3(f32) = .{

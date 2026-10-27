@@ -3,15 +3,15 @@ vao: gl.VertexArray,
 terrain_program: gl.Program,
 index_buffer: gl.Buffer,
 gpu_memory_allocator: GpuMemoryAllocator,
-/// Block textures
-texture: gl.Texture,
+textures: gl.Texture,
 
 /// Collects compiled geometry from in-flight tasks
 compilation_tracker: CompilationTracker,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
 chunk_tracker: ChunkTracker,
 
-lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
+blockstate_to_model_lookup: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
+item_to_model_lookup: std.AutoHashMapUnmanaged(u16, BakedModel),
 
 // Debug
 debug_program: gl.Program,
@@ -55,14 +55,13 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
     var arena: std.heap.ArenaAllocator = .init(allocator);
     defer arena.deinit();
-    const blockstate_to_model_lookup_table, const item_to_model_lookup_table, const named_block_textures = try resource_pack.init(
+    const blockstate_to_model_lookup_table, const item_to_model_lookup_table, const named_textures = try resource_pack.init(
         io,
         allocator,
         arena.allocator(),
         try .openDirAbsolute(io, "/home/inspectorboat/src/zig-client/vanilla-pack", .{}),
     );
-    _ = item_to_model_lookup_table;
-    const texture = try initTexture(allocator, named_block_textures);
+    const texture = try initTexture(allocator, named_textures);
 
     std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
     return .{
@@ -72,12 +71,13 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
         .terrain_program = terrain_program,
         .index_buffer = index_buffer,
         .gpu_memory_allocator = gpu_memory_allocator,
-        .texture = texture,
+        .textures = texture,
 
         .compilation_tracker = compilation_tracker,
         .chunk_tracker = chunk_tracker,
 
-        .lookup_table = blockstate_to_model_lookup_table,
+        .blockstate_to_model_lookup = blockstate_to_model_lookup_table,
+        .item_to_model_lookup = item_to_model_lookup_table,
 
         .debug_buffer = debug_buffer,
         .debug_program = debug_program,
@@ -159,7 +159,7 @@ fn checkProgram(allocator: std.mem.Allocator, program: gl.Program) !void {
 pub fn init3dVao() !gl.VertexArray {
     const vao: gl.VertexArray = .create();
     vao.enableVertexAttribute(0);
-    vao.attribFormat(0, 3, .float, false, 0);
+    vao.attribFormat(0, 3, .float, false, 0 * @sizeOf(f32));
     vao.attribBinding(0, 0);
 
     return vao;
@@ -169,8 +169,16 @@ pub fn init2dVao() !gl.VertexArray {
     const vao: gl.VertexArray = .create();
 
     vao.enableVertexAttribute(0);
-    vao.attribFormat(0, 3, .float, false, 0);
+    vao.attribFormat(0, 3, .float, false, 0 * @sizeOf(f32));
     vao.attribBinding(0, 0);
+
+    vao.enableVertexAttribute(1);
+    vao.attribFormat(1, 2, .float, false, 3 * @sizeOf(f32));
+    vao.attribBinding(1, 0);
+
+    vao.enableVertexAttribute(2);
+    vao.attribIFormat(2, 1, .unsigned_int, 5 * @sizeOf(f32));
+    vao.attribBinding(2, 0);
 
     return vao;
 }
@@ -224,7 +232,7 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     var converted: usize = 0;
     var failed: usize = 0;
 
-    defer std.log.scoped(.resource_pack).debug(
+    defer std.log.scoped(.resource_pack).info(
         "{d} sprite layers: {d} truncated to {d}x{d}, {d} converted, {d} failed",
         .{ layer_count, truncated, layer_size, layer_size, converted, failed },
     );
@@ -335,6 +343,7 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     }
     {
         self.debug_program.uniformMatrix4(0, true, &.{mvp.data});
+        self.debug_program.uniform1i(16, 1);
 
         try self.bufferCrosshair(&game.world);
         try self.bufferEntities(&game.world, game.partial_tick);
@@ -346,9 +355,10 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
     {
         const identity: za.Mat4 = .identity();
         self.debug_program.uniformMatrix4(0, true, &.{identity.data});
+        self.debug_program.uniform1i(16, 0);
 
         if (game.world.menu_screen_open) {
-            try gui.bufferInventory(self, &game.world, render.window_input.mousePosInClipSpace());
+            try gui.bufferInventory(self, &game.world, self.item_to_model_lookup, render.window_input.mousePosInClipSpace());
         }
 
         self.render2dDebug();
@@ -469,30 +479,37 @@ pub fn render3dDebug(self: *@This()) void {
     gl.polygonMode(.front_and_back, .line);
 
     self.debug_buffer.subData(0, u8, self.@"3d_debug_staging_buffer".backer.items);
-    gl.drawElements(.triangle_strip, self.@"3d_debug_staging_buffer".backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
+
+    const indices_per_quad = 5; // counting or not counting primitive reset?
+    gl.drawElements(.triangle_fan, self.@"3d_debug_staging_buffer".debug_quads * indices_per_quad, .unsigned_int, 0);
 
     self.@"3d_debug_staging_buffer".backer.items.len = 0;
+    self.@"3d_debug_staging_buffer".debug_quads = 0;
 }
 
 pub fn render2dDebug(self: *@This()) void {
-    gl.disable(.depth_test);
-    gl.disable(.cull_face);
+    gl.clear(.{ .depth = true });
+    // gl.disable(.depth_test);
+    // gl.disable(.cull_face);
 
     defer gl.enable(.depth_test);
     defer gl.enable(.cull_face);
 
     self.debug_program.use();
     self.@"2d_vao".bind();
-    self.@"2d_vao".vertexBuffer(0, self.debug_buffer, 0, 3 * @sizeOf(f32));
+    self.@"2d_vao".vertexBuffer(0, self.debug_buffer, 0, 6 * @sizeOf(f32));
     gl.polygonMode(.front_and_back, .fill);
 
     self.debug_buffer.subData(0, u8, self.@"2d_debug_staging_buffer".backer.items);
-    gl.drawElements(.triangle_strip, self.@"2d_debug_staging_buffer".backer.items.len / @sizeOf(f32) / 3 / 4 * 5, .unsigned_int, 0);
+
+    const indices_per_quad = 5; // counting primitive reset
+    gl.drawElements(.triangle_fan, self.@"2d_debug_staging_buffer".debug_quads * indices_per_quad, .unsigned_int, 0);
 
     self.@"2d_debug_staging_buffer".backer.items.len = 0;
+    self.@"2d_debug_staging_buffer".debug_quads = 0;
 }
 
-pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
+pub fn getMvpMatrix(player: Entity.LocalPlayer, partial_tick: f64) Mat4 {
     const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
 
     const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
@@ -514,7 +531,7 @@ pub fn getMvpMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
     return .mul(projection, .mul(view, model));
 }
 
-pub fn getMvMatrix(player: LocalPlayerEntity, partial_tick: f64) Mat4 {
+pub fn getMvMatrix(player: Entity.LocalPlayer, partial_tick: f64) Mat4 {
     const eye_pos = player.getInterpolatedEyePos(partial_tick, lerp);
 
     const view: Mat4 = .mul(
@@ -708,11 +725,11 @@ pub fn deinit(self: *@This(), io: std.Io) !void {
     self.gpu_memory_allocator.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
     self.compilation_tracker.deinit(io);
-    var iter = self.lookup_table.iterator();
+    var iter = self.blockstate_to_model_lookup.iterator();
     while (iter.next()) |entry| {
         self.allocator.free(entry.value_ptr.faces);
     }
-    self.lookup_table.deinit(self.allocator);
+    self.blockstate_to_model_lookup.deinit(self.allocator);
 }
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {
@@ -729,7 +746,7 @@ const zigimg = @import("zigimg");
 
 const Block = main.Block;
 const Client = main.Client;
-const LocalPlayerEntity = main.Entity.LocalPlayer;
+const Entity = main.Entity;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
 const World = main.World;

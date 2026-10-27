@@ -1,5 +1,6 @@
 backer: std.ArrayList(u8),
 allocator: std.mem.Allocator,
+debug_quads: usize = 0,
 
 pub const TerrainVertex = packed struct {
     pos: packed struct { x: u16, y: u16, z: u16 },
@@ -81,19 +82,35 @@ pub fn writeDebugCube(self: *@This(), min: Vector3(f32), max: Vector3(f32)) !voi
         max.x, min.y, max.z,
         max.x, max.y, max.z,
     };
+
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&cube));
+    self.debug_quads += 6;
 }
 
 pub fn write2dDebugQuad(self: *@This(), min: Vector2xy(f32), max: Vector2xy(f32)) !void {
     @setRuntimeSafety(false);
 
-    const quad: [12]f32 = .{
-        min.x, min.y, 0,
-        max.x, min.y, 0,
-        min.x, max.y, 0,
-        max.x, max.y, 0,
+    const quad: [16]f32 = .{
+        min.x, min.y, 0, 0,
+        max.x, min.y, 0, 0,
+        min.x, max.y, 0, 0,
+        max.x, max.y, 0, 0,
     };
     try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
+    self.debug_quads += 1;
+}
+
+pub fn write3dDebugQuad(self: *@This(), pos: [4]Vector3(f32), uv: [4]Vector2xy(f32), texture: Renderer.TextureHandle) !void {
+    @setRuntimeSafety(false);
+
+    const quad: [4 * 6]f32 = .{
+        pos[0].x, pos[0].y, pos[0].z, uv[0].x, uv[0].y, @bitCast(@as(i32, @backingInt(texture))),
+        pos[1].x, pos[1].y, pos[1].z, uv[1].x, uv[1].y, @bitCast(@as(i32, @backingInt(texture))),
+        pos[2].x, pos[2].y, pos[2].z, uv[2].x, uv[2].y, @bitCast(@as(i32, @backingInt(texture))),
+        pos[3].x, pos[3].y, pos[3].z, uv[3].x, uv[3].y, @bitCast(@as(i32, @backingInt(texture))),
+    };
+    try self.backer.appendSlice(self.allocator, std.mem.asBytes(&quad));
+    self.debug_quads += 1;
 }
 
 const std = @import("std");

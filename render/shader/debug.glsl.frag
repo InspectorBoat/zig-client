@@ -1,9 +1,13 @@
 #version 460
 
-in vec3 color_in;
+layout(location = 16) uniform sampler2DArray block_texture;
+
+flat in uint texture_id;
+in vec2 uv_varying;
 
 out vec4 color;
 
 void main() {
-    color = vec4(color_in, 1);
+    color = texture(block_texture, vec3(uv_varying / 16, texture_id));
+    if (color.a == 0) discard;
 }

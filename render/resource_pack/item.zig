@@ -24,12 +24,12 @@ pub fn createItemStackToModelTable(
         const stack = entry.key_ptr.*;
         const identifier = try gpa.print("item/{s}", .{entry.value_ptr.*});
         defer gpa.free(identifier);
-        const resolved_model = resolved_models.get(identifier);
-        std.log.scoped(.resource_pack).debug("baking model {s}", .{identifier});
-        try lookup_table.put(gpa, stack, try .bake(gpa, textures, resolved_model orelse {
+        const resolved_model = resolved_models.get(identifier) orelse {
             std.log.scoped(.resource_pack).err("missing model {s}", .{identifier});
             return error.MissingModel;
-        }, .@"0", .@"0", false));
+        };
+        std.log.scoped(.resource_pack).debug("baking model {s}", .{identifier});
+        try lookup_table.put(gpa, stack, try .bake(gpa, textures, resolved_model, .@"0", .@"0", false));
     }
     return lookup_table;
 }
