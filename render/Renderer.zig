@@ -724,11 +724,21 @@ pub fn deinit(self: *@This(), io: std.Io) !void {
     self.gpu_memory_allocator.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
     self.compilation_tracker.deinit(io);
-    var iter = self.blockstate_to_model_lookup.iterator();
-    while (iter.next()) |entry| {
-        self.allocator.free(entry.value_ptr.faces);
+
+    {
+        var iter = self.blockstate_to_model_lookup.iterator();
+        while (iter.next()) |entry| {
+            self.allocator.free(entry.value_ptr.faces);
+        }
+        self.blockstate_to_model_lookup.deinit(self.allocator);
     }
-    self.blockstate_to_model_lookup.deinit(self.allocator);
+    {
+        var iter = self.item_to_model_lookup.iterator();
+        while (iter.next()) |entry| {
+            self.allocator.free(entry.value_ptr.model.faces);
+        }
+        self.item_to_model_lookup.deinit(self.allocator);
+    }
 }
 
 pub fn lerp(start: f64, end: f64, progress: f64) f64 {

@@ -47,7 +47,9 @@ pub fn createItemStackToModelTable(
 ) !std.AutoHashMapUnmanaged(u16, BakedItemModel) {
     var lookup_table: std.AutoHashMapUnmanaged(u16, BakedItemModel) = .empty;
 
-    const stack_to_identifier = try createItemStackToIdentifierTable(gpa);
+    var stack_to_identifier = try createItemStackToIdentifierTable(gpa);
+    defer stack_to_identifier.deinit(gpa);
+
     var iter = stack_to_identifier.iterator();
     while (iter.next()) |entry| {
         const stack = entry.key_ptr.*;
