@@ -10,8 +10,8 @@ compilation_tracker: CompilationTracker,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
 chunk_tracker: ChunkTracker,
 
-blockstate_to_model_lookup: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
-item_to_model_lookup: std.AutoHashMapUnmanaged(u16, BakedModel),
+blockstate_to_model_lookup: std.AutoHashMapUnmanaged(Block.VirtualState, resource_pack.BakedModel),
+item_to_model_lookup: std.AutoHashMapUnmanaged(u16, resource_pack.BakedItemModel),
 
 // Debug
 debug_program: gl.Program,
@@ -754,5 +754,4 @@ const CompilationTask = render.mesher.CompilationTask;
 const CompilationTracker = render.mesher.CompilationTracker;
 const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
 const resource_pack = render.resource_pack;
-const BakedModel = resource_pack.BakedModel;
 const Mat4 = za.Mat4;

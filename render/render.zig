@@ -43,7 +43,7 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (client.*) {
         .idle => gl.clearColor(1.0, 0.75, 0.75, 1),
         .connecting => gl.clearColor(0.75, 1.0, 0.75, 1),
-        .game => gl.clearColor(0.719411765, 0.767843137, 0.921568627, 1),
+        .game => gl.clearColor(0.72, 0.77, 0.92, 1),
     }
     gl.clear(.{ .color = true, .depth = true });
 

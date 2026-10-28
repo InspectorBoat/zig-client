@@ -1,4 +1,5 @@
 /// Takes ownership of resource_pack_dir
+
 pub fn init(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -6,7 +7,7 @@ pub fn init(
     resource_pack_dir: std.Io.Dir,
 ) !struct {
     std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
-    std.AutoHashMapUnmanaged(u16, BakedModel),
+    std.AutoHashMapUnmanaged(u16, BakedItemModel),
     std.array_hash_map.String(zigimg.Image),
 } {
     const state_to_model_maps = try parseJsonInDir(
@@ -262,6 +263,14 @@ pub fn resolveTemplate(
         std.debug.assert(merged_template.geometry == null);
         if (template_lineage.elements) |elements| merged_template.geometry = .{ .elements = elements };
         if (merged_template.ambient_occlusion == null) merged_template.ambient_occlusion = template_lineage.ambientocclusion;
+        if (template_lineage.display) |display| {
+            if (merged_template.display.thirdperson == null) merged_template.display.thirdperson = display.thirdperson;
+            if (merged_template.display.firstperson == null) merged_template.display.firstperson = display.firstperson;
+            if (merged_template.display.gui == null) merged_template.display.gui = display.gui;
+            if (merged_template.display.head == null) merged_template.display.head = display.head;
+            if (merged_template.display.ground == null) merged_template.display.ground = display.ground;
+            if (merged_template.display.fixed == null) merged_template.display.fixed = display.fixed;
+        }
 
         if (template_lineage.parent) |parent| {
             if (std.mem.eql(u8, "builtin/generated", parent) or std.mem.eql(u8, "builtin/entity", parent) or std.mem.eql(u8, "builtin/compass", parent) or std.mem.eql(u8, "builtin/clock", parent)) {
@@ -280,10 +289,12 @@ pub fn resolveTemplate(
         .elements => |elements| .{
             .ambientocclusion = merged_template.ambient_occlusion orelse true,
             .geometry = .{ .elements = try resolveElements(arena, merged_template.texture_variables, textures, elements) },
+            .display = merged_template.display,
         },
         .generated_item => .{
             .ambientocclusion = merged_template.ambient_occlusion orelse false,
             .geometry = .{ .generated_item = try resolveGeneratedItem(merged_template.texture_variables, textures) },
+            .display = merged_template.display,
         },
     };
 }
@@ -424,6 +435,7 @@ pub const ResolvedModel = @import("ResolvedModel.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
 const createBlockStateToModelTable = @import("block.zig").createBlockStateToModelTable;
 const createItemStackToModelTable = @import("item.zig").createItemStackToModelTable;
+pub const BakedItemModel = @import("item.zig").BakedItemModel;
 
 const Block = main.Block;
 const Direction = main.Direction;

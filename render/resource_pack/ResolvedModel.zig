@@ -3,6 +3,7 @@
 
 geometry: Geometry,
 ambientocclusion: bool,
+display: Display,
 
 pub const Geometry = union(enum) {
     elements: []Element,
@@ -53,3 +54,5 @@ const Vector3 = @import("main").Vector3;
 
 const ModelTemplate = @import("ModelTemplate.zig");
 const TextureHandle = @import("../Renderer.zig").TextureHandle;
+
+pub const Display = ModelTemplate.Display;

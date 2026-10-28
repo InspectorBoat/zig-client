@@ -1,10 +1,51 @@
+pub const BakedItemModel = struct {
+    model: BakedModel,
+    display: ResolvedModel.Display,
+    gui_3d: bool,
+
+    pub fn transform(self: @This(), comptime context: std.meta.FieldEnum(ResolvedModel.Display)) za.Mat4 {
+        const display: ResolvedModel.Display.Transform = @field(self.display, @tagName(context)) orelse .{};
+
+        const gui: za.Mat4 = .mul(
+            .mul(
+                .fromRotation(30, .right()),
+                .fromRotation(225, .up()),
+            ),
+            .fromScale(.new(0.625, 0.625, 0.625)),
+        );
+
+        const translation: za.Mat4 = .fromTranslate(.new(
+            if (display.translation) |t| t[0] * 0.0625 else 0,
+            if (display.translation) |t| t[1] * 0.0625 else 0,
+            if (display.translation) |t| t[2] * 0.0625 else 0,
+        ));
+
+        const scale: za.Mat4 = .fromScale(.new(
+            if (display.scale) |s| s[0] else 1,
+            if (display.scale) |s| s[1] else 1,
+            if (display.scale) |s| s[2] else 1,
+        ));
+
+        const rotation: za.Mat4 = .mul(
+            .mul(
+                .fromRotation(if (display.rotation) |s| s[1] else 0, .up()),
+                .fromRotation(if (display.rotation) |s| s[0] else 0, .right()),
+            ),
+            .fromRotation(if (display.rotation) |s| s[2] else 0, .forward()),
+        );
+
+        return .mul(.mul(.mul(if (self.gui_3d and context == .gui) gui else .identity(), translation), rotation), scale);
+    }
+    const za = @import("zalgebra");
+};
+
 /// Create a lookup table mapping from Item.Stack -> BakedModel
 pub fn createItemStackToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
-) !std.AutoHashMapUnmanaged(u16, BakedModel) {
-    var lookup_table: std.AutoHashMapUnmanaged(u16, BakedModel) = .empty;
+) !std.AutoHashMapUnmanaged(u16, BakedItemModel) {
+    var lookup_table: std.AutoHashMapUnmanaged(u16, BakedItemModel) = .empty;
 
     const stack_to_identifier = try createItemStackToIdentifierTable(gpa);
     var iter = stack_to_identifier.iterator();
@@ -29,7 +70,15 @@ pub fn createItemStackToModelTable(
             continue;
         };
         std.log.scoped(.resource_pack).debug("baking model {s}", .{identifier});
-        try lookup_table.put(gpa, stack, try .bake(gpa, textures, resolved_model, .@"0", .@"0", false));
+        try lookup_table.put(
+            gpa,
+            stack,
+            .{
+                .model = try .bake(gpa, textures, resolved_model, .@"0", .@"0", false),
+                .display = resolved_model.display,
+                .gui_3d = resolved_model.geometry != .generated_item,
+            },
+        );
     }
     return lookup_table;
 }

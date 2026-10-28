@@ -7,7 +7,12 @@ pub fn debug(world: *const World) void {
     }
 }
 
-pub fn bufferInventory(self: *Renderer, world: *const World, item_models_lookup: std.AutoHashMapUnmanaged(u16, resource_pack.BakedModel), cursor_pos: Vector2xy(f32)) !void {
+pub fn bufferInventory(
+    self: *Renderer,
+    world: *const World,
+    item_models_lookup: std.AutoHashMapUnmanaged(u16, resource_pack.BakedItemModel),
+    cursor_pos: Vector2xy(f32),
+) !void {
     const size: f32 = 0.11;
 
     const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
@@ -27,7 +32,7 @@ pub fn bufferInventory(self: *Renderer, world: *const World, item_models_lookup:
         ));
         const center: za.Mat4 = .fromTranslate(.new(-0.5, -0.5, -0.5));
         const transform: za.Mat4 = .mul(.mul(translate, scale), center);
-        for (model.faces) |face| {
+        for (model.model.faces) |face| {
             var positions = face.pos;
             for (&positions) |*pos| {
                 const za_pos = transform.mulByVec3(
@@ -60,23 +65,20 @@ pub fn bufferInventory(self: *Renderer, world: *const World, item_models_lookup:
             size,
         ));
         const center: za.Mat4 = .fromTranslate(.new(-0.5, -0.5, -0.5));
-        const rotate: za.Mat4 = .fromEulerAngles(.new(0, r, 0));
 
-        const transform: za.Mat4 = .mul(.mul(.mul(translate, scale), rotate), center);
+        const transform: za.Mat4 = .mul(.mul(.mul(translate, scale), model.transform(.gui)), center);
 
-        for (model.faces) |face| {
+        for (model.model.faces) |face| {
             var positions = face.pos;
             for (&positions) |*pos| {
                 const za_pos = transform.mulByVec3(.new(pos.x, pos.y, pos.z));
                 pos.* = .{ .x = za_pos.x(), .y = za_pos.y(), .z = -za_pos.z() };
             }
+
             try self.@"2d_debug_staging_buffer".write3dDebugQuad(positions, face.uv, face.texture);
         }
     }
-    r += 0.2;
 }
-
-var r: f32 = 0;
 
 pub fn onClick(world: *const World, cursor_pos: Vector2xy(f32), button: glfw.MouseButton) Menu.Action {
     const box_size: f32 = 0.11;
