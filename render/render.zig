@@ -49,7 +49,7 @@ pub fn onFrame(frame: Events.Frame) !void {
 
     switch (client.*) {
         .game => |*game| {
-            try handleInputIngame(frame.io, game, frame.input_queue.?);
+            try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
             try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
             try renderer.uploadCompilationResults(frame.io);
             try renderer.renderFrame(game);
@@ -124,7 +124,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
     }
 }
 
-pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
+pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
     window_input.window.setInputModeCursor(if (game.world.menu_screen_open) .normal else .disabled);
 
     var cursor_delta: Vector2xy(f64) = .origin;
@@ -141,7 +141,7 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                                 window_input.mousePosInClipSpace(),
                                 @intCast(@backingInt(num) - @backingInt(glfw.Key.one)),
                             )) |action| {
-                                try input_queue.queueOnTick(.{ .inventory = action });
+                                try input_queue.queueOnTick(allocator, .{ .inventory = action });
                             }
                             continue;
                         },
@@ -152,7 +152,7 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                                 window_input.mousePosInClipSpace(),
                                 window_input.keys.get(.left_control),
                             )) |action| {
-                                try input_queue.queueOnTick(.{ .inventory = action });
+                                try input_queue.queueOnTick(allocator, .{ .inventory = action });
                             }
                             continue;
                         },
@@ -171,9 +171,9 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                     },
                     .e => if (key.action == .press) {
                         if (game.world.menu_screen_open)
-                            try input_queue.queueOnTick(.close_screen)
+                            try input_queue.queueOnTick(allocator, .close_screen)
                         else
-                            try input_queue.queueOnTick(.open_screen);
+                            try input_queue.queueOnTick(allocator, .open_screen);
                         renderer.debug_options.inventory = !renderer.debug_options.inventory;
                     },
                     .f => if (key.action == .press) {
@@ -192,18 +192,18 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                         renderer.debug_program = try Renderer.initProgram(io, renderer.allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
                     },
 
-                    .w => try input_queue.queueOnTick(.{ .movement = .{ .forward = (key.action == .press) } }),
-                    .a => try input_queue.queueOnTick(.{ .movement = .{ .left = (key.action == .press) } }),
-                    .s => try input_queue.queueOnTick(.{ .movement = .{ .back = (key.action == .press) } }),
-                    .d => try input_queue.queueOnTick(.{ .movement = .{ .right = (key.action == .press) } }),
-                    .space => try input_queue.queueOnTick(.{ .movement = .{ .jump = (key.action == .press) } }),
-                    .left_shift => try input_queue.queueOnTick(.{ .movement = .{ .sneak = (key.action == .press) } }),
-                    .left_control => try input_queue.queueOnTick(.{ .movement = .{ .sprint = (key.action == .press) } }),
+                    .w => try input_queue.queueOnTick(allocator, .{ .movement = .{ .forward = (key.action == .press) } }),
+                    .a => try input_queue.queueOnTick(allocator, .{ .movement = .{ .left = (key.action == .press) } }),
+                    .s => try input_queue.queueOnTick(allocator, .{ .movement = .{ .back = (key.action == .press) } }),
+                    .d => try input_queue.queueOnTick(allocator, .{ .movement = .{ .right = (key.action == .press) } }),
+                    .space => try input_queue.queueOnTick(allocator, .{ .movement = .{ .jump = (key.action == .press) } }),
+                    .left_shift => try input_queue.queueOnTick(allocator, .{ .movement = .{ .sneak = (key.action == .press) } }),
+                    .left_control => try input_queue.queueOnTick(allocator, .{ .movement = .{ .sprint = (key.action == .press) } }),
 
-                    .q => try input_queue.queueOnTick(.{ .hand = .{ .drop = (key.action == .press) } }),
+                    .q => try input_queue.queueOnTick(allocator, .{ .hand = .{ .drop = (key.action == .press) } }),
 
                     .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| if (key.action == .press)
-                        try input_queue.queueOnTick(.{ .hand = .{ .hotkey = @backingInt(num) - @backingInt(glfw.Key.one) } }),
+                        try input_queue.queueOnTick(allocator, .{ .hand = .{ .hotkey = @backingInt(num) - @backingInt(glfw.Key.one) } }),
                     else => {},
                 }
             },
@@ -212,7 +212,7 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                 if (game.world.menu_screen_open) {
                     if (button.action == .release) continue;
                     if (button.button != .left and button.button != .right and button.button != .middle) continue;
-                    try input_queue.queueOnTick(.{
+                    try input_queue.queueOnTick(allocator, .{
                         .inventory = gui.onClick(
                             &game.world,
                             window_input.mousePosInClipSpace(),
@@ -223,8 +223,8 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                     continue;
                 }
                 switch (button.button) {
-                    .left => try input_queue.queueOnTick(.{ .hand = .{ .attack = (button.action == .press) } }),
-                    .right => try input_queue.queueOnTick(.{ .hand = .{ .use = (button.action == .press) } }),
+                    .left => try input_queue.queueOnTick(allocator, .{ .hand = .{ .attack = (button.action == .press) } }),
+                    .right => try input_queue.queueOnTick(allocator, .{ .hand = .{ .use = (button.action == .press) } }),
                     else => {},
                 }
             },
@@ -233,7 +233,7 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
                 cursor_delta = .add(cursor_delta, cursor_event.delta);
             },
             .Scroll => |scroll| {
-                try input_queue.queueOnTick(.{ .hand = .{ .scroll = @round(scroll.y) } });
+                try input_queue.queueOnTick(allocator, .{ .hand = .{ .scroll = @round(scroll.y) } });
             },
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
@@ -246,7 +246,7 @@ pub fn handleInputIngame(io: std.Io, game: *const Client.Game, input_queue: *Cli
         }
     }
     if (game.world.menu_screen_open) return;
-    try input_queue.queueOnFrame(.{ .rotate = .intFromFloat(cursor_delta) });
+    try input_queue.queueOnFrame(allocator, .{ .rotate = .intFromFloat(cursor_delta) });
 }
 
 test {

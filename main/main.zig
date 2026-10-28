@@ -5,11 +5,11 @@ pub const std_options: std.Options = .{
         .{ .scope = .tick_late, .level = .warn },
         .{ .scope = .keepalive, .level = .warn },
         .{ .scope = .tick_on_time, .level = .warn },
-        .{ .scope = .handle_packet_main, .level = .warn },
-        .{ .scope = .handle_packet_net, .level = .warn },
+        .{ .scope = .send_packet, .level = .debug },
+        .{ .scope = .handle_packet_main, .level = .debug },
+        .{ .scope = .handle_packet_net, .level = .debug },
         .{ .scope = .world, .level = .warn },
         .{ .scope = .decode_packet, .level = .warn },
-        .{ .scope = .send_packet, .level = .warn },
         .{ .scope = .entity, .level = .warn },
         .{ .scope = .local_player_moved, .level = .warn },
         .{ .scope = .player, .level = .warn },
@@ -40,7 +40,7 @@ pub const main = if (build_options.zio) struct {
 }.main else struct {
     pub fn main(init: std.process.Init) !void {
         var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{ .stack_trace_frames = 15 });
-        // defer _ = gpa_impl.deinit();
+        defer _ = gpa_impl.deinit();
 
         const gpa = gpa_impl.allocator();
 
@@ -55,7 +55,10 @@ pub fn realMain(gpa: std.mem.Allocator, io: std.Io) !void {
         .gpa = gpa,
     } };
 
-    try client.idle.initConnection(io, gpa, "127.0.0.1", 25565, "baz");
+    client.idle.initConnection(io, gpa, "127.0.0.1", 25565, "baz") catch |e| {
+        std.log.debug("failed to connect: {}", .{e});
+        return;
+    };
 
     defer {
         if (client != .idle) client.disconnect(io);
@@ -66,6 +69,7 @@ pub fn realMain(gpa: std.mem.Allocator, io: std.Io) !void {
             .client = &client,
             .input_queue = if (client == .game) &client.game.input_queue else null,
             .io = io,
+            .allocator = gpa,
         });
 
         if (client != .idle) try client.tickConnection(io);
@@ -85,7 +89,7 @@ pub const Events = struct {
     pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const World.Chunk, world: *const World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
-    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io };
+    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, allocator: std.mem.Allocator };
     pub const Exit = struct { io: std.Io };
 };
 

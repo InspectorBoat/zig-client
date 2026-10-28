@@ -1,11 +1,28 @@
-on_frame: quarantine.FixedFifo(Input, 256) = .init(),
-on_tick: quarantine.FixedFifo(Input, 128) = .init(),
+on_frame: std.Deque(Input),
+on_tick: std.Deque(Input),
 
-pub fn queueOnFrame(self: *@This(), input: Input) !void {
-    try self.on_frame.writeItem(input);
+pub const empty: @This() = .{
+    .on_frame = .empty,
+    .on_tick = .empty,
+};
+
+pub fn initCapacity(allocator: std.mem.Allocator, capacity: usize) !@This() {
+    return .{
+        .on_frame = try .initCapacity(allocator, capacity),
+        .on_tick = try .initCapacity(allocator, capacity),
+    };
 }
-pub fn queueOnTick(self: *@This(), input: Input) !void {
-    try self.on_tick.writeItem(input);
+
+pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+    self.on_frame.deinit(allocator);
+    self.on_tick.deinit(allocator);
+}
+
+pub fn queueOnFrame(self: *@This(), allocator: std.mem.Allocator, input: Input) !void {
+    try self.on_frame.pushBack(allocator, input);
+}
+pub fn queueOnTick(self: *@This(), allocator: std.mem.Allocator, input: Input) !void {
+    try self.on_tick.pushBack(allocator, input);
 }
 
 pub const Input = union(enum) {
@@ -32,7 +49,8 @@ pub const Input = union(enum) {
     inventory: Menu.Action,
 };
 
-const quarantine = @import("llm-code-quarantine");
+const std = @import("std");
+
 const main = @import("main");
 
 const Menu = main.Menu;

@@ -6,11 +6,27 @@ wants_disconnect: std.atomic.Value(bool) = .init(false),
 ip: std.Io.net.IpAddress,
 stream: std.Io.net.Stream,
 
+unread_bytes: quarantine.Fifo,
+
 incoming_packets: SpscQueue(S2CWrapper),
 outgoing_packets: SpscQueue(C2SWrapper),
 
 incoming_allocator: RingBuffer,
 outgoing_allocator: RingBuffer,
+
+encryption: ?struct {
+    incoming: quarantine.AesCfb8,
+    outgoing: quarantine.AesCfb8,
+} = null,
+
+pub fn setupEncryption(self: *@This(), shared_secret: [16]u8) void {
+    std.debug.assert(self.encryption == null);
+    self.encryption = .{
+        .incoming = .init(shared_secret),
+        .outgoing = .init(shared_secret),
+    };
+    self.encryption.?.incoming.decrypt(self.unread_bytes.readableSlice());
+}
 
 pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
     defer connection.wants_disconnect.store(true, .release);
@@ -31,15 +47,13 @@ pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
 
 pub const Error = ReceiveBytesError || DecodePacketError || DispatchPacketError || SendPacketError;
 pub fn tick(self: *@This(), io: std.Io) Error!void {
-    var unread_bytes: quarantine.FixedFifo(u8, 1024 * 1024) = .init();
-
     while (true) {
         // read from socket
-        try self.receiveBytes(io, &unread_bytes);
+        try self.receiveBytes(io);
 
         // decode and dispatch
         while (true) {
-            const packet, const rewind_mark = (self.decodePacket(&unread_bytes) catch |e| switch (e) {
+            const packet, const rewind_mark = (self.decodePacket() catch |e| switch (e) {
                 error.RingBufferFull => {
                     std.log.scoped(.backpressure).warn("ring buffer out of memory: {}/{}", .{ self.incoming_allocator.usedBytes(), self.incoming_allocator.buffer.len });
                     break;
@@ -85,7 +99,6 @@ pub const ReceiveBytesError = std.Io.net.Socket.ReceiveTimeoutError || std.mem.A
 pub fn receiveBytes(
     self: *@This(),
     io: std.Io,
-    bytes: *quarantine.FixedFifo(u8, 1024 * 1024),
 ) ReceiveBytesError!void {
     var buffer: [262144]u8 = undefined;
 
@@ -97,16 +110,19 @@ pub fn receiveBytes(
         error.Timeout => return,
         else => return err,
     };
+
+    if (self.encryption) |*encryption| encryption.incoming.decrypt(message.data);
+
     std.log.scoped(.net).debug("read {} bytes", .{message.data.len});
     // TODO: Fix our queue implementation, make it growable
     // In fact, we should probably use a memory mapped ring buffer
     // so we never have to compact the buffer
-    try bytes.write(message.data);
+    try self.unread_bytes.write(message.data);
 }
 
 pub const DecodePacketError = DecompressPacketError || PacketHeaderError || S2C.ReadPacketError || error{RingBufferFull};
-pub fn decodePacket(self: *@This(), unread_bytes: *quarantine.FixedFifo(u8, 1024 * 1024)) DecodePacketError!?struct { S2C, RingBuffer.RewindMark } {
-    var packet_buffer: S2C.ReadBuffer = .fromOwnedSlice(unread_bytes.readableSlice());
+pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingBuffer.RewindMark } {
+    var packet_buffer: S2C.ReadBuffer = .fromOwnedSlice(self.unread_bytes.readableSlice());
 
     const packet_body_size, const packet_header_size = packet_buffer.readVarIntExtra(3) catch |err| switch (err) {
         error.VarIntTooBig => return error.MalformedPacket,
@@ -120,7 +136,7 @@ pub fn decodePacket(self: *@This(), unread_bytes: *quarantine.FixedFifo(u8, 1024
     const packet_size = packet_header_size + @as(usize, @intCast(packet_body_size));
 
     var ok = true;
-    defer if (ok) unread_bytes.discard(packet_size);
+    defer if (ok) self.unread_bytes.discard(packet_size);
     errdefer ok = false;
 
     // trim buffer to prevent reading past the packet end
@@ -261,10 +277,15 @@ pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void 
 
     std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len + header.backer.items.len});
 
+    if (self.encryption) |*encryption| {
+        encryption.outgoing.encrypt(header.backer.items);
+        encryption.outgoing.encrypt(packet_buffer.backer.items);
+    }
+
     var buf: [1024]u8 = undefined;
     var writer = self.stream.writer(io, &buf);
-    _ = writer.interface.write(header.backer.items) catch return writer.err.?;
-    _ = writer.interface.write(packet_buffer.backer.items) catch return writer.err.?;
+    _ = writer.interface.writeAll(header.backer.items) catch return writer.err.?;
+    _ = writer.interface.writeAll(packet_buffer.backer.items) catch return writer.err.?;
     writer.interface.flush() catch return writer.err.?;
 }
 
@@ -305,6 +326,8 @@ pub const Handle = struct {
 
         self.connection.stream.close(io);
 
+        self.connection.unread_bytes.deinit(allocator);
+
         self.connection.incoming_packets.deinit(allocator);
         self.connection.outgoing_packets.deinit(allocator);
         self.connection.incoming_allocator.deinit(allocator);
@@ -334,6 +357,9 @@ pub const Handle = struct {
         const connection = try allocator.create(Connection);
         errdefer allocator.destroy(connection);
 
+        var unread_bytes: quarantine.Fifo = try .initCapacity(allocator, 1024 * 1024);
+        errdefer unread_bytes.deinit(allocator);
+
         var incoming_packets: SpscQueue(S2CWrapper) = try .initCapacity(allocator, 1024);
         errdefer incoming_packets.deinit(allocator);
         var outgoing_packets: SpscQueue(C2SWrapper) = try .initCapacity(allocator, 1024);
@@ -347,6 +373,8 @@ pub const Handle = struct {
         connection.* = .{
             .ip = ip,
             .stream = stream,
+
+            .unread_bytes = unread_bytes,
 
             .incoming_packets = incoming_packets,
             .outgoing_packets = outgoing_packets,

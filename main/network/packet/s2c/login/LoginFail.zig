@@ -4,15 +4,17 @@ comptime handle_on_network_thread: bool = true,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
-    _ = buffer;
-    return undefined;
+    return .{
+        .reason = try buffer.readStringNonAllocating(32768),
+    };
 }
 
 pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
     _ = io;
 
-    _ = connection;
-    _ = self;
+    connection.wants_disconnect.store(true, .release);
+
+    std.log.err("failed to log in: {s}", .{self.reason});
 }
 
 const std = @import("std");

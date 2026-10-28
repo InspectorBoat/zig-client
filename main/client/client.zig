@@ -40,13 +40,13 @@ pub const Client = union(enum) {
         world: World,
         partial_tick: f64 = 0,
         tick_delay: f64 = 0,
-        input_queue: InputQueue = .{},
+        input_queue: InputQueue = .empty,
         input_manager: InputManager = .{},
 
         pub fn handleInputOnFrame(self: *@This()) void {
             const player = &self.world.player;
 
-            while (self.input_queue.on_frame.readItem()) |input| {
+            while (self.input_queue.on_frame.popFront()) |input| {
                 switch (input) {
                     .hand => std.debug.panic("Hand action on frame - don't do this! Queue on tick instead", .{}),
                     .movement => std.debug.panic("Movement action on frame - don't do this! Queue on tick instead", .{}),
@@ -95,7 +95,7 @@ pub const Client = union(enum) {
             inputs.cooldown.auto_use -|= 1;
 
             var drop_presses: usize, var attack_presses: usize, var use_presses: usize, var pick_presses: usize = .{ 0, 0, 0, 0 };
-            while (self.input_queue.on_tick.readItem()) |queued_input| {
+            while (self.input_queue.on_tick.popFront()) |queued_input| {
                 switch (queued_input) {
                     .hand => |hand| {
                         switch (hand) {
@@ -303,6 +303,7 @@ pub const Client = union(enum) {
                 std.log.scoped(.client).info("main thread terminating connection", .{});
                 game.connection_handle.disconnect(io, gpa);
                 game.world.deinit(gpa);
+                game.input_queue.deinit(gpa);
                 self.* = .{ .idle = .{
                     .gpa = gpa,
                 } };
