@@ -8,8 +8,13 @@ pub fn init(
 ) !struct {
     std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
     std.AutoHashMapUnmanaged(u16, BakedItemModel),
-    std.array_hash_map.String(zigimg.Image),
+    std.array_hash_map.String(ImageError!zigimg.Image),
 } {
+    const total: std.Io.Timestamp = .now(io, .real);
+    defer std.log.scoped(.resource_pack).debug("resource pack loading took {} ms", .{total.untilNow(io, .real).toMilliseconds()});
+
+    var start: std.Io.Timestamp = .now(io, .real);
+
     const state_to_model_maps = try parseJsonInDir(
         StateToModelMap,
         StateError,
@@ -17,24 +22,52 @@ pub fn init(
         arena,
         try resource_pack_dir.openDir(io, "assets/minecraft/blockstates", .{ .iterate = true }),
     );
-    var model_templates = try parseJsonInDir(
+
+    std.log.scoped(.resource_pack).debug("state_to_model_maps took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+    start = .now(io, .real);
+
+    const model_templates = try parseJsonInDir(
         ModelTemplate,
         TemplateError,
         io,
         arena,
         try resource_pack_dir.openDir(io, "assets/minecraft/models", .{ .iterate = true }),
     );
-    try validateTemplates(gpa, &model_templates);
+
+    std.log.scoped(.resource_pack).debug("model_templates took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+    start = .now(io, .real);
+
+    try validateTemplates(gpa, model_templates);
+
+    std.log.scoped(.resource_pack).debug("validate took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+    start = .now(io, .real);
 
     const textures = try loadImagesInDir(
         io,
         arena,
         try resource_pack_dir.openDir(io, "assets/minecraft/textures", .{ .iterate = true }),
     );
+
+    std.log.scoped(.resource_pack).debug("textures took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+    start = .now(io, .real);
+
     const resolved_models = try resolveModels(arena, model_templates, textures);
+
+    std.log.scoped(.resource_pack).debug("resolve took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+    start = .now(io, .real);
+
+    const block_state_to_model_table = try createBlockStateToModelTable(gpa, textures, resolved_models, state_to_model_maps);
+
+    std.log.scoped(.resource_pack).debug("block_state_to_model took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+    start = .now(io, .real);
+
+    const item_stack_to_model_table = try createItemStackToModelTable(gpa, textures, resolved_models);
+
+    std.log.scoped(.resource_pack).debug("item_stack_to_model took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
+
     return .{
-        try createBlockStateToModelTable(gpa, textures, resolved_models, state_to_model_maps),
-        try createItemStackToModelTable(gpa, textures, resolved_models),
+        block_state_to_model_table,
+        item_stack_to_model_table,
         textures,
     };
 }
@@ -90,7 +123,7 @@ pub const TemplateError = error{
 ///     - or has neither a parent nor elements
 pub fn validateTemplates(
     gpa: std.mem.Allocator,
-    templates: *std.array_hash_map.String(TemplateError!ModelTemplate),
+    templates: std.array_hash_map.String(TemplateError!ModelTemplate),
 ) !void {
     const Node = enum(u8) {
         unvisited,
@@ -110,6 +143,9 @@ pub fn validateTemplates(
     var stack: std.ArrayList(usize) = .empty;
     defer stack.deinit(gpa);
 
+    var visited: usize = 0;
+    defer std.debug.assert(visited == templates.count());
+
     for (0..templates.count()) |i| {
         stack.items.len = 0;
 
@@ -118,7 +154,8 @@ pub fn validateTemplates(
         if (nodes[index] != .unvisited) continue;
 
         const path_result: Node, const maybe_error_index: ?usize = while (true) switch (nodes[index]) {
-            // This is the only branch where we find a new cycle
+            // This is the only branch where we find a *new* cycle
+            // as opposed to feeding into an existing one
             .current_path => {
                 std.log.scoped(.resource_pack).err("Found cyclic model dependency!", .{});
                 // Print all the elements of the cycle
@@ -142,6 +179,7 @@ pub fn validateTemplates(
             .unvisited => {
                 try stack.append(gpa, index);
                 nodes[index] = .current_path;
+                visited += 1;
 
                 if (templates.values()[index]) |*template| {
                     const name = templates.keys()[index];
@@ -207,6 +245,7 @@ pub const ModelError = TemplateError || error{
     CyclicVariable,
     FailedUvMapping,
     MissingTexture,
+    BrokenTexture,
     Incomplete,
 };
 
@@ -214,7 +253,7 @@ pub const ModelError = TemplateError || error{
 pub fn resolveModels(
     arena: std.mem.Allocator,
     templates: std.array_hash_map.String(TemplateError!ModelTemplate),
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
 ) !std.array_hash_map.String(ModelError!ResolvedModel) {
     var models: std.array_hash_map.String(ModelError!ResolvedModel) = .empty;
 
@@ -239,7 +278,7 @@ pub fn resolveTemplate(
     arena: std.mem.Allocator,
     template: ModelTemplate,
     templates: std.array_hash_map.String(TemplateError!ModelTemplate),
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
 ) !ResolvedModel {
     var merged_template: struct {
         texture_variables: std.array_hash_map.String([]const u8) = .empty,
@@ -301,7 +340,7 @@ pub fn resolveTemplate(
 
 pub fn resolveGeneratedItem(
     texture_variables: std.array_hash_map.String([]const u8),
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
 ) ![5]?Renderer.TextureHandle {
     var resolved_textures: [5]?Renderer.TextureHandle = @splat(null);
 
@@ -318,7 +357,7 @@ pub fn resolveGeneratedItem(
 pub fn resolveElements(
     arena: std.mem.Allocator,
     texture_variables: std.array_hash_map.String([]const u8),
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
     elements: []const ModelTemplate.Element,
 ) ![]ResolvedModel.Element {
     const resolved_elements: []ResolvedModel.Element = try arena.alloc(ResolvedModel.Element, elements.len);
@@ -339,7 +378,8 @@ pub fn resolveElements(
         inline for (.{ .north, .south, .west, .east, .up, .down }) |direction| {
             if (@field(element.faces, @tagName(direction))) |face| {
                 const texture_name = try resolveTextureVariable(texture_variables, face.texture);
-                const texture_handle: Renderer.TextureHandle = @fromBackingInt(@intCast(textures.getIndex(texture_name) orelse return error.MissingTexture));
+                _ = (textures.get(texture_name) orelse return error.MissingTexture) catch return error.BrokenTexture;
+                const texture_handle: Renderer.TextureHandle = @fromBackingInt(@intCast(textures.getIndex(texture_name).?));
                 @field(resolved_element.faces, @tagName(direction)) = .{
                     .uv = face.uv orelse try computeAutoUv(resolved_element.from, resolved_element.to, direction),
                     .texture = texture_handle,
@@ -400,26 +440,61 @@ pub fn computeAutoUv(from: Vector3(f32), to: Vector3(f32), direction: Direction)
 
 /// Decodes every image in a directory
 /// Takes ownership of dir
-pub fn loadImagesInDir(io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.array_hash_map.String(zigimg.Image) {
+pub fn loadImagesInDir(io: std.Io, arena: std.mem.Allocator, dir: std.Io.Dir) !std.array_hash_map.String(ImageError!zigimg.Image) {
+    @setRuntimeSafety(false);
     defer dir.close(io);
-    var images: std.array_hash_map.String(zigimg.Image) = .empty;
-    var iter = try dir.walk(arena);
-    while (try iter.next(io)) |entry| {
+
+    var images: std.array_hash_map.String(ImageError!zigimg.Image) = .empty;
+
+    var group: std.Io.Group = .init;
+    errdefer group.cancel(io);
+
+    var walker = try dir.walk(arena);
+    while (try walker.next(io)) |entry| {
         if (entry.kind != .file) continue;
 
-        // vanilla ships a `.png.mcmeta` metadata file for some sprites (animated ones),
-        // so this directory is not all-png and the extension must be filtered
+        // some animated textures may also have an
+        // associated `.png.mcmeta` metadata file
+        // we skip those for now
         if (!std.mem.eql(u8, std.fs.path.extension(entry.basename), ".png")) continue;
 
-        const file = try dir.openFile(io, entry.path, .{});
-        defer file.close(io);
-
-        var buf: [1024]u8 = undefined;
-        const image: zigimg.Image = try .fromFile(arena, io, file, &buf);
-
-        try images.put(arena, try arena.dupe(u8, entry.path[0 .. entry.path.len - ".png".len]), image);
+        const path = try arena.dupe(u8, entry.path);
+        try images.put(arena, path[0 .. path.len - ".png".len], undefined);
     }
+    for (images.keys(), images.values()) |path, *image| {
+        group.async(io, loadImageFromFile, .{ io, arena, dir, path.ptr[0 .. path.len + ".png".len], image });
+    }
+    try group.await(io);
+
     return images;
+}
+
+pub const ImageError = error{
+    FileError,
+    BrokenImage,
+    OutOfMemory,
+};
+
+pub fn loadImageFromFile(
+    io: std.Io,
+    arena: std.mem.Allocator,
+    dir: std.Io.Dir,
+    path: []const u8,
+    image_out: *ImageError!zigimg.Image,
+) !void {
+    const file = dir.openFile(io, path, .{}) catch {
+        image_out.* = error.FileError;
+        return;
+    };
+    defer file.close(io);
+
+    var buf: [1024]u8 = undefined;
+
+    image_out.* = zigimg.Image.fromFile(arena, io, file, &buf) catch |e| switch (e) {
+        error.EndOfStream, error.StreamTooLong, error.InvalidData => error.BrokenImage,
+        error.OutOfMemory => error.OutOfMemory,
+        else => error.FileError,
+    };
 }
 
 const std = @import("std");

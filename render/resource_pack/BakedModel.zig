@@ -9,7 +9,7 @@ pub const Face = struct {
 
 pub fn bake(
     gpa: std.mem.Allocator,
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
     model: ResolvedModel,
     x_rotation: StateToModelMap.ModelVariant.Angle,
     y_rotation: StateToModelMap.ModelVariant.Angle,
@@ -28,7 +28,6 @@ pub fn bake(
     }
 
     var faces: std.ArrayList(Face) = try .initCapacity(gpa, face_count);
-
     // look, it's a long story, okay
     var i = elements.len;
     while (i > 0) {
@@ -302,7 +301,7 @@ pub const IntermediateFace = struct {
 
 pub fn bakeGeneratedItem(
     gpa: std.mem.Allocator,
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
     texture_handles: [5]?Renderer.TextureHandle,
     x_rotation: StateToModelMap.ModelVariant.Angle,
     y_rotation: StateToModelMap.ModelVariant.Angle,
@@ -313,7 +312,7 @@ pub fn bakeGeneratedItem(
     var ir_faces: std.ArrayList(IntermediateFace) = .empty;
     for (texture_handles) |maybe_texture_handle| {
         const texture_handle = maybe_texture_handle orelse break;
-        const image: zigimg.Image = textures.entries.items(.value)[@backingInt(texture_handle)];
+        const image: zigimg.Image = textures.entries.items(.value)[@backingInt(texture_handle)] catch unreachable;
         try ir_faces.append(gpa, .{
             .facing = .south,
             .xy = .{ .splat(0), .splat(16) },
@@ -482,5 +481,6 @@ const Vector2xy = @import("main").Vector2xy;
 const Vector3 = @import("main").Vector3;
 
 const Renderer = render.Renderer;
+const ImageError = render.resource_pack.ImageError;
 const ResolvedModel = render.resource_pack.ResolvedModel;
 const StateToModelMap = render.resource_pack.StateToModelMap;

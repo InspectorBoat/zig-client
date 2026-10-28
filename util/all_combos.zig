@@ -1,5 +1,4 @@
 /// how many distinct values can a field of type T hold
-
 fn count(T: type) usize {
     return switch (@typeInfo(T)) {
         .int => @as(usize, 1) << @typeInfo(T).int.bits,
@@ -19,10 +18,15 @@ fn nth(T: type, n: comptime_int) T {
     };
 }
 
-/// Every combination of field values for the struct type T, in mixed-radix
-/// order: the last field varies fastest. All fields must be ints, enums, or
-/// bools. Evaluated at comptime.
-pub fn allValues(T: type) []const T {
+/// Every combination of field values for the struct type T.
+/// All fields must be int, enum, or bool.
+pub fn allValues(T: type) [
+    blk: {
+        var total = 1;
+        for (@typeInfo(T).@"struct".field_types) |@"type"| total *= count(@"type");
+        break :blk total;
+    }
+]T {
     return comptime blk: {
         const field_names = @typeInfo(T).@"struct".field_names;
         const field_types = @typeInfo(T).@"struct".field_types;
@@ -37,8 +41,7 @@ pub fn allValues(T: type) []const T {
                 rem /= count(@"type");
             }
         }
-        const values_const = values;
-        break :blk &values_const;
+        break :blk values;
     };
 }
 

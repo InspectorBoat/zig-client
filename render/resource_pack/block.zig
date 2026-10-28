@@ -2,12 +2,14 @@
 
 pub fn createBlockStateToModelTable(
     gpa: std.mem.Allocator,
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
     state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
 ) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
+    @setRuntimeSafety(false);
+
     var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
-    defer std.log.scoped(.resource_pack).info("lookup table contains {} models", .{lookup_table.size});
+
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
         const all_states = allValues(@FieldType(Block.VirtualState, @tagName(block)));
@@ -39,6 +41,7 @@ pub fn createBlockStateToModelTable(
 
             const model_name = try gpa.print("block/{s}", .{model_variant.model});
             defer gpa.free(model_name);
+
             const resolved_model = (resolved_models.get(model_name) orelse {
                 std.log.scoped(.resource_pack).err("{s}:[{s}] uses missing model {s}", .{ block_name_key, properties_key, model_name });
                 continue;
@@ -60,8 +63,11 @@ pub fn getNameString(
     gpa: std.mem.Allocator,
     properties: @FieldType(Block.VirtualState, @tagName(block)),
 ) (error{NoModel} || std.mem.Allocator.Error)![]const u8 {
+    @setRuntimeSafety(false);
+
     var string: std.ArrayList(u8) = .empty;
     errdefer string.deinit(gpa);
+
     switch (block) {
         .air,
         .flowing_water,
@@ -250,13 +256,13 @@ const allValues = @import("util").allValues;
 
 pub const ModelTemplate = @import("ModelTemplate.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
-const createItemStackToModelTable = @import("item.zig").createItemStackToModelTable;
 
 const Block = main.Block;
 const Direction = main.Direction;
 const Vector3 = main.Vector3;
 const Renderer = render.Renderer;
 const BakedModel = render.resource_pack.BakedModel;
+const ImageError = render.resource_pack.ImageError;
 const ModelError = render.resource_pack.ModelError;
 const ResolvedModel = render.resource_pack.ResolvedModel;
 const StateError = render.resource_pack.StateError;

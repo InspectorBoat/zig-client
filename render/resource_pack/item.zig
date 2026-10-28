@@ -6,13 +6,13 @@ pub const BakedItemModel = struct {
     pub fn transform(self: @This(), comptime context: std.meta.FieldEnum(ResolvedModel.Display)) za.Mat4 {
         const display: ResolvedModel.Display.Transform = @field(self.display, @tagName(context)) orelse .{};
 
-        const gui: za.Mat4 = .mul(
+        const gui: za.Mat4 = if (self.gui_3d and context == .gui) .mul(
             .mul(
                 .fromRotation(30, .right()),
                 .fromRotation(225, .up()),
             ),
             .fromScale(.new(0.625, 0.625, 0.625)),
-        );
+        ) else .identity();
 
         const translation: za.Mat4 = .fromTranslate(.new(
             if (display.translation) |t| t[0] * 0.0625 else 0,
@@ -34,7 +34,7 @@ pub const BakedItemModel = struct {
             .fromRotation(if (display.rotation) |s| s[2] else 0, .forward()),
         );
 
-        return .mul(.mul(.mul(if (self.gui_3d and context == .gui) gui else .identity(), translation), rotation), scale);
+        return .mul(.mul(.mul(gui, translation), rotation), scale);
     }
     const za = @import("zalgebra");
 };
@@ -42,7 +42,7 @@ pub const BakedItemModel = struct {
 /// Create a lookup table mapping from Item.Stack -> BakedModel
 pub fn createItemStackToModelTable(
     gpa: std.mem.Allocator,
-    textures: std.array_hash_map.String(zigimg.Image),
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
 ) !std.AutoHashMapUnmanaged(u16, BakedItemModel) {
     var lookup_table: std.AutoHashMapUnmanaged(u16, BakedItemModel) = .empty;
@@ -619,5 +619,6 @@ const zigimg = @import("zigimg");
 const Block = main.Block;
 const Item = main.Item;
 const BakedModel = render.resource_pack.BakedModel;
+const ImageError = render.resource_pack.ImageError;
 const ModelError = render.resource_pack.ModelError;
 const ResolvedModel = render.resource_pack.ResolvedModel;

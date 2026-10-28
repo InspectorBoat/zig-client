@@ -208,7 +208,7 @@ pub fn initIndexBuffer(allocator: std.mem.Allocator) !gl.Buffer {
 ///
 /// Layer N is `named_block_textures.values()[N]`, which is the same index
 /// `ResolvedBlockModel.Element.Face.TextureHandle` resolves to.
-pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array_hash_map.String(zigimg.Image)) !gl.Texture {
+pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array_hash_map.String(resource_pack.ImageError!zigimg.Image)) !gl.Texture {
     const texture: gl.Texture = .create(.@"2d_array");
 
     // every block sprite is 16x16; anything else is truncated to its top-left
@@ -229,12 +229,14 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     var converted: usize = 0;
     var failed: usize = 0;
 
-    defer std.log.scoped(.resource_pack).info(
+    defer std.log.scoped(.resource_pack).debug(
         "{d} sprite layers: {d} truncated to {d}x{d}, {d} converted, {d} failed",
         .{ layer_count, truncated, layer_size, layer_size, converted, failed },
     );
 
-    for (named_block_textures.keys(), named_block_textures.values(), 0..) |name, *image, layer| {
+    for (named_block_textures.keys(), named_block_textures.values(), 0..) |name, *maybe_image, layer| {
+        const image = maybe_image.* catch continue;
+
         if (image.width != layer_size or image.height != layer_size) truncated += 1;
 
         // convert everything to rgba32
