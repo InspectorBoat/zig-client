@@ -10,13 +10,13 @@ pub const Client = union(enum) {
             self: *@This(),
             io: std.Io,
             allocator: std.mem.Allocator,
-            name: []const u8,
+            address: []const u8,
             port: u16,
-            player_name: []const u8,
+            session: Session,
         ) !void {
             const gpa = self.gpa;
 
-            const connection_handle: Connection.Handle = try .init(io, allocator, name, port, player_name);
+            const connection_handle: Connection.Handle = try .init(io, allocator, address, port, session);
 
             const client: *Client = @alignCast(@fieldParentPtr("idle", self));
 
@@ -343,3 +343,4 @@ const main = @import("main");
 const Vector2xz = main.Vector2xz;
 const World = main.World;
 const Connection = main.network.Connection;
+const Session = main.network.Session;

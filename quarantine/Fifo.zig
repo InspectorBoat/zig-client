@@ -8,7 +8,6 @@ pub fn initCapacity(allocator: std.mem.Allocator, capacity: usize) !@This() {
     return .{ .buffer = try allocator.alloc(u8, capacity) };
 }
 
-/// No-op: items are stored inline and never allocated.
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     allocator.free(self.buffer);
 }

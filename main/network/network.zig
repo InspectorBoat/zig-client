@@ -1,5 +1,12 @@
+test {
+    _ = Session;
+    _ = AesCfb8;
+}
+
+pub const AesCfb8 = @import("AesCfb8.zig");
 pub const Connection = @import("Connection.zig");
 pub const GameProfile = @import("GameProfile.zig");
+pub const Session = @import("Session.zig");
 pub const packet = @import("packet/packet.zig");
 pub const Protocol = @import("protocol.zig").Protocol;
 pub const ScaledRotation1 = @import("type/scaled_rotation.zig").ScaledRotation1;

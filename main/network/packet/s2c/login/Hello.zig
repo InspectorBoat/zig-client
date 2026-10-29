@@ -41,17 +41,21 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
         .io = io,
     };
     defer client.deinit();
-    std.log.info("sending POST", .{});
+
     const session_verification = try client.fetch(.{
         .location = .{ .url = "https://sessionserver.mojang.com/session/minecraft/join" },
         .method = .POST,
         .payload = try connection.incoming_allocator.allocator().print(
             \\{{
-            \\  "accessToken": "[redacted]",
-            \\  "selectedProfile": "[redacted]",
+            \\  "accessToken": "{s}",
+            \\  "selectedProfile": "{s}",
             \\  "serverId": "{s}"
             \\}}
-        , .{try quarantine.JavaBigInt.toString16(&encoded_hash_buf, &hash)}),
+        , .{
+            connection.session.access_token,
+            connection.session.uuid,
+            try quarantine.JavaBigInt.toString16(&encoded_hash_buf, &hash),
+        }),
         .headers = .{ .content_type = .{ .override = "application/json" } },
         .keep_alive = false,
     });

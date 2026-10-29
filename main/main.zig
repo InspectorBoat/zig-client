@@ -23,39 +23,25 @@ pub const std_options: std.Options = .{
     },
 };
 
-pub const main = if (build_options.zio) struct {
-    pub fn main() !void {
-        var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{ .stack_trace_frames = 15 });
-        defer _ = gpa_impl.deinit();
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+    const gpa = init.gpa;
 
-        const gpa = gpa_impl.allocator();
+    const path = try init.gpa.print("{s}/.local/share/PrismLauncher/accounts.json", .{init.environ_map.get("HOME").?});
+    defer init.gpa.free(path);
+    const session: network.Session = try .parseFromPrismLauncher(
+        io,
+        gpa,
+        try std.Io.Dir.openFile(.cwd(), io, path, .{}),
+    );
 
-        var zio_runtime: *zio.Runtime = try .init(gpa, .{});
-        defer zio_runtime.deinit();
-
-        const io = zio_runtime.io();
-
-        try realMain(gpa, io);
-    }
-}.main else struct {
-    pub fn main(init: std.process.Init) !void {
-        var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{ .stack_trace_frames = 15 });
-        // defer _ = gpa_impl.deinit();
-
-        const gpa = gpa_impl.allocator();
-
-        try realMain(gpa, init.io);
-    }
-}.main;
-
-pub fn realMain(gpa: std.mem.Allocator, io: std.Io) !void {
     try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = io });
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
     } };
 
-    client.idle.initConnection(io, gpa, "[redacted]", 25565, "[redacted]") catch |e| {
+    client.idle.initConnection(io, gpa, "127.0.0.1", 25565, session) catch |e| {
         std.log.debug("failed to connect: {}", .{e});
         if (@errorReturnTrace()) |error_trace| std.debug.dumpErrorReturnTrace(error_trace);
         return;
@@ -116,7 +102,6 @@ const std = @import("std");
 const build_options = @import("build_options");
 const render = @import("render");
 const util = @import("util");
-const zio = @import("zio");
 
 pub const block = @import("block/block.zig");
 pub const Inventory = @import("inventory/Inventory.zig");

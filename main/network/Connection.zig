@@ -5,6 +5,7 @@ wants_disconnect: std.atomic.Value(bool) = .init(false),
 
 ip: std.Io.net.IpAddress,
 stream: std.Io.net.Stream,
+session: Session,
 
 unread_bytes: quarantine.Fifo,
 
@@ -14,18 +15,12 @@ outgoing_packets: SpscQueue(C2SWrapper),
 incoming_allocator: RingBuffer,
 outgoing_allocator: RingBuffer,
 
-encryption: ?struct {
-    incoming: quarantine.AesCfb8,
-    outgoing: quarantine.AesCfb8,
-} = null,
+encryption: ?AesCfb8 = null,
 
 pub fn setupEncryption(self: *@This(), shared_secret: [16]u8) void {
     std.debug.assert(self.encryption == null);
-    self.encryption = .{
-        .incoming = .init(shared_secret),
-        .outgoing = .init(shared_secret),
-    };
-    self.encryption.?.incoming.decrypt(self.unread_bytes.readableSlice());
+    self.encryption = .init(shared_secret);
+    self.encryption.?.decrypt(self.unread_bytes.readableSlice());
 }
 
 pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
@@ -111,7 +106,7 @@ pub fn receiveBytes(
         else => return err,
     };
 
-    if (self.encryption) |*encryption| encryption.incoming.decrypt(message.data);
+    if (self.encryption) |*encryption| encryption.decrypt(message.data);
 
     std.log.scoped(.net).debug("read {} bytes", .{message.data.len});
     // TODO: Fix our queue implementation, make it growable
@@ -278,8 +273,8 @@ pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void 
     std.log.scoped(.net).debug("sending {} bytes", .{packet_buffer.backer.items.len + header.backer.items.len});
 
     if (self.encryption) |*encryption| {
-        encryption.outgoing.encrypt(header.backer.items);
-        encryption.outgoing.encrypt(packet_buffer.backer.items);
+        encryption.encrypt(header.backer.items);
+        encryption.encrypt(packet_buffer.backer.items);
     }
 
     var buf: [1024]u8 = undefined;
@@ -344,7 +339,7 @@ pub const Handle = struct {
         allocator: std.mem.Allocator,
         address: []const u8,
         port: u16,
-        player_name: []const u8,
+        session: Session,
     ) !@This() {
         const ip: std.Io.net.IpAddress = try .parse(address, port);
 
@@ -373,6 +368,7 @@ pub const Handle = struct {
         connection.* = .{
             .ip = ip,
             .stream = stream,
+            .session = session,
 
             .unread_bytes = unread_bytes,
 
@@ -390,7 +386,7 @@ pub const Handle = struct {
             .protocol_id = 2,
         } });
         try connection.sendLoginPacket(io, .{ .hello = .{
-            .player_name = player_name,
+            .player_name = session.username,
         } });
 
         const network_task = try io.concurrent(Connection.networkThreadImpl, .{ io, connection });
@@ -414,7 +410,9 @@ const util = @import("util");
 
 const Connection = @This();
 const network = main.network;
+const AesCfb8 = network.AesCfb8;
 const Protocol = network.Protocol;
+const Session = network.Session;
 const C2S = network.packet.C2S;
 const S2C = network.packet.S2C;
 const RingBuffer = util.RingBuffer;
