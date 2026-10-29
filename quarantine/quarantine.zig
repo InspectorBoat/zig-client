@@ -2,6 +2,8 @@ test {
     _ = AesCfb8;
     _ = Fifo;
     _ = JavaBigInt;
+    _ = MathHelper;
+    _ = rsa;
 }
 
 pub const AesCfb8 = @import("AesCfb8.zig");

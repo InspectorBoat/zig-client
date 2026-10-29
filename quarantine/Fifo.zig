@@ -83,24 +83,24 @@ pub fn realign(self: *@This()) void {
 }
 
 test "Fifo is FIFO ordered" {
-    var fifo: @This() = .initCapacity(std.testing.allocator, 4);
+    var fifo: @This() = try .initCapacity(std.testing.allocator, 4);
     defer fifo.deinit(std.testing.allocator);
 
-    try std.testing.expectEqual(@as(?u32, null), fifo.readItem());
+    try std.testing.expectEqual(@as(?u8, null), fifo.readItem());
 
     try fifo.writeItem(1);
     try fifo.writeItem(2);
     try fifo.writeItem(3);
 
     try std.testing.expectEqual(3, fifo.count());
-    try std.testing.expectEqual(@as(?u32, 1), fifo.readItem());
-    try std.testing.expectEqual(@as(?u32, 2), fifo.readItem());
-    try std.testing.expectEqual(@as(?u32, 3), fifo.readItem());
-    try std.testing.expectEqual(@as(?u32, null), fifo.readItem());
+    try std.testing.expectEqual(@as(?u8, 1), fifo.readItem());
+    try std.testing.expectEqual(@as(?u8, 2), fifo.readItem());
+    try std.testing.expectEqual(@as(?u8, 3), fifo.readItem());
+    try std.testing.expectEqual(@as(?u8, null), fifo.readItem());
 }
 
 test "Fifo reclaims space and reports overflow" {
-    var fifo: @This() = .initCapacity(std.testing.allocator, 2);
+    var fifo: @This() = try .initCapacity(std.testing.allocator, 2);
     defer fifo.deinit(std.testing.allocator);
 
     try fifo.writeItem(1);
@@ -116,8 +116,8 @@ test "Fifo reclaims space and reports overflow" {
 }
 
 test "FixedFifo readable slice stays contiguous and correct" {
-    var fifo: @This() = .initCapacity(64);
-    defer fifo.deinit();
+    var fifo: @This() = try .initCapacity(std.testing.allocator, 64);
+    defer fifo.deinit(std.testing.allocator);
 
     var all: [64]u8 = undefined;
     for (&all, 0..) |*b, i| b.* = @intCast(i);
