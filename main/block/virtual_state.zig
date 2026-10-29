@@ -577,7 +577,9 @@ fn paneShouldConnectTo(neighbour: Block) bool {
 }
 
 fn wallShouldConnectTo(neighbor: Block) bool {
-    return neighbor.isSolid();
+    return neighbor == .cobblestone_wall or
+        neighbor.isFenceGate() or
+        neighbor.getMaterial().blocksMovementAndNotTranslucent() and neighbor.isCube() and neighbor.getMaterial() != .pumpkin and neighbor != .barrier;
 }
 
 fn tripwireShouldConnectTo(world: *const World, block_pos: Vector3(i32), suspended: bool, dir: PhysicalState.HorizontalFacing) bool {
