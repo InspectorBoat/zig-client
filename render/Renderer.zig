@@ -720,10 +720,10 @@ pub fn unloadAllChunks(self: *@This(), allocator: std.mem.Allocator) !void {
 }
 
 pub fn deinit(self: *@This(), io: std.Io) !void {
-    try self.unloadAllChunks(self.allocator);
+    self.compilation_tracker.deinit(io);
+    self.chunk_tracker.chunks.deinit(self.allocator);
     self.gpu_memory_allocator.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
-    self.compilation_tracker.deinit(io);
 
     {
         var iter = self.blockstate_to_model_lookup.iterator();

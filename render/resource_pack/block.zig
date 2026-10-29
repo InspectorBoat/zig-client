@@ -1,5 +1,4 @@
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
-
 pub fn createBlockStateToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(ImageError!zigimg.Image),
@@ -9,18 +8,14 @@ pub fn createBlockStateToModelTable(
     @setRuntimeSafety(false);
 
     var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
-
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
         const all_states = allValues(@FieldType(Block.VirtualState, @tagName(block)));
         for (all_states) |properties| {
-            const block_name_key = getNameString(block, gpa, properties) catch |e| switch (e) {
-                error.NoModel => continue,
-                else => return e,
-            };
-            defer gpa.free(block_name_key);
-            const properties_key = try getPropertiesString(block, gpa, properties);
-            defer gpa.free(properties_key);
+            var block_name_buffer: [128]u8, var properties_buffer: [128]u8 = .{ undefined, undefined };
+
+            const block_name_key = getNameString(&block_name_buffer, block, properties) catch continue;
+            const properties_key = getPropertiesString(&properties_buffer, block, properties);
 
             const state_to_model_map = state_to_model_maps.get(block_name_key) orelse {
                 std.log.scoped(.resource_pack).err("{s} uses missing blockstate to model file", .{block_name_key});
@@ -39,13 +34,13 @@ pub fn createBlockStateToModelTable(
                 .multi => |multi| multi[0],
             };
 
-            const model_name = try gpa.print("block/{s}", .{model_variant.model});
-            defer gpa.free(model_name);
+            var model_name_buffer: [128]u8 = undefined;
+            const model_name = std.mem.print(&model_name_buffer, "block/{s}", .{model_variant.model}) catch unreachable;
 
-            const resolved_model = (resolved_models.get(model_name) orelse {
+            const resolved_model = resolved_models.get(model_name) orelse {
                 std.log.scoped(.resource_pack).err("{s}:[{s}] uses missing model {s}", .{ block_name_key, properties_key, model_name });
                 continue;
-            }) catch |e| {
+            } catch |e| {
                 std.log.scoped(.resource_pack).err("{s}:[{s}] uses broken model {s} ({})", .{ block_name_key, properties_key, model_name, e });
                 continue;
             };
@@ -59,16 +54,12 @@ pub fn createBlockStateToModelTable(
 }
 
 pub fn getNameString(
+    scratch_buffer: []u8,
     comptime block: Block,
-    gpa: std.mem.Allocator,
     properties: @FieldType(Block.VirtualState, @tagName(block)),
-) (error{NoModel} || std.mem.Allocator.Error)![]const u8 {
+) error{NoModel}![]const u8 {
     @setRuntimeSafety(false);
-
-    var string: std.ArrayList(u8) = .empty;
-    errdefer string.deinit(gpa);
-
-    switch (block) {
+    return switch (block) {
         .air,
         .flowing_water,
         .water,
@@ -87,13 +78,12 @@ pub fn getNameString(
         .barrier,
 
         .flower_pot, // todo
-        .quartz_block, // todo
-        => return error.NoModel,
+        => error.NoModel,
 
-        .deadbush => try string.appendSlice(gpa, "dead_bush"),
-        .yellow_flower => try string.appendSlice(gpa, "dandelion"),
-        .double_stone_slab2 => try string.appendSlice(gpa, "red_sandstone_double_slab"),
-        .stone_slab2 => try string.appendSlice(gpa, "red_sandstone_slab"),
+        .deadbush => "dead_bush",
+        .yellow_flower => "dandelion",
+        .double_stone_slab2 => "red_sandstone_double_slab",
+        .stone_slab2 => "red_sandstone_slab",
 
         .stone,
         .sand,
@@ -105,38 +95,49 @@ pub fn getNameString(
         .red_sandstone,
         .sandstone,
         .tallgrass,
-        => try string.appendSlice(gpa, @tagName(properties.variant)),
+        => @tagName(properties.variant),
 
         .stained_hardened_clay,
         .stained_glass,
         .stained_glass_pane,
         .wool,
         .carpet,
-        => try string.print(gpa, "{s}_{s}", .{ @tagName(properties.color), @tagName(block) }),
+        => std.mem.print(scratch_buffer, "{s}_{s}", .{ @tagName(properties.color), @tagName(block) }) catch unreachable,
 
         .planks,
         .sapling,
         .monster_egg,
-        => try string.print(gpa, "{s}_{s}", .{ @tagName(properties.variant), @tagName(block) }),
+        => std.mem.print(scratch_buffer, "{s}_{s}", .{ @tagName(properties.variant), @tagName(block) }) catch unreachable,
 
-        .log, .log2 => try string.print(gpa, "{s}_log", .{@tagName(properties.variant)}),
-        .leaves, .leaves2 => try string.print(gpa, "{s}_leaves", .{@tagName(properties.variant)}),
-        .double_wooden_slab, .double_stone_slab => try string.print(gpa, "{s}_double_slab", .{@tagName(properties.variant)}),
-        .wooden_slab, .stone_slab => try string.print(gpa, "{s}_slab", .{@tagName(properties.variant)}),
-        .cobblestone_wall => try string.print(gpa, "{s}_wall", .{@tagName(properties.variant)}),
+        .log, .log2 => std.mem.print(scratch_buffer, "{s}_log", .{@tagName(properties.variant)}) catch unreachable,
+        .leaves, .leaves2 => std.mem.print(scratch_buffer, "{s}_leaves", .{@tagName(properties.variant)}) catch unreachable,
+        .double_wooden_slab, .double_stone_slab => std.mem.print(scratch_buffer, "{s}_double_slab", .{@tagName(properties.variant)}) catch unreachable,
+        .wooden_slab, .stone_slab => std.mem.print(scratch_buffer, "{s}_slab", .{@tagName(properties.variant)}) catch unreachable,
+        .cobblestone_wall => std.mem.print(scratch_buffer, "{s}_wall", .{@tagName(properties.variant)}) catch unreachable,
 
-        else => try string.appendSlice(gpa, @tagName(block)),
-    }
-    return try string.toOwnedSlice(gpa);
+        .quartz_block => switch (properties.variant) {
+            .default => "quartz_block",
+            .chiseled => "chiseled_quartz_block",
+            .lines_x, .lines_y, .lines_z => "quartz_column",
+        },
+
+        else => @tagName(block),
+    };
 }
 
 pub fn getPropertiesString(
+    scratch_buffer: []u8,
     comptime block: Block,
-    gpa: std.mem.Allocator,
     properties: @FieldType(Block.VirtualState, @tagName(block)),
-) ![]const u8 {
-    var string: std.ArrayList(u8) = .empty;
-    errdefer string.deinit(gpa);
+) []const u8 {
+    if (block == .quartz_block) {
+        return switch (properties.variant) {
+            .default, .chiseled => "normal",
+            .lines_x => "axis=x",
+            .lines_y => "axis=y",
+            .lines_z => "axis=z",
+        };
+    }
 
     const field_names_const = @typeInfo(@FieldType(Block.VirtualState, @tagName(block))).@"struct".field_names;
     comptime var field_names = field_names_const[0..field_names_const.len].*;
@@ -145,24 +146,27 @@ pub fn getPropertiesString(
             return std.mem.lessThanZ(u8, lhs, rhs);
         }
     }.lessThan);
+
+    var string: std.ArrayList(u8) = .initBuffer(scratch_buffer);
+
     // TODO: seamless slabs
     inline for (field_names) |field_name| {
         if (!skipField(block, field_name, properties)) {
-            if (string.items.len > 0) try string.append(gpa, ',');
-            try string.appendSlice(gpa, field_name);
-            try string.append(gpa, '=');
+            if (string.items.len > 0) string.appendAssumeCapacity(',');
+            string.appendSliceAssumeCapacity(field_name);
+            string.appendAssumeCapacity('=');
+
             const property = @field(properties, field_name);
 
             switch (@typeInfo(@TypeOf(property))) {
-                .@"enum" => try string.appendSlice(gpa, @tagName(property)),
-                .int => try string.print(gpa, "{}", .{property}),
-                .bool => try string.appendSlice(gpa, if (property) "true" else "false"),
+                .@"enum" => string.appendSliceAssumeCapacity(@tagName(property)),
+                .int, .bool => string.printAssumeCapacity("{}", .{property}),
                 else => unreachable,
             }
         }
     }
-    if (string.items.len == 0) try string.appendSlice(gpa, "normal");
-    return string.toOwnedSlice(gpa);
+    if (string.items.len == 0) return "normal";
+    return string.items;
 }
 
 pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState, @tagName(block))) bool {

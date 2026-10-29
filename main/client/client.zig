@@ -251,8 +251,7 @@ pub const Client = union(enum) {
         }
     }
 
-    /// Handles incoming packets and frees c2s packets that have already been processed by the network thread
-    /// Disconnects if connection is closed
+    /// Handles incoming packets and disconnects if connection is closed
     pub fn tickConnection(self: *@This(), io: std.Io) !void {
         const gpa, const connection_handle, const incoming_packets, const incoming_allocator = switch (self.*) {
             inline .game, .connecting => |client_state| .{
@@ -293,10 +292,11 @@ pub const Client = union(enum) {
 
         if (connection_handle.connection.wants_disconnect.load(.acquire)) {
             self.disconnect(io);
+            main.signalExit();
         }
     }
 
-    /// Calling this if self is .game or .connecting is always safe, because it can only be called once
+    /// Calling this is always safe
     pub fn disconnect(self: *@This(), io: std.Io) void {
         switch (self.*) {
             .game => |*game| {

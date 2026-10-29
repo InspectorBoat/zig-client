@@ -100,8 +100,9 @@ pub fn tick(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Cli
 
 pub fn loadChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !*Chunk {
     std.log.scoped(.world).debug("loaded new chunk at {}", .{chunk_pos});
-
     const chunk = try allocator.create(Chunk);
+    errdefer allocator.destroy(chunk);
+
     chunk.* = .{
         .sections = @splat(null),
         .biomes = @splat(0),

@@ -15,12 +15,20 @@ const PrismLauncher = struct {
     };
 };
 
+pub fn deinit(self: @This(), gpa: std.mem.Allocator) void {
+    gpa.free(self.username);
+    gpa.free(self.uuid);
+    gpa.free(self.access_token);
+}
+
 pub fn parseFromPrismLauncher(io: std.Io, gpa: std.mem.Allocator, file: std.Io.File) !@This() {
     defer file.close(io);
 
     var buffer: [1024]u8 = undefined;
     var file_reader = file.reader(io, &buffer);
+
     var reader: std.json.Reader = .init(gpa, &file_reader.interface);
+    defer reader.deinit();
 
     const json = std.json.parseFromTokenSource(PrismLauncher, gpa, &reader, .{ .ignore_unknown_fields = true }) catch |e| {
         std.log.err("failed to parse accounts.json", .{});

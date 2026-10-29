@@ -34,8 +34,7 @@ pub fn onStartup(startup: Events.Startup) !void {
 
 pub fn onFrame(frame: Events.Frame) !void {
     if (window_input.window.shouldClose()) {
-        try EventHandler.dispatch(Events.Exit, .{ .io = frame.io });
-        return;
+        main.signalExit();
     }
     const client = frame.client;
     glfw.pollEvents();

@@ -34,22 +34,22 @@ pub fn main(init: std.process.Init) !void {
         gpa,
         try std.Io.Dir.openFile(.cwd(), io, path, .{}),
     );
+    defer session.deinit(gpa);
 
     try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = io });
+    defer EventHandler.dispatch(Events.Exit, .{ .io = io }) catch |e| std.log.err("{} while shutting down", .{e});
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
     } };
 
-    client.idle.initConnection(io, gpa, "127.0.0.1", 25565, session) catch |e| {
+    client.idle.initConnection(io, gpa, "135.125.155.154", 25565, session) catch |e| {
         std.log.debug("failed to connect: {}", .{e});
         if (@errorReturnTrace()) |error_trace| std.debug.dumpErrorReturnTrace(error_trace);
         return;
     };
 
-    defer {
-        if (client != .idle) client.disconnect(io);
-    }
+    defer if (client != .idle) client.disconnect(io);
 
     while (true) {
         try EventHandler.dispatch(Events.Frame, .{
@@ -66,10 +66,11 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-var done = false;
-pub fn exit(_: Events.Exit) void {
+pub fn signalExit() void {
     done = true;
 }
+
+var done = false;
 
 pub const Events = struct {
     pub const Startup = struct { gpa: std.mem.Allocator, io: std.Io };
@@ -81,10 +82,7 @@ pub const Events = struct {
 };
 
 pub const EventHandler = struct {
-    pub const listeners = if (build_options.headless)
-        .{exit}
-    else
-        .{exit} ++ render.event_listeners;
+    pub const listeners = if (build_options.headless) .{} else render.event_listeners;
 
     pub const dispatch = util.events.getDispatcher(Events, listeners).dispatch;
 };
