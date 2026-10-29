@@ -16,6 +16,47 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     var shared_secret: [16]u8 = undefined;
     try io.randomSecure(&shared_secret);
 
+    var sha: std.crypto.hash.Sha1 = .init(.{});
+
+    // TODO: needs a utf-8 -> latin-1 round-trip... ughhhh
+    // sha.update(self.key);
+
+    sha.update(&shared_secret);
+
+    // argh....
+    // vanilla does a round trip (parses the public key, then re-encodes it)
+    // this can be non-idempotent if server sends a non-canonical key encoding!
+    // the vanilla client and server would use the canonical encoding to
+    // compute the hash, while we use the wire bytes.
+    // TODO: KILL MYSELF
+    sha.update(self.public_key);
+
+    const hash = sha.finalResult();
+    comptime std.debug.assert(hash.len == 20);
+
+    var encoded_hash_buf: [41]u8 = undefined;
+
+    var client: std.http.Client = .{
+        .allocator = connection.incoming_allocator.allocator(),
+        .io = io,
+    };
+    defer client.deinit();
+    std.log.info("sending POST", .{});
+    const session_verification = try client.fetch(.{
+        .location = .{ .url = "https://sessionserver.mojang.com/session/minecraft/join" },
+        .method = .POST,
+        .payload = try connection.incoming_allocator.allocator().print(
+            \\{{
+            \\  "accessToken": "[redacted]",
+            \\  "selectedProfile": "[redacted]",
+            \\  "serverId": "{s}"
+            \\}}
+        , .{try quarantine.JavaBigInt.toString16(&encoded_hash_buf, &hash)}),
+        .headers = .{ .content_type = .{ .override = "application/json" } },
+        .keep_alive = false,
+    });
+    if (session_verification.status != .no_content) return error.AuthFailed;
+
     const public_key = try quarantine.rsa.parsePublicKey(self.public_key);
 
     var secret_buf: [1024]u8 = undefined;

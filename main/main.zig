@@ -5,9 +5,9 @@ pub const std_options: std.Options = .{
         .{ .scope = .tick_late, .level = .warn },
         .{ .scope = .keepalive, .level = .warn },
         .{ .scope = .tick_on_time, .level = .warn },
-        .{ .scope = .send_packet, .level = .debug },
-        .{ .scope = .handle_packet_main, .level = .debug },
-        .{ .scope = .handle_packet_net, .level = .debug },
+        .{ .scope = .send_packet, .level = .warn },
+        .{ .scope = .handle_packet_main, .level = .warn },
+        .{ .scope = .handle_packet_net, .level = .warn },
         .{ .scope = .world, .level = .warn },
         .{ .scope = .decode_packet, .level = .warn },
         .{ .scope = .entity, .level = .warn },
@@ -40,7 +40,7 @@ pub const main = if (build_options.zio) struct {
 }.main else struct {
     pub fn main(init: std.process.Init) !void {
         var gpa_impl: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{ .stack_trace_frames = 15 });
-        defer _ = gpa_impl.deinit();
+        // defer _ = gpa_impl.deinit();
 
         const gpa = gpa_impl.allocator();
 
@@ -55,8 +55,9 @@ pub fn realMain(gpa: std.mem.Allocator, io: std.Io) !void {
         .gpa = gpa,
     } };
 
-    client.idle.initConnection(io, gpa, "127.0.0.1", 25565, "baz") catch |e| {
+    client.idle.initConnection(io, gpa, "[redacted]", 25565, "[redacted]") catch |e| {
         std.log.debug("failed to connect: {}", .{e});
+        if (@errorReturnTrace()) |error_trace| std.debug.dumpErrorReturnTrace(error_trace);
         return;
     };
 

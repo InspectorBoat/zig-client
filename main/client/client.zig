@@ -281,7 +281,10 @@ pub const Client = union(enum) {
                         gpa,
                         switch (self.*) {
                             specific_packet.required_client_state => |*client_state| client_state,
-                            else => std.debug.panic("expected {}", .{specific_packet.required_client_state}),
+                            else => {
+                                std.log.err("expected {} for packet {s}", .{ specific_packet.required_client_state, @tagName(std.meta.activeTag(s2c_packet)) });
+                                continue;
+                            },
                         },
                     );
                 },

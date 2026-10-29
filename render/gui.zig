@@ -20,8 +20,8 @@ pub fn bufferInventory(
 
     const aspect_ratio = window_width / window_height;
 
-    if (world.maybe_cursor_stack) |cursor_stack| {
-        const model = item_models_lookup.get(@backingInt(cursor_stack.item) << 4).?;
+    if (world.maybe_cursor_stack) |cursor_stack| blk: {
+        const model = item_models_lookup.get(@backingInt(cursor_stack.item) << 4) orelse break :blk;
 
         const translate: za.Mat4 = .fromTranslate(.new(cursor_pos.x, cursor_pos.y, 0));
 
@@ -50,7 +50,7 @@ pub fn bufferInventory(
     for (menu.slots, 0..) |_, i| {
         const slot_stack = menu.getSlot(@fromBackingInt(@intCast(i))) orelse continue;
 
-        const model = item_models_lookup.get(@backingInt(slot_stack.item) << 4).?;
+        const model = item_models_lookup.get(@backingInt(slot_stack.item) << 4) orelse continue;
 
         const slot_pos = getSlotPosForMenu(menu, @fromBackingInt(@intCast(i)));
 
