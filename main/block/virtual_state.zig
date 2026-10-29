@@ -564,13 +564,9 @@ fn stemFacingFor(world: *const World, block_pos: Vector3(i32), stem: Block) Virt
 }
 
 fn fenceShouldConnectTo(fence: Block, neighbour: Block) bool {
-    switch (neighbour) {
-        .barrier => return false,
-        else => {
-            if ((!neighbour.isFence() and neighbour.getMaterial() == fence.getMaterial()) or neighbour.isFenceGate()) return true;
-            return neighbour.getMaterial().blocksMovementAndNotTranslucent() and neighbour.isCube() and neighbour.getMaterial() != .pumpkin;
-        },
-    }
+    return neighbour.isFenceGate() or
+        neighbour.isFence() and neighbour.getMaterial() == fence.getMaterial() or
+        neighbour.getMaterial().blocksMovementAndNotTranslucent() and neighbour.isCube() and neighbour.getMaterial() != .pumpkin and neighbour != .barrier;
 }
 
 fn paneShouldConnectTo(neighbour: Block) bool {
