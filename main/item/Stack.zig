@@ -50,6 +50,12 @@ pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlay
     return false;
 }
 
+pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+    try writer.print("{s}:{}", .{ @tagName(self.item), self.metadata });
+    if (self.nbt) |nbt| try nbt.format(writer);
+    if (self.size != 1) try writer.print("x{}", .{self.size});
+}
+
 const std = @import("std");
 
 const main = @import("main");

@@ -1,5 +1,4 @@
 /// A buffer to read incoming packet data (s2c)
-
 backer: []const u8,
 read_location: usize,
 

@@ -120,6 +120,14 @@ pub const Nbt = union(Tag) {
         }
     }
 
+    pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        switch (self.*) {
+            inline else => |*element| {
+                try element.format(writer);
+            },
+        }
+    }
+
     pub const End = struct {
         pub fn write(_: *const @This(), _: *C2S.WriteBuffer) WriteError!void {}
 
@@ -135,6 +143,11 @@ pub const Nbt = union(Tag) {
 
         pub fn dupe(_: *const @This(), _: std.mem.Allocator) !@This() {
             return .{};
+        }
+
+        pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            _ = self;
+            _ = try writer.write("<end>");
         }
     };
 
@@ -164,6 +177,13 @@ pub const Nbt = union(Tag) {
             pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
                 _ = allocator;
                 return self.*;
+            }
+
+            pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+                if (@typeInfo(Value) == .float)
+                    try writer.printFloat(self.value, .{})
+                else
+                    try writer.printInt(self.value, 10, .lower, .{});
             }
         };
     }
@@ -208,6 +228,15 @@ pub const Nbt = union(Tag) {
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
             return .{ .items = try allocator.dupe(i8, self.items) };
         }
+
+        pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.writeByte('[');
+            for (self.items, 0..) |byte, i| {
+                if (i != 0) try writer.writeByte(',');
+                try writer.printInt(byte, 10, .lower, .{});
+            }
+            try writer.writeByte(']');
+        }
     };
 
     pub const String = struct {
@@ -233,6 +262,10 @@ pub const Nbt = union(Tag) {
 
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
             return .{ .value = try allocator.dupe(u8, self.value) };
+        }
+
+        pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            _ = try writer.write(self.value);
         }
     };
 
@@ -329,16 +362,29 @@ pub const Nbt = union(Tag) {
                 },
             }
         }
+
+        pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.writeByte('[');
+            switch (self.tag) {
+                inline else => |tag| {
+                    for (self.items(tag), 0..) |*item, i| {
+                        if (i != 0) _ = try writer.writeByte(',');
+                        try item.format(writer);
+                    }
+                },
+            }
+            try writer.writeByte(']');
+        }
     };
 
     pub const Compound = struct {
-        items: std.StringHashMapUnmanaged(Nbt),
+        items: std.array_hash_map.String(Nbt),
 
         pub fn init(
             allocator: std.mem.Allocator,
             initializer: anytype,
         ) !@This() {
-            var items: std.StringHashMapUnmanaged(Nbt) = .empty;
+            var items: std.array_hash_map.String(Nbt) = .empty;
             inline for (@typeInfo(@TypeOf(initializer)).@"struct".field_names) |field_name| {
                 const name = try allocator.dupe(u8, field_name);
                 try items.put(allocator, name, @field(initializer, field_name));
@@ -358,7 +404,7 @@ pub const Nbt = union(Tag) {
         }
 
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
-            var items: std.StringHashMapUnmanaged(Nbt) = .empty;
+            var items: std.array_hash_map.String(Nbt) = .empty;
 
             var read_result = try Nbt.readWithName(allocator, buffer);
             while (read_result.nbt != .end) : (read_result = try Nbt.readWithName(allocator, buffer)) {
@@ -369,39 +415,37 @@ pub const Nbt = union(Tag) {
         }
 
         pub fn deepEquals(lhs: *const @This(), rhs: *const @This()) bool {
-            if (lhs.items.size != rhs.items.size) return false;
-            var lhs_entries = lhs.items.iterator();
-            while (lhs_entries.next()) |lhs_entry| {
-                const rhs_item = rhs.items.getPtr(lhs_entry.key_ptr.*) orelse return false;
-                const lhs_item = lhs_entry.value_ptr;
+            if (lhs.items.count() != rhs.items.count()) return false;
+            for (lhs.items.keys(), lhs.items.values()) |lhs_key, lhs_item| {
+                const rhs_item = rhs.items.getPtr(lhs_key) orelse return false;
                 if (!lhs_item.deepEquals(rhs_item)) return false;
             }
             return true;
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-            var entries = self.items.iterator();
-            while (entries.next()) |*entry| {
-                const name = entry.key_ptr.*;
-                allocator.free(name);
-                const item = entry.value_ptr;
+            for (self.items.keys(), self.items.values()) |*key, *item| {
+                allocator.free(key.*);
                 item.deinit(allocator);
             }
             self.items.deinit(allocator);
         }
 
         pub fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
-            var new_items: std.StringHashMapUnmanaged(Nbt) = .empty;
-            try new_items.ensureTotalCapacity(allocator, self.items.size);
+            var new_items: std.array_hash_map.String(Nbt) = try .init(allocator, self.items.keys(), self.items.values());
+            for (new_items.keys()) |*key| key.* = try allocator.dupe(u8, key.*);
+            for (new_items.values()) |*item| item.* = try item.dupe(allocator);
 
-            var iterator = self.items.iterator();
-            while (iterator.next()) |entry| {
-                new_items.putAssumeCapacityNoClobber(
-                    try allocator.dupe(u8, entry.key_ptr.*),
-                    try entry.value_ptr.dupe(allocator),
-                );
-            }
             return .{ .items = new_items };
+        }
+
+        pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.writeByte('{');
+            for (self.items.keys(), self.items.values(), 0..) |key, item, i| {
+                if (i != 0) try writer.writeByte(',');
+                try writer.print("{s}={f}", .{ key, item });
+            }
+            try writer.writeByte('}');
         }
     };
 
@@ -444,6 +488,15 @@ pub const Nbt = union(Tag) {
 
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
             return .{ .items = try allocator.dupe(i32, self.items) };
+        }
+
+        pub fn format(self: *const @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.writeByte('[');
+            for (self.items, 0..) |item, i| {
+                if (i != 0) try writer.writeByte(',');
+                try writer.printInt(item, 10, .lower, .{});
+            }
+            try writer.writeByte(']');
         }
     };
 };
@@ -527,11 +580,11 @@ test "dupe" {
     try std.testing.expectEqual(15, nbt.compound.items.getPtr("foobar").?.list.items(.double)[2].value);
 
     duped.compound.items.getPtr("bar").?.deinit(std.testing.allocator);
-    std.testing.allocator.free(duped.compound.items.fetchRemove("bar").?.key);
+    std.testing.allocator.free(duped.compound.items.fetchSwapRemove("bar").?.key);
     duped.compound.items.getPtr("qux").?.deinit(std.testing.allocator);
-    std.testing.allocator.free(duped.compound.items.fetchRemove("qux").?.key);
+    std.testing.allocator.free(duped.compound.items.fetchSwapRemove("qux").?.key);
 
-    try std.testing.expectEqual(4, nbt.compound.items.size);
+    try std.testing.expectEqual(4, nbt.compound.items.count());
 }
 
 const std = @import("std");

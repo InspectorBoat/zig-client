@@ -39,9 +39,7 @@ pub fn init(allocator: std.mem.Allocator, @"type": Type, slot_count: usize) !*@T
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    for (self.stacks) |*item_stack| {
-        Item.Stack.deinit(allocator, item_stack);
-    }
+    for (self.stacks) |*item_stack| Item.Stack.deinit(allocator, item_stack);
     allocator.free(self.stacks);
     allocator.destroy(self);
 }
