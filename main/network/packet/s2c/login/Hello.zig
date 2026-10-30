@@ -1,5 +1,9 @@
+/// Usually unused, but can be up to 20 bytes of Latin-1 encoded text.
+/// Only used as part of the hash used for authentication.
 key: []const u8,
+/// The server's public RSA key
 public_key: []const u8,
+/// Prevents replay attacks
 nonce: []const u8,
 
 comptime handle_on_network_thread: bool = true,
@@ -15,25 +19,6 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
     var shared_secret: [16]u8 = undefined;
     try io.randomSecure(&shared_secret);
-
-    var sha: std.crypto.hash.Sha1 = .init(.{});
-
-    // TODO: needs a utf-8 -> latin-1 round-trip... ughhhh
-    if (self.key.len != 0) std.debug.panic("TODO!", .{});
-    // sha.update(self.key);
-
-    sha.update(&shared_secret);
-
-    // argh....
-    // vanilla does a round trip (parses the public key, then re-encodes it)
-    // this can be non-idempotent if server sends a non-canonical key encoding!
-    // the vanilla client and server would use the canonical encoding to
-    // compute the hash, while we use the wire bytes.
-    // TODO: KILL MYSELF
-    sha.update(self.public_key);
-
-    const hash = sha.finalResult();
-    comptime std.debug.assert(hash.len == 20);
 
     var client: std.http.Client = .{
         .allocator = connection.incoming_allocator.allocator(),
@@ -53,7 +38,7 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
         , .{
             connection.session.access_token,
             connection.session.uuid,
-            toInt(hash),
+            toInt(computeDigest(self.key, shared_secret, self.public_key)),
         }),
         .headers = .{ .content_type = .{ .override = "application/json" } },
         .keep_alive = false,
@@ -78,8 +63,30 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     connection.setupEncryption(shared_secret);
 }
 
+pub fn computeDigest(key: []const u8, shared_secret: [16]u8, public_key: []const u8) [20]u8 {
+    var sha: std.crypto.hash.Sha1 = .init(.{});
+
+    // TODO: needs a utf-8 -> latin-1 round-trip... ughhhh
+    if (key.len != 0) {
+        std.debug.panic("TODO!", .{});
+        // sha.update(self.key);
+    }
+
+    sha.update(&shared_secret);
+
+    // argh....
+    // vanilla does a round trip (parses the public key, then re-encodes it)
+    // this can be non-idempotent if server sends a non-canonical key encoding!
+    // the vanilla client and server would use the canonical encoding to
+    // compute the hash, while we use the wire bytes.
+    // TODO: KILL MYSELF
+    sha.update(public_key);
+
+    return sha.finalResult();
+}
+
 /// Should match new BigInteger(bytes).toString(16) when formatted with {x}
-fn toInt(bytes: anytype) @Int(.signed, bytes.len * 8) {
+pub fn toInt(bytes: anytype) @Int(.signed, bytes.len * 8) {
     const Int = @Int(.signed, bytes.len * 8);
     const as_int: Int = @bitCast(bytes);
     const swapped: Int = @byteSwap(as_int);
