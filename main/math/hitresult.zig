@@ -324,7 +324,7 @@ pub const HitResult = union(Type) {
     }
 
     pub fn floor(n: f64) i32 {
-        const i: i32 = @intFromFloat(n);
+        const i: i32 = std.math.lossyCast(i32, n);
         return if (n < @as(f64, @floatFromInt(i))) i - 1 else i;
     }
 

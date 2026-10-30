@@ -9,9 +9,9 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writeItemStack(self.stack);
 
     const offset: Vector3(f32) = self.offset orelse .splat(0.0);
-    try buffer.write(i8, @intFromFloat(offset.x * 16.0));
-    try buffer.write(i8, @intFromFloat(offset.y * 16.0));
-    try buffer.write(i8, @intFromFloat(offset.z * 16.0));
+    try buffer.write(i8, @trunc(offset.x * 16.0));
+    try buffer.write(i8, @trunc(offset.y * 16.0));
+    try buffer.write(i8, @trunc(offset.z * 16.0));
 }
 
 const main = @import("main");

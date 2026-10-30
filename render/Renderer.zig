@@ -447,7 +447,7 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
 
 pub fn bufferChunkDebug(self: *@This(), world: *const World) !void {
     const player = world.player;
-    const block_pos: Vector3(i32) = .intFromFloat(player.base.pos);
+    const block_pos: Vector3(i32) = .trunc(player.base.pos);
     const section_pos: Vector3(i32) = .divFloor(block_pos, .splat(16));
     const min: Vector3(i32) = .mul(section_pos, .splat(16));
     const max: Vector3(i32) = .mul(.add(section_pos, .splat(1)), .splat(16));

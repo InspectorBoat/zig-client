@@ -285,28 +285,17 @@ pub fn receiveChunk(
 
 pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
     var collisions_count: usize = 0;
-    const min_pos: Vector3(i32) = .{
-        .x = @intFromFloat(@floor(hitbox.min.x)),
-        .y = @intFromFloat(@floor(hitbox.min.y)),
-        .z = @intFromFloat(@floor(hitbox.min.z)),
-    };
-    const max_pos: Vector3(i32) = .{
-        .x = @intFromFloat(@floor(hitbox.max.x + 1)),
-        .y = @intFromFloat(@floor(hitbox.max.y + 1)),
-        .z = @intFromFloat(@floor(hitbox.max.z + 1)),
-    };
-    var x = min_pos.x;
-    while (x < max_pos.x) : (x += 1) {
-        var y = min_pos.y - 1;
-        while (y < max_pos.y) : (y += 1) {
-            var z = min_pos.z;
-            while (z < max_pos.z) : (z += 1) {
+    const min: Vector3(i32) = .floor(hitbox.min);
+    const max: Vector3(i32) = .ceil(hitbox.max);
+
+    var x = min.x;
+    while (x < max.x) : (x += 1) {
+        var y = min.y - 1;
+        while (y < max.y) : (y += 1) {
+            var z = min.z;
+            while (z < max.z) : (z += 1) {
                 const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
-                const virtual_state: Block.VirtualState = .resolve(
-                    self.getBlockState(pos),
-                    self,
-                    pos,
-                );
+                const virtual_state: Block.VirtualState = self.resolveVirtualBlockState(pos);
                 var hitboxes_buffer: [5]Box(f64) = undefined;
                 var hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&hitboxes_buffer);
                 virtual_state.getCollisionHitboxes(&hitboxes);
@@ -365,24 +354,6 @@ pub fn isUnobstructed(self: *const @This(), hitbox: Box(f64)) bool {
     _ = self;
     _ = hitbox;
     return false;
-}
-
-/// returns intersecting hitboxes originating from blocks
-pub fn getIntersectingBlockHitboxes(self: *@This(), allocator: std.mem.Allocator, hitbox: Box(f64)) []const Box(f64) {
-    const min_pos = Vector3(i32){
-        .x = @intFromFloat(hitbox.min.x),
-        .y = @intFromFloat(hitbox.min.y),
-        .z = @intFromFloat(hitbox.min.z),
-    };
-    const max_pos = Vector3(i32){
-        .x = @intFromFloat(hitbox.min.x),
-        .y = @intFromFloat(hitbox.min.y),
-        .z = @intFromFloat(hitbox.min.z),
-    };
-    _ = max_pos; // autofix
-    _ = min_pos; // autofix
-    _ = allocator; // autofix
-    _ = self; // autofix
 }
 
 pub fn addEntity(self: *@This(), entity: Entity) !*Entity {

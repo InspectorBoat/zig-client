@@ -32,7 +32,7 @@ pub fn writeVertex(
     uv: Vector2xy(f32),
     cullface: ?Direction,
 ) !void {
-    const quantized_uv: Vector2xy(u8) = .intFromFloat(uv);
+    const quantized_uv: Vector2xy(u8) = .round(uv);
     const vertex: TerrainVertex = .{
         .pos = .{
             .x = @round((vertex_pos.x + 8) * 2048),

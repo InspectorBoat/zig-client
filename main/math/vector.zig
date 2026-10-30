@@ -104,13 +104,6 @@ pub fn Vector2xy(comptime Element: type) type {
             };
         }
 
-        pub fn intFromFloat(vec: anytype) @This() {
-            return .{
-                .x = @intFromFloat(vec.x),
-                .y = @intFromFloat(vec.y),
-            };
-        }
-
         pub fn floor(vec: anytype) @This() {
             return .{
                 .x = @floor(vec.x),
@@ -260,13 +253,6 @@ pub fn Vector2xz(comptime Element: type) type {
             return .{
                 .x = @intCast(vec.x),
                 .z = @intCast(vec.z),
-            };
-        }
-
-        pub fn intFromFloat(vec: anytype) @This() {
-            return .{
-                .x = @intFromFloat(vec.x),
-                .z = @intFromFloat(vec.z),
             };
         }
 
@@ -521,14 +507,6 @@ pub fn Vector3(comptime Element: type) type {
             };
         }
 
-        pub fn intFromFloat(vec: anytype) @This() {
-            return .{
-                .x = @intFromFloat(vec.x),
-                .y = @intFromFloat(vec.y),
-                .z = @intFromFloat(vec.z),
-            };
-        }
-
         pub fn floor(vec: anytype) @This() {
             return .{
                 .x = @floor(vec.x),
@@ -550,6 +528,14 @@ pub fn Vector3(comptime Element: type) type {
                 .x = @round(vec.x),
                 .y = @round(vec.y),
                 .z = @round(vec.z),
+            };
+        }
+
+        pub fn ceil(vec: anytype) @This() {
+            return .{
+                .x = @ceil(vec.x),
+                .y = @ceil(vec.y),
+                .z = @ceil(vec.z),
             };
         }
 

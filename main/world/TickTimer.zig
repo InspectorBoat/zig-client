@@ -30,7 +30,7 @@ pub fn advance(self: *@This(), io: std.Io) struct { TicksElapsed, PartialTick } 
 }
 
 pub fn nanosPerTick(tps: f32) i96 {
-    return @intFromFloat(@as(f32, std.time.ns_per_s) / tps);
+    return @trunc(@as(f32, std.time.ns_per_s) / tps);
 }
 
 pub fn tickOrdinal(timestamp: std.Io.Timestamp, tps: f32) i96 {

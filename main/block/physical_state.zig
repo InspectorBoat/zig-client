@@ -154,10 +154,8 @@ pub const PhysicalState = packed struct(u16) {
             .acacia_fence_gate,
             => {
                 // opening also swings the gate to face away from the player
-                const facing: PhysicalState.PackedHorizontalFacing = switch (@mod(
-                    @as(i32, @intFromFloat(@floor(player.base.rotation.yaw / 90.0 + 0.5))),
-                    4,
-                )) {
+                const facing_quadrant: i32 = @floor(player.base.rotation.yaw / 90.0 + 0.5);
+                const facing: PhysicalState.PackedHorizontalFacing = switch (@mod(facing_quadrant, 4)) {
                     0 => .south,
                     1 => .west,
                     2 => .north,

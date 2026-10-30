@@ -213,11 +213,7 @@ fn canSurvive(game: *const Client.Game, pos: Vector3(i32)) bool {
 pub fn pushAwayFrom(self: *@This(), game: *const Client.Game, x: f64, y: f64, z: f64) void {
     if (self.base.no_clip) return;
 
-    const block_pos: Vector3(i32) = .{
-        .x = @intFromFloat(@floor(x)),
-        .y = @intFromFloat(@floor(y)),
-        .z = @intFromFloat(@floor(z)),
-    };
+    const block_pos: Vector3(i32) = .{ .x = @floor(x), .y = @floor(y), .z = @floor(z) };
     const d = x - @as(f64, @floatFromInt(block_pos.x));
     const e = z - @as(f64, @floatFromInt(block_pos.z));
 
@@ -460,9 +456,9 @@ pub fn moveWithSteerNonLiquid(self: *@This(), game: *const Client.Game, steer: V
     }
     // TODO: Verify correctness
     if (game.world.isChunkLoadedAtBlockPos(.{
-        .x = @intFromFloat(self.base.pos.x),
+        .x = @trunc(self.base.pos.x),
         .y = 0,
-        .z = @intFromFloat(self.base.pos.z),
+        .z = @trunc(self.base.pos.z),
     })) {
         self.base.velocity.y = nonLiquidGravity(self.base.velocity.y);
     } else {
@@ -482,11 +478,7 @@ pub fn unloadedGravity() f64 {
 }
 pub fn nonLiquidFriction(self: *const @This(), game: *const Client.Game) f32 {
     if (self.base.colliding.on_ground) {
-        const pos = Vector3(i32){
-            .x = @intFromFloat(@floor(self.base.pos.x)),
-            .y = @intFromFloat(@floor(self.base.pos.y)),
-            .z = @intFromFloat(@floor(self.base.pos.z)),
-        };
+        const pos: Vector3(i32) = .floor(self.base.pos);
         const block = game.world.getBlock(pos.down());
         return block.getFriction() * @as(f32, 0.91);
     } else {

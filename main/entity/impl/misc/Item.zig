@@ -21,9 +21,9 @@ pub fn tick(self: *@This(), game: *const Client.Game) !void {
     // TODO: pushAwayFrom
     try self.base.move(game, self.base.velocity, false);
     const pos: Vector3(i32) = .{
-        .x = @intFromFloat(@floor(self.base.pos.x)),
-        .y = @intFromFloat(@floor(self.base.pos.y - 1)),
-        .z = @intFromFloat(@floor(self.base.pos.z)),
+        .x = @floor(self.base.pos.x),
+        .y = @floor(self.base.pos.y - 1),
+        .z = @floor(self.base.pos.z),
     };
     const friction = if (self.base.colliding.on_ground)
         game.world.getBlock(pos).getFriction() * 0.98

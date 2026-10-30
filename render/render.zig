@@ -245,7 +245,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
         }
     }
     if (game.world.menu_screen_open) return;
-    try input_queue.queueOnFrame(allocator, .{ .rotate = .intFromFloat(cursor_delta) });
+    try input_queue.queueOnFrame(allocator, .{ .rotate = .round(cursor_delta) });
 }
 
 test {
