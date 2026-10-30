@@ -1,4 +1,5 @@
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
+
 pub fn createBlockStateToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(ImageError!zigimg.Image),

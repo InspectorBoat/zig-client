@@ -3,6 +3,7 @@
 /// `cipher` is just the (transformed) key, which stays constant.
 /// Therefore it can be shared between the decryption and encryption
 /// routines.
+
 cipher: std.crypto.core.aes.AesEncryptCtx(Aes128),
 enc_register: [16]u8,
 dec_register: [16]u8,

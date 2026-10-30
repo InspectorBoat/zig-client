@@ -1,6 +1,7 @@
 test {
     _ = Session;
     _ = AesCfb8;
+    _ = packet.S2C.Login.Hello;
 }
 
 pub const AesCfb8 = @import("AesCfb8.zig");

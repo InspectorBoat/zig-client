@@ -271,6 +271,5 @@ pub const mesher = @import("mesher/mesher.zig");
 pub const resource_pack = @import("resource_pack/resource_pack.zig");
 
 const Client = main.Client;
-const EventHandler = main.EventHandler;
 const Events = main.Events;
 const Vector2xy = main.Vector2xy;

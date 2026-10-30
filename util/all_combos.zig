@@ -1,4 +1,5 @@
 /// how many distinct values can a field of type T hold
+
 fn count(T: type) usize {
     return switch (@typeInfo(T)) {
         .int => @as(usize, 1) << @typeInfo(T).int.bits,

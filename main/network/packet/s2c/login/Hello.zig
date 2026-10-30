@@ -34,8 +34,6 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     const hash = sha.finalResult();
     comptime std.debug.assert(hash.len == 20);
 
-    var encoded_hash_buf: [41]u8 = undefined;
-
     var client: std.http.Client = .{
         .allocator = connection.incoming_allocator.allocator(),
         .io = io,
@@ -49,12 +47,12 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
             \\{{
             \\  "accessToken": "{s}",
             \\  "selectedProfile": "{s}",
-            \\  "serverId": "{s}"
+            \\  "serverId": "{x}"
             \\}}
         , .{
             connection.session.access_token,
             connection.session.uuid,
-            try quarantine.JavaBigInt.toString16(&encoded_hash_buf, &hash),
+            toInt(hash),
         }),
         .headers = .{ .content_type = .{ .override = "application/json" } },
         .keep_alive = false,
@@ -77,6 +75,84 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     // Set up encryption **after** we send the response. Otherwise we
     // would send an AES-encrypted packet that the server can't read.
     connection.setupEncryption(shared_secret);
+}
+
+/// Should match new BigInteger(bytes).toString(16) when formatted with {x}
+fn toInt(bytes: anytype) @Int(.signed, bytes.len * 8) {
+    const Int = @Int(.signed, bytes.len * 8);
+    const as_int: Int = @bitCast(bytes);
+    const swapped: Int = @byteSwap(as_int);
+    return swapped;
+}
+
+test toInt {
+    const TestCase = struct {
+        bytes: []const u8,
+        expected: []const u8,
+    };
+
+    const cases: []const TestCase = &.{
+        .{ .bytes = &.{ 0x00, 0x01, 0xab }, .expected = "1ab" },
+        .{ .bytes = &.{ 0xff, 0xff }, .expected = "-1" },
+        .{ .bytes = &.{ 0x80, 0x00 }, .expected = "-8000" },
+        .{ .bytes = &.{ 0x00, 0x00 }, .expected = "0" },
+        .{ .bytes = &.{ 0x80, 0x00, 0x00 }, .expected = "-800000" },
+        .{ .bytes = &.{ 0x7f, 0xff }, .expected = "7fff" },
+        .{ .bytes = &.{0xff}, .expected = "-1" },
+        .{ .bytes = &.{0x80}, .expected = "-80" },
+        .{ .bytes = &.{ 0xff, 0x00 }, .expected = "-100" },
+        .{ .bytes = &.{ 0x80, 0x01 }, .expected = "-7fff" },
+    };
+
+    var buffer: [64]u8 = undefined;
+    inline for (cases) |case| {
+        try std.testing.expectEqualStrings(
+            case.expected,
+            try std.mem.print(&buffer, "{x}", .{toInt(case.bytes.*)}),
+        );
+    }
+}
+
+test "20-byte values" {
+    var buffer: [41]u8 = undefined;
+
+    {
+        const neg_one: [20]u8 = @splat(0xff);
+        const expected = "-1";
+        try std.testing.expectEqualStrings(
+            expected,
+            try std.mem.print(&buffer, "{x}", .{toInt(neg_one)}),
+        );
+    }
+
+    {
+        const min_value = .{0x80} ++ @as([19]u8, @splat(0x00));
+        const expected: [41]u8 = .{ '-', '8' } ++ @as([39]u8, @splat('0'));
+        try std.testing.expectEqualStrings(
+            &expected,
+            try std.mem.print(&buffer, "{x}", .{toInt(min_value)}),
+        );
+    }
+    {
+        const max_value: [20]u8 = .{0x7f} ++ @as([19]u8, @splat(0xff));
+        const expected: [40]u8 = .{ '7', 'f' } ++ @as([38]u8, @splat('f'));
+        try std.testing.expectEqualStrings(
+            &expected,
+            try std.mem.print(&buffer, "{x}", .{toInt(max_value)}),
+        );
+    }
+}
+
+test "SHA-1 digest" {
+    const digest_hex = "bbe960a25ea311d21d40669e93df2003ba9b90a2";
+    var digest: [20]u8 = undefined;
+    _ = try std.fmt.hexToBytes(&digest, digest_hex);
+
+    var buffer: [41]u8 = undefined;
+    try std.testing.expectEqualStrings(
+        "-44169f5da15cee2de2bf99616c20dffc45646f5e",
+        try std.mem.print(&buffer, "{x}", .{toInt(digest)}),
+    );
 }
 
 const std = @import("std");
