@@ -111,6 +111,27 @@ pub fn Vector2xy(comptime Element: type) type {
             };
         }
 
+        pub fn floor(vec: anytype) @This() {
+            return .{
+                .x = @floor(vec.x),
+                .y = @floor(vec.y),
+            };
+        }
+
+        pub fn trunc(vec: anytype) @This() {
+            return .{
+                .x = @trunc(vec.x),
+                .y = @trunc(vec.y),
+            };
+        }
+
+        pub fn round(vec: anytype) @This() {
+            return .{
+                .x = @round(vec.x),
+                .y = @round(vec.y),
+            };
+        }
+
         pub fn floatFromInt(vec: anytype) @This() {
             return .{
                 .x = @floatFromInt(vec.x),
@@ -246,6 +267,27 @@ pub fn Vector2xz(comptime Element: type) type {
             return .{
                 .x = @intFromFloat(vec.x),
                 .z = @intFromFloat(vec.z),
+            };
+        }
+
+        pub fn floor(vec: anytype) @This() {
+            return .{
+                .x = @floor(vec.x),
+                .z = @floor(vec.z),
+            };
+        }
+
+        pub fn trunc(vec: anytype) @This() {
+            return .{
+                .x = @trunc(vec.x),
+                .z = @trunc(vec.z),
+            };
+        }
+
+        pub fn round(vec: anytype) @This() {
+            return .{
+                .x = @round(vec.x),
+                .z = @round(vec.z),
             };
         }
 
@@ -484,6 +526,30 @@ pub fn Vector3(comptime Element: type) type {
                 .x = @intFromFloat(vec.x),
                 .y = @intFromFloat(vec.y),
                 .z = @intFromFloat(vec.z),
+            };
+        }
+
+        pub fn floor(vec: anytype) @This() {
+            return .{
+                .x = @floor(vec.x),
+                .y = @floor(vec.y),
+                .z = @floor(vec.z),
+            };
+        }
+
+        pub fn trunc(vec: anytype) @This() {
+            return .{
+                .x = @trunc(vec.x),
+                .y = @trunc(vec.y),
+                .z = @trunc(vec.z),
+            };
+        }
+
+        pub fn round(vec: anytype) @This() {
+            return .{
+                .x = @round(vec.x),
+                .y = @round(vec.y),
+                .z = @round(vec.z),
             };
         }
 

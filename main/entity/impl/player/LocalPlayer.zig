@@ -56,7 +56,7 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     self.base.tick();
 
     // tick water collision
-    // TODO
+    self.tickWaterCollisions(game);
 
     // multiply fall distance by 0.5 in lava
     // TODO
@@ -172,6 +172,38 @@ pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     try self.sendMovementPackets(io, game);
 }
 
+fn tickWaterCollisions(self: *@This(), game: *const Client.Game) void {
+    const bounds: Box(f64) = .contract(
+        .contract(self.base.hitbox, .{ .x = 0, .y = 0.4, .z = 0 }),
+        .splat(0.001),
+    );
+
+    var in_water = false;
+
+    // TODO: Check area loaded
+    const min: Vector3(i32) = .floor(bounds.min);
+    const max: Vector3(i32) = .floor(bounds.max.add(.splat(1)));
+
+    var x: i32 = min.x;
+    while (x < max.x) : (x += 1) {
+        var y: i32 = min.y;
+        while (y < max.y) : (y += 1) {
+            var z: i32 = min.z;
+            while (z < max.z) : (z += 1) {
+                const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
+                const block_state = game.world.getBlockState(pos);
+                if (block_state.block.getMaterial() != .water) continue;
+                const level = block_state.properties.water.level;
+                const height_loss: f32 = if (level >= 8) 0 else @as(f32, @floatFromInt(level + 1)) / 9.0;
+                if (@as(f32, @floatFromInt(y)) + 1 - height_loss > @as(f32, @floatFromInt(max.y))) continue;
+                in_water = true;
+            }
+        }
+    }
+
+    self.in_water = in_water;
+}
+
 fn canSurvive(game: *const Client.Game, pos: Vector3(i32)) bool {
     const block = game.world.getBlock(pos);
     const above = game.world.getBlock(pos.up());
@@ -223,8 +255,7 @@ pub fn getHeldStack(self: *@This(), game: *Client.Game) ?Item.Stack {
 
 // TODO: Implement
 pub fn inWater(self: *@This()) bool {
-    _ = self;
-    return false;
+    return self.in_water;
 }
 
 // TODO: Implement
@@ -321,7 +352,7 @@ pub fn sendMovementPackets(self: *@This(), io: std.Io, game: *Client.Game) !void
 
 pub fn moveWithSteer(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) !void {
     if (self.inWater() and !self.abilities.is_flying) {
-        self.moveWithSteerInWater(game, steer);
+        try self.moveWithSteerInWater(game, steer);
     } else if (self.inLava() and !self.abilities.is_flying) {
         self.moveWithSteerInLava(game, steer);
     } else {
@@ -329,16 +360,81 @@ pub fn moveWithSteer(self: *@This(), game: *const Client.Game, steer: Vector2xz(
     }
 }
 
-pub fn moveWithSteerInWater(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) void {
-    _ = self;
-    _ = steer;
-    _ = game;
+pub fn moveWithSteerInWater(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) !void {
+    const initial_y = self.base.pos.y;
+    var friction: f32 = 0.8;
+    var speed: f32 = 0.02;
+
+    var depth_strider_level: f32 = 0;
+    if (depth_strider_level > 3.0) depth_strider_level = 3.0;
+    if (!self.base.colliding.on_ground) depth_strider_level *= 0.5;
+
+    if (depth_strider_level > 0.0) {
+        friction += (0.54600006 - friction) * depth_strider_level / 3.0;
+        speed += (try self.getGroundSpeed() - speed) * depth_strider_level / 3.0;
+    }
+
+    const acceleration = getAccelerationFromSteer(steer, speed, self.base.rotation.yaw);
+
+    self.base.velocity = .add(self.base.velocity, .{
+        .x = @floatCast(acceleration.x),
+        .y = 0,
+        .z = @floatCast(acceleration.z),
+    });
+
+    const should_safe_walk = self.base.colliding.on_ground and self.isSneaking();
+    try self.base.move(game, self.base.velocity, should_safe_walk);
+
+    self.base.velocity.x *= friction;
+    self.base.velocity.y *= @as(f32, 0.8);
+    self.base.velocity.z *= friction;
+    self.base.velocity.y -= 0.02;
+
+    // boost out of water
+    if (self.base.colliding.horizontal) {
+        const box: Box(f64) = .move(self.base.hitbox, .{
+            .x = self.base.velocity.x,
+            .y = self.base.velocity.y + @as(f32, 0.6) - self.base.pos.y + initial_y,
+            .z = self.base.velocity.z,
+        });
+        if (game.world.getCollisionCount(box) == 0 and !containsWater(game, box)) self.base.velocity.y = @as(f32, 0.3);
+    }
 }
+
+fn containsWater(game: *const Client.Game, bounds: Box(f64)) bool {
+    const min: Vector3(i32) = .floor(bounds.min);
+    const max: Vector3(i32) = .floor(bounds.max.add(.splat(1)));
+
+    var x: i32 = min.x;
+    while (x < max.x) : (x += 1) {
+        var y: i32 = min.y;
+        while (y < max.y) : (y += 1) {
+            var z: i32 = min.z;
+            while (z < max.z) : (z += 1) {
+                const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
+                const block_state = game.world.getBlockState(pos);
+                if (block_state.block.getMaterial() != .water) continue;
+
+                const level = block_state.properties.water.level;
+
+                var d: f64 = @floatFromInt(y + 1);
+                if (level < 8) {
+                    d -= @as(f64, level) / 8;
+                }
+                if (d >= bounds.min.y) return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 pub fn moveWithSteerInLava(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) void {
     _ = self;
     _ = steer;
     _ = game;
 }
+
 pub fn moveWithSteerNonLiquid(self: *@This(), game: *const Client.Game, steer: Vector2xz(f32)) !void {
     const friction = self.nonLiquidFriction(game);
     const traction = try self.nonLiquidTraction(friction);
@@ -399,7 +495,7 @@ pub fn nonLiquidFriction(self: *const @This(), game: *const Client.Game) f32 {
 }
 pub fn nonLiquidTraction(self: *const @This(), friction: f32) !f32 {
     if (self.base.colliding.on_ground) {
-        return try self.getGroundWaterSpeed() * (0.16277136 / (friction * friction * friction));
+        return try self.getGroundSpeed() * (0.16277136 / (friction * friction * friction));
     } else {
         return self.air_speed;
     }
@@ -421,7 +517,7 @@ pub fn getAccelerationFromSteer(steer: Vector2xz(f32), traction: f32, yaw: f32) 
     };
 }
 
-pub fn getGroundWaterSpeed(self: *const @This()) !f32 {
+pub fn getGroundSpeed(self: *const @This()) !f32 {
     return 0.1 * (if (try self.base.isSprinting()) @as(f32, 1.3) else @as(f32, 1.0));
 }
 
@@ -490,5 +586,6 @@ const Item = main.Item;
 const Rotation2 = main.Rotation2;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
+const Box = main.Box;
 const Direction = main.math.Direction;
 const MathHelper = main.math.MathHelper;
