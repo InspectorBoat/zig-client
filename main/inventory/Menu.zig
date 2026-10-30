@@ -232,6 +232,35 @@ pub const Slot = struct {
 pub const SlotIndex = enum(u8) { _ };
 
 pub const Action = union(Action.Type) {
+    /// interact with the hovered slot
+    /// if the slot index is null:
+    ///     throw (all or one) of the items held by the cursor out of the inventory
+    /// if the cursor slot is empty: try to pick up (all or half) of the items in the hovered slot
+    /// if the hovered slot is empty: try to deposit the (all or one) of the cursor items into the hovered slot
+    /// if both the cursor and the hovered slot contain items:
+    ///     if the hovered slot is the result of a crafting operation, try to pick up (all) of the slot's items into the cursor
+    ///     if the hovered slot's items and the cursor's items are mergable, try to deposit (all or one) of the cursor's items into the slot
+    ///     otherwise, try to swap the cursor and the hovered slot's items
+    click: Click,
+    /// shift-click an item between two areas of the menu
+    quick_move: QuickMove,
+    /// swap hovered slot with hotbar slot (0-8), indexed directly into the player inventory
+    /// ignores slot-specific *size* restrictions
+    hotbar_swap: HotbarSwap,
+    /// clone the hovered slot into the cursor
+    /// creative mode only
+    clone: Clone,
+    /// throw the items in the hovered slot out of the inventory
+    throw: Throw,
+    /// spread the cursor's held stack between slots
+    /// there are three modes:
+    ///     single - drops a single item per stack
+    ///     split - spread the stack evenly
+    ///     duplicate - duplicate a full stack to each slot, creative only
+    drag: Drag,
+    /// collect the matching stacks of the hovered slot into the cursor
+    collect: Collect,
+
     pub const Type = enum(i8) {
         click = 0,
         quick_move = 1,
@@ -271,34 +300,6 @@ pub const Action = union(Action.Type) {
     pub const Collect = struct {
         slot_index: SlotIndex,
     };
-    /// interact with the hovered slot
-    /// if the slot index is null:
-    ///     throw (all or one of) the items held by the cursor out of the inventory
-    /// if the cursor slot is empty: try to pick up all or half of the items in the hovered slot
-    /// if the hovered slot is empty: try to deposit the all or one of the cursor items into the hovered slot
-    /// if both the cursor and the hovered slot contain items:
-    ///     if the hovered slot is the result of a crafting operation, try to pick up *all* of the slot's items into the cursor
-    ///     if the hovered slot's items and the cursor's items are mergable, try to deposit all or one of the cursor's items into the slot
-    ///     otherwise, try to swap the cursor and the hovered slot's items
-    click: Click,
-    /// shift-click an item between two areas of the menu
-    quick_move: QuickMove,
-    /// swap hovered slot with hotbar slot (0-8), indexed directly into the player inventory
-    /// ignores slot-specific *size* restrictions
-    hotbar_swap: HotbarSwap,
-    /// clone the hovered slot into the cursor
-    /// creative mode only
-    clone: Clone,
-    /// throw the items in the hovered slot out of the inventory
-    throw: Throw,
-    /// spread the cursor's held stack between slots
-    /// there are three modes:
-    ///     single - drops a single item per stack
-    ///     split - spread the stack evenly
-    ///     duplicate - duplicate a full stack to each slot, creative only
-    drag: Drag,
-    /// collect the matching stacks of the hovered slot into the cursor
-    collect: Collect,
 
     pub const WireFormat = struct {
         slot_id: i16,
@@ -523,9 +524,7 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
             const maybe_cursor_stack = &world.maybe_cursor_stack;
 
             // slot is empty, so just try to drop the cursor stack (if it's allowed)
-            std.log.debug("slot: {?}", .{maybe_slot_stack.*});
             if (maybe_slot_stack.* == null) {
-                std.log.debug("dropping into empty", .{});
                 if (maybe_cursor_stack.*) |*cursor_stack| if (slot.type.isItemAllowed(cursor_stack.item)) {
                     const deposit_count = @min(
                         if (count == .all) cursor_stack.size else 1,
@@ -537,18 +536,15 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
             }
             // check if we can take items from the slot before continuing
             else if (slot.canPickUp(&world.player)) {
-                std.log.debug("trying to pick up", .{});
-
                 const slot_stack = &maybe_slot_stack.*.?;
                 // if cursor is empty, try to pick up the items in the slot
                 if (maybe_cursor_stack.* == null) {
-                    const withdrawal_count = if (count == .all) slot_stack.size else @divFloor(slot_stack.size + 1, 2);
+                    const withdrawal_count = if (count == .all) slot_stack.size else @divCeil(slot_stack.size, 2);
                     // TODO: use this logic instead for correctness with crafting operations
                     // slot.removeItem(withdrawal_count);
                     maybe_cursor_stack.* = try slot_stack.split(allocator, withdrawal_count);
                     if (slot_stack.size == 0) {
                         maybe_slot_stack.* = null;
-                        std.log.debug("clearing slot: {?}", .{self.getSlot(slot_index)});
                     }
                     slot.onItemRemoved();
                 } else {
@@ -606,31 +602,37 @@ pub fn clickSlot(self: *@This(), allocator: std.mem.Allocator, world: *World, ac
             // vanilla silently discards the action, but slot-clicking is entirely client-driven
             // so it should never happen anyways
             std.debug.assert(hotbar_slot <= 8);
+
             const slot = self.slots[@backingInt(slot_index)];
             if (!slot.canPickUp(&world.player)) return null;
+
             const maybe_slot_stack = self.getSlot(slot_index);
             const maybe_hotbar_stack = world.main_inventory.stacks[hotbar_slot];
-            var bl = maybe_hotbar_stack == null or (slot.backer == world.main_inventory and world.main_inventory.hasEmptyIndex());
-            var relocate: bool = false;
-            if (!bl) {
-                relocate = world.main_inventory.hasEmptyIndex();
-                bl |= relocate;
-            }
-            if (maybe_slot_stack != null and bl) {
-                const slot_stack = maybe_slot_stack.?;
-                world.main_inventory.stacks[hotbar_slot] = slot_stack;
-                if (maybe_hotbar_stack != null and (slot.backer != world.main_inventory or !slot.type.isItemAllowed(maybe_hotbar_stack.?.item))) {
-                    // otherwise we'd just be deleting items, which is definitely wrong
-                    std.debug.assert(relocate);
+
+            if (maybe_slot_stack) |slot_stack| {
+                // We can directly swap if the hotbar is empty, or if the hovered slot
+                // belongs to the main inventory and accepts the hotbar item.
+                const hotbar_stack_fits_hovered_slot = maybe_hotbar_stack == null or
+                    (slot.backer == world.main_inventory and slot.type.isItemAllowed(maybe_hotbar_stack.?.item));
+
+                if (hotbar_stack_fits_hovered_slot) {
+                    // swap stacks directly, without freeing
+                    world.main_inventory.stacks[hotbar_slot] = slot_stack;
+                    slot.backer.stacks[slot.index_into_backer] = maybe_hotbar_stack;
+                } else if (world.main_inventory.hasEmptyIndex()) {
+                    world.main_inventory.stacks[hotbar_slot] = slot_stack;
+                    // hotbar stack needs to be relocated
+                    // TODO: add hotbar_stack to the main inventory, currently we just drop it which is incorrect
                     // slot.removeItem()
                     // world.main_inventory.addStack(maybe_hotbar_stack.?);
                     slot.onItemRemoved();
-                } else {
-                    self.setSlot(allocator, slot_index, maybe_hotbar_stack);
                 }
-            } else if (maybe_slot_stack == null and maybe_hotbar_stack != null and slot.type.isItemAllowed(maybe_hotbar_stack.?.item)) {
-                self.setSlot(allocator, slot_index, maybe_hotbar_stack);
-                world.main_inventory.stacks[hotbar_slot] = null;
+            } else if (maybe_hotbar_stack) |hotbar_stack| {
+                // the hovered slot is empty, so just try to move the hotbar stack in
+                if (slot.type.isItemAllowed(hotbar_stack.item)) {
+                    self.setSlot(allocator, slot_index, maybe_hotbar_stack);
+                    world.main_inventory.stacks[hotbar_slot] = null;
+                }
             }
         },
     }
