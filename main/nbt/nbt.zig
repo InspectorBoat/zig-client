@@ -358,7 +358,15 @@ pub const Nbt = union(Tag) {
         pub fn dupe(self: *const @This(), allocator: std.mem.Allocator) !@This() {
             switch (self.tag) {
                 inline else => |tag| {
-                    return try .init(allocator, tag, self.items(tag));
+                    const new_items = try allocator.alloc(@FieldType(Nbt, @tagName(tag)), self.len);
+                    for (self.items(tag), new_items) |old_item, *new_item| {
+                        new_item.* = try old_item.dupe(allocator);
+                    }
+                    return .{
+                        .bytes = @ptrCast(new_items.ptr),
+                        .len = new_items.len,
+                        .tag = tag,
+                    };
                 },
             }
         }
@@ -585,6 +593,24 @@ test "dupe" {
     std.testing.allocator.free(duped.compound.items.fetchSwapRemove("qux").?.key);
 
     try std.testing.expectEqual(4, nbt.compound.items.count());
+}
+
+test "dupe list" {
+    var nbt: Nbt = .{
+        .list = try .init(
+            std.testing.allocator,
+            .compound,
+            &.{try .init(std.testing.allocator, .{
+                .foo = Nbt{ .byte = .{ .value = 1 } },
+            })},
+        ),
+    };
+    defer nbt.deinit(std.testing.allocator);
+
+    var duped = try nbt.dupe(std.testing.allocator);
+    defer duped.deinit(std.testing.allocator);
+
+    try std.testing.expect(nbt.deepEquals(&duped));
 }
 
 const std = @import("std");
