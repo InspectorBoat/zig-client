@@ -20,6 +20,9 @@ encryption: ?AesCfb8 = null,
 pub fn setupEncryption(self: *@This(), shared_secret: [16]u8) void {
     std.debug.assert(self.encryption == null);
     self.encryption = .init(shared_secret);
+    // Actually, it doesn't make any sense for there to be any unread bytes,
+    // if you think about it. It would technically be a race condition.
+    // TODO: Figure out whatever the fuck vanilla does in this edge case
     self.encryption.?.decrypt(self.unread_bytes.readableSlice());
 }
 

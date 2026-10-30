@@ -19,6 +19,7 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     var sha: std.crypto.hash.Sha1 = .init(.{});
 
     // TODO: needs a utf-8 -> latin-1 round-trip... ughhhh
+    if (self.key.len != 0) std.debug.panic("TODO!", .{});
     // sha.update(self.key);
 
     sha.update(&shared_secret);
