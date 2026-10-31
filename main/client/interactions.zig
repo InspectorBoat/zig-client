@@ -313,7 +313,7 @@ pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
 }
 
 pub fn click(io: std.Io, allocator: std.mem.Allocator, game: *Game, menu: *Menu, action: Menu.Action) !void {
-    const stack = try menu.clickSlot(allocator, &game.world, action);
+    const stack = try action.performOn(allocator, &game.world, menu);
     const wire_format: Menu.Action.WireFormat = .convert(action, menu);
     try game.connection_handle.sendPlayPacket(io, .{
         .menu_click_slot = .{

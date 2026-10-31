@@ -2,7 +2,7 @@ window: glfw.Window,
 
 events: std.Deque(Event),
 allocator: std.mem.Allocator,
-keys: std.EnumArray(glfw.Key, bool) = .initFill(false),
+keys: std.EnumSet(glfw.Key) = .empty,
 mouse_pos: Vector2xy(f64) = .{ .x = 0, .y = 0 },
 maximized: bool = false,
 window_size: Vector2xy(i32) = .{ .x = 640, .y = 640 },
@@ -166,7 +166,7 @@ pub fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: gl
     window_input.events.pushBack(window_input.allocator, .{
         .Key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods },
     }) catch unreachable;
-    window_input.keys.set(key, if (action == .release) false else true);
+    window_input.keys.setPresent(key, if (action == .release) false else true);
 }
 pub fn charCallback(window: glfw.Window, codepoint: u21) void {
     var window_input = window.getUserPointer(@This()) orelse {

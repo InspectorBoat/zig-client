@@ -149,7 +149,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                             if (gui.onDropKey(
                                 &game.world,
                                 window_input.mousePosInClipSpace(),
-                                window_input.keys.get(.left_control),
+                                window_input.keys.contains(.left_control),
                             )) |action| {
                                 try input_queue.queueOnTick(allocator, .{ .inventory = action });
                             }
@@ -216,6 +216,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                             &game.world,
                             window_input.mousePosInClipSpace(),
                             button.button,
+                            window_input.keys.contains(.left_shift),
                         ),
                     });
 

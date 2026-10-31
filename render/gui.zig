@@ -80,7 +80,7 @@ pub fn bufferInventory(
     }
 }
 
-pub fn onClick(world: *const World, cursor_pos: Vector2xy(f32), button: glfw.MouseButton) Menu.Action {
+pub fn onClick(world: *const World, cursor_pos: Vector2xy(f32), button: glfw.MouseButton, shift: bool) Menu.Action {
     const box_size: f32 = 0.11;
     const window_width: f32 = @floatFromInt(render.window_input.window_size.x);
     const window_height: f32 = @floatFromInt(render.window_input.window_size.y);
@@ -99,7 +99,11 @@ pub fn onClick(world: *const World, cursor_pos: Vector2xy(f32), button: glfw.Mou
             .y = (slot_pos.y + box_size / 2) * if (aspect_ratio < 1) aspect_ratio else 1,
         };
         if (cursor_pos.x >= min.x and cursor_pos.x <= max.x and cursor_pos.y >= min.y and cursor_pos.y <= max.y) {
-            return .{ .click = .{
+            return if (shift) .{
+                .quick_move = .{
+                    .slot_index = @fromBackingInt(@intCast(i)),
+                },
+            } else .{ .click = .{
                 .maybe_slot_index = @fromBackingInt(@intCast(i)),
                 .count = switch (button) {
                     .left => .all,
