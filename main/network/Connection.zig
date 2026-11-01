@@ -63,7 +63,7 @@ pub fn tick(self: *@This(), io: std.Io) Error!void {
 pub fn sendC2SPackets(self: *@This(), io: std.Io) SendPacketError!void {
     while (self.outgoing_packets.pop()) |packet| {
         try self.sendPacket(io, packet.@"0");
-        self.outgoing_allocator.freeFromTail(packet.@"1");
+        // self.outgoing_allocator.freeFromTail(packet.@"1");
     }
 }
 
