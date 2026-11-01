@@ -1,4 +1,4 @@
-pub const opengl_error_handling = .assert;
+pub const opengl_error_handling = if (builtin.mode.runtimeSafety()) .none else .assert;
 
 pub const std_options: std.Options = .{
     .log_scope_levels = &.{
@@ -95,6 +95,7 @@ test {
     _ = Menu;
 }
 
+const builtin = @import("builtin");
 const std = @import("std");
 
 const build_options = @import("build_options");

@@ -51,7 +51,10 @@ pub fn onFrame(frame: Events.Frame) !void {
             try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
             try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
             try renderer.uploadCompilationResults(frame.io);
-            try renderer.renderFrame(game);
+            try renderer.renderFrame(frame.allocator, game);
+            const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
+            renderer.fps.update(now);
+            std.log.info("fps: {:.1}", .{renderer.fps.fps(now)});
         },
         .connecting => |*connecting_game| {
             handleInputConnecting(connecting_game);
@@ -190,6 +193,9 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                         renderer.terrain_program = try Renderer.initProgram(io, renderer.allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
                         renderer.debug_program = try Renderer.initProgram(io, renderer.allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
                     },
+                    .o => if (key.action == .press) {
+                        renderer.occlusion_culling = !renderer.occlusion_culling;
+                    },
 
                     .w => try input_queue.queueOnTick(allocator, .{ .movement = .{ .forward = (key.action == .press) } }),
                     .a => try input_queue.queueOnTick(allocator, .{ .movement = .{ .left = (key.action == .press) } }),
@@ -259,6 +265,7 @@ test {
 
 const std = @import("std");
 
+const quarantine = @import("llm-code-quarantine");
 const glfw = @import("mach-glfw");
 const main = @import("main");
 const gl = @import("zgl");
@@ -271,6 +278,8 @@ pub const gui = @import("gui.zig");
 pub const mesher = @import("mesher/mesher.zig");
 pub const resource_pack = @import("resource_pack/resource_pack.zig");
 
+pub const FpsCounter = quarantine.FpsCounter;
+pub const Frustum = quarantine.Frustum;
 const Client = main.Client;
 const Events = main.Events;
 const Vector2xy = main.Vector2xy;

@@ -572,12 +572,12 @@ const std = @import("std");
 
 const main = @import("main");
 
+const Box = main.Box;
 const Client = main.Client;
 const Entity = main.Entity;
 const Item = main.Item;
 const Rotation2 = main.Rotation2;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
-const Box = main.Box;
 const Direction = main.math.Direction;
 const MathHelper = main.math.MathHelper;

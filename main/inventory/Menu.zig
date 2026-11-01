@@ -717,6 +717,10 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     allocator.free(self.slots);
 }
 
+test {
+    _ = Action.WireFormat;
+}
+
 const std = @import("std");
 
 const main = @import("main");
@@ -726,7 +730,3 @@ const Entity = main.Entity;
 const Inventory = main.Inventory;
 const Item = main.Item;
 const World = main.World;
-
-test {
-    _ = Action.WireFormat;
-}

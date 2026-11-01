@@ -4,6 +4,11 @@ terrain_program: gl.Program,
 index_buffer: gl.Buffer,
 gpu_memory_allocator: GpuMemoryAllocator,
 textures: gl.Texture,
+main_fbo: gl.Framebuffer = .invalid,
+small_fbo: gl.Framebuffer,
+depth_buffer: std.ArrayList(f32) = .empty,
+depth_buffer_size: Vector2xy(u32) = .{ .x = 0, .y = 0 },
+occlusion_culling: bool = true,
 
 /// Collects compiled geometry from in-flight tasks
 compilation_tracker: CompilationTracker,
@@ -25,6 +30,7 @@ debug_options: struct {
     chunk_borders: bool = false,
     inventory: bool = false,
 } = .{},
+fps: FpsCounter = .init,
 
 pub const TextureHandle = enum(u16) { _ };
 
@@ -53,6 +59,17 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     @"3d_vao".elementBuffer(index_buffer);
     @"2d_vao".elementBuffer(index_buffer);
 
+    const main_fbo: gl.Framebuffer = .invalid;
+    const small_fbo: gl.Framebuffer = .create();
+    const renderbuffer: gl.Renderbuffer = .create();
+    renderbuffer.storage(.buffer, .depth_component, 1280, 800);
+    gl.binding.namedFramebufferRenderbuffer(
+        @backingInt(small_fbo),
+        @backingInt(gl.FramebufferAttachment.depth),
+        @backingInt(gl.RenderbufferTarget.buffer),
+        @backingInt(renderbuffer),
+    );
+
     var arena: std.heap.ArenaAllocator = .init(allocator);
     defer arena.deinit();
     const blockstate_to_model_lookup_table, const item_to_model_lookup_table, const named_textures = try resource_pack.init(
@@ -72,6 +89,9 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
         .index_buffer = index_buffer,
         .gpu_memory_allocator = gpu_memory_allocator,
         .textures = texture,
+
+        .main_fbo = main_fbo,
+        .small_fbo = small_fbo,
 
         .compilation_tracker = compilation_tracker,
         .chunk_tracker = chunk_tracker,
@@ -306,8 +326,11 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     return texture;
 }
 
-pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
+pub fn renderFrame(self: *@This(), gpa: std.mem.Allocator, game: *const Client.Game) !void {
+    @setRuntimeSafety(false);
+
     const mvp = getMvpMatrix(game.world.player, game.partial_tick);
+    const frustum: Frustum = .fromMatrix(mvp);
     {
         self.terrain_program.use();
         self.vao.bind();
@@ -327,14 +350,40 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
 
         gl.polygonMode(.front_and_back, self.debug_options.terrain_draw_mode);
 
+        var total: usize = 0;
+        var skipped: std.ArrayList(struct { Vector3(i32), ChunkTracker.SectionRenderInfo }) = .empty;
+        defer skipped.deinit(gpa);
         for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, tracked_chunk| {
             const sections = if (tracked_chunk == .rendering) tracked_chunk.rendering else continue;
             for (sections, 0..) |section, y| {
-                self.renderSection(
-                    .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
-                    section.render_info orelse continue,
-                );
+                const render_info = section.render_info orelse continue;
+                const section_pos: Vector3(i32) = .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z };
+                if (!isSectionInFrustum(section_pos, frustum)) continue;
+                total += 1;
+                if (self.occlusion_culling and self.isSectionOccluded(section_pos, mvp)) {
+                    try skipped.append(gpa, .{ section_pos, render_info });
+                    continue;
+                }
+                self.renderSection(section_pos, render_info);
             }
+        }
+        var really_skipped: usize = 0;
+
+        if (skipped.items.len > 0) {
+            try self.readDepthBuffer();
+            for (skipped.items) |entry| {
+                const section_pos, const render_info = entry;
+                if (self.isSectionOccluded(section_pos, mvp)) {
+                    really_skipped += 1;
+                    continue;
+                }
+                self.renderSection(section_pos, render_info);
+            }
+        }
+
+        if (self.occlusion_culling) {
+            try self.readDepthBuffer();
+            std.log.scoped(.render).info("skipped: {}/{}", .{ really_skipped, total });
         }
     }
     {
@@ -359,6 +408,103 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
 
         self.render2dDebug();
     }
+}
+
+fn readDepthBuffer(self: *@This()) !void {
+    const framebuffer_size = render.window_input.framebuffer_size;
+    const depth_buffer_size: Vector2xy(u32) = .div(framebuffer_size, .splat(8));
+    try self.depth_buffer.resize(self.allocator, depth_buffer_size.x * depth_buffer_size.y);
+    self.depth_buffer_size = depth_buffer_size;
+
+    self.small_fbo.bind(.draw_buffer);
+    self.main_fbo.bind(.read_buffer);
+
+    gl.blitFramebuffer(
+        0,
+        0,
+        framebuffer_size.x,
+        framebuffer_size.y,
+        0,
+        0,
+        depth_buffer_size.x,
+        depth_buffer_size.y,
+        .{ .depth = true },
+        .nearest,
+    );
+
+    self.small_fbo.bind(.read_buffer);
+
+    gl.readPixels(
+        0,
+        0,
+        depth_buffer_size.x,
+        depth_buffer_size.y,
+        .depth_component,
+        .float,
+        @ptrCast(self.depth_buffer.items.ptr),
+    );
+
+    self.main_fbo.bind(.buffer);
+}
+
+fn isSectionOccluded(self: *const @This(), section_pos: Vector3(i32), mvp: Mat4) bool {
+    @setRuntimeSafety(false);
+    const depth_buffer_size: Vector2xy(u32) = self.depth_buffer_size;
+
+    const min: Vector3(f32) = .mul(.floatFromInt(section_pos), .splat(16));
+    const max: Vector3(f32) = .add(min, .splat(16));
+
+    const xs: [2]f32 = .{ min.x, max.x };
+    const ys: [2]f32 = .{ min.y, max.y };
+    const zs: [2]f32 = .{ min.z, max.z };
+
+    var min_x = std.math.floatMax(f32);
+    var min_y = std.math.floatMax(f32);
+    var max_x = -std.math.floatMax(f32);
+    var max_y = -std.math.floatMax(f32);
+    var min_z = std.math.floatMax(f32);
+
+    for (xs) |x| {
+        for (ys) |y| {
+            for (zs) |z| {
+                const clip = mvp.mulByVec4(.new(x, y, z, 1));
+                const w = clip.w();
+                if (w <= 0) return false;
+
+                const inv_w = 1.0 / w;
+                const ndc_x = clip.x() * inv_w;
+                const ndc_y = clip.y() * inv_w;
+                const ndc_z = clip.z() * inv_w;
+
+                min_x = @min(min_x, ndc_x);
+                min_y = @min(min_y, ndc_y);
+                max_x = @max(max_x, ndc_x);
+                max_y = @max(max_y, ndc_y);
+                min_z = @min(min_z, ndc_z);
+            }
+        }
+    }
+
+    const width: f32 = @floatFromInt(depth_buffer_size.x);
+    const height: f32 = @floatFromInt(depth_buffer_size.y);
+
+    const left = @max((min_x * 0.5 + 0.5) * (width - 1), 0);
+    const bottom = @max((min_y * 0.5 + 0.5) * (height - 1), 0);
+    const right = @min((max_x * 0.5 + 0.5) * (width - 1), width - 1);
+    const top = @min((max_y * 0.5 + 0.5) * (height - 1), height - 1);
+    for (@floor(bottom)..@ceil(top)) |y| {
+        for (@floor(left)..@ceil(right)) |x| {
+            if (min_z < self.depth_buffer.items[y * depth_buffer_size.x + x]) return false;
+        }
+    }
+
+    return true;
+}
+
+fn isSectionInFrustum(section_pos: Vector3(i32), frustum: Frustum) bool {
+    const min: Vector3(f32) = .mul(.floatFromInt(section_pos), .splat(16));
+    const max: Vector3(f32) = .add(min, .splat(16));
+    return frustum.intersectsAabb(min, max);
 }
 
 pub fn renderSection(self: *@This(), section_pos: Vector3(i32), section: ChunkTracker.SectionRenderInfo) void {
@@ -720,6 +866,7 @@ pub fn deinit(self: *@This(), io: std.Io) !void {
     self.compilation_tracker.deinit(io);
     self.chunk_tracker.chunks.deinit(self.allocator);
     self.gpu_memory_allocator.deinit();
+    self.depth_buffer.deinit(self.allocator);
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
 
     {
@@ -753,9 +900,12 @@ const zigimg = @import("zigimg");
 const Block = main.Block;
 const Client = main.Client;
 const Entity = main.Entity;
+const Vector2xy = main.Vector2xy;
 const Vector2xz = main.Vector2xz;
 const Vector3 = main.Vector3;
 const World = main.World;
+const FpsCounter = render.FpsCounter;
+const Frustum = render.Frustum;
 const GpuMemoryAllocator = render.GpuMemoryAllocator;
 const gui = render.gui;
 const ChunkTracker = render.mesher.ChunkTracker;

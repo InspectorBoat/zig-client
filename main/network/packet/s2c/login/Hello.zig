@@ -1,5 +1,6 @@
 /// Usually unused, but can be up to 20 bytes of Latin-1 encoded text.
 /// Only used as part of the hash used for authentication.
+
 key: []const u8,
 /// The server's public RSA key
 public_key: []const u8,

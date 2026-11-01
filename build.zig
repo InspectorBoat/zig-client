@@ -36,6 +36,9 @@ fn createModules(
         .optimize = optimize,
     });
 
+    quarantine.addImport("main", main);
+    quarantine.addImport("zalgebra", zalgebra);
+
     util.addImport("llm-code-quarantine", quarantine);
 
     render.addImport("main", main);
