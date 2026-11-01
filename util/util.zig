@@ -1,10 +1,16 @@
 test {
     _ = PackedNibbleArray;
     _ = RingBuffer;
+    _ = RingBufferWithFallback;
     _ = allValues;
 }
 
+comptime {
+    _ = &RingBufferWithFallback.initCapacity;
+}
+
 pub const RingBuffer = @import("RingBuffer.zig");
+pub const RingBufferWithFallback = @import("RingBufferWithFallback.zig");
 pub const Uuid = @import("Uuid.zig");
 pub const events = @import("events.zig");
 pub const allValues = @import("all_combos.zig").allValues;

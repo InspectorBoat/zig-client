@@ -43,7 +43,7 @@ pub fn main(init: std.process.Init) !void {
         .gpa = gpa,
     } };
 
-    client.idle.initConnection(io, gpa, "135.125.155.154", 25565, session) catch |e| {
+    client.idle.initConnection(io, gpa, "127.0.0.1", 25565, session) catch |e| {
         std.log.debug("failed to connect: {}", .{e});
         if (@errorReturnTrace()) |error_trace| std.debug.dumpErrorReturnTrace(error_trace);
         return;
