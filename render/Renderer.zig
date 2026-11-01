@@ -327,16 +327,13 @@ pub fn renderFrame(self: *@This(), game: *const Client.Game) !void {
 
         gl.polygonMode(.front_and_back, self.debug_options.terrain_draw_mode);
 
-        var entries = self.chunk_tracker.chunks.iterator();
-        while (entries.next()) |entry| {
-            const chunk_pos = entry.key_ptr.*;
-            switch (entry.value_ptr.*) {
-                .rendering => |sections| {
-                    for (sections, 0..) |section, y| {
-                        self.renderSection(.{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z }, section.render_info orelse continue);
-                    }
-                },
-                .waiting => {},
+        for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, tracked_chunk| {
+            const sections = if (tracked_chunk == .rendering) tracked_chunk.rendering else continue;
+            for (sections, 0..) |section, y| {
+                self.renderSection(
+                    .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
+                    section.render_info orelse continue,
+                );
             }
         }
     }

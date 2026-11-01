@@ -1,4 +1,4 @@
-chunks: std.AutoHashMapUnmanaged(Vector2xz(i32), ChunkCompileStatus) = .empty,
+chunks: std.array_hash_map.Auto(Vector2xz(i32), ChunkCompileStatus) = .empty,
 
 pub const init: @This() = .{};
 
@@ -137,7 +137,7 @@ pub fn markAreaDirty(self: *@This(), block_pos_min: Vector3(i32), block_pos_max:
 }
 
 pub fn removeChunk(self: *@This(), chunk_pos: Vector2xz(i32)) void {
-    std.debug.assert(self.chunks.remove(chunk_pos));
+    std.debug.assert(self.chunks.swapRemove(chunk_pos));
     if (self.chunks.getPtr(chunk_pos.add(.{ .x = 0, .z = -1 }))) |north| {
         if (north.* == .waiting) north.waiting.south_present = false;
     }
