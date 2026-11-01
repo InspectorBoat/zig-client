@@ -1,5 +1,4 @@
 /// Takes ownership of resource_pack_dir
-
 pub fn init(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -258,16 +257,12 @@ pub fn resolveModels(
     var models: std.array_hash_map.String(ModelError!ResolvedModel) = .empty;
 
     for (templates.keys(), templates.values()) |name, template| {
-        if (template) |working_template| {
-            const model = resolveTemplate(arena, working_template, templates, textures) catch |e| switch (e) {
-                error.OutOfMemory => return error.OutOfMemory,
-                error.MissingTextureVariableReference => error.Incomplete,
-                inline else => |known_e| known_e,
-            };
-            try models.put(arena, name, model);
-        } else |err| {
-            try models.put(arena, name, err);
-        }
+        const resolved = if (template) |working_template| resolveTemplate(arena, working_template, templates, textures) catch |e| switch (e) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.MissingTextureVariableReference => error.Incomplete,
+            else => |known_err| known_err,
+        } else |err| err;
+        try models.put(arena, name, resolved);
     }
     return models;
 }
