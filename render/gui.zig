@@ -190,26 +190,30 @@ pub fn getSlotPosForMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vector2x
     }
 }
 
+fn toPos(col: usize, row: usize) Vector2xy(f32) {
+    return .{ .x = (@as(f32, @floatFromInt(col)) - 4.5) * 0.125, .y = (@as(f32, @floatFromInt(row)) - 2) * 0.125 - 0.2 };
+}
+
 pub fn getSlotPosForPlayerMenu(menu: *const Menu, slot_index: Menu.SlotIndex) Vector2xy(f32) {
     std.debug.assert(menu.type == .player);
     const slot = menu.slots[@backingInt(slot_index)];
     switch (slot.backer.type) {
         .player => {
+            if (slot.type == .boots) return .add(toPos(0, 4), .{ .x = 0, .y = 0.05 });
+            if (slot.type == .leggings) return .add(toPos(0, 5), .{ .x = 0, .y = 0.05 });
+            if (slot.type == .chestplate) return .add(toPos(0, 6), .{ .x = 0, .y = 0.05 });
+            if (slot.type == .helmet) return .add(toPos(0, 7), .{ .x = 0, .y = 0.05 });
+
             const inventory_index = slot.index_into_backer;
 
-            if (inventory_index >= 36) return .{ .x = 100, .y = 100 };
-
             const hotbar = inventory_index < 9;
-            const row: f32 = if (hotbar) 0 else @floatFromInt(4 - inventory_index / 9);
-            const col: f32 = @floatFromInt(inventory_index % 9);
+            const col = inventory_index % 9;
+            const row = if (hotbar) 0 else 4 - inventory_index / 9;
 
-            return .{
-                .x = (col - 4.5) * 0.125,
-                .y = (row - 2) * 0.125 - 0.2 - @as(f32, if (hotbar) 0.05 else 0),
-            };
+            return .add(toPos(col, row), .{ .x = 0, .y = if (hotbar) -0.05 else 0 });
         },
-        .player_crafting => return .{ .x = 0, .y = 0 },
-        .crafting_result => return .{ .x = 0, .y = 0 },
+        .player_crafting => return .add(toPos(1 + (slot.index_into_backer & 1), 5 - ((slot.index_into_backer & 2) >> 1)), .{ .x = 0, .y = 0.05 }),
+        .crafting_result => return toPos(3, 4),
         else => unreachable,
     }
 }
