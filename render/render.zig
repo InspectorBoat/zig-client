@@ -126,9 +126,8 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
     }
 }
 
+var ignore_next_mouse_delta = false;
 pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
-    window_input.window.setInputModeCursor(if (game.world.menu_screen_open) .normal else .disabled);
-
     var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
@@ -236,6 +235,10 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
             },
             .CursorPos => |cursor_event| {
                 if (game.world.menu_screen_open) continue;
+                if (ignore_next_mouse_delta) {
+                    ignore_next_mouse_delta = false;
+                    continue;
+                }
                 cursor_delta = .add(cursor_delta, cursor_event.delta);
             },
             .Scroll => |scroll| {
@@ -251,7 +254,16 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
             else => {},
         }
     }
+
+    const target: glfw.Window.InputModeCursor = if (game.world.menu_screen_open) .normal else .disabled;
+    if (window_input.last_set_mouse_input_mode != target) {
+        ignore_next_mouse_delta = true;
+        window_input.last_set_mouse_input_mode = target;
+        window_input.window.setInputModeCursor(target);
+    }
+
     if (game.world.menu_screen_open) return;
+
     try input_queue.queueOnFrame(allocator, .{ .rotate = .round(cursor_delta) });
 }
 
