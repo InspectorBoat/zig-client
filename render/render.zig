@@ -51,7 +51,7 @@ pub fn onFrame(frame: Events.Frame) !void {
             try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
             try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
             try renderer.uploadCompilationResults(frame.io);
-            try renderer.renderFrame(frame.allocator, game);
+            try renderer.renderFrame(frame.io, frame.allocator, game);
             const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
             renderer.fps.update(now);
             std.log.info("fps: {:.1}", .{renderer.fps.fps(now)});

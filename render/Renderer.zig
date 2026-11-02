@@ -6,8 +6,7 @@ gpu_memory_allocator: GpuMemoryAllocator,
 textures: gl.Texture,
 main_fbo: gl.Framebuffer = .invalid,
 small_fbo: gl.Framebuffer,
-depth_buffer: std.ArrayList(f32) = .empty,
-depth_buffer_size: Vector2xy(u32) = .{ .x = 0, .y = 0 },
+past_visible: std.array_hash_map.Auto(Vector3(i32), ChunkTracker.SectionRenderInfo) = .empty,
 occlusion_culling: bool = true,
 
 /// Collects compiled geometry from in-flight tasks
@@ -326,66 +325,13 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
     return texture;
 }
 
-pub fn renderFrame(self: *@This(), gpa: std.mem.Allocator, game: *const Client.Game) !void {
-    @setRuntimeSafety(false);
+pub fn renderFrame(self: *@This(), io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game) !void {
+    // @setRuntimeSafety(false);
 
     const mvp = getMvpMatrix(game.world.player, game.partial_tick);
-    const frustum: Frustum = .fromMatrix(mvp);
-    {
-        self.terrain_program.use();
-        self.vao.bind();
-        self.terrain_program.uniform1i(16, 0);
-        self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
 
-        self.terrain_program.uniform1i(2, @intFromBool(true));
-        self.terrain_program.uniform4f(3, 0.719411765, 0.767843137, 0.921568627, 1);
-        self.terrain_program.uniform1f(4, 100);
-        self.terrain_program.uniform1f(5, 200);
-        self.terrain_program.uniform1f(6, 0.01);
-        self.terrain_program.uniform1i(7, 9729);
-        self.terrain_program.uniform1i(8, 34139);
+    try self.renderTerrain(io, gpa, game);
 
-        const mv = getMvMatrix(game.world.player, game.partial_tick);
-        self.terrain_program.uniformMatrix4(9, true, &.{mv.data});
-
-        gl.polygonMode(.front_and_back, self.debug_options.terrain_draw_mode);
-
-        var total: usize = 0;
-        var skipped: std.ArrayList(struct { Vector3(i32), ChunkTracker.SectionRenderInfo }) = .empty;
-        defer skipped.deinit(gpa);
-        for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, tracked_chunk| {
-            const sections = if (tracked_chunk == .rendering) tracked_chunk.rendering else continue;
-            for (sections, 0..) |section, y| {
-                const render_info = section.render_info orelse continue;
-                const section_pos: Vector3(i32) = .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z };
-                if (!isSectionInFrustum(section_pos, frustum)) continue;
-                total += 1;
-                if (self.occlusion_culling and self.isSectionOccluded(section_pos, mvp)) {
-                    try skipped.append(gpa, .{ section_pos, render_info });
-                    continue;
-                }
-                self.renderSection(section_pos, render_info);
-            }
-        }
-        var really_skipped: usize = 0;
-
-        if (skipped.items.len > 0) {
-            try self.readDepthBuffer();
-            for (skipped.items) |entry| {
-                const section_pos, const render_info = entry;
-                if (self.isSectionOccluded(section_pos, mvp)) {
-                    really_skipped += 1;
-                    continue;
-                }
-                self.renderSection(section_pos, render_info);
-            }
-        }
-
-        if (self.occlusion_culling) {
-            try self.readDepthBuffer();
-            std.log.scoped(.render).info("skipped: {}/{}", .{ really_skipped, total });
-        }
-    }
     {
         self.debug_program.uniformMatrix4(0, true, &.{mvp.data});
         self.debug_program.uniform1i(16, 1);
@@ -410,49 +356,182 @@ pub fn renderFrame(self: *@This(), gpa: std.mem.Allocator, game: *const Client.G
     }
 }
 
-fn readDepthBuffer(self: *@This()) !void {
-    const framebuffer_size = render.window_input.framebuffer_size;
-    const depth_buffer_size: Vector2xy(u32) = .div(framebuffer_size, .splat(8));
-    try self.depth_buffer.resize(self.allocator, depth_buffer_size.x * depth_buffer_size.y);
-    self.depth_buffer_size = depth_buffer_size;
+fn renderTerrain(self: *@This(), io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game) !void {
+    @setRuntimeSafety(false);
 
-    self.small_fbo.bind(.draw_buffer);
-    self.main_fbo.bind(.read_buffer);
+    const mvp = getMvpMatrix(game.world.player, game.partial_tick);
+    const frustum: Frustum = .fromMatrix(mvp);
 
-    gl.blitFramebuffer(
-        0,
-        0,
-        framebuffer_size.x,
-        framebuffer_size.y,
-        0,
-        0,
-        depth_buffer_size.x,
-        depth_buffer_size.y,
-        .{ .depth = true },
-        .nearest,
-    );
+    gl.polygonMode(.front_and_back, self.debug_options.terrain_draw_mode);
+    self.terrain_program.use();
+    self.vao.bind();
+    self.terrain_program.uniform1i(16, 0);
+    self.terrain_program.uniformMatrix4(0, true, &.{mvp.data});
 
-    self.small_fbo.bind(.read_buffer);
+    self.terrain_program.uniform1i(2, @intFromBool(true));
+    self.terrain_program.uniform4f(3, 0.719411765, 0.767843137, 0.921568627, 1);
+    self.terrain_program.uniform1f(4, 100);
+    self.terrain_program.uniform1f(5, 200);
+    self.terrain_program.uniform1f(6, 0.01);
+    self.terrain_program.uniform1i(7, 9729);
+    self.terrain_program.uniform1i(8, 34139);
 
-    gl.readPixels(
-        0,
-        0,
-        depth_buffer_size.x,
-        depth_buffer_size.y,
-        .depth_component,
-        .float,
-        @ptrCast(self.depth_buffer.items.ptr),
-    );
+    const mv = getMvMatrix(game.world.player, game.partial_tick);
+    self.terrain_program.uniformMatrix4(9, true, &.{mv.data});
 
-    self.main_fbo.bind(.buffer);
+    if (self.occlusion_culling) {
+        {
+            var i: usize = 0;
+            while (i < self.past_visible.count()) {
+                const section_pos = self.past_visible.keys()[i];
+                const chunk = self.chunk_tracker.chunks.get(.{ .x = section_pos.x, .z = section_pos.z }) orelse {
+                    self.past_visible.swapRemoveAt(i);
+                    continue;
+                };
+
+                const render_info = chunk.rendering[@intCast(section_pos.y)].render_info orelse {
+                    self.past_visible.swapRemoveAt(i);
+                    continue;
+                };
+
+                if (isSectionInFrustum(section_pos, frustum) and chunk == .rendering) {
+                    self.renderSection(section_pos, render_info);
+                    i += 1;
+                } else {
+                    self.past_visible.swapRemoveAt(i);
+                }
+            }
+        }
+        const depth_buffer_size, const depth_buffer = try self.readDepthBuffer(gpa);
+        defer gpa.free(depth_buffer);
+
+        var maybe_visible: std.ArrayList(struct { Vector3(i32), ChunkTracker.SectionRenderInfo }) = .empty;
+        defer maybe_visible.deinit(gpa);
+
+        for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, tracked_chunk| {
+            if (tracked_chunk != .rendering) continue;
+            for (tracked_chunk.rendering, 0..) |section, y| {
+                const render_info = section.render_info orelse continue;
+                const section_pos: Vector3(i32) = .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z };
+                if (isSectionInFrustum(section_pos, frustum)) {
+                    try maybe_visible.append(gpa, .{ section_pos, render_info });
+                }
+            }
+        }
+
+        var visible: std.array_hash_map.Auto(Vector3(i32), ChunkTracker.SectionRenderInfo) = .empty;
+        try visible.ensureTotalCapacity(gpa, maybe_visible.items.len);
+        visible.entries.len = maybe_visible.items.len;
+
+        var count: std.atomic.Value(usize) = .init(0);
+        var group: std.Io.Group = .init;
+        for (0..16) |i| {
+            group.async(io, checkVisibility, .{
+                depth_buffer,
+                depth_buffer_size,
+                maybe_visible.items,
+                i,
+                &visible,
+                &count,
+                game.world.player.getEyePos(),
+                mvp,
+            });
+        }
+        try group.await(io);
+
+        visible.entries.len = count.raw;
+        visible.entries.sortUnstable(
+            struct {
+                entries: *@TypeOf(visible.entries),
+                player_pos: Vector3(i32),
+                pub fn lessThan(ctx: @This(), lhs: usize, rhs: usize) bool {
+                    const lhs_dist: Vector3(u32) = .abs(ctx.player_pos.sub(ctx.entries.items(.key)[lhs]));
+                    const rhs_dist: Vector3(u32) = .abs(ctx.player_pos.sub(ctx.entries.items(.key)[rhs]));
+                    return lhs_dist.x + lhs_dist.y + lhs_dist.z > rhs_dist.x + rhs_dist.y + rhs_dist.z;
+                }
+            }{
+                .player_pos = .divFloor(.floor(game.world.player.getEyePos()), .splat(16)),
+                .entries = &visible.entries,
+            },
+        );
+        try visible.reIndex(gpa);
+
+        var drawn: usize = self.past_visible.count();
+        for (visible.keys(), visible.values()) |section_pos, render_info| {
+            if (self.past_visible.contains(section_pos)) continue;
+            self.renderSection(section_pos, render_info);
+            drawn += 1;
+        }
+        std.log.info("drawn: {}/{} ({:.1}%)", .{ drawn, maybe_visible.items.len, 100 * @as(f128, drawn) / @as(f128, maybe_visible.items.len) });
+
+        self.past_visible.deinit(gpa);
+        self.past_visible = visible;
+    } else {
+        var visible: std.ArrayList(struct { Vector3(i32), ChunkTracker.SectionRenderInfo }) = .empty;
+        defer visible.deinit(gpa);
+
+        for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, tracked_chunk| {
+            if (tracked_chunk != .rendering) continue;
+            for (tracked_chunk.rendering, 0..) |section, y| {
+                const render_info = section.render_info orelse continue;
+                const section_pos: Vector3(i32) = .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z };
+                if (isSectionInFrustum(section_pos, frustum)) {
+                    try visible.append(gpa, .{ section_pos, render_info });
+                }
+            }
+        }
+        std.mem.sort(
+            struct { Vector3(i32), ChunkTracker.SectionRenderInfo },
+            visible.items,
+            Vector3(i32).divFloor(.floor(game.world.player.getEyePos()), .splat(16)),
+            struct {
+                pub fn lessThan(player_pos: Vector3(i32), lhs: struct { Vector3(i32), ChunkTracker.SectionRenderInfo }, rhs: struct { Vector3(i32), ChunkTracker.SectionRenderInfo }) bool {
+                    const lhs_dist: Vector3(u32) = .abs(player_pos.sub(lhs[0]));
+                    const rhs_dist: Vector3(u32) = .abs(player_pos.sub(rhs[0]));
+                    return lhs_dist.x + lhs_dist.y + lhs_dist.z < rhs_dist.x + rhs_dist.y + rhs_dist.z;
+                }
+            }.lessThan,
+        );
+        for (visible.items) |section| {
+            self.renderSection(section[0], section[1]);
+        }
+    }
 }
 
-fn isSectionOccluded(self: *const @This(), section_pos: Vector3(i32), mvp: Mat4) bool {
+fn checkVisibility(
+    noalias depth_buffer: []f32,
+    depth_buffer_size: Vector2xy(u32),
+    noalias sections: []const struct { Vector3(i32), ChunkTracker.SectionRenderInfo },
+    stream: usize,
+    noalias visible: *std.array_hash_map.Auto(Vector3(i32), ChunkTracker.SectionRenderInfo),
+    noalias count: *std.atomic.Value(usize),
+    eye_pos: Vector3(f64),
+    mvp: za.Mat4,
+) void {
     @setRuntimeSafety(false);
-    const depth_buffer_size: Vector2xy(u32) = self.depth_buffer_size;
+    var i = stream;
+    while (i < sections.len) : (i += 16) {
+        const section_pos, const render_info = sections[i];
+        if (isSectionOccluded(depth_buffer, depth_buffer_size, section_pos, eye_pos, mvp)) continue;
+        visible.entries.set(count.fetchAdd(1, .monotonic), .{ .key = section_pos, .value = render_info, .hash = undefined });
+    }
+}
+
+fn isSectionOccluded(
+    depth_buffer: []f32,
+    depth_buffer_size: Vector2xy(u32),
+    section_pos: Vector3(i32),
+    eye_pos: Vector3(f64),
+    mvp: Mat4,
+) bool {
+    @setRuntimeSafety(false);
 
     const min: Vector3(f32) = .mul(.floatFromInt(section_pos), .splat(16));
     const max: Vector3(f32) = .add(min, .splat(16));
+
+    if (Box(f64).contains(.{ .min = .floatCast(min), .max = .floatCast(max) }, eye_pos)) {
+        return false;
+    }
 
     const xs: [2]f32 = .{ min.x, max.x };
     const ys: [2]f32 = .{ min.y, max.y };
@@ -494,11 +573,30 @@ fn isSectionOccluded(self: *const @This(), section_pos: Vector3(i32), mvp: Mat4)
     const top = @min((max_y * 0.5 + 0.5) * (height - 1), height - 1);
     for (@floor(bottom)..@ceil(top)) |y| {
         for (@floor(left)..@ceil(right)) |x| {
-            if (min_z < self.depth_buffer.items[y * depth_buffer_size.x + x]) return false;
+            if (min_z < depth_buffer[y * depth_buffer_size.x + x]) return false;
         }
     }
 
     return true;
+}
+
+fn readDepthBuffer(self: *@This(), gpa: std.mem.Allocator) !struct { Vector2xy(u32), []f32 } {
+    const framebuffer_size = render.window_input.framebuffer_size;
+    const depth_buffer_size: Vector2xy(u32) = .div(framebuffer_size, .splat(8));
+    const depth_buffer = try gpa.alloc(f32, depth_buffer_size.x * depth_buffer_size.y);
+
+    self.small_fbo.bind(.draw_buffer);
+    self.main_fbo.bind(.read_buffer);
+
+    gl.blitFramebuffer(0, 0, framebuffer_size.x, framebuffer_size.y, 0, 0, depth_buffer_size.x, depth_buffer_size.y, .{ .depth = true }, .nearest);
+
+    self.small_fbo.bind(.read_buffer);
+
+    gl.readPixels(0, 0, depth_buffer_size.x, depth_buffer_size.y, .depth_component, .float, @ptrCast(depth_buffer.ptr));
+
+    self.main_fbo.bind(.buffer);
+
+    return .{ depth_buffer_size, depth_buffer };
 }
 
 fn isSectionInFrustum(section_pos: Vector3(i32), frustum: Frustum) bool {
@@ -866,8 +964,8 @@ pub fn deinit(self: *@This(), io: std.Io) !void {
     self.compilation_tracker.deinit(io);
     self.chunk_tracker.chunks.deinit(self.allocator);
     self.gpu_memory_allocator.deinit();
-    self.depth_buffer.deinit(self.allocator);
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
+    self.past_visible.deinit(self.allocator);
 
     {
         var iter = self.blockstate_to_model_lookup.iterator();
@@ -898,6 +996,7 @@ const gl = @import("zgl");
 const zigimg = @import("zigimg");
 
 const Block = main.Block;
+const Box = main.Box;
 const Client = main.Client;
 const Entity = main.Entity;
 const Vector2xy = main.Vector2xy;

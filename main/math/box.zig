@@ -214,16 +214,22 @@ pub fn Box(comptime Element: type) type {
             };
         }
 
-        pub fn isWithinX(self: *@This(), pos: Vector3(Element)) bool {
+        pub fn isWithinX(self: @This(), pos: Vector3(Element)) bool {
             return self.min.x <= pos.x and pos.x <= self.max.x;
         }
 
-        pub fn isWithinY(self: *@This(), pos: Vector3(Element)) bool {
+        pub fn isWithinY(self: @This(), pos: Vector3(Element)) bool {
             return self.min.y <= pos.y and pos.y <= self.max.y;
         }
 
-        pub fn isWithinZ(self: *@This(), pos: Vector3(Element)) bool {
+        pub fn isWithinZ(self: @This(), pos: Vector3(Element)) bool {
             return self.min.z <= pos.z and pos.z <= self.max.z;
+        }
+
+        pub fn contains(self: @This(), pos: Vector3(Element)) bool {
+            return self.min.x <= pos.x and pos.x <= self.max.x and
+                self.min.y <= pos.y and pos.y <= self.max.y and
+                self.min.z <= pos.z and pos.z <= self.max.z;
         }
 
         /// Given an origin vector3 and a target vector3, travels

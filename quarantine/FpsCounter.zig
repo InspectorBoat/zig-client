@@ -1,4 +1,4 @@
-const window_ns: u64 = 3_000_000_000;
+const window_ns: u64 = 1_000_000_000;
 const capacity = 1024;
 
 samples: [capacity]i96,

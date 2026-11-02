@@ -314,6 +314,14 @@ pub fn Vector3(comptime Element: type) type {
             return .{ .x = n, .y = n, .z = n };
         }
 
+        pub fn abs(vec: anytype) @This() {
+            return .{
+                .x = @abs(vec.x),
+                .y = @abs(vec.y),
+                .z = @abs(vec.z),
+            };
+        }
+
         pub fn add(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x + other.x,
