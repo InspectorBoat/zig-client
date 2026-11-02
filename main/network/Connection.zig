@@ -71,12 +71,12 @@ pub const DispatchPacketError = error{ PacketHandlingError, QueueFull };
 pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: RingBufferWithFallback.RewindMark) DispatchPacketError!void {
     var packet_mut = packet;
     switch (packet_mut) {
-        inline else => |*specific_protocol| {
-            switch (specific_protocol.*) {
-                inline else => |*specific_packet| {
-                    if (specific_packet.handle_on_network_thread) {
-                        std.log.scoped(.handle_packet_net).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(specific_protocol.*))});
-                        specific_packet.handleOnNetworkThread(io, self) catch return error.PacketHandlingError;
+        inline else => |*known_protocol| {
+            switch (known_protocol.*) {
+                inline else => |*known_packet| {
+                    if (known_packet.handle_on_network_thread) {
+                        std.log.scoped(.handle_packet_net).debug("handling packet - {}", .{known_packet});
+                        known_packet.handleOnNetworkThread(io, self) catch return error.PacketHandlingError;
                         // free immediately
                         self.incoming_allocator.rewind(rewind_mark);
                     } else {
@@ -234,7 +234,7 @@ pub fn sendPacket(self: *@This(), io: std.Io, packet: C2S) SendPacketError!void 
     }
 
     std.log.scoped(.send_packet).debug("sending packet {s}", .{switch (packet) {
-        inline else => |specific_packet| @tagName(specific_packet),
+        inline else => |known_packet| @tagName(known_packet),
     }});
 
     const uncompressed_len = packet_buffer.backer.items.len;
@@ -303,7 +303,7 @@ pub const Handle = struct {
         io: std.Io,
         allocator: std.mem.Allocator,
     ) void {
-        std.log.scoped(.net).info("sending cancel to network thread", .{});
+        std.log.scoped(.net).info("cancelling network thread", .{});
 
         self.connection.wants_disconnect.store(true, .release);
 
