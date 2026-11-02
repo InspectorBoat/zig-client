@@ -40,11 +40,13 @@ pub fn deepEquals(lhs: @This(), rhs: @This()) bool {
     return lhs.size == rhs.size and canMerge(lhs, rhs);
 }
 
-pub fn useOn(self: @This(), world: *const World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
-    _ = self;
-    _ = world;
-    _ = block_pos;
-    _ = dir;
+pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), dir: Direction, pos: Vector3(f64)) bool {
+    if (self.item.getBlock()) |block| {
+        const existing_block = world.getBlock(block_pos);
+        const placement_pos = if (!existing_block.getMaterial().isReplaceable()) block_pos.dir(dir) else block_pos;
+        if (!block.canBePlaced(world, placement_pos, dir)) return false;
+        world.setBlockState(.failing, placement_pos, .{ .block = block, .properties = .{ .air = .{} } }) catch {};
+    }
     _ = player;
     _ = pos;
     return false;
