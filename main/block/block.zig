@@ -297,8 +297,23 @@ pub const Block = enum(u8) {
         return self.isSolidRender();
     }
 
+    pub fn getMiningProgress(self: @This(), player: *const LocalPlayer) f32 {
+        _ = player;
+
+        const hardness: f32 = self.getHardness();
+        if (hardness < 0) return 0;
+
+        const needs_tool = self.getMaterial().requiresTool();
+        const player_mining_speed_multiplier: f32 = 1;
+
+        return if (needs_tool)
+            player_mining_speed_multiplier / hardness / 100.0
+        else
+            player_mining_speed_multiplier / hardness / 30.0;
+    }
+
     pub fn canBePlaced(self: @This(), world: *const World, pos: Vector3(i32), dir: Direction) bool {
-        const replaceable = world.getBlock(pos).getMaterial().isReplaceable();
+        if (!world.getBlock(pos).getMaterial().isReplaceable()) return false;
 
         return switch (self) {
             // no item form
@@ -344,7 +359,6 @@ pub const Block = enum(u8) {
             .wall_sign,
             .standing_banner,
             => {
-                if (!replaceable) return false;
                 for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)) == .cactus) return false;
                 return true;
             },
@@ -352,9 +366,9 @@ pub const Block = enum(u8) {
             .unpowered_repeater,
             .unpowered_comparator,
             .flower_pot,
-            => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
+            => world.getBlockState(pos.down()).hasSolidTop(),
 
-            .redstone_wire => replaceable and (world.getBlockState(pos.down()).hasSolidTop() or world.getBlock(pos.down()) == .glowstone),
+            .redstone_wire => (world.getBlockState(pos.down()).hasSolidTop() or world.getBlock(pos.down()) == .glowstone),
 
             .fence_gate,
             .spruce_fence_gate,
@@ -363,44 +377,42 @@ pub const Block = enum(u8) {
             .acacia_fence_gate,
             .dark_oak_fence_gate,
             .cake,
-            => replaceable and world.getBlock(pos.down()).getMaterial().isSolid(),
+            => world.getBlock(pos.down()).getMaterial().isSolid(),
 
             .cactus => {
-                if (!replaceable) return false;
                 for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)).getMaterial().isSolid()) return false;
                 const below = world.getBlock(pos.down());
                 return below == .cactus or below == .sand;
             },
 
             .carpet,
-            => replaceable and world.getBlock(pos.down()) != .air,
+            => world.getBlock(pos.down()) != .air,
 
-            .pumpkin, .lit_pumpkin => replaceable and world.getBlockState(pos.down()).hasSolidTop(),
+            .pumpkin, .lit_pumpkin => world.getBlockState(pos.down()).hasSolidTop(),
 
-            .red_flower, .yellow_flower, .sapling, .tallgrass => replaceable and switch (world.getBlock(pos.down())) {
+            .red_flower, .yellow_flower, .sapling, .tallgrass => switch (world.getBlock(pos.down())) {
                 .grass, .dirt, .farmland => true,
                 else => false,
             },
-            .deadbush => replaceable and switch (world.getBlock(pos.down())) {
+            .deadbush => switch (world.getBlock(pos.down())) {
                 .sand, .hardened_clay, .stained_hardened_clay, .dirt => true,
                 else => false,
             },
-            .waterlily => replaceable and world.getBlock(pos.down()) == .water,
+            .waterlily => world.getBlock(pos.down()) == .water,
 
-            .double_plant => replaceable and world.getBlock(pos.up()) == .air and switch (world.getBlock(pos.down())) {
+            .double_plant => world.getBlock(pos.up()) == .air and switch (world.getBlock(pos.down())) {
                 .grass, .dirt, .farmland => true,
                 else => false,
             },
 
-            .wheat, .carrots, .potatoes, .pumpkin_stem, .melon_stem => replaceable and world.getBlock(pos.down()) == .farmland,
+            .wheat, .carrots, .potatoes, .pumpkin_stem, .melon_stem => world.getBlock(pos.down()) == .farmland,
 
-            .nether_wart => replaceable and world.getBlock(pos.down()) == .soul_sand,
+            .nether_wart => world.getBlock(pos.down()) == .soul_sand,
 
             // TODO: Light level, podzol, mycelium, etc. etc.
-            .brown_mushroom, .red_mushroom => replaceable and world.getBlock(pos.down()).getMaterial().isOpaque(),
+            .brown_mushroom, .red_mushroom => world.getBlock(pos.down()).getMaterial().isOpaque(),
 
-            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => replaceable and
-                pos.y < 255 and
+            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => pos.y < 255 and
                 world.getBlockState(pos.down()).hasSolidTop() and
                 world.getBlock(pos.up()).getMaterial().isReplaceable(),
 
@@ -500,30 +512,15 @@ pub const Block = enum(u8) {
             .acacia_stairs,
             .dark_oak_stairs,
             .red_sandstone_stairs,
-            => replaceable,
+            => true,
 
             inline else => |unlisted| {
                 @setEvalBranchQuota(10_000);
                 // make sure our override arms are exhaustive
                 comptime std.debug.assert(!attributes.overrides_can_be_placed.contains(unlisted));
-                return replaceable;
+                return true;
             },
         };
-    }
-
-    pub fn getMiningProgress(self: @This(), player: *const LocalPlayer) f32 {
-        _ = player;
-
-        const hardness: f32 = self.getHardness();
-        if (hardness < 0) return 0;
-
-        const needs_tool = self.getMaterial().requiresTool();
-        const player_mining_speed_multiplier: f32 = 1;
-
-        return if (needs_tool)
-            player_mining_speed_multiplier / hardness / 100.0
-        else
-            player_mining_speed_multiplier / hardness / 30.0;
     }
 };
 

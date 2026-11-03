@@ -45,10 +45,18 @@ pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
         const existing_block = world.getBlock(block_pos);
         const placement_pos = if (!existing_block.getMaterial().isReplaceable()) block_pos.dir(dir) else block_pos;
         if (!block.canBePlaced(world, placement_pos, dir)) return false;
-        world.setBlockState(.failing, placement_pos, .{ .block = block, .properties = .{ .air = .{} } }) catch {};
+        const physical_state: Block.PhysicalState = .getPlacementState(
+            block,
+            self.metadata,
+            world,
+            player.getEyePos(),
+            .fromYaw(player.base.rotation.yaw),
+            placement_pos,
+            dir,
+            pos,
+        );
+        world.setBlockState(.failing, placement_pos, physical_state) catch {};
     }
-    _ = player;
-    _ = pos;
     return false;
 }
 
@@ -62,6 +70,7 @@ const std = @import("std");
 
 const main = @import("main");
 
+const Block = main.Block;
 const Direction = main.Direction;
 const Entity = main.Entity;
 const Item = main.Item;

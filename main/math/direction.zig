@@ -22,6 +22,24 @@ pub const Direction = enum(i8) {
         x,
         y,
         z,
+
+        pub fn to(self: @This(), T: type) T {
+            switch (self) {
+                inline else => |known_axis| {
+                    return @field(T, @tagName(known_axis));
+                },
+            }
+        }
+
+        pub fn toFallible(self: @This(), T: type) ?T {
+            return switch (self) {
+                inline else => |known_axis| if (@hasField(T, @tagName(known_axis))) @field(T, @tagName(known_axis)) else null,
+            };
+        }
+
+        pub fn toAssert(self: @This(), T: type) T {
+            return self.toFallible(T).?;
+        }
     };
 
     pub fn plane(self: @This()) Plane {
@@ -39,18 +57,32 @@ pub const Direction = enum(i8) {
         };
     }
 
+    pub fn opposite(self: @This()) @This() {
+        // LLVM can't find this optimization
+        // not that it really matters...
+        return @fromBackingInt(@backingInt(self) ^ 1);
+        // return switch (self) {
+        //     .down => .up,
+        //     .up => .down,
+        //     .north => .south,
+        //     .south => .north,
+        //     .west => .east,
+        //     .east => .west,
+        // };
+    }
+
+    pub const horizontals: [4]@This() = .{ .north, .east, .south, .west };
+
     pub const verticals: [2]@This() = .{ .up, .down };
 
-    pub const horizontals: [4]@This() = .{ .north, .south, .west, .east };
-
-    pub fn opposite(self: @This()) @This() {
-        return switch (self) {
-            .down => .up,
-            .up => .down,
-            .north => .south,
-            .south => .north,
-            .west => .east,
-            .east => .west,
+    pub fn fromYaw(yaw: f32) @This() {
+        const numeric: u2 = @intCast(main.math.floor(yaw * 4.0 / 360.0 + 0.5) & 3);
+        // .south, .west, .north, .east
+        return switch (numeric) {
+            0 => .south,
+            1 => .west,
+            2 => .north,
+            3 => .east,
         };
     }
 
@@ -59,6 +91,26 @@ pub const Direction = enum(i8) {
             inline else => |tag| return @field(@This(), @tagName(tag)),
         }
     }
+
+    pub fn to(self: @This(), T: type) T {
+        return switch (self) {
+            inline else => |known_dir| @field(T, @tagName(known_dir)),
+        };
+    }
+
+    pub fn toFallible(self: @This(), T: type) ?T {
+        return switch (self) {
+            inline else => |known_dir| if (@hasField(T, @tagName(known_dir))) @field(T, @tagName(known_dir)) else null,
+        };
+    }
+
+    pub fn toAssert(self: @This(), T: type) T {
+        return self.toFallible(T).?;
+    }
 };
+
+const std = @import("std");
+
+const main = @import("main");
 
 const Vector3 = @import("vector.zig").Vector3;

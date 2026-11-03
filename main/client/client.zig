@@ -296,7 +296,6 @@ pub const Client = union(enum) {
         }
     }
 
-    /// Calling this is always safe
     pub fn disconnect(self: *@This(), io: std.Io) void {
         switch (self.*) {
             .game => |*game| {

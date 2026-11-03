@@ -154,28 +154,14 @@ pub const PhysicalState = packed struct(u16) {
             .acacia_fence_gate,
             => {
                 // opening also swings the gate to face away from the player
-                const facing_quadrant: i32 = @floor(player.base.rotation.yaw / 90.0 + 0.5);
-                const facing: PhysicalState.PackedHorizontalFacing = switch (@mod(facing_quadrant, 4)) {
-                    0 => .south,
-                    1 => .west,
-                    2 => .north,
-                    else => .east,
-                };
+                const facing: Direction = .fromYaw(player.base.rotation.yaw);
 
                 var next = self;
-                const open = &next.properties.fence_gate.open;
-                if (open.*) {
-                    open.* = false;
-                } else {
-                    const opposite: PhysicalState.PackedHorizontalFacing = switch (facing) {
-                        .south => .north,
-                        .north => .south,
-                        .west => .east,
-                        .east => .west,
-                    };
-                    if (next.properties.fence_gate.facing == opposite) next.properties.fence_gate.facing = facing;
-                    open.* = true;
+                if (!next.properties.fence_gate.open and next.properties.fence_gate.facing == facing.opposite().toAssert(PackedHorizontalFacing)) {
+                    next.properties.fence_gate.facing = facing.toAssert(PackedHorizontalFacing);
                 }
+                next.properties.fence_gate.open ^= true;
+
                 try world.setBlockState(.failing, block_pos, next);
                 return true;
             },
@@ -207,8 +193,9 @@ pub const PhysicalState = packed struct(u16) {
 
             .piston_extension => false,
 
+            // turn unlit into lit, but still return false
+            // not a bug!
             .redstone_ore => {
-                // turn unlit into lit, but still return false
                 try world.setBlockState(.failing, block_pos, .{
                     .block = .lit_redstone_ore,
                     .properties = .{ .lit_redstone_ore = .{} },
@@ -268,6 +255,181 @@ pub const PhysicalState = packed struct(u16) {
                 return false;
             },
         };
+    }
+
+    pub fn getPlacementState(
+        block: Block,
+        metadata: i32,
+        world: *const World,
+        player_eye_pos: Vector3(f64),
+        player_horizontal_facing: Direction,
+        block_pos: Vector3(i32),
+        dir: Direction,
+        pos: Vector3(f64),
+    ) @This() {
+        std.debug.assert(player_horizontal_facing.plane() == .horizontal);
+
+        var physical_state: @This() = .{ .block = block, .properties = @fromBackingInt(@intCast(metadata)) };
+        switch (block) {
+            .log, .log2 => physical_state.properties.log.axis = dir.axis().to(LogAxis),
+            .anvil => {},
+            .wooden_button, .stone_button => {
+                const can_survive = if (dir == .down)
+                    world.getBlockState(block_pos.dir(dir.opposite())).hasSolidTop()
+                else
+                    world.getBlock(block_pos.dir(dir.opposite())).isSolid();
+                physical_state.properties.stone_button.facing = if (can_survive) dir.to(ButtonFacing) else .down;
+            },
+            .chest, .trapped_chest => physical_state.properties.chest.facing = player_horizontal_facing.toAssert(HorizontalFacing),
+            .cocoa => physical_state.properties.cocoa = .{
+                .facing = dir.opposite().toFallible(PackedHorizontalFacing) orelse .south,
+                .age = .@"0",
+            },
+            .command_block => {},
+            .powered_comparator => unreachable,
+            .unpowered_comparator => physical_state.properties.powered_comparator = .{
+                .facing = player_horizontal_facing.opposite().toAssert(PackedHorizontalFacing),
+                .mode = .compare,
+                .powered = false,
+            },
+            .powered_repeater => unreachable,
+            .unpowered_repeater => physical_state.properties.powered_repeater.facing = player_horizontal_facing.opposite().toAssert(PackedHorizontalFacing),
+            .dispenser, .dropper => physical_state.properties.dispenser = .{
+                .facing = dispenserOrPistonFacing(block_pos, player_eye_pos, player_horizontal_facing).to(Facing),
+                .triggered = false,
+            },
+            .end_portal_frame => physical_state.properties.end_portal_frame = .{
+                .facing = player_horizontal_facing.opposite().toAssert(PackedHorizontalFacing),
+                .eye = false,
+            },
+            .ender_chest => physical_state.properties.ender_chest.facing = player_horizontal_facing.opposite().toAssert(HorizontalFacing),
+            .fence_gate,
+            .spruce_fence_gate,
+            .birch_fence_gate,
+            .jungle_fence_gate,
+            .dark_oak_fence_gate,
+            .acacia_fence_gate,
+            => physical_state.properties.fence_gate = .{
+                .facing = player_horizontal_facing.toAssert(PackedHorizontalFacing),
+                .powered = false,
+                .open = false,
+            },
+            .lit_furnace => unreachable,
+            .furnace => physical_state.properties.furnace.facing = player_horizontal_facing.opposite().toAssert(HorizontalFacing),
+            .hay_block => physical_state.properties.hay_block.axis = dir.axis().to(HayBlockAxis),
+            .hopper => physical_state.properties.hopper = .{
+                .facing = dir.opposite().toFallible(HopperFacing) orelse .down,
+                .enabled = true,
+            },
+            .lever => {
+                @panic("TODO!");
+            },
+            .brown_mushroom_block, .red_mushroom_block => physical_state.properties.brown_mushroom_block.variant = .all_outside,
+            .sticky_piston, .piston => physical_state.properties.piston = .{
+                .facing = dispenserOrPistonFacing(block_pos, player_eye_pos, player_horizontal_facing).to(Facing),
+                .extended = false,
+            },
+            .pumpkin => physical_state.properties.pumpkin.facing = player_horizontal_facing.opposite().toAssert(PackedHorizontalFacing),
+            .quartz_block => physical_state.properties.quartz_block.variant =
+                if (metadata == @backingInt(QuartzBlockVariant.lines_y)) switch (dir.axis()) {
+                    .x => .lines_x,
+                    .y => .lines_y,
+                    .z => .lines_z,
+                } else if (metadata == @backingInt(QuartzBlockVariant.chiseled))
+                    .chiseled
+                else
+                    .default,
+            .skull => physical_state.properties.skull = .{
+                .facing = player_horizontal_facing.to(Facing),
+                .nodrop = false,
+            },
+            .stone_slab, .stone_slab2, .wooden_slab => {
+                std.debug.panic("TODO!", .{});
+            },
+            .double_stone_slab, .double_stone_slab2, .double_wooden_slab => {
+                std.debug.panic("TODO!", .{});
+            },
+            .acacia_stairs,
+            .birch_stairs,
+            .brick_stairs,
+            .dark_oak_stairs,
+            .jungle_stairs,
+            .nether_brick_stairs,
+            .oak_stairs,
+            .quartz_stairs,
+            .red_sandstone_stairs,
+            .sandstone_stairs,
+            .spruce_stairs,
+            .stone_brick_stairs,
+            .stone_stairs,
+            => physical_state.properties.oak_stairs = .{
+                .facing = player_horizontal_facing.toAssert(StairFacing),
+                .half = if (dir != .down and (dir == .up or !(pos.y > 0.5))) .bottom else .top,
+            },
+            .unlit_redstone_torch => unreachable,
+            .torch, .redstone_torch => {
+                const can_attach = if (dir.plane() == .horizontal) blk: {
+                    const opposite = world.getBlock(block_pos.dir(dir.opposite()));
+                    break :blk opposite.getMaterial().blocksMovementAndNotTranslucent() and opposite.isCube();
+                } else if (dir == .up) blk: {
+                    const below = world.getBlockState(block_pos.down());
+                    break :blk below.hasSolidTop() or below.block.isFence() or switch (below.block) {
+                        .glass, .cobblestone_wall, .stained_glass => true,
+                        else => false,
+                    };
+                } else false;
+
+                physical_state.properties.torch.facing =
+                    if (can_attach)
+                        dir.toAssert(TorchFacing)
+                    else for (Direction.horizontals) |side| {
+                        const side_block = world.getBlock(block_pos.dir(side.opposite()));
+                        if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube())
+                            break side.toAssert(TorchFacing);
+                    } else .up;
+            },
+            .trapdoor, .iron_trapdoor => if (dir.plane() == .horizontal) {
+                physical_state.properties.trapdoor = .{
+                    .facing = dir.toAssert(TrapdoorFacing),
+                    .open = false,
+                    .half = if (pos.y > 0.5) .top else .bottom,
+                };
+            },
+            .tripwire_hook => physical_state.properties.tripwire_hook = .{
+                .facing = dir.toFallible(PackedHorizontalFacing) orelse .north,
+                .powered = false,
+                .attached = false,
+            },
+            .vine => {
+                physical_state.properties.vine = .{ .south = false, .west = false, .north = false, .east = false };
+                switch (dir) {
+                    .up, .down => {},
+                    inline else => |known_dir| @field(physical_state.properties.vine, @tagName(known_dir.opposite())) = true,
+                }
+            },
+            else => {},
+        }
+        return physical_state;
+    }
+
+    fn dispenserOrPistonFacing(
+        block_pos: Vector3(i32),
+        player_eye_pos: Vector3(f64),
+        player_horizontal_facing: Direction,
+    ) Direction {
+        const block_x: f32 = @floatFromInt(block_pos.x);
+        const block_z: f32 = @floatFromInt(block_pos.z);
+        const eye_x: f32 = @floatCast(player_eye_pos.x);
+        const eye_z: f32 = @floatCast(player_eye_pos.z);
+
+        if (@abs(eye_x - block_x) < 2.0 and @abs(eye_z - block_z) < 2.0) {
+            const block_y: f64 = @floatFromInt(block_pos.y);
+
+            if (player_eye_pos.y - block_y > 2.0) return .up;
+            if (block_y - player_eye_pos.y > 0.0) return .down;
+        }
+
+        return player_horizontal_facing.opposite();
     }
 
     pub const Properties = packed union(u4) {
