@@ -48,12 +48,12 @@ pub fn playerCanUse(self: @This(), block_pos: Vector3(i32), face: Direction, pla
     return true;
 }
 
-pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, pos: Vector3(f64)) !bool {
+pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, offset: Vector3(f64)) !bool {
     if (self.item.getBlock()) |block| {
         switch (self.item) {
-            .stone_slab, .wooden_slab, .stone_slab2 => return self.useOnSlab(world, player, block_pos, face, pos, block),
-            .snow_layer => return self.useOnSnow(world, player, block_pos, face, pos),
-            else => return self.useOnBlock(world, player, block_pos, face, pos, block),
+            .stone_slab, .wooden_slab, .stone_slab2 => return self.useOnSlab(world, player, block_pos, face, offset, block),
+            .snow_layer => return self.useOnSnow(world, player, block_pos, face, offset),
+            else => return self.useOnBlock(world, player, block_pos, face, offset, block),
         }
     }
 
@@ -62,7 +62,7 @@ pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
         .banner => return self.useOnSignLike(world, player, block_pos, face, .standing_banner),
         .bed => return true,
         .carrot, .potato, .wheat_seeds, .pumpkin_seeds, .melon_seeds, .nether_wart => return self.useOnCrop(world, player, block_pos, face),
-        .dye => return self.useOnDye(world, player, block_pos, face, pos),
+        .dye => return self.useOnDye(world, player, block_pos, face, offset),
         .ender_eye => return self.useOnEnderEye(world, player, block_pos, face),
         .fire_charge => return true,
         .flint_and_steel => return self.useOnFlintAndSteel(world, player, block_pos, face),
@@ -76,14 +76,14 @@ pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
         },
         .record_13, .record_cat, .record_blocks, .record_chirp, .record_far, .record_mall, .record_mellohi, .record_stal, .record_strad, .record_ward, .record_11, .record_wait => return self.useOnMusicDisc(world, block_pos),
         .redstone => return self.useOnRedstone(world, player, block_pos, face),
-        .string => return self.useOnBlock(world, player, block_pos, face, pos, .tripwire),
-        .reeds => return self.useOnBlock(world, player, block_pos, face, pos, .reeds),
-        .cake => return self.useOnBlock(world, player, block_pos, face, pos, .cake),
-        .repeater => return self.useOnBlock(world, player, block_pos, face, pos, .unpowered_repeater),
-        .brewing_stand => return self.useOnBlock(world, player, block_pos, face, pos, .brewing_stand),
-        .cauldron => return self.useOnBlock(world, player, block_pos, face, pos, .cauldron),
-        .flower_pot => return self.useOnBlock(world, player, block_pos, face, pos, .flower_pot),
-        .comparator => return self.useOnBlock(world, player, block_pos, face, pos, .unpowered_comparator),
+        .string => return self.useOnBlock(world, player, block_pos, face, offset, .tripwire),
+        .reeds => return self.useOnBlock(world, player, block_pos, face, offset, .reeds),
+        .cake => return self.useOnBlock(world, player, block_pos, face, offset, .cake),
+        .repeater => return self.useOnBlock(world, player, block_pos, face, offset, .unpowered_repeater),
+        .brewing_stand => return self.useOnBlock(world, player, block_pos, face, offset, .brewing_stand),
+        .cauldron => return self.useOnBlock(world, player, block_pos, face, offset, .cauldron),
+        .flower_pot => return self.useOnBlock(world, player, block_pos, face, offset, .flower_pot),
+        .comparator => return self.useOnBlock(world, player, block_pos, face, offset, .unpowered_comparator),
         .sign => return self.useOnSignLike(world, player, block_pos, face, .standing_sign),
         .skull => return self.useOnSkull(world, player, block_pos, face),
         .spawn_egg => return true,
@@ -95,7 +95,7 @@ pub fn useOn(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
     }
 }
 
-fn useOnBlock(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, pos: Vector3(f64), block: Block) !bool {
+fn useOnBlock(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, offfset: Vector3(f64), block: Block) !bool {
     if (self.size == 0) return false;
 
     const existing_block = world.getBlock(block_pos);
@@ -110,7 +110,7 @@ fn useOnBlock(self: @This(), world: *World, player: *const Entity.LocalPlayer, b
         .fromYaw(player.base.rotation.yaw),
         placement_pos,
         face,
-        pos,
+        offfset,
     );
     try world.setBlockState(.failing, placement_pos, physical_state);
     return true;
@@ -157,7 +157,7 @@ fn canBoneMeal(world: *World, block_pos: Vector3(i32)) bool {
     };
 }
 
-fn useOnDye(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, pos: Vector3(f64)) !bool {
+fn useOnDye(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, offset: Vector3(f64)) !bool {
     const target = block_pos.dir(face);
     if (!self.playerCanUse(target, face, player)) return false;
 
@@ -177,7 +177,7 @@ fn useOnDye(self: @This(), world: *World, player: *const Entity.LocalPlayer, blo
                     .fromYaw(player.base.rotation.yaw),
                     target,
                     face,
-                    pos,
+                    offset,
                 );
                 try world.setBlockState(.failing, target, placement_state);
             }
@@ -316,7 +316,7 @@ fn useOnDoor(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
     return true;
 }
 
-fn useOnSnow(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, pos: Vector3(f64)) !bool {
+fn useOnSnow(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, offset: Vector3(f64)) !bool {
     if (self.size == 0) return false;
 
     var target = block_pos;
@@ -337,10 +337,10 @@ fn useOnSnow(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
         }
     }
 
-    return self.useOnBlock(world, player, block_pos, face, pos, .snow_layer);
+    return self.useOnBlock(world, player, block_pos, face, offset, .snow_layer);
 }
 
-fn useOnSlab(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, pos: Vector3(f64), single: Block) !bool {
+fn useOnSlab(self: @This(), world: *World, player: *const Entity.LocalPlayer, block_pos: Vector3(i32), face: Direction, offset: Vector3(f64), single: Block) !bool {
     if (self.size == 0) return false;
     if (!self.playerCanUse(block_pos.dir(face), face, player)) return false;
 
@@ -366,7 +366,7 @@ fn useOnSlab(self: @This(), world: *World, player: *const Entity.LocalPlayer, bl
     if (!self.playerCanUse(placement_pos, face, player)) return false;
     if (!single.canBePlaced(world, placement_pos, face)) return false;
 
-    const half: Block.PhysicalState.Half = if (face != .down and (face == .up or !(pos.y > 0.5))) .bottom else .top;
+    const half: Block.PhysicalState.Half = if (face != .down and (face == .up or !(offset.y > 0.5))) .bottom else .top;
     try world.setBlockState(.failing, placement_pos, singleSlabState(single, variant_metadata, half));
     return true;
 }

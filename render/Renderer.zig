@@ -666,7 +666,7 @@ pub fn bufferEntities(self: *@This(), world: *const World, partial_tick: f64) !v
 pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
     switch (world.crosshair) {
         .block => |block| {
-            const virtual_state = world.resolveVirtualBlockState(block.block_pos);
+            const virtual_state = world.resolveVirtualBlockState(block.pos);
 
             var hitboxes_buffer: [5]main.Box(f64) = undefined;
             var hitboxes: std.ArrayList(main.Box(f64)) = .initBuffer(&hitboxes_buffer);
@@ -674,8 +674,8 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
 
             for (hitboxes.items) |hitbox| {
                 try self.@"3d_debug_staging_buffer".writeDebugCube(
-                    .add(.floatCast(hitbox.min), .floatFromInt(block.block_pos)),
-                    .add(.floatCast(hitbox.max), .floatFromInt(block.block_pos)),
+                    .add(.floatCast(hitbox.min), .floatFromInt(block.pos)),
+                    .add(.floatCast(hitbox.max), .floatFromInt(block.pos)),
                 );
             }
         },

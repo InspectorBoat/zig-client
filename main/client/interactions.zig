@@ -3,7 +3,7 @@ pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
     switch (game.world.crosshair) {
         .entity => |entity| try attackEntity(io, game, entity.entity_network_id),
-        .block => |block| try startMiningBlock(io, game, player, block.block_pos, block.face),
+        .block => |block| try startMiningBlock(io, game, player, block.pos, block.face),
         .miss => game.input_manager.cooldown.attack = 10,
     }
 }
@@ -65,7 +65,7 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
     if (block.getMiningProgress(player) >= 1.0) {
         try finishMiningBlock(game, block_pos);
     } else game.world.mining_state = .{
-        .block_pos = game.world.crosshair.block.block_pos,
+        .block_pos = game.world.crosshair.block.pos,
         .face = game.world.crosshair.block.face,
     };
 }
@@ -204,7 +204,7 @@ pub fn interactEntityAt(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     try updateHotbarSlot(io, game, player);
 
     try game.connection_handle.sendPlayPacket(io, .{ .player_interact_entity = .{
-        .action = .{ .interact_at = game.world.crosshair.entity.pos },
+        .action = .{ .interact_at = game.world.crosshair.entity.offset },
         .target_network_id = game.world.crosshair.entity.entity_network_id,
     } });
     return false;
@@ -228,29 +228,29 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
 
     // TODO: World border
 
-    const crosshair = game.world.crosshair.block;
+    const crosshair = game.world.crosshair;
 
-    std.debug.assert(game.world.getBlock(crosshair.block_pos) != .air);
+    std.debug.assert(game.world.getBlock(crosshair.block.pos) != .air);
 
     const maybe_held_item_stack = player.getHeldStack(game);
 
     if (game.world.game_mode == .Spectator) {
         try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
-            .block_pos = crosshair.block_pos,
-            .face = crosshair.face,
+            .block_pos = crosshair.block.pos,
+            .face = crosshair.block.face,
             .stack = maybe_held_item_stack,
-            .offset = .floatCast(crosshair.pos),
+            .offset = .floatCast(crosshair.block.offset),
         } });
         return true;
     }
 
-    const block_state = game.world.getBlockState(crosshair.block_pos);
+    const block_state = game.world.getBlockState(crosshair.block.pos);
 
     var consumed: bool = false;
 
     // if we are *not* sneaking, or our hand is empty, try to interact with the block itself
     if (!player.isSneaking() or maybe_held_item_stack == null) {
-        consumed = try block_state.use(&game.world, player, crosshair.block_pos);
+        consumed = try block_state.use(&game.world, player, crosshair.block.pos);
     }
 
     // if we are holding a block item, make sure we can actually place it
@@ -258,31 +258,31 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     if (!consumed) {
         if (maybe_held_item_stack) |held_item_stack| {
             if (held_item_stack.item.getBlock()) |block| {
-                const crosshair_target_block = game.world.resolveVirtualBlockState(crosshair.block_pos);
+                const crosshair_target_block = game.world.resolveVirtualBlockState(crosshair.block.pos);
 
-                var dir = crosshair.face;
-                var block_pos = crosshair.block_pos;
+                var dir = crosshair.block.face;
+                var block_pos = crosshair.block.pos;
                 if (crosshair_target_block == .snow_layer) {
                     dir = .up;
-                } else if (!game.world.resolveVirtualBlockState(crosshair.block_pos).canBeReplaced()) {
+                } else if (!game.world.resolveVirtualBlockState(crosshair.block.pos).canBeReplaced()) {
                     block_pos = block_pos.dir(dir);
                 }
-                if (!block.canBePlacedAsCombinedSlab(held_item_stack.metadata, &game.world, crosshair.block_pos, crosshair.face) and !block.canBePlaced(&game.world, block_pos, dir)) return false;
+                if (!block.canBePlacedAsCombinedSlab(held_item_stack.metadata, &game.world, crosshair.block.pos, crosshair.block.face) and !block.canBePlaced(&game.world, block_pos, dir)) return false;
             }
         }
     }
 
     try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
-        .block_pos = crosshair.block_pos,
-        .face = crosshair.face,
+        .block_pos = crosshair.block.pos,
+        .face = crosshair.block.face,
         .stack = maybe_held_item_stack,
-        .offset = .floatCast(crosshair.pos),
+        .offset = .floatCast(crosshair.block.offset),
     } });
 
     if (consumed) return true;
 
     if (maybe_held_item_stack) |held_item_stack| {
-        return held_item_stack.useOn(&game.world, player, crosshair.block_pos, crosshair.face, crosshair.pos);
+        return held_item_stack.useOn(&game.world, player, crosshair.block.pos, crosshair.block.face, crosshair.block.offset);
     }
     return false;
 }

@@ -186,7 +186,7 @@ pub const Client = union(enum) {
 
             if (self.input_manager.cooldown.attack == 0 and player.item_in_use == null) {
                 if (inputs.hand.attack and self.world.crosshair == .block)
-                    try interactions.updateBlockMining(io, self, player, self.world.crosshair.block.block_pos, self.world.crosshair.block.face)
+                    try interactions.updateBlockMining(io, self, player, self.world.crosshair.block.pos, self.world.crosshair.block.face)
                 else
                     try interactions.stopMiningBlock(io, self);
             }

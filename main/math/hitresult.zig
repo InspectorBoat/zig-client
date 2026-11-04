@@ -1,13 +1,13 @@
 pub const HitResult = union(Type) {
     block: struct {
-        block_pos: Vector3(i32),
+        pos: Vector3(i32),
         /// in local space already
-        pos: Vector3(f64),
+        offset: Vector3(f64),
         face: Direction,
     },
     entity: struct {
         entity_network_id: i32,
-        pos: Vector3(f64),
+        offset: Vector3(f64),
         face: Direction,
     },
     miss,
@@ -134,9 +134,9 @@ pub const HitResult = union(Type) {
                 if (hit_result == .block) {
                     return .{
                         .block = .{
-                            .block_pos = from_block_pos,
+                            .pos = from_block_pos,
                             .face = hit_result.block.face,
-                            .pos = hit_result.block.pos,
+                            .offset = hit_result.block.offset,
                         },
                     };
                 }
@@ -181,12 +181,12 @@ pub const HitResult = union(Type) {
 
             switch (rayTraceHitbox(hitbox, origin, to)) {
                 .block => |hit| {
-                    const dist = hit.pos.distanceSquared(origin);
+                    const dist = hit.offset.distanceSquared(origin);
                     if (dist < closest_hit_distance) {
                         closest_hit_distance = dist;
                         hit_result = .{ .entity = .{
                             .entity_network_id = entity_network_id,
-                            .pos = hit.pos,
+                            .offset = hit.offset,
                             .face = hit.face,
                         } };
                     }
@@ -207,11 +207,11 @@ pub const HitResult = union(Type) {
         const block_hit_result = rayTraceBlocks(options, world, origin, rotation, range);
         const entity_hit_result = rayTraceEntities(world, origin, rotation, range);
         const block_hit_distance = switch (block_hit_result) {
-            .block => |hit| hit.pos.distanceSquared(origin),
+            .block => |hit| hit.offset.distanceSquared(origin),
             else => std.math.inf(f64),
         };
         const entity_hit_distance = switch (entity_hit_result) {
-            .entity => |hit| hit.pos.distanceSquared(origin),
+            .entity => |hit| hit.offset.distanceSquared(origin),
             else => std.math.inf(f64),
         };
         return if (block_hit_distance < entity_hit_distance) block_hit_result else entity_hit_result;
@@ -280,9 +280,9 @@ pub const HitResult = union(Type) {
         }
         return if (hit_pos != null) .{
             .block = .{
-                .block_pos = undefined,
+                .pos = undefined,
                 .face = dir.?,
-                .pos = hit_pos.?,
+                .offset = hit_pos.?,
             },
         } else .miss;
     }
