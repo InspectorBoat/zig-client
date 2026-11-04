@@ -1,5 +1,4 @@
 /// A buffer to write packet data (c2s)
-
 backer: std.ArrayList(u8),
 
 pub fn initBuffer(buffer: []u8) @This() {
@@ -66,18 +65,19 @@ pub fn writeByteSlice(self: *@This(), b: []const u8) !void {
 }
 
 pub fn writeBlockPos(self: *@This(), block_pos: Vector3(i32)) !void {
-    const MASK_X: i64 = 0x3ffffff;
-    const MASK_Y: i64 = 0xfff;
-    const MASK_Z: i64 = 0x3ffffff;
-    const SIZE_X: i64 = 38;
-    const SIZE_Y: i64 = 26;
+    const BlockPos = packed struct(i64) {
+        z: i26,
+        y: i12,
+        x: i26,
+    };
 
-    try self.write(
-        i64,
-        (block_pos.x & MASK_X) << SIZE_X |
-            (block_pos.y & MASK_Y) << SIZE_Y |
-            (block_pos.z & MASK_Z) << 0,
-    );
+    const block_pos_packed: BlockPos = .{
+        .x = @truncate(block_pos.x),
+        .y = @truncate(block_pos.y),
+        .z = @truncate(block_pos.z),
+    };
+
+    try self.write(i64, @backingInt(block_pos_packed));
 }
 
 pub fn writeItemStack(self: *@This(), maybe_item_stack: ?Item.Stack) !void {
