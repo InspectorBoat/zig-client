@@ -67,7 +67,7 @@ pub const Nbt = union(Tag) {
             .end => return .end,
 
             inline else => |tag| {
-                _ = try buffer.readJavaUtfNonAllocating();
+                _ = try buffer.readJavaUtf();
                 return @unionInit(
                     Nbt,
                     @tagName(tag),
@@ -82,7 +82,7 @@ pub const Nbt = union(Tag) {
             .end => return .{ .name = null, .nbt = .end },
 
             inline else => |tag| {
-                const name = try buffer.readJavaUtfAllocating(allocator);
+                const name = try buffer.allocJavaUtf(allocator);
                 return .{
                     .name = name,
                     .nbt = @unionInit(
@@ -208,7 +208,7 @@ pub const Nbt = union(Tag) {
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
             const len: usize = @intCast(try buffer.read(i32));
             const items = try allocator.alloc(i8, len);
-            const bytes = try buffer.readBytesNonAllocating(len * @sizeOf(i8));
+            const bytes = try buffer.readBytes(len * @sizeOf(i8));
 
             @memcpy(items, @as([]const i8, @ptrCast(bytes)));
 
@@ -248,7 +248,7 @@ pub const Nbt = union(Tag) {
 
         pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadError!@This() {
             return .{
-                .value = try buffer.readJavaUtfAllocating(allocator),
+                .value = try buffer.allocJavaUtf(allocator),
             };
         }
 

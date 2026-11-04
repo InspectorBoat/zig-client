@@ -123,7 +123,7 @@ pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingBufferW
     };
 
     // we don't have enough bytes, so the packet is not complete
-    if (packet_buffer.remainingBytes() < packet_body_size) return null;
+    if (packet_buffer.unread() < packet_body_size) return null;
     std.log.scoped(.decode_packet).debug("decoding packet - {} bytes header + {} bytes body", .{ packet_buffer.read_location, packet_body_size });
 
     const packet_size = packet_header_size + @as(usize, @intCast(packet_body_size));
@@ -185,7 +185,7 @@ pub const DecompressPacketError = error{PacketDecompressionError};
 pub fn decompressBuffer(compressed_buffer: *S2C.ReadBuffer, decompressed_bytes_out: []u8) DecompressPacketError!void {
     var scratch_buffer: [std.compress.flate.max_window_len]u8 = undefined;
 
-    var input: std.Io.Reader = .fixed(compressed_buffer.readRemainingBytesNonAllocating());
+    var input: std.Io.Reader = .fixed(compressed_buffer.readAll());
     var decompressor: std.compress.flate.Decompress = .init(&input, .zlib, &scratch_buffer);
     decompressor.reader.readSliceAll(decompressed_bytes_out) catch return error.PacketDecompressionError;
 }

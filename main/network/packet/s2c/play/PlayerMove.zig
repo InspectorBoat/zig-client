@@ -74,14 +74,14 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     );
 }
 
-pub const RelativeArguments = packed struct {
-    x: RelativeMode,
-    y: RelativeMode,
-    z: RelativeMode,
-    yaw: RelativeMode,
-    pitch: RelativeMode,
+pub const RelativeArguments = packed struct(u8) {
+    x: Mode,
+    y: Mode,
+    z: Mode,
+    yaw: Mode,
+    pitch: Mode,
     _: u3,
-    pub const RelativeMode = enum(u1) {
+    pub const Mode = enum(u1) {
         Absolute,
         Relative,
     };

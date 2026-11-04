@@ -12,7 +12,7 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.writePacked(SkinLayersFlags, self.skin_layers);
 }
 
-pub const SkinLayersFlags = packed struct {
+pub const SkinLayersFlags = packed struct(u8) {
     cape: bool = true,
     jacket: bool = true,
     left_sleeve: bool = true,

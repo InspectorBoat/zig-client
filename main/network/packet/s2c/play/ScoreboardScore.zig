@@ -7,9 +7,9 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
-    const owner = try buffer.readStringAllocating(allocator, 40);
+    const owner = try buffer.allocString(allocator, 40);
     const action = try buffer.readEnum(Action) orelse return error.InvalidScoreboardScoreAction;
-    const objective = try buffer.readStringAllocating(allocator, 16);
+    const objective = try buffer.allocString(allocator, 16);
     const score = if (action == .Change)
         try buffer.readVarInt()
     else

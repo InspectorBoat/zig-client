@@ -9,7 +9,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const stack_count: usize = @intCast(try buffer.read(i16));
     const stacks = try allocator.alloc(?Item.Stack, stack_count);
     for (stacks) |*stack| {
-        stack.* = try buffer.readItemStackAllocating(allocator);
+        stack.* = try buffer.allocItemStack(allocator);
     }
     return .{
         .menu_network_id = menu_network_id,

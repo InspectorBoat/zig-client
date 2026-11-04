@@ -8,7 +8,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
     const suggestions: [][]const u8 = try allocator.alloc([]const u8, @intCast(suggestion_count));
     for (suggestions) |*suggestion| {
-        suggestion.* = try buffer.readStringAllocating(allocator, 32767);
+        suggestion.* = try buffer.allocString(allocator, 32767);
     }
 
     return .{

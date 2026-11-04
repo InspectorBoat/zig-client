@@ -10,7 +10,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
     const entries = try allocator.alloc(Entry, @intCast(entry_count));
     for (entries) |*entry| {
-        const id = try buffer.readStringAllocating(allocator, 64);
+        const id = try buffer.allocString(allocator, 64);
         const base_value = try buffer.read(f64);
 
         const modifier_count: usize = @intCast(try buffer.readVarInt());

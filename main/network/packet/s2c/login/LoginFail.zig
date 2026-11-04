@@ -5,7 +5,7 @@ comptime handle_on_network_thread: bool = true,
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     return .{
-        .reason = try buffer.readStringNonAllocating(32768),
+        .reason = try buffer.readString(32768),
     };
 }
 

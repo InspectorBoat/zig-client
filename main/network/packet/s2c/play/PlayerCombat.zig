@@ -15,7 +15,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         2 => {
             _ = try buffer.readVarInt();
             _ = try buffer.read(i32);
-            _ = try buffer.readStringNonAllocating(32767);
+            _ = try buffer.readString(32767);
         },
         else => {},
     }

@@ -27,7 +27,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
     // copy chunk data slice
     for (chunk_datas) |chunk_data| {
-        const bytes = try buffer.readBytesNonAllocating(chunk_data.buffer.len);
+        const bytes = try buffer.readBytes(chunk_data.buffer.len);
         @memcpy(chunk_data.buffer, bytes);
     }
     return .{

@@ -246,7 +246,7 @@ pub fn receiveChunk(
             }
             const section = chunk.sections[section_y].?;
 
-            const raw_block_states = @as(*align(1) const [4096]u16, @ptrCast(try buffer.readArrayNonAllocating(4096 * 2)));
+            const raw_block_states = @as(*align(1) const [4096]u16, @ptrCast(try buffer.readBytes(4096 * 2)));
             for (raw_block_states, &section.block_states) |raw_block_state, *concrete_block_state| {
                 concrete_block_state.* = .validateRaw(raw_block_state);
             }
@@ -263,7 +263,7 @@ pub fn receiveChunk(
     for (0..16) |section_y| {
         if (chunk_data.sections.isSet(@intCast(section_y))) {
             const section = chunk.sections[section_y].?;
-            @memcpy(&section.block_light.bytes, try buffer.readArrayNonAllocating(2048));
+            @memcpy(&section.block_light.bytes, try buffer.readBytes(2048));
         }
     }
     // copy sky light data
@@ -271,13 +271,13 @@ pub fn receiveChunk(
         for (0..16) |section_y| {
             if (chunk_data.sections.isSet(@intCast(section_y))) {
                 const section = chunk.sections[section_y].?;
-                @memcpy(&section.sky_light.bytes, try buffer.readBytesNonAllocating(2048));
+                @memcpy(&section.sky_light.bytes, try buffer.readBytes(2048));
             }
         }
     }
     // copy biome data
     if (full) {
-        @memcpy(&chunk.biomes, try buffer.readBytesNonAllocating(256));
+        @memcpy(&chunk.biomes, try buffer.readBytes(256));
     }
 
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });

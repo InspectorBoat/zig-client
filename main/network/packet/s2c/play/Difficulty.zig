@@ -6,7 +6,7 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     _ = allocator;
     return .{
-        .difficulty = (try buffer.readPacked(packed struct { difficulty: Difficulty, _: u6 })).difficulty,
+        .difficulty = (try buffer.readPacked(packed struct(u8) { difficulty: Difficulty, _: u6 })).difficulty,
     };
 }
 

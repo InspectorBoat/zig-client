@@ -12,7 +12,7 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     });
 }
 
-pub const JumpSneakFlags = packed struct {
+pub const JumpSneakFlags = packed struct(u8) {
     _: u6 = 0,
     jumping: bool,
     sneaking: bool,

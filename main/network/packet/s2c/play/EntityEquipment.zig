@@ -9,7 +9,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
         .network_id = try buffer.readVarInt(),
         .equipment_slot = try buffer.read(i16),
-        .stack = try buffer.readItemStackAllocating(allocator),
+        .stack = try buffer.allocItemStack(allocator),
     };
 }
 

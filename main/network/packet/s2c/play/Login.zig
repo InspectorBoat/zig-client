@@ -1,4 +1,5 @@
 /// the network id of the player
+
 network_id: i32,
 hardcore: bool,
 game_mode: GameMode,
@@ -18,9 +19,9 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const hardcore = i & 8 == 8;
     const game_mode = std.enums.fromInt(GameMode, i & ~@as(u8, 8)) orelse .Survival;
     const dimension = try buffer.read(i8);
-    const difficulty = (try buffer.readPacked(packed struct { difficulty: Difficulty, _: u6 })).difficulty;
+    const difficulty = (try buffer.readPacked(packed struct(u8) { difficulty: Difficulty, _: u6 })).difficulty;
     const max_player_count = try buffer.read(u8);
-    const generator_type = GeneratorType.keys.get(try buffer.readStringNonAllocating(16)) orelse .Default;
+    const generator_type = GeneratorType.keys.get(try buffer.readString(16)) orelse .Default;
     const reduced_debug_info = try buffer.read(bool);
     return .{
         .network_id = network_id,

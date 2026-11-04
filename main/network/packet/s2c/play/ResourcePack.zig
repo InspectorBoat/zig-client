@@ -6,8 +6,8 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
-        .url = try buffer.readStringAllocating(allocator, 32767),
-        .hash = try buffer.readStringAllocating(allocator, 40),
+        .url = try buffer.allocString(allocator, 32767),
+        .hash = try buffer.allocString(allocator, 40),
     };
 }
 

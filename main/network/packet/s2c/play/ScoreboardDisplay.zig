@@ -7,7 +7,7 @@ comptime required_client_state: Client.State = .game,
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
         .slot = try buffer.read(i8),
-        .objective = try buffer.readStringAllocating(allocator, 16),
+        .objective = try buffer.allocString(allocator, 16),
     };
 }
 

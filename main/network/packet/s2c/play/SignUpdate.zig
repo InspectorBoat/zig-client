@@ -9,7 +9,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
     var lines: [4][]const u8 = undefined;
     for (&lines) |*line| {
-        line.* = try buffer.readStringAllocating(allocator, 32767);
+        line.* = try buffer.allocString(allocator, 32767);
     }
 
     return .{

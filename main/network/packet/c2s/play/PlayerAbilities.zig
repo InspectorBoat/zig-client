@@ -16,7 +16,7 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
     try buffer.write(f32, self.walk_speed);
 }
 
-pub const AbilityFlags = packed struct {
+pub const AbilityFlags = packed struct(u8) {
     _: u4 = 0,
     creative_mode: bool,
     allow_flying: bool,

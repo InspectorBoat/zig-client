@@ -27,117 +27,87 @@ pub fn clear(self: *@This()) void {
     self.read_location = 0;
 }
 
+pub fn unread(self: @This()) usize {
+    return self.backer.len - self.read_location;
+}
+
 /// T must be a boolean, integer or float type with nonzero size and have a bit size divisible by 8
-pub fn read(self: *@This(), comptime T: type) error{EndOfBuffer}!T {
-    if (@typeInfo(T) != .int and @typeInfo(T) != .float and T != bool) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be boolean, integer or float type");
-    if (T != bool and @sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeInfo(T) ++ ") must have a bit size divisible by 8");
-    if (@sizeOf(T) == 0) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must not be zero-sized");
-    const last_read_index = self.read_location + @sizeOf(T) - 1;
-    if (last_read_index >= self.backer.len) {
-        return error.EndOfBuffer;
-    }
+pub fn read(self: *@This(), comptime T: type) !T {
+    if (self.read_location + @sizeOf(T) > self.backer.len) return error.EndOfBuffer;
 
     // booleans have to be special cased because their bit size is 1
     if (T == bool) return try self.read(u8) != 0;
 
-    const value_slice = self.backer[self.read_location..][0..@sizeOf(T)];
-    self.read_location += @sizeOf(T);
+    defer self.read_location += @sizeOf(T);
 
-    // use this so we don't have to special case floats
-    const ValueAsInt = @Int(.unsigned, @bitSizeOf(T));
-    const value_as_int = std.mem.bytesToValue(ValueAsInt, value_slice);
-    return @bitCast(std.mem.bigToNative(ValueAsInt, value_as_int));
-}
-
-pub fn remainingBytes(self: @This()) usize {
-    return self.backer.len - self.read_location;
+    return @bitCast(
+        std.mem.readInt(
+            @Int(.unsigned, @bitSizeOf(T)),
+            self.backer[self.read_location..][0..@sizeOf(T)],
+            .big,
+        ),
+    );
 }
 
 /// T must have a bit size divisible by 8 and must be a packed struct
 pub fn readPacked(self: *@This(), comptime T: type) !T {
-    if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeInfo(T) ++ ") must have a bit size divisible by 8");
-    if (@typeInfo(T) != .@"struct") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be a struct");
-    if (@typeInfo(T).@"struct".layout != .@"packed") @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be packed");
-    return @bitCast(try self.read(@Int(.unsigned, @bitSizeOf(T))));
+    return @fromBackingInt(try self.read(std.meta.BackingInt(T)));
 }
 
 /// T must be an enum backed by an i32
 pub fn readEnum(self: *@This(), comptime T: type) !?T {
-    if (@typeInfo(T) != .@"enum") @compileError("type to retrieve (" ++ @typeName(T) ++ "must be an enum");
-    if (@typeInfo(T).@"enum".tag_type != i32) @compileError("type to retrieve (" ++ @typeName(T) ++ "must be backed by an i32");
     return std.enums.fromInt(T, try self.readVarInt()) orelse null;
 }
 
-/// return value is backed by the buffer
-pub fn readArrayNonAllocating(self: *@This(), comptime Count: usize) !*const [Count]u8 {
-    const last_read_index = self.read_location + Count - 1;
-    if (last_read_index >= self.backer.len) {
-        return error.EndOfBuffer;
-    }
-    const array = self.backer[self.read_location..][0..Count];
-    self.read_location += Count;
-    return array;
-}
-
-/// return value is backed by the buffer
-pub fn readBytesNonAllocating(self: *@This(), count: usize) ![]const u8 {
-    const last_read_index = self.read_location + count - 1;
-    if (last_read_index >= self.backer.len) {
-        return error.EndOfBuffer;
-    }
-    const slice = self.backer[self.read_location .. self.read_location + count];
-    self.read_location += count;
+pub fn readBytes(self: *@This(), len: usize) ![]const u8 {
+    if (self.read_location + len > self.backer.len) return error.EndOfBuffer;
+    const slice = self.backer[self.read_location..][0..len];
+    self.read_location += len;
     return slice;
 }
 
-/// return value is not backed by the buffer
-pub fn readBytesAllocating(self: *@This(), allocator: std.mem.Allocator, count: usize) ![]u8 {
-    const direct_slice = try self.readBytesNonAllocating(count);
-    const slice = try allocator.alloc(u8, count);
-    @memcpy(slice, direct_slice);
+pub fn allocBytes(self: *@This(), allocator: std.mem.Allocator, len: usize) ![]u8 {
+    const direct = try self.readBytes(len);
+    const slice = try allocator.alloc(u8, len);
+    @memcpy(slice, direct);
     return slice;
 }
 
-/// return value is backed by the buffer
-pub fn readByteSliceNonAllocating(self: *@This()) ![]const u8 {
+pub fn readSlice(self: *@This()) ![]const u8 {
     const byte_length = try self.readVarInt();
-    return try self.readBytesNonAllocating(@intCast(byte_length));
+    return try self.readBytes(@intCast(byte_length));
 }
 
-/// return value is not backed by the buffer
-pub fn readByteSliceAllocating(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
+pub fn allocSlice(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
     const byte_length = try self.readVarInt();
-    return try self.readBytesAllocating(allocator, @intCast(byte_length));
+    return try self.allocBytes(allocator, @intCast(byte_length));
 }
 
-/// returns a slice view of the unread bytes (starting at read_location and continuing to the end)
-pub fn readRemainingBytesNonAllocating(self: *@This()) []const u8 {
-    return self.readBytesNonAllocating(self.remainingBytes()) catch unreachable;
+pub fn readAll(self: *@This()) []const u8 {
+    return self.readBytes(self.unread()) catch unreachable;
 }
 
-pub fn readRemainingBytesAllocating(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
-    return try self.readBytesAllocating(allocator, self.remainingBytes());
+pub fn allocAll(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
+    return try self.allocBytes(allocator, self.unread());
 }
 
-/// return value is backed by the buffer
-pub fn readStringNonAllocating(self: *@This(), max_code_points: usize) ![]const u8 {
+pub fn readString(self: *@This(), max_code_points: usize) ![]const u8 {
     const byte_length = try self.readVarInt();
     if (byte_length < 0) return error.NegativeStringLength;
     if (byte_length > max_code_points * 4) return error.StringTooLong;
-    const slice = try self.readBytesNonAllocating(@intCast(byte_length));
+    const slice = try self.readBytes(@intCast(byte_length));
     if (try std.unicode.utf8CountCodepoints(slice) > max_code_points) return error.StringTooLong;
     return slice;
 }
 
-/// return value is not backed by the buffer
-pub fn readStringAllocating(self: *@This(), allocator: std.mem.Allocator, max_code_points: usize) ![]u8 {
-    const direct_string = try self.readStringNonAllocating(max_code_points);
-    const string = try allocator.alloc(u8, direct_string.len);
-    @memcpy(string, direct_string);
+pub fn allocString(self: *@This(), allocator: std.mem.Allocator, max_code_points: usize) ![]u8 {
+    const direct = try self.readString(max_code_points);
+    const string = try allocator.alloc(u8, direct.len);
+    @memcpy(string, direct);
     return string;
 }
 
-pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?Item.Stack {
+pub fn allocItemStack(self: *@This(), allocator: std.mem.Allocator) !?Item.Stack {
     var item_stack: ?Item.Stack = null;
     const item_id = try self.read(i16);
     if (item_id >= 0) {
@@ -145,13 +115,13 @@ pub fn readItemStackAllocating(self: *@This(), allocator: std.mem.Allocator) !?I
             .size = try self.read(i8),
             .metadata = try self.read(i16),
             .item = @fromBackingInt(@intCast(item_id)),
-            .nbt = try self.readNbtCompoundAllocating(allocator),
+            .nbt = try self.allocNbtCompound(allocator),
         };
     }
     return item_stack;
 }
 
-pub fn readNbtCompoundAllocating(self: *@This(), allocator: std.mem.Allocator) !?Nbt.Compound {
+pub fn allocNbtCompound(self: *@This(), allocator: std.mem.Allocator) !?Nbt.Compound {
     const nbt: Nbt = try .readDiscardName(allocator, self);
     return switch (nbt) {
         .end => null,
@@ -161,92 +131,43 @@ pub fn readNbtCompoundAllocating(self: *@This(), allocator: std.mem.Allocator) !
 }
 
 /// Uses a u16 and java's """""""""slight modification""""""""" of utf8
-pub fn readJavaUtfAllocating(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
-    return try self.readBytesAllocating(allocator, try self.read(u16));
+pub fn allocJavaUtf(self: *@This(), allocator: std.mem.Allocator) ![]const u8 {
+    return try self.allocBytes(allocator, try self.read(u16));
 }
 
 /// Uses a u16 and java's """""""""slight modification""""""""" of utf8
-pub fn readJavaUtfNonAllocating(self: *@This()) ![]const u8 {
-    return try self.readBytesNonAllocating(try self.read(u16));
+pub fn readJavaUtf(self: *@This()) ![]const u8 {
+    return try self.readBytes(try self.read(u16));
 }
 
 pub fn readBlockPos(self: *@This()) !Vector3(i32) {
-    const l = try self.read(i64);
-    const SIZE_X: i64 = 38;
-    const SIZE_Y: i64 = 26;
-    const OFFSET_X: i32 = 26;
-    const OFFSET_Y: i32 = 12;
-    const OFFSET_Z: i32 = 26;
-    const x = ((l << (64 - SIZE_X - OFFSET_X)) >> (64 - OFFSET_X));
-    const y = ((l << (64 - SIZE_Y - OFFSET_Y)) >> (64 - OFFSET_Y));
-    const z = ((l << (64 - OFFSET_Z)) >> (64 - OFFSET_Z));
-    return Vector3(i32){
-        .x = @intCast(x),
-        .y = @intCast(y),
-        .z = @intCast(z),
+    const BlockPos = packed struct(i64) {
+        z: i26,
+        y: i12,
+        x: i26,
     };
+
+    const block_pos_packed: BlockPos = @fromBackingInt(try self.read(i64));
+    return .cast(block_pos_packed);
 }
 
 pub fn readUuid(self: *@This()) !Uuid {
-    return .{
-        .bytes = std.mem.toBytes(try self.read(u128)),
-    };
+    return .{ .bytes = std.mem.toBytes(try self.read(u128)) };
 }
 
 pub fn readVarInt(self: *@This()) !i32 {
-    var result: u32 = 0;
-    for (0..5) |i| {
-        // read byte from buffer
-        const byte: VarIntByte = @bitCast(try self.read(u8));
-        const data_bits: u32 = byte.data_bits;
-        // add byte to data
-        result |= data_bits << @intCast(i * 7);
-        if (!byte.has_more_bytes) {
-            break;
-        }
-    } else {
-        return error.VarIntTooBig;
-    }
-
-    return @bitCast(result);
+    const result, _ = try self.readVarIntExtra(5);
+    return result;
 }
 
-pub fn readVarIntExtra(self: *@This(), comptime max_bytes: usize) error{ VarIntTooBig, EndOfBuffer }!struct { i32, usize } {
-    if (max_bytes > 5) @compileError("max_bytes must be 5 or less");
+pub fn readVarIntExtra(self: *@This(), comptime max_bytes: usize) !struct { i32, usize } {
+    comptime std.debug.assert(max_bytes <= 5);
     var result: u32 = 0;
-    var bytes_read: usize = 0;
     for (0..max_bytes) |i| {
-        // read byte from buffer
-        const byte: VarIntByte = @bitCast(try self.read(u8));
-        const data_bits: u32 = byte.data_bits;
-        // add byte to data
-        result |= data_bits << @intCast(i * 7);
-        bytes_read += 1;
-        if (!byte.has_more_bytes) {
-            break;
-        }
-    } else {
-        return error.VarIntTooBig;
-    }
-
-    return .{ @bitCast(result), bytes_read };
-}
-
-// little endian
-pub fn readVarIntFromArray(comptime max_bytes: usize, var_int: [max_bytes]VarIntByte) i32 {
-    if (max_bytes > 5) @compileError("max_bytes must be 5 or less");
-    var result: u32 = 0;
-    for (var_int, 0..) |byte, i| {
-        // data portion of byte
-        const data_bits: u32 = byte.data_bits;
-        // add byte data to result
-        result |= data_bits << @intCast(i * 7);
-        if (!byte.has_more_bytes) {
-            break;
-        }
-    }
-
-    return @bitCast(result);
+        const byte: VarIntByte = @fromBackingInt(try self.read(u8));
+        result |= @as(u32, byte.data) << @intCast(i * 7);
+        if (!byte.cont) return .{ @bitCast(result), i + 1 };
+    } else return error.VarIntTooBig;
 }
 
 test readVarInt {
@@ -309,6 +230,16 @@ test readVarInt {
     try std.testing.expectEqual(127, read_buffer.readVarInt());
     try std.testing.expectEqual(255, read_buffer.readVarInt());
     try std.testing.expectEqual(25565, read_buffer.readVarInt());
+}
+
+test readJavaUtf {
+    var buffer: @This() = .{
+        .backer = &.{ 0x00, 0x02, 'h', 'i' },
+        .read_location = 0,
+    };
+    const utf = try buffer.readJavaUtf();
+    try std.testing.expectEqualStrings("hi", utf);
+    try std.testing.expectEqual(buffer.backer.len, buffer.read_location);
 }
 
 const std = @import("std");

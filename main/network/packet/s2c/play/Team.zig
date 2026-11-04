@@ -13,7 +13,7 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     var packet: @This() = .{
-        .name = try buffer.readStringAllocating(allocator, 16),
+        .name = try buffer.allocString(allocator, 16),
         .action = try buffer.read(i8),
         .display_name = "",
         .prefix = "",
@@ -25,11 +25,11 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     };
 
     if (packet.action == 0 or packet.action == 2) {
-        packet.display_name = try buffer.readStringAllocating(allocator, 32);
-        packet.prefix = try buffer.readStringAllocating(allocator, 16);
-        packet.suffix = try buffer.readStringAllocating(allocator, 16);
+        packet.display_name = try buffer.allocString(allocator, 32);
+        packet.prefix = try buffer.allocString(allocator, 16);
+        packet.suffix = try buffer.allocString(allocator, 16);
         packet.flags = try buffer.read(i8);
-        packet.name_tag_visibility = visibilityFromKey(try buffer.readStringNonAllocating(32));
+        packet.name_tag_visibility = visibilityFromKey(try buffer.readString(32));
         packet.color = try buffer.read(i8);
     }
 
@@ -37,7 +37,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         const member_count: usize = @intCast(try buffer.readVarInt());
         const members: [][]const u8 = try allocator.alloc([]const u8, member_count);
         for (members) |*member| {
-            member.* = try buffer.readStringAllocating(allocator, 40);
+            member.* = try buffer.allocString(allocator, 40);
         }
         packet.members = members;
     }
@@ -45,7 +45,6 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return packet;
 }
 
-// AbstractTeam.Visibility keys; an unknown key falls back to the default, always
 fn visibilityFromKey(key: []const u8) NametagVisibility {
     if (std.mem.eql(u8, key, "never")) return .Never;
     if (std.mem.eql(u8, key, "hideForOtherTeams")) return .HideForOtherTeams;

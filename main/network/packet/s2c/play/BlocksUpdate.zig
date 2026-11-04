@@ -10,8 +10,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     errdefer allocator.free(updates);
 
     for (updates) |*update| {
-        const pos = try buffer.readPacked(packed struct { y: u8, z: u4, x: u4 });
-        update.pos = .{ .x = pos.x, .y = pos.y, .z = pos.z };
+        update.pos = .cast(try buffer.readPacked(packed struct(u16) { y: u8, z: u4, x: u4 }));
         update.state = @intCast(try buffer.readVarInt());
     }
 

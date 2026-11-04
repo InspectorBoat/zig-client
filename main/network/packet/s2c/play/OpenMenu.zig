@@ -9,8 +9,8 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const menu_network_id = try buffer.read(u8);
-    const menu_type = try buffer.readStringAllocating(allocator, 32);
-    const display_name = try buffer.readStringAllocating(allocator, 32767);
+    const menu_type = try buffer.allocString(allocator, 32);
+    const display_name = try buffer.allocString(allocator, 32767);
     const size = try buffer.read(u8);
     const owner_network_id = if (std.mem.eql(u8, menu_type, "EntityHorse")) try buffer.read(i32) else undefined;
     return .{

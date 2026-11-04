@@ -1,4 +1,5 @@
 /// A buffer to write packet data (c2s)
+
 backer: std.ArrayList(u8),
 
 pub fn initBuffer(buffer: []u8) @This() {
@@ -28,30 +29,22 @@ pub fn toReadBuffer(self: *@This()) ReadBuffer {
 
 /// T must be an boolean, integer or float with nonzero size and have a bit size divisible by 8
 pub fn write(self: *@This(), comptime T: type, value: T) std.mem.Allocator.Error!void {
-    if (@typeInfo(T) != .int and @typeInfo(T) != .float and T != bool) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must be integer, float, or boolean");
-    if (T != bool and @sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
-    if (@sizeOf(T) == 0) @compileError("type to retrieve (" ++ @typeName(T) ++ ") must not be zero-sized");
+    if (T == bool) return try self.backer.appendBounded(@intFromBool(value));
 
-    if (T == bool) return try self.backer.appendBounded(@intCast(@intFromBool(value)));
-
-    const ValueAsInt = @Int(.unsigned, @bitSizeOf(T));
-    const value_as_int: ValueAsInt = @bitCast(value);
-    const value_slice = std.mem.toBytes(std.mem.nativeToBig(ValueAsInt, value_as_int));
-
-    try self.backer.appendSliceBounded(&value_slice);
+    std.mem.writeInt(
+        @Int(.unsigned, @bitSizeOf(T)),
+        try self.backer.addManyAsArrayBounded(@sizeOf(T)),
+        @bitCast(value),
+        .big,
+    );
 }
 
 pub fn writePacked(self: *@This(), comptime T: type, value: T) !void {
-    if (@sizeOf(T) * 8 != @bitSizeOf(T)) @compileError("type to write (" ++ @typeName(T) ++ ") must have a bit size divisible by 8");
-    if (@sizeOf(T) != 1) @compileError("type to write (" ++ @typeName(T) ++ ") must have a byte size of 1");
-
-    try self.backer.appendBounded(@bitCast(value));
+    try self.write(std.meta.BackingInt(T), @backingInt(value));
 }
 
 /// T must be an enum backed by an i32
 pub fn writeEnum(self: *@This(), comptime T: type, value: T) !void {
-    if (@typeInfo(T) != .@"enum") @compileError("type to write (" ++ @typeName(T) ++ "must be an enum");
-    if (@typeInfo(T).@"enum".tag_type != i32) @compileError("type to write (" ++ @typeName(T) ++ "must be backed by an i32");
     return try self.writeVarInt(@backingInt(value));
 }
 
@@ -59,7 +52,7 @@ pub fn writeBytes(self: *@This(), b: []const u8) !void {
     try self.backer.appendSliceBounded(b);
 }
 
-pub fn writeByteSlice(self: *@This(), b: []const u8) !void {
+pub fn writeSlice(self: *@This(), b: []const u8) !void {
     try self.writeVarInt(@intCast(b.len));
     try self.writeBytes(b);
 }
@@ -116,49 +109,24 @@ pub fn writeJavaUtf(self: *@This(), s: []const u8) (error{StringTooLarge} || std
 // little endian
 pub fn writeVarInt(self: *@This(), i: i32) std.mem.Allocator.Error!void {
     // cast value to unsigned version to avoid shifting in 1s
-    var u = @as(u32, @bitCast(i));
+    var u: u32 = @bitCast(i);
     for (0..5) |_| {
-        // the next 7 data bits
-        const data_bits = @as(u7, @truncate(u));
-
-        // shift the data bits off
+        try self.writePacked(VarIntByte, .{
+            .data = @truncate(u),
+            .cont = (u >> 7) != 0,
+        });
         u >>= 7;
-        // whether the value is now all zeros
-        const has_more_bytes = u != 0;
-
-        const byte_to_write: VarIntByte = .{
-            .data_bits = data_bits,
-            .has_more_bytes = has_more_bytes,
-        };
-
-        try self.write(u8, @bitCast(byte_to_write));
-
-        if (!has_more_bytes) break;
-    } else {
-        std.debug.panic("tried to write more than 5 bytes in a varint. this shouldn't be possible! varint: {}", .{u});
-    }
+        if (u == 0) return;
+    } else unreachable;
 }
 
 pub fn getVarIntSize(i: i32) usize {
     // cast value to unsigned version to avoid shifting in 1s
     var u: u32 = @bitCast(i);
-    var bytes: usize = 0;
-    for (0..5) |_| {
+    for (0..5) |size| {
         u >>= 7;
-
-        bytes += 1;
-
-        const has_more_bytes = u != 0;
-        if (!has_more_bytes) break;
-    }
-    return bytes;
-}
-
-pub fn fromOwnedArrayList(allocator: std.mem.Allocator, array_list: std.ArrayList(u8)) @This() {
-    return .{
-        .backer = array_list,
-        .allocator = allocator,
-    };
+        if (u == 0) return size + 1;
+    } else unreachable;
 }
 
 test writeVarInt {
@@ -166,43 +134,54 @@ test writeVarInt {
     defer buffer.backer.deinit(std.testing.allocator);
 
     try buffer.writeVarInt(0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{0x00}, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{0x00}, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(0));
     buffer.clear();
 
     try buffer.writeVarInt(1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{0x01}, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{0x01}, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(1));
     buffer.clear();
 
     try buffer.writeVarInt(2);
-    try std.testing.expectEqualSlices(u8, &[_]u8{0x02}, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{0x02}, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(2));
     buffer.clear();
 
     try buffer.writeVarInt(127);
-    try std.testing.expectEqualSlices(u8, &[_]u8{0x7f}, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{0x7f}, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(127));
     buffer.clear();
 
     try buffer.writeVarInt(255);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0xff, 0x01 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0xff, 0x01 }, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(255));
     buffer.clear();
 
     try buffer.writeVarInt(25565);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0xdd, 0xc7, 0x01 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0xdd, 0xc7, 0x01 }, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(25565));
     buffer.clear();
 
     try buffer.writeVarInt(2097151);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0xff, 0xff, 0x7f }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0xff, 0xff, 0x7f }, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(2097151));
     buffer.clear();
 
     try buffer.writeVarInt(2147483647);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0xff, 0xff, 0xff, 0xff, 0x07 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0xff, 0xff, 0xff, 0xff, 0x07 }, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(2147483647));
     buffer.clear();
 
     try buffer.writeVarInt(-1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0xff, 0xff, 0xff, 0xff, 0x0f }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0xff, 0xff, 0xff, 0xff, 0x0f }, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(-1));
     buffer.clear();
 
     try buffer.writeVarInt(-2147483648);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x80, 0x80, 0x80, 0x80, 0x08 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0x80, 0x80, 0x80, 0x80, 0x08 }, buffer.backer.items);
+    try std.testing.expectEqual(buffer.backer.items.len, getVarIntSize(-2147483648));
+
     buffer.clear();
 
     try buffer.writeVarInt(0);
@@ -211,22 +190,22 @@ test writeVarInt {
     try buffer.writeVarInt(127);
     try buffer.writeVarInt(255);
     try buffer.writeVarInt(25565);
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x01, 0x02, 0x7f, 0xff, 0x01, 0xdd, 0xc7, 0x01 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0x00, 0x01, 0x02, 0x7f, 0xff, 0x01, 0xdd, 0xc7, 0x01 }, buffer.backer.items);
     buffer.clear();
 }
 
-test "writeJavaUtf" {
+test writeJavaUtf {
     const allocator = std.testing.allocator;
     var buffer: @This() = .initBuffer(try allocator.alloc(u8, 4096));
     defer buffer.backer.deinit(allocator);
 
     // u16 length prefix, not varint and not i32
     try buffer.writeJavaUtf("hi");
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x02, 'h', 'i' }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0x00, 0x02, 'h', 'i' }, buffer.backer.items);
     buffer.clear();
 
     try buffer.writeJavaUtf("");
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x00, 0x00 }, buffer.backer.items);
+    try std.testing.expectEqualSlices(u8, &.{ 0x00, 0x00 }, buffer.backer.items);
     buffer.clear();
 
     const too_long = try allocator.alloc(u8, 0x10000);
@@ -236,19 +215,7 @@ test "writeJavaUtf" {
     try std.testing.expectEqual(@as(usize, 0), buffer.backer.items.len);
 }
 
-test "readJavaUtfAllocating" {
-    const allocator = std.testing.allocator;
-    // what DataOutput.writeUTF produces for "hi"
-    const vanilla = [_]u8{ 0x00, 0x02, 'h', 'i' };
-
-    var buffer: ReadBuffer = .{ .backer = &vanilla, .read_location = 0 };
-    const read = try buffer.readJavaUtfAllocating(allocator);
-    defer allocator.free(read);
-    try std.testing.expectEqualStrings("hi", read);
-    try std.testing.expectEqual(vanilla.len, buffer.read_location);
-}
-
-test "writeItemStack" {
+test writeItemStack {
     const allocator = std.testing.allocator;
     var buffer: @This() = .initBuffer(try allocator.alloc(u8, 4096));
     defer buffer.backer.deinit(allocator);

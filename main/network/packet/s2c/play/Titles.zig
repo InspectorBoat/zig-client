@@ -18,7 +18,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
     packet.type = try buffer.readEnum(Type) orelse return error.InvalidTitleType;
     switch (packet.type) {
-        .Title, .Subtitle => packet.text = try buffer.readStringAllocating(allocator, 32767),
+        .Title, .Subtitle => packet.text = try buffer.allocString(allocator, 32767),
         .Times => {
             packet.fade_in = try buffer.read(i32);
             packet.duration = try buffer.read(i32);

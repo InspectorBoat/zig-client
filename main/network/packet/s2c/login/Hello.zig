@@ -11,9 +11,9 @@ comptime handle_on_network_thread: bool = true,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
-        .key = try buffer.readStringAllocating(allocator, 20),
-        .public_key = try buffer.readByteSliceAllocating(allocator),
-        .nonce = try buffer.readByteSliceAllocating(allocator),
+        .key = try buffer.allocString(allocator, 20),
+        .public_key = try buffer.allocSlice(allocator),
+        .nonce = try buffer.allocSlice(allocator),
     };
 }
 

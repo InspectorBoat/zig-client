@@ -5,10 +5,10 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
-    const channel = try buffer.readStringAllocating(allocator, 20);
-    const remaining_bytes = buffer.remainingBytes();
+    const channel = try buffer.allocString(allocator, 20);
+    const remaining_bytes = buffer.unread();
     if (remaining_bytes > 1048576) return error.CustomPayloadTooLarge;
-    const data = try buffer.readRemainingBytesAllocating(allocator);
+    const data = try buffer.allocAll(allocator);
     return .{
         .channel = channel,
         .data = .fromOwnedSlice(data),

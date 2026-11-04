@@ -5,14 +5,14 @@ comptime handle_on_network_thread: bool = false,
 comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
-    const name = try buffer.readStringAllocating(allocator, 16);
+    const name = try buffer.allocString(allocator, 16);
 
     const action = try buffer.read(i8);
 
     var display_name: []const u8 = "";
     if (action == 0 or action == 2) {
-        display_name = try buffer.readStringAllocating(allocator, 32);
-        _ = try buffer.readStringNonAllocating(16);
+        display_name = try buffer.allocString(allocator, 32);
+        _ = try buffer.readString(16);
     }
 
     return .{

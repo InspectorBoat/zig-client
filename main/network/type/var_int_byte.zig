@@ -1,6 +1,6 @@
-pub const VarIntByte = packed struct {
+pub const VarIntByte = packed struct(u8) {
     /// The data bits of the VarInt
-    data_bits: u7 = 0,
+    data: u7 = 0,
     /// Whether more bytes exist in this VarInt
-    has_more_bytes: bool = false,
+    cont: bool = false,
 };

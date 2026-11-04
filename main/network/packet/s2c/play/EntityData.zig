@@ -23,8 +23,8 @@ pub fn readDataEntries(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ![
                 .i16 => .{ .i16 = try buffer.read(i16) },
                 .i32 => .{ .i32 = try buffer.read(i32) },
                 .f32 => .{ .f32 = try buffer.read(f32) },
-                .String => .{ .String = try buffer.readStringAllocating(allocator, 32767) },
-                .ItemStack => .{ .ItemStack = try buffer.readItemStackAllocating(allocator) },
+                .String => .{ .String = try buffer.allocString(allocator, 32767) },
+                .ItemStack => .{ .ItemStack = try buffer.allocItemStack(allocator) },
                 .BlockPos => .{ .BlockPos = .{ .x = try buffer.read(i32), .y = try buffer.read(i32), .z = try buffer.read(i32) } },
                 .Rotation => .{ .Rotation = .{ .yaw = try buffer.read(f32), .pitch = try buffer.read(f32), .roll = try buffer.read(f32) } },
             },
@@ -34,7 +34,7 @@ pub fn readDataEntries(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ![
     return allocator.remap(entries.allocatedSlice(), entries.items.len) orelse entries.items;
 }
 
-pub const DataTrackerEntryInfo = packed struct {
+pub const DataTrackerEntryInfo = packed struct(u8) {
     id: u5,
     type: DataTracker.DataTypes,
 

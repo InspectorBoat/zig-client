@@ -13,18 +13,18 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
             .AddPlayer => .{
                 .game_profile = .{
                     .uuid = try buffer.readUuid(),
-                    .name = try buffer.readStringAllocating(allocator, 16),
+                    .name = try buffer.allocString(allocator, 16),
                     .properties = get_properties: {
                         var properties: std.StringHashMapUnmanaged(GameProfile.Property) = .empty;
 
                         const property_count: usize = @intCast(try buffer.readVarInt());
                         for (0..property_count) |_| {
-                            const name = try buffer.readStringAllocating(allocator, 32767);
+                            const name = try buffer.allocString(allocator, 32767);
 
                             try properties.put(allocator, name, .{
                                 .name = name,
-                                .value = try buffer.readStringAllocating(allocator, 32767),
-                                .signature = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
+                                .value = try buffer.allocString(allocator, 32767),
+                                .signature = if (try buffer.read(bool)) try buffer.allocString(allocator, 32767) else null,
                             });
                         }
 
@@ -33,7 +33,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
                 },
                 .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
                 .ping = try buffer.readVarInt(),
-                .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
+                .display_name = if (try buffer.read(bool)) try buffer.allocString(allocator, 32767) else null,
             },
             .UpdateGameMode => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },
@@ -45,7 +45,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
             },
             .UpdateDisplayName => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },
-                .display_name = if (try buffer.read(bool)) try buffer.readStringAllocating(allocator, 32767) else null,
+                .display_name = if (try buffer.read(bool)) try buffer.allocString(allocator, 32767) else null,
             },
             .RemovePlayer => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },

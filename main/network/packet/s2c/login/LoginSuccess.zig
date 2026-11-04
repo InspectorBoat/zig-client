@@ -5,8 +5,8 @@ comptime handle_on_network_thread: bool = true,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
-        .uuid = try Uuid.fromAscii(try buffer.readStringNonAllocating(36)),
-        .name = try buffer.readStringAllocating(allocator, 16),
+        .uuid = try .fromAscii(try buffer.readString(36)),
+        .name = try buffer.allocString(allocator, 16),
     };
 }
 
