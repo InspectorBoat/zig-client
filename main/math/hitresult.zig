@@ -3,12 +3,12 @@ pub const HitResult = union(Type) {
         block_pos: Vector3(i32),
         /// in local space already
         pos: Vector3(f64),
-        dir: Direction,
+        face: Direction,
     },
     entity: struct {
         entity_network_id: i32,
         pos: Vector3(f64),
-        dir: Direction,
+        face: Direction,
     },
     miss,
 
@@ -135,7 +135,7 @@ pub const HitResult = union(Type) {
                     return .{
                         .block = .{
                             .block_pos = from_block_pos,
-                            .dir = hit_result.block.dir,
+                            .face = hit_result.block.face,
                             .pos = hit_result.block.pos,
                         },
                     };
@@ -187,7 +187,7 @@ pub const HitResult = union(Type) {
                         hit_result = .{ .entity = .{
                             .entity_network_id = entity_network_id,
                             .pos = hit.pos,
-                            .dir = hit.dir,
+                            .face = hit.face,
                         } };
                     }
                 },
@@ -281,7 +281,7 @@ pub const HitResult = union(Type) {
         return if (hit_pos != null) .{
             .block = .{
                 .block_pos = undefined,
-                .dir = dir.?,
+                .face = dir.?,
                 .pos = hit_pos.?,
             },
         } else .miss;

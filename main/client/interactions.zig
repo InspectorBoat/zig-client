@@ -3,7 +3,7 @@ pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
     switch (game.world.crosshair) {
         .entity => |entity| try attackEntity(io, game, entity.entity_network_id),
-        .block => |block| try startMiningBlock(io, game, player, block.block_pos, block.dir),
+        .block => |block| try startMiningBlock(io, game, player, block.block_pos, block.face),
         .miss => game.input_manager.cooldown.attack = 10,
     }
 }
@@ -17,7 +17,7 @@ pub fn attackEntity(io: std.Io, game: *Game, entity_network_id: i32) !void {
     // TODO: other clientside effects, like velocity multiply, stop sprinting, etc.
 }
 
-pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
+pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), face: Direction) !void {
     // TODO: Check game mode, world border
     std.debug.assert(game.world.crosshair == .block);
 
@@ -32,7 +32,7 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
         try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
             .action = .start_breaking_block,
             .block_pos = block_pos,
-            .face = dir,
+            .face = face,
         } });
         try instaMineBlock(game, block_pos);
         game.input_manager.cooldown.mining = 5;
@@ -49,14 +49,14 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
         try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
             .action = .cancel_breaking_block,
             .block_pos = block_pos,
-            .face = dir,
+            .face = face,
         } });
     }
 
     try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
         .action = .start_breaking_block,
         .block_pos = block_pos,
-        .face = dir,
+        .face = face,
     } });
 
     const block = game.world.getBlock(block_pos);
@@ -66,7 +66,7 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
         try finishMiningBlock(game, block_pos);
     } else game.world.mining_state = .{
         .block_pos = game.world.crosshair.block.block_pos,
-        .face = game.world.crosshair.block.dir,
+        .face = game.world.crosshair.block.face,
     };
 }
 
@@ -98,7 +98,7 @@ pub fn finishMiningBlock(game: *Game, block_pos: Vector3(i32)) !void {
     game.world.mining_state = null;
 }
 
-pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), dir: Direction) !void {
+pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_pos: Vector3(i32), face: Direction) !void {
     try updateHotbarSlot(io, game, player);
 
     if (game.input_manager.cooldown.mining > 0) {
@@ -109,14 +109,14 @@ pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_po
         try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
             .action = .start_breaking_block,
             .block_pos = block_pos,
-            .face = dir,
+            .face = face,
         } });
         try instaMineBlock(game, block_pos);
         game.input_manager.cooldown.mining = 5;
         return;
     }
-    const mining_state = &(game.world.mining_state orelse return try startMiningBlock(io, game, player, block_pos, dir));
-    if (!mining_state.block_pos.equals(block_pos)) return try startMiningBlock(io, game, player, block_pos, dir);
+    const mining_state = &(game.world.mining_state orelse return try startMiningBlock(io, game, player, block_pos, face));
+    if (!mining_state.block_pos.equals(block_pos)) return try startMiningBlock(io, game, player, block_pos, face);
 
     const block = game.world.getBlock(mining_state.block_pos);
     if (block == .air) {
@@ -129,7 +129,7 @@ pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_po
         try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
             .action = .finish_breaking_block,
             .block_pos = block_pos,
-            .face = dir,
+            .face = face,
         } });
         try finishMiningBlock(game, block_pos);
         game.world.mining_state = null;
@@ -237,7 +237,7 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     if (game.world.game_mode == .Spectator) {
         try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
             .block_pos = crosshair.block_pos,
-            .face = crosshair.dir,
+            .face = crosshair.face,
             .stack = maybe_held_item_stack,
             .offset = .floatCast(crosshair.pos),
         } });
@@ -260,21 +260,21 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
             if (held_item_stack.item.getBlock()) |block| {
                 const crosshair_target_block = game.world.resolveVirtualBlockState(crosshair.block_pos);
 
-                var dir = crosshair.dir;
+                var dir = crosshair.face;
                 var block_pos = crosshair.block_pos;
                 if (crosshair_target_block == .snow_layer) {
                     dir = .up;
                 } else if (!game.world.resolveVirtualBlockState(crosshair.block_pos).canBeReplaced()) {
                     block_pos = block_pos.dir(dir);
                 }
-                if (!block.canBePlacedAsCombinedSlab(held_item_stack.metadata, &game.world, crosshair.block_pos, crosshair.dir) and !block.canBePlaced(&game.world, block_pos, dir)) return false;
+                if (!block.canBePlacedAsCombinedSlab(held_item_stack.metadata, &game.world, crosshair.block_pos, crosshair.face) and !block.canBePlaced(&game.world, block_pos, dir)) return false;
             }
         }
     }
 
     try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
         .block_pos = crosshair.block_pos,
-        .face = crosshair.dir,
+        .face = crosshair.face,
         .stack = maybe_held_item_stack,
         .offset = .floatCast(crosshair.pos),
     } });
@@ -282,7 +282,7 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     if (consumed) return true;
 
     if (maybe_held_item_stack) |held_item_stack| {
-        return held_item_stack.useOn(&game.world, player, crosshair.block_pos, crosshair.dir, crosshair.pos);
+        return held_item_stack.useOn(&game.world, player, crosshair.block_pos, crosshair.face, crosshair.pos);
     }
     return false;
 }
