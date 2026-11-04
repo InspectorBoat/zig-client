@@ -1,5 +1,4 @@
 /// the network id of the player
-
 network_id: i32,
 hardcore: bool,
 game_mode: GameMode,
@@ -63,7 +62,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     const brand = comptime blk: {
         var buf: [9]u8 = undefined;
         var scratch: main.network.packet.C2S.WriteBuffer = .initBuffer(&buf);
-        scratch.writeJavaUtf("vanilla") catch unreachable;
+        scratch.writeString("vanilla") catch unreachable;
         break :blk scratch.backer.items.*;
     };
     try connecting.connection_handle.sendPlayPacket(io, .{

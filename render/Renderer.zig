@@ -7,7 +7,7 @@ textures: gl.Texture,
 main_fbo: gl.Framebuffer = .invalid,
 small_fbo: gl.Framebuffer,
 past_visible: std.array_hash_map.Auto(Vector3(i32), ChunkTracker.SectionRenderInfo) = .empty,
-occlusion_culling: bool = true,
+occlusion_culling: bool = false,
 
 /// Collects compiled geometry from in-flight tasks
 compilation_tracker: CompilationTracker,

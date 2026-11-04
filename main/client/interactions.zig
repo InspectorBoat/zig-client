@@ -267,7 +267,7 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
                 } else if (!game.world.resolveVirtualBlockState(crosshair.block_pos).canBeReplaced()) {
                     block_pos = block_pos.dir(dir);
                 }
-                if (!block.canBePlaced(&game.world, block_pos, dir)) return false;
+                if (!block.canBePlacedAsCombinedSlab(held_item_stack.metadata, &game.world, crosshair.block_pos, crosshair.dir) and !block.canBePlaced(&game.world, block_pos, dir)) return false;
             }
         }
     }

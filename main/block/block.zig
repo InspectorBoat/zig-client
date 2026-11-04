@@ -290,7 +290,7 @@ pub const Block = enum(u8) {
     // TODO: implement
     pub fn isSolidRender(self: @This()) bool {
         _ = self;
-        return false;
+        return true;
     }
 
     pub fn isOpaque(self: @This()) bool {
@@ -312,8 +312,30 @@ pub const Block = enum(u8) {
             player_mining_speed_multiplier / hardness / 30.0;
     }
 
-    pub fn canBePlaced(self: @This(), world: *const World, pos: Vector3(i32), dir: Direction) bool {
-        if (!world.getBlock(pos).getMaterial().isReplaceable()) return false;
+    pub fn canBePlacedAsCombinedSlab(self: @This(), variant: i32, world: *const World, pos: Vector3(i32), face: Direction) bool {
+        if (self.isSlab()) {
+            std.debug.assert(self.isSingleSlab());
+            const existing = world.getBlockState(pos);
+            if (existing.block == self and slabVariant(existing) == variant) {
+                if (existing.properties.stone_slab.half == .top and face == .down or existing.properties.stone_slab.half == .bottom and face == .up) return true;
+            }
+            const offset = world.getBlockState(pos.dir(face));
+            if (offset.block == self and slabVariant(offset) == variant) return true;
+        }
+        return false;
+    }
+
+    fn slabVariant(state: Block.PhysicalState) u3 {
+        return switch (state.block) {
+            .stone_slab => @backingInt(state.properties.stone_slab.variant),
+            .wooden_slab => @backingInt(state.properties.wooden_slab.variant),
+            .stone_slab2 => 0,
+            else => unreachable,
+        };
+    }
+
+    pub fn canBePlaced(self: @This(), world: *const World, block_pos: Vector3(i32), face: Direction) bool {
+        if (!world.getBlock(block_pos).getMaterial().isReplaceable()) return false;
 
         return switch (self) {
             // no item form
@@ -345,7 +367,7 @@ pub const Block = enum(u8) {
             .light_weighted_pressure_plate,
             .heavy_weighted_pressure_plate,
             => {
-                const below = world.getBlockState(pos.down());
+                const below = world.getBlockState(block_pos.down());
                 return below.hasSolidTop() or below.block.isFence();
             },
 
@@ -353,22 +375,22 @@ pub const Block = enum(u8) {
             .rail,
             .detector_rail,
             .activator_rail,
-            => world.getBlockState(pos.down()).hasSolidTop(),
+            => world.getBlockState(block_pos.down()).hasSolidTop(),
 
             .standing_sign,
             .wall_sign,
             .standing_banner,
             => {
-                for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)) == .cactus) return false;
+                for (Direction.horizontals) |side| if (world.getBlock(block_pos.dir(side)) == .cactus) return false;
                 return true;
             },
 
             .unpowered_repeater,
             .unpowered_comparator,
             .flower_pot,
-            => world.getBlockState(pos.down()).hasSolidTop(),
+            => world.getBlockState(block_pos.down()).hasSolidTop(),
 
-            .redstone_wire => (world.getBlockState(pos.down()).hasSolidTop() or world.getBlock(pos.down()) == .glowstone),
+            .redstone_wire => (world.getBlockState(block_pos.down()).hasSolidTop() or world.getBlock(block_pos.down()) == .glowstone),
 
             .fence_gate,
             .spruce_fence_gate,
@@ -377,53 +399,53 @@ pub const Block = enum(u8) {
             .acacia_fence_gate,
             .dark_oak_fence_gate,
             .cake,
-            => world.getBlock(pos.down()).getMaterial().isSolid(),
+            => world.getBlock(block_pos.down()).getMaterial().isSolid(),
 
             .cactus => {
-                for (Direction.horizontals) |side| if (world.getBlock(pos.dir(side)).getMaterial().isSolid()) return false;
-                const below = world.getBlock(pos.down());
+                for (Direction.horizontals) |side| if (world.getBlock(block_pos.dir(side)).getMaterial().isSolid()) return false;
+                const below = world.getBlock(block_pos.down());
                 return below == .cactus or below == .sand;
             },
 
             .carpet,
-            => world.getBlock(pos.down()) != .air,
+            => world.getBlock(block_pos.down()) != .air,
 
-            .pumpkin, .lit_pumpkin => world.getBlockState(pos.down()).hasSolidTop(),
+            .pumpkin, .lit_pumpkin => world.getBlockState(block_pos.down()).hasSolidTop(),
 
-            .red_flower, .yellow_flower, .sapling, .tallgrass => switch (world.getBlock(pos.down())) {
+            .red_flower, .yellow_flower, .sapling, .tallgrass => switch (world.getBlock(block_pos.down())) {
                 .grass, .dirt, .farmland => true,
                 else => false,
             },
-            .deadbush => switch (world.getBlock(pos.down())) {
+            .deadbush => switch (world.getBlock(block_pos.down())) {
                 .sand, .hardened_clay, .stained_hardened_clay, .dirt => true,
                 else => false,
             },
-            .waterlily => world.getBlock(pos.down()) == .water,
+            .waterlily => world.getBlock(block_pos.down()) == .water,
 
-            .double_plant => world.getBlock(pos.up()) == .air and switch (world.getBlock(pos.down())) {
+            .double_plant => world.getBlock(block_pos.up()) == .air and switch (world.getBlock(block_pos.down())) {
                 .grass, .dirt, .farmland => true,
                 else => false,
             },
 
-            .wheat, .carrots, .potatoes, .pumpkin_stem, .melon_stem => world.getBlock(pos.down()) == .farmland,
+            .wheat, .carrots, .potatoes, .pumpkin_stem, .melon_stem => world.getBlock(block_pos.down()) == .farmland,
 
-            .nether_wart => world.getBlock(pos.down()) == .soul_sand,
+            .nether_wart => world.getBlock(block_pos.down()) == .soul_sand,
 
             // TODO: Light level, podzol, mycelium, etc. etc.
-            .brown_mushroom, .red_mushroom => world.getBlock(pos.down()).getMaterial().isOpaque(),
+            .brown_mushroom, .red_mushroom => world.getBlock(block_pos.down()).getMaterial().isOpaque(),
 
-            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => pos.y < 255 and
-                world.getBlockState(pos.down()).hasSolidTop() and
-                world.getBlock(pos.up()).getMaterial().isReplaceable(),
+            .wooden_door, .iron_door, .spruce_door, .birch_door, .jungle_door, .acacia_door, .dark_oak_door => block_pos.y < 255 and
+                world.getBlockState(block_pos.down()).hasSolidTop() and
+                world.getBlock(block_pos.up()).getMaterial().isReplaceable(),
 
             .chest, .trapped_chest => {
                 var neighbouring_chests: usize = 0;
                 for (Direction.horizontals) |side| {
-                    if (world.getBlock(pos.dir(side)) != self) continue;
+                    if (world.getBlock(block_pos.dir(side)) != self) continue;
                     // a neighbour that itself has a same-block neighbour is a double chest
                     // cannot place a chest next to a double chest (of the same type)
                     for (Direction.horizontals) |diag| {
-                        if (world.getBlock(pos.dir(side).dir(diag)) == self) return false;
+                        if (world.getBlock(block_pos.dir(side).dir(diag)) == self) return false;
                     }
                     neighbouring_chests += 1;
                 }
@@ -433,7 +455,7 @@ pub const Block = enum(u8) {
 
             .ladder => {
                 for (Direction.horizontals) |side| {
-                    if (world.getBlock(pos.dir(side)).isSolid()) return true;
+                    if (world.getBlock(block_pos.dir(side)).isSolid()) return true;
                 }
                 return false;
             },
@@ -443,58 +465,58 @@ pub const Block = enum(u8) {
                 // this is incorrect at the WORLD BORDER and when searching an UNLOADED CHUNK
                 // TODO: KILL MYSELF
                 for (Direction.horizontals) |side| {
-                    const side_block = world.getBlock(pos.dir(side));
+                    const side_block = world.getBlock(block_pos.dir(side));
                     if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
                 }
-                const below = world.getBlockState(pos.down());
+                const below = world.getBlockState(block_pos.down());
                 return below.hasSolidTop() or below.block.isFence() or switch (below.block) {
                     .glass, .cobblestone_wall, .stained_glass => true,
                     else => false,
                 };
             },
 
-            .stone_button, .wooden_button, .lever => if (dir.plane() == .horizontal)
-                world.getBlock(pos.dir(dir.opposite())).isSolid()
+            .stone_button, .wooden_button, .lever => if (face.plane() == .horizontal)
+                world.getBlock(block_pos.dir(face.opposite())).isSolid()
             else
-                world.getBlockState(pos.dir(dir.opposite())).hasSolidTop(),
+                world.getBlockState(block_pos.dir(face.opposite())).hasSolidTop(),
 
             .trapdoor, .iron_trapdoor => {
-                if (dir.plane() != .horizontal) return false;
+                if (face.plane() != .horizontal) return false;
 
-                const side_block = world.getBlock(pos.dir(dir.opposite()));
+                const side_block = world.getBlock(block_pos.dir(face.opposite()));
 
                 if (side_block.getMaterial().blocksMovementAndNotTranslucent() and side_block.isCube()) return true;
 
                 return side_block == .glowstone or side_block.isSlab() or side_block.isStair();
             },
 
-            .tripwire_hook => dir.plane() == .horizontal and world.getBlock(pos.dir(dir.opposite())).isSolid(),
+            .tripwire_hook => face.plane() == .horizontal and world.getBlock(block_pos.dir(face.opposite())).isSolid(),
 
             .vine => {
-                if (dir == .down) return false;
-                const target = world.getBlock(if (dir == .up) pos.up() else pos.dir(dir.opposite()));
+                if (face == .down) return false;
+                const target = world.getBlock(if (face == .up) block_pos.up() else block_pos.dir(face.opposite()));
                 return target.isCube() and target.getMaterial().blocksMovement();
             },
 
             // sugarcane grows on a sand/grass/dirt block with water besides it
             // or on another sugarcane
             .reeds => {
-                const below = world.getBlock(pos.down());
+                const below = world.getBlock(block_pos.down());
                 if (below == .reeds) return true;
                 if (below != .grass and below != .dirt and below != .sand) return false;
                 for (Direction.horizontals) |side| {
-                    if (world.getBlock(pos.dir(side).down()).getMaterial() == .water) return true;
+                    if (world.getBlock(block_pos.dir(side).down()).getMaterial() == .water) return true;
                 }
                 return false;
             },
 
             .snow_layer => {
-                const below = world.getBlockState(pos.down());
-                switch (below.block) {
-                    .ice, .packed_ice => return false,
-                    .snow_layer => return below.payload(.snow_layer).layers == .@"7" or below.payload(.snow_layer).layers == .@"8",
-                    else => |block| return block.getMaterial() == .leaves or (block.isSolidRender() and block.getMaterial().blocksMovement()),
-                }
+                const below = world.getBlockState(block_pos.down());
+                return switch (below.block) {
+                    .ice, .packed_ice => false,
+                    .snow_layer => below.payload(.snow_layer).layers == .@"7" or below.payload(.snow_layer).layers == .@"8",
+                    else => |block| block.getMaterial() == .leaves or (block.isSolidRender() and block.getMaterial().blocksMovement()),
+                };
             },
 
             // stairs just delegate to their parent block

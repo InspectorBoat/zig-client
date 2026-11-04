@@ -20,6 +20,7 @@ pub const std_options: std.Options = .{
         .{ .scope = .backpressure, .level = .warn },
         .{ .scope = .transaction, .level = .warn },
         .{ .scope = .tick_timing_noisy, .level = .warn },
+        .{ .scope = .fps, .level = .warn },
     },
 };
 

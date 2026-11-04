@@ -54,7 +54,7 @@ pub fn onFrame(frame: Events.Frame) !void {
             try renderer.renderFrame(frame.io, frame.allocator, game);
             const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
             renderer.fps.update(now);
-            std.log.info("fps: {:.1}", .{renderer.fps.fps(now)});
+            std.log.scoped(.fps).info("fps: {:.1}", .{renderer.fps.fps(now)});
         },
         .connecting => |*connecting_game| {
             handleInputConnecting(connecting_game);
