@@ -133,10 +133,10 @@ pub fn isValidBlockPos(block_pos: Vector3(i32)) bool {
 }
 
 pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.PhysicalState {
-    if (block_pos.y < 0 or block_pos.y > 255) return .air_blockstate;
+    if (block_pos.y < 0 or block_pos.y > 255) return .air;
 
-    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air_blockstate;
-    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return .air_blockstate;
+    const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air;
+    const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse return .air;
     const section_block_pos = .{
         .x = @mod(block_pos.x, 16),
         .y = @mod(block_pos.y, 16),
@@ -182,7 +182,7 @@ pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Ve
     };
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse blk: {
         const section = try allocator.create(Section);
-        section.block_states = @splat(.air_blockstate);
+        section.block_states = @splat(.air);
         chunk.sections[@intCast(@divFloor(block_pos.y, 16))] = section;
         break :blk section;
     }; // TODO: Check if this is accurate compared to vanilla

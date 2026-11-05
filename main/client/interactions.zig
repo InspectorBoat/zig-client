@@ -94,7 +94,7 @@ pub fn finishMiningBlock(game: *Game, block_pos: Vector3(i32)) !void {
     // todo: don't mine blocks in creative with sword
 
     // optimistic removal
-    try game.world.setBlockState(std.mem.Allocator.failing, block_pos, .air_blockstate);
+    try game.world.setBlockState(std.mem.Allocator.failing, block_pos, .air);
     game.world.mining_state = null;
 }
 

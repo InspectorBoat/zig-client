@@ -3,19 +3,19 @@ pub const PhysicalState = packed struct(u16) {
     block: Block,
     _: u4 = 0,
 
-    pub const air_blockstate: @This() = .{
+    pub const air: @This() = .{
         .block = .air,
         .properties = .{ .air = .{} },
     };
 
     pub fn validateRaw(raw: u16) @This() {
         const high_bits: u12 = @intCast(raw >> 4);
-        const block: Block = if (high_bits <= 197) @fromBackingInt(@intCast(high_bits)) else return .air_blockstate;
+        const block: Block = if (high_bits <= 197) @fromBackingInt(@intCast(high_bits)) else return .air;
 
         const low_bits: u4 = @intCast(raw & 0b1111);
 
         const valid_metadata_table = @import("valid_metadata_table.zig").@"export";
-        if (!valid_metadata_table.get(block).isSet(low_bits)) return .air_blockstate;
+        if (!valid_metadata_table.get(block).isSet(low_bits)) return .air;
 
         return @bitCast(raw);
     }
@@ -272,7 +272,10 @@ pub const PhysicalState = packed struct(u16) {
         var physical_state: @This() = .{ .block = block, .properties = @fromBackingInt(@intCast(metadata)) };
         switch (block) {
             .log, .log2 => physical_state.properties.log.axis = dir.axis().to(LogAxis),
-            .anvil => {},
+            .anvil => physical_state.properties.anvil = .{
+                .facing = player_horizontal_facing.toAssert(PackedHorizontalFacing),
+                .damage = @fromBackingInt(@intCast(metadata)),
+            },
             .wooden_button, .stone_button => {
                 const can_survive = if (dir == .down)
                     world.getBlockState(block_pos.dir(dir.opposite())).hasSolidTop()
