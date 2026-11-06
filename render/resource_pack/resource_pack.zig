@@ -6,7 +6,7 @@ pub fn init(
     arena: std.mem.Allocator,
     resource_pack_dir: std.Io.Dir,
 ) !struct {
-    std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel),
+    BlockStateMap,
     std.AutoHashMapUnmanaged(u16, BakedItemModel),
     std.array_hash_map.String(ImageError!zigimg.Image),
 } {
@@ -505,6 +505,7 @@ pub const ModelTemplate = @import("ModelTemplate.zig");
 pub const ResolvedModel = @import("ResolvedModel.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
 const createBlockStateToModelTable = @import("block.zig").createBlockStateToModelTable;
+pub const BlockStateMap = @import("block.zig").BlockStateMap;
 const createItemStackToModelTable = @import("item.zig").createItemStackToModelTable;
 pub const BakedItemModel = @import("item.zig").BakedItemModel;
 

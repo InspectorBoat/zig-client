@@ -108,5 +108,5 @@ void main() {
             break;
     }
     if (color.a == 0) discard;
-    color = apply_fog(color, vertexDistance);
+    // color = apply_fog(color, vertexDistance);
 }

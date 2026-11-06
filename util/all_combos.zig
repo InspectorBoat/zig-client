@@ -21,7 +21,9 @@ fn nth(T: type, n: comptime_int) T {
 
 fn numValues(T: type) comptime_int {
     var total = 1;
-    for (@typeInfo(T).@"struct".field_types) |@"type"| total *= count(@"type");
+    for (@typeInfo(T).@"struct".field_types, @typeInfo(T).@"struct".field_names) |@"type", name| {
+        if (!std.mem.eql(u8, name, "_")) total *= count(@"type");
+    }
     return total;
 }
 
@@ -36,6 +38,10 @@ pub fn allValues(T: type) [numValues(T)]T {
         for (0..numValues(T)) |i| {
             var rem = i;
             for (field_names, field_types) |name, @"type"| {
+                if (std.mem.eql(u8, name, "_")) {
+                    @field(values[i], name) = 0;
+                    continue;
+                }
                 @field(values[i], name) = nth(@"type", rem % count(@"type"));
                 rem /= count(@"type");
             }

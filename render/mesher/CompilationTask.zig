@@ -77,12 +77,12 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
                     if (face.cullface) |cullface| {
                         const culling_blocks = @import("face_culling_blocks.zig").@"export";
                         switch (cullface) {
-                            .west => if (culling_blocks.get(task.block_states[x - 1][y][z])) continue,
-                            .east => if (culling_blocks.get(task.block_states[x + 1][y][z])) continue,
-                            .down => if (culling_blocks.get(task.block_states[x][y - 1][z])) continue,
-                            .up => if (culling_blocks.get(task.block_states[x][y + 1][z])) continue,
-                            .north => if (culling_blocks.get(task.block_states[x][y][z - 1])) continue,
-                            .south => if (culling_blocks.get(task.block_states[x][y][z + 1])) continue,
+                            .west => if (culling_blocks.get(task.block_states[x - 1][y][z].block)) continue,
+                            .east => if (culling_blocks.get(task.block_states[x + 1][y][z].block)) continue,
+                            .down => if (culling_blocks.get(task.block_states[x][y - 1][z].block)) continue,
+                            .up => if (culling_blocks.get(task.block_states[x][y + 1][z].block)) continue,
+                            .north => if (culling_blocks.get(task.block_states[x][y][z - 1].block)) continue,
+                            .south => if (culling_blocks.get(task.block_states[x][y][z + 1].block)) continue,
                         }
                     }
 

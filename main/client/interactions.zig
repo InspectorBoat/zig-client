@@ -258,13 +258,13 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     if (!consumed) {
         if (maybe_held_item_stack) |held_item_stack| {
             if (held_item_stack.item.getBlock()) |block| {
-                const crosshair_target_block = game.world.resolveVirtualBlockState(crosshair.block.pos);
+                const crosshair_target = game.world.resolveVirtualBlockState(crosshair.block.pos);
 
                 var dir = crosshair.block.face;
                 var block_pos = crosshair.block.pos;
-                if (crosshair_target_block == .snow_layer) {
+                if (crosshair_target.block == .snow_layer) {
                     dir = .up;
-                } else if (!game.world.resolveVirtualBlockState(crosshair.block.pos).canBeReplaced()) {
+                } else if (!crosshair_target.canBeReplaced()) {
                     block_pos = block_pos.dir(dir);
                 }
                 if (!block.canBePlacedAsCombinedSlab(held_item_stack.metadata, &game.world, crosshair.block.pos, crosshair.block.face) and !block.canBePlaced(&game.world, block_pos, dir)) return false;

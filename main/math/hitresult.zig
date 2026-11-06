@@ -105,18 +105,18 @@ pub const HitResult = union(Type) {
                 .z = floor(from.z) - if (dir == .south) @as(i32, 1) else 0,
             };
 
-            const block = world.resolveVirtualBlockState(from_block_pos);
+            const state = world.resolveVirtualBlockState(from_block_pos);
 
             var local_hitboxes_buffer: [5]Box(f64) = undefined;
             var local_hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&local_hitboxes_buffer);
 
-            block.getRaytraceHitboxes(&local_hitboxes);
+            state.getRaytraceHitboxes(&local_hitboxes);
 
             for (local_hitboxes.items) |hitbox| {
                 if (Vector3(f64).equals(hitbox.min, .origin) and Vector3(f64).equals(hitbox.max, .origin)) continue;
 
                 if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
-                if (options.ignore_liquids and block == .water) continue; // TODO: implement water level
+                if (options.ignore_liquids and state.block == .water) continue; // TODO: implement water level
 
                 const hit_result = rayTraceHitbox(
                     hitbox,

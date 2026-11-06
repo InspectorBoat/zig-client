@@ -1,17 +1,28 @@
-/// Create a lookup table mapping from Block.VirtualState -> BakedModel
+pub const Context = struct {
+    pub fn hash(_: @This(), key: Block.VirtualState) u20 {
+        return @backingInt(key);
+    }
+    pub fn eql(_: @This(), key: Block.VirtualState, test_key: Block.VirtualState) bool {
+        return @backingInt(key) == @backingInt(test_key);
+    }
+};
 
+pub const BlockStateMap = std.HashMapUnmanaged(Block.VirtualState, BakedModel, Context, 75);
+
+/// Create a lookup table mapping from Block.VirtualState -> BakedModel
 pub fn createBlockStateToModelTable(
     gpa: std.mem.Allocator,
     textures: std.array_hash_map.String(ImageError!zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
     state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
-) !std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) {
+) !BlockStateMap {
     @setRuntimeSafety(false);
 
-    var lookup_table: std.AutoHashMapUnmanaged(Block.VirtualState, BakedModel) = .empty;
+    var lookup_table: BlockStateMap = .empty;
+    try lookup_table.ensureTotalCapacity(gpa, 256 * 256);
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
-        const all_states = allValues(@FieldType(Block.VirtualState, @tagName(block)));
+        const all_states = allValues(@FieldType(Block.VirtualState.Properties, @tagName(block)));
         for (all_states) |properties| {
             var block_name_buffer: [128]u8, var properties_buffer: [128]u8 = .{ undefined, undefined };
 
@@ -48,7 +59,7 @@ pub fn createBlockStateToModelTable(
 
             const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
 
-            try lookup_table.put(gpa, @unionInit(Block.VirtualState, @tagName(block), properties), baked_model);
+            try lookup_table.put(gpa, .{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) }, baked_model);
         }
     }
     return lookup_table;
@@ -57,7 +68,7 @@ pub fn createBlockStateToModelTable(
 pub fn getNameString(
     scratch_buffer: []u8,
     comptime block: Block,
-    properties: @FieldType(Block.VirtualState, @tagName(block)),
+    properties: @FieldType(Block.VirtualState.Properties, @tagName(block)),
 ) error{NoModel}![]const u8 {
     @setRuntimeSafety(false);
     return switch (block) {
@@ -129,7 +140,7 @@ pub fn getNameString(
 pub fn getPropertiesString(
     scratch_buffer: []u8,
     comptime block: Block,
-    properties: @FieldType(Block.VirtualState, @tagName(block)),
+    properties: @FieldType(Block.VirtualState.Properties, @tagName(block)),
 ) []const u8 {
     if (block == .quartz_block) {
         return switch (properties.variant) {
@@ -140,7 +151,7 @@ pub fn getPropertiesString(
         };
     }
 
-    const field_names_const = @typeInfo(@FieldType(Block.VirtualState, @tagName(block))).@"struct".field_names;
+    const field_names_const = @typeInfo(@FieldType(Block.VirtualState.Properties, @tagName(block))).@"struct".field_names;
     comptime var field_names = field_names_const[0..field_names_const.len].*;
     comptime std.mem.sort([:0]const u8, &field_names, {}, struct {
         fn lessThan(_: void, lhs: [:0]const u8, rhs: [:0]const u8) bool {
@@ -170,7 +181,9 @@ pub fn getPropertiesString(
     return string.items;
 }
 
-pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState, @tagName(block))) bool {
+pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState.Properties, @tagName(block))) bool {
+    if (std.mem.eql(u8, field_name, "_")) return true;
+
     if (block == .dirt and properties.variant != .podzol and std.mem.eql(u8, field_name, "snowy")) return true;
     if ((block == .leaves or block == .leaves2) and (std.mem.eql(u8, field_name, "not_decayable") or std.mem.eql(u8, field_name, "check_decay"))) return true;
     if ((block == .double_stone_slab or block == .double_stone_slab2) and std.mem.eql(u8, field_name, "seamless")) return true;

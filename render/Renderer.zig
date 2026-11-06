@@ -14,7 +14,7 @@ compilation_tracker: CompilationTracker,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
 chunk_tracker: ChunkTracker,
 
-blockstate_to_model_lookup: std.AutoHashMapUnmanaged(Block.VirtualState, resource_pack.BakedModel),
+blockstate_to_model_lookup: BlockStateMap,
 item_to_model_lookup: std.AutoHashMapUnmanaged(u16, resource_pack.BakedItemModel),
 
 // Debug
@@ -670,7 +670,7 @@ pub fn bufferCrosshair(self: *@This(), world: *const World) !void {
 
             var hitboxes_buffer: [5]main.Box(f64) = undefined;
             var hitboxes: std.ArrayList(main.Box(f64)) = .initBuffer(&hitboxes_buffer);
-            virtual_state.getCollisionHitboxes(&hitboxes);
+            virtual_state.getRaytraceHitboxes(&hitboxes);
 
             for (hitboxes.items) |hitbox| {
                 try self.@"3d_debug_staging_buffer".writeDebugCube(
@@ -995,7 +995,6 @@ const za = @import("zalgebra");
 const gl = @import("zgl");
 const zigimg = @import("zigimg");
 
-const Block = main.Block;
 const Box = main.Box;
 const Client = main.Client;
 const Entity = main.Entity;
@@ -1012,4 +1011,5 @@ const CompilationTask = render.mesher.CompilationTask;
 const CompilationTracker = render.mesher.CompilationTracker;
 const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
 const resource_pack = render.resource_pack;
+const BlockStateMap = render.resource_pack.BlockStateMap;
 const Mat4 = za.Mat4;
