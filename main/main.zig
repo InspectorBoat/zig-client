@@ -83,7 +83,7 @@ pub const Events = struct {
 };
 
 pub const EventHandler = struct {
-    pub const listeners = if (build_options.headless) .{} else render.event_listeners;
+    pub const listeners = if (build_options.graphics == .headless) .{} else render.event_listeners;
 
     pub const dispatch = util.events.getDispatcher(Events, listeners).dispatch;
 };

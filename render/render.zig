@@ -17,7 +17,11 @@ pub fn onStartup(startup: Events.Startup) !void {
     try glfw_helper.initGlfw();
 
     // initialize window
-    const window = try glfw_helper.initGlfwWindow(true);
+    const window = try glfw_helper.initGlfwWindow(switch (build_options.graphics) {
+        .normal => true,
+        .silent => false,
+        .headless => comptime unreachable,
+    });
     window.setInputModeCursor(.disabled);
 
     // initialize opengl
@@ -295,3 +299,4 @@ pub const Frustum = quarantine.Frustum;
 const Client = main.Client;
 const Events = main.Events;
 const Vector2xy = main.Vector2xy;
+const build_options = @import("build_options");

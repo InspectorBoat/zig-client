@@ -9,6 +9,7 @@ fn createModules(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    options: *std.Build.Module,
     mach_glfw: *std.Build.Module,
     zgl: *std.Build.Module,
     zalgebra: *std.Build.Module,
@@ -43,6 +44,7 @@ fn createModules(
 
     render.addImport("main", main);
     render.addImport("render", render);
+    render.addImport("build_options", options);
 
     render.addImport("zgl", zgl);
     render.addImport("mach-glfw", mach_glfw);
@@ -54,6 +56,7 @@ fn createModules(
 
     main.addImport("main", main);
     main.addImport("render", render);
+    main.addImport("build_options", options);
 
     main.addImport("util", util);
     main.addImport("llm-code-quarantine", quarantine);
@@ -79,18 +82,17 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const headless = b.option(bool, "headless", "Run without a window") orelse false;
+    const graphics = b.option(enum { normal, headless, silent }, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
     const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
     const use_zio = b.option(bool, "zio", "Use zio") orelse false;
 
     const options = b.addOptions();
-    options.addOption(bool, "headless", headless);
+    options.addOption(@TypeOf(graphics), "graphics", graphics);
     options.addOption(bool, "zio", use_zio);
-
+    const options_module = options.createModule();
     {
         // Create main executable
-        const mods = createModules(b, target, optimize, mach_glfw, zgl, zalgebra, zigimg, zio);
-        mods.main.addOptions("build_options", options);
+        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg, zio);
         mods.main.single_threaded = single_threaded;
         const client = b.addExecutable(.{
             .name = "zig-client",
@@ -133,8 +135,7 @@ pub fn build(b: *std.Build) void {
     // Add check step to see if client compiles without doing any codegen
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     {
-        const mods = createModules(b, target, optimize, mach_glfw, zgl, zalgebra, zigimg, zio);
-        mods.main.addOptions("build_options", options);
+        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg, zio);
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.main,
