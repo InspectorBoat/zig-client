@@ -1,6 +1,5 @@
 block_states: [18][18][18]Block.PhysicalState,
-block_light: PackedNibbleArray(18, 18, 18),
-sky_light: PackedNibbleArray(18, 18, 18),
+light: [18][18][18]packed struct { block: u4, sky: u4 },
 
 pub const Error = error{ Canceled, OutOfMemory };
 
@@ -21,34 +20,71 @@ pub fn create(allocator: std.mem.Allocator, section_pos: Vector3(i32), world: *c
 
     const task = try allocator.create(@This());
 
-    const base_block_pos: Vector3(i32) = .sub(
-        .mul(section_pos, .splat(16)),
-        .{ .x = 1, .y = 1, .z = 1 },
-    );
-
     const chunk = world.chunks.get(.{ .x = section_pos.x, .z = section_pos.z }).?;
     const section = chunk.sections[@intCast(section_pos.y)].?;
-    {
-        var i: usize = 0;
-        for (1..17) |y| {
-            for (1..17) |z| {
-                for (1..17) |x| {
-                    task.block_states[y][z][x] = section.block_states[i];
-                    task.block_light.set(y, z, x, @truncate(section.block_light.bytes[i / 2] >> @as(u3, @intCast((i & 1) * 4))));
-                    task.sky_light.set(y, z, x, @truncate(section.sky_light.bytes[i / 2] >> @as(u3, @intCast((i & 1) * 4))));
-                    i += 1;
-                }
+
+    // 16^3 interior
+    var i: usize = 0;
+    for (1..17) |y| {
+        for (1..17) |z| {
+            @memcpy(task.block_states[y][z][1..17], section.block_states[i..][0..16]);
+
+            const light_bytes = i >> 1;
+            const block_bytes = section.block_light.bytes[light_bytes..][0..8];
+            const sky_bytes = section.sky_light.bytes[light_bytes..][0..8];
+            const dst = task.light[y][z][1..17];
+            for (0..8) |b| {
+                dst[2 * b + 0] = .{ .block = @truncate(block_bytes[b]), .sky = @truncate(sky_bytes[b]) };
+                dst[2 * b + 1] = .{ .block = @truncate(block_bytes[b] >> 4), .sky = @truncate(sky_bytes[b] >> 4) };
+            }
+
+            i += 16;
+        }
+    }
+
+    var neighbor_sections: [3][3][3]?*const World.Section = undefined;
+    for (0..3) |dy| {
+        const section_y = section_pos.y + @as(i32, @intCast(dy)) - 1;
+        for (0..3) |dz| {
+            for (0..3) |dx| {
+                const neighbor_chunk_pos: Vector2xz(i32) = .{
+                    .x = section_pos.x + @as(i32, @intCast(dx)) - 1,
+                    .z = section_pos.z + @as(i32, @intCast(dz)) - 1,
+                };
+                neighbor_sections[dy][dz][dx] =
+                    if (section_y < 0 or section_y > 15)
+                        null
+                    else if (world.chunks.get(neighbor_chunk_pos)) |neighbor_chunk|
+                        neighbor_chunk.sections[@intCast(section_y)]
+                    else
+                        null;
             }
         }
     }
+
     for (0..18) |y| {
         for (0..18) |z| {
             for (0..18) |x| {
                 if (y != 0 and y != 17 and x != 0 and x != 17 and z != 0 and z != 17) continue;
-                const block_pos: Vector3(i32) = .add(base_block_pos, .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
-                task.block_states[y][z][x] = world.getBlockState(block_pos);
-                task.block_light.set(y, z, x, world.getBlockLight(block_pos));
-                task.sky_light.set(y, z, x, world.getSkyLight(block_pos));
+
+                const ny: usize = if (y == 0) 0 else if (y == 17) 2 else 1;
+                const nz: usize = if (z == 0) 0 else if (z == 17) 2 else 1;
+                const nx: usize = if (x == 0) 0 else if (x == 17) 2 else 1;
+                const ly: usize = if (y == 0) 15 else if (y == 17) 0 else y - 1;
+                const lz: usize = if (z == 0) 15 else if (z == 17) 0 else z - 1;
+                const lx: usize = if (x == 0) 15 else if (x == 17) 0 else x - 1;
+
+                if (neighbor_sections[ny][nz][nx]) |neighbor| {
+                    const index = (ly << 8) | (lz << 4) | lx;
+                    task.block_states[y][z][x] = neighbor.block_states[index];
+
+                    const block_light: u4 = @truncate(neighbor.block_light.bytes[index / 2] >> @intCast((index & 1) * 4));
+                    const sky_light: u4 = @truncate(neighbor.sky_light.bytes[index / 2] >> @intCast((index & 1) * 4));
+                    task.light[y][z][x] = .{ .block = block_light, .sky = sky_light };
+                } else {
+                    task.block_states[y][z][x] = .air;
+                    task.light[y][z][x] = .{ .block = 15, .sky = 15 };
+                }
             }
         }
     }
@@ -73,12 +109,14 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
         for (1..17) |z| {
             for (1..17) |x| {
                 cull_table[y - 1][z - 1][x - 1] = .{
-                    .west = culling_blocks.contains(task.block_states[y][z][x - 1].block),
-                    .east = culling_blocks.contains(task.block_states[y][z][x + 1].block),
-                    .down = culling_blocks.contains(task.block_states[y - 1][z][x].block),
-                    .up = culling_blocks.contains(task.block_states[y + 1][z][x].block),
+                    // zig fmt: off
+                    .west =  culling_blocks.contains(task.block_states[y][z][x - 1].block),
+                    .east =  culling_blocks.contains(task.block_states[y][z][x + 1].block),
+                    .down =  culling_blocks.contains(task.block_states[y - 1][z][x].block),
+                    .up =    culling_blocks.contains(task.block_states[y + 1][z][x].block),
                     .north = culling_blocks.contains(task.block_states[y][z - 1][x].block),
                     .south = culling_blocks.contains(task.block_states[y][z + 1][x].block),
+                    // zig fmt: on
                 };
             }
         }
@@ -103,33 +141,22 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
                         .z = @floatFromInt(z - 1),
                     };
 
-                    const sky_light = if (face.cullface) |cullface| switch (cullface) {
+                    const light = if (face.cullface) |cullface| switch (cullface) {
                         // zig fmt: off
-                        .west =>  task.sky_light.get(y,     z,     x - 1),
-                        .east =>  task.sky_light.get(y,     z,     x + 1),
-                        .down =>  task.sky_light.get(y - 1, z,     x    ),
-                        .up =>    task.sky_light.get(y + 1, z,     x    ),
-                        .north => task.sky_light.get(y,     z - 1, x    ),
-                        .south => task.sky_light.get(y,     z + 1, x    ),
+                        .west =>  task.light[y][z][x - 1],
+                        .east =>  task.light[y][z][x + 1],
+                        .down =>  task.light[y - 1][z][x],
+                        .up =>    task.light[y + 1][z][x],
+                        .north => task.light[y][z - 1][x],
+                        .south => task.light[y][z + 1][x],
                         // zig fmt: on
-                    } else task.sky_light.get(y, z, x);
-
-                    const block_light = if (face.cullface) |cullface| switch (cullface) {
-                        // zig fmt: off
-                        .west =>  task.block_light.get(y,     z,     x - 1),
-                        .east =>  task.block_light.get(y,     z,     x + 1),
-                        .down =>  task.block_light.get(y - 1, z,     x    ),
-                        .up =>    task.block_light.get(y + 1, z,     x    ),
-                        .north => task.block_light.get(y,     z - 1, x    ),
-                        .south => task.block_light.get(y,     z + 1, x    ),
-                        // zig fmt: on
-                    } else task.block_light.get(y, z, x);
+                    } else task.light[y][z][x];
 
                     for (face.pos, face.uv) |vertex_pos, uv| {
                         try staging.writeVertex(
                             .add(pos_vec, vertex_pos),
-                            block_light,
-                            sky_light,
+                            light.block,
+                            light.sky,
                             face.texture,
                             uv,
                             face.cullface,
@@ -172,13 +199,13 @@ const std = @import("std");
 
 const main = @import("main");
 const render = @import("render");
-const PackedNibbleArray = @import("util").PackedNibbleArray;
 
 const block_attributes = @import("block_attributes.zig");
 
 const Block = main.Block;
 const Direction = main.Direction;
 const Vector3 = main.Vector3;
+const Vector2xz = main.Vector2xz;
 const World = main.World;
 const CompilationTracker = render.mesher.CompilationTracker;
 const GpuStagingBuffer = render.mesher.GpuStagingBuffer;

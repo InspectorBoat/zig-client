@@ -34,7 +34,7 @@ fps: FpsCounter = .init,
 pub const TextureHandle = enum(u16) { _ };
 
 const compilation_slots = 4096;
-const compile_budget = 3;
+const compile_budget = 12;
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
