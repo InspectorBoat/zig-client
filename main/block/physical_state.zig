@@ -597,8 +597,8 @@ pub const PhysicalState = packed struct(u16) {
         dropper: packed struct(u4) { facing: Facing, triggered: bool },
         stained_hardened_clay: packed struct(u4) { color: Color },
         stained_glass_pane: packed struct(u4) { color: Color },
-        leaves2: packed struct(u4) { variant: WoodVariant2, _: u1 = 0, not_decayable: bool, check_decay: bool },
-        log2: packed struct(u4) { variant: WoodVariant2, _: u1 = 0, axis: LogAxis },
+        leaves2: packed struct(u4) { variant: WoodVariant2, not_decayable: bool, check_decay: bool },
+        log2: packed struct(u4) { variant: WoodVariant2, axis: LogAxis },
         acacia_stairs: packed struct(u4) { facing: StairFacing, half: Half, _: u1 = 0 },
         dark_oak_stairs: packed struct(u4) { facing: StairFacing, half: Half, _: u1 = 0 },
         slime: packed struct(u4) { _: u4 = 0 },
@@ -649,7 +649,7 @@ pub const PhysicalState = packed struct(u16) {
     pub const HopperFacing = enum(u3) { down = 0, north = 2, south = 3, west = 4, east = 5 };
     pub const WoodVariant = enum(u3) { oak = 0, spruce = 1, birch = 2, jungle = 3, acacia = 4, dark_oak = 5 };
     pub const WoodVariant1 = enum(u2) { oak = 0, spruce = 1, birch = 2, jungle = 3 };
-    pub const WoodVariant2 = enum(u1) { acacia = 0, dark_oak = 1 };
+    pub const WoodVariant2 = enum(u2) { acacia = 0, dark_oak = 1 };
     pub const RepeaterDelay = enum(u2) { @"1" = 0, @"2" = 1, @"3" = 2, @"4" = 3 };
     pub const LogAxis = enum(u2) { y = 0, x = 1, z = 2, none = 3 };
     pub const Half = enum(u1) { bottom = 0, top = 1 };

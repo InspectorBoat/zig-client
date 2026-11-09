@@ -182,7 +182,7 @@ pub fn getPropertiesString(
 }
 
 pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState.Properties, @tagName(block))) bool {
-    if (std.mem.eql(u8, field_name, "_")) return true;
+    if (field_name[0] == '_') return true;
 
     if (block == .dirt and properties.variant != .podzol and std.mem.eql(u8, field_name, "snowy")) return true;
     if ((block == .leaves or block == .leaves2) and (std.mem.eql(u8, field_name, "not_decayable") or std.mem.eql(u8, field_name, "check_decay"))) return true;

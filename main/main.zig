@@ -25,6 +25,9 @@ pub const std_options: std.Options = .{
 };
 
 pub fn main(init: std.process.Init) !void {
+    // const threaded: *std.Io.Threaded = @ptrCast(@alignCast(init.io.userdata));
+    // threaded.setAsyncLimit(.unlimited);
+
     const io = init.io;
     const gpa = init.gpa;
 

@@ -53,8 +53,9 @@ pub fn onFrame(frame: Events.Frame) !void {
     switch (client.*) {
         .game => |*game| {
             try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
-            try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, &game.world);
-            try renderer.uploadCompilationResults(frame.io);
+            const start: std.Io.Timestamp = .now(frame.io, .real);
+            try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, start, &game.world);
+            try renderer.uploadCompilationResults(frame.io, start);
             try renderer.renderFrame(frame.io, frame.allocator, game);
             const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
             renderer.fps.update(now);
@@ -281,6 +282,7 @@ test {
 
 const std = @import("std");
 
+const build_options = @import("build_options");
 const quarantine = @import("llm-code-quarantine");
 const glfw = @import("mach-glfw");
 const main = @import("main");
@@ -299,4 +301,3 @@ pub const Frustum = quarantine.Frustum;
 const Client = main.Client;
 const Events = main.Events;
 const Vector2xy = main.Vector2xy;
-const build_options = @import("build_options");

@@ -89,6 +89,22 @@ pub const overrides_can_be_placed: std.enums.EnumSet(Block) = .initMany(&.{
     .wooden_pressure_plate,         .yellow_flower,
 });
 
+pub const has_virtual_state: std.enums.EnumSet(Block) = .initMany(&.{
+    .grass,                .dirt,              .bed,                .piston_head,
+    .fire,                 .oak_stairs,        .redstone_wire,      .wooden_door,
+    .stone_stairs,         .iron_door,         .fence,              .unpowered_repeater,
+    .powered_repeater,     .iron_bars,         .glass_pane,         .pumpkin_stem,
+    .melon_stem,           .vine,              .fence_gate,         .brick_stairs,
+    .stone_brick_stairs,   .mycelium,          .nether_brick_fence, .nether_brick_stairs,
+    .sandstone_stairs,     .tripwire_hook,     .tripwire,           .spruce_stairs,
+    .birch_stairs,         .jungle_stairs,     .cobblestone_wall,   .quartz_stairs,
+    .stained_glass_pane,   .acacia_stairs,     .dark_oak_stairs,    .double_plant,
+    .red_sandstone_stairs, .spruce_fence_gate, .birch_fence_gate,   .jungle_fence_gate,
+    .dark_oak_fence_gate,  .acacia_fence_gate, .spruce_fence,       .birch_fence,
+    .jungle_fence,         .dark_oak_fence,    .acacia_fence,       .spruce_door,
+    .birch_door,           .jungle_door,       .acacia_door,        .dark_oak_door,
+});
+
 pub const signal_source: std.enums.EnumSet(Block) = .initMany(&.{
     .stone_pressure_plate, .wooden_pressure_plate, .light_weighted_pressure_plate, .heavy_weighted_pressure_plate,
     .unpowered_repeater,   .powered_repeater,      .unpowered_comparator,          .powered_comparator,

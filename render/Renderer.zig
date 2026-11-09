@@ -33,6 +33,9 @@ fps: FpsCounter = .init,
 
 pub const TextureHandle = enum(u16) { _ };
 
+const compilation_slots = 4096;
+const compile_budget = 3;
+
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
     gl.enable(.cull_face);
@@ -42,7 +45,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
 
-    const compilation_tracker: CompilationTracker = try .init(allocator, 128);
+    const compilation_tracker: CompilationTracker = try .init(allocator, compilation_slots);
     const chunk_tracker: ChunkTracker = .init;
 
     const debug_program = try initProgram(io, allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
@@ -326,8 +329,6 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
 }
 
 pub fn renderFrame(self: *@This(), io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game) !void {
-    // @setRuntimeSafety(false);
-
     const mvp = getMvpMatrix(game.world.player, game.partial_tick);
 
     try self.renderTerrain(io, gpa, game);
@@ -802,8 +803,8 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
     );
 }
 
-pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std.mem.Allocator, world: *const World) !void {
-    const start: std.Io.Clock.Timestamp = .now(io, .real);
+pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std.mem.Allocator, start: std.Io.Timestamp, world: *const World) !void {
+    @setRuntimeSafety(false);
 
     var iter = self.chunk_tracker.chunks.iterator();
 
@@ -847,7 +848,7 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std
             }
         }
 
-        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
+        if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
     }
 }
 
@@ -878,7 +879,9 @@ pub fn dispatchCompilationTask(
     section_pos: Vector3(i32),
     revision: u32,
 ) !void {
-    const slot = try self.compilation_tracker.take(section_pos, revision);
+    @setRuntimeSafety(false);
+
+    const slot = try self.compilation_tracker.claimSlot(section_pos, revision);
     errdefer self.compilation_tracker.releaseUnstarted(slot);
     slot.future = io.async(
         CompilationTask.compile,
@@ -892,9 +895,7 @@ pub fn dispatchCompilationTask(
     );
 }
 
-pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
-    const start: std.Io.Clock.Timestamp = .now(io, .real);
-
+pub fn uploadCompilationResults(self: *@This(), io: std.Io, start: std.Io.Timestamp) !void {
     while (self.compilation_tracker.popCompleted(io)) |completed| {
         if (completed.mesh) |mesh_const| {
             var mesh = mesh_const;
@@ -927,7 +928,7 @@ pub fn uploadCompilationResults(self: *@This(), io: std.Io) !void {
             }
             try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
         } else |e| std.log.scoped(.section_revision).err("error meshing section at {}: {}", .{ completed.section_pos, e });
-        if (start.untilNow(io).raw.toMilliseconds() > 3) return;
+        if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
     }
 }
 

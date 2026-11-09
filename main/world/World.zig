@@ -133,6 +133,8 @@ pub fn isValidBlockPos(block_pos: Vector3(i32)) bool {
 }
 
 pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.PhysicalState {
+    @setRuntimeSafety(false);
+
     if (block_pos.y < 0 or block_pos.y > 255) return .air;
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air;
@@ -146,10 +148,14 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.Physic
 }
 
 pub fn resolveVirtualBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.VirtualState {
+    @setRuntimeSafety(false);
+
     return .resolve(self.getBlockState(block_pos), self, block_pos);
 }
 
 pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*Block.PhysicalState {
+    @setRuntimeSafety(false);
+
     if (block_pos.y < 0 or block_pos.y > 255) return null;
 
     const chunk = self.chunks.getPtr(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return null;
@@ -163,6 +169,8 @@ pub fn getBlockStatePtr(self: *@This(), block_pos: Vector3(i32)) ?*Block.Physica
 }
 
 pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
+    @setRuntimeSafety(false);
+
     if (block_pos.y < 0 or block_pos.y > 255) return .air;
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return .air;
@@ -201,6 +209,8 @@ pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Ve
 }
 
 pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
+    @setRuntimeSafety(false);
+
     if (block_pos.y < 0 or block_pos.y > 255) return 15;
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return 15;
@@ -210,10 +220,12 @@ pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
         .y = @intCast(@mod(block_pos.y, 16)),
         .z = @intCast(@mod(block_pos.z, 16)),
     };
-    return section.block_light.get(section_block_pos.x, section_block_pos.y, section_block_pos.z);
+    return section.block_light.get(section_block_pos.y, section_block_pos.z, section_block_pos.x);
 }
 
 pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
+    @setRuntimeSafety(false);
+
     if (block_pos.y < 0 or block_pos.y > 255) return 15;
 
     const chunk = self.chunks.get(.{ .x = @divFloor(block_pos.x, 16), .z = @divFloor(block_pos.z, 16) }) orelse return 15;
@@ -223,7 +235,7 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
         .y = @intCast(@mod(block_pos.y, 16)),
         .z = @intCast(@mod(block_pos.z, 16)),
     };
-    return section.sky_light.get(section_block_pos.x, section_block_pos.y, section_block_pos.z);
+    return section.sky_light.get(section_block_pos.y, section_block_pos.z, section_block_pos.x);
 }
 
 pub fn receiveChunk(
@@ -234,6 +246,8 @@ pub fn receiveChunk(
     full: bool,
     has_sky_light: bool,
 ) !void {
+    @setRuntimeSafety(false);
+
     std.log.scoped(.world).debug("updating chunk at {}", .{chunk_pos});
 
     const chunk = self.chunks.getPtr(chunk_pos).?;

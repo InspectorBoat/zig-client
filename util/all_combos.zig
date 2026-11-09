@@ -22,7 +22,7 @@ fn nth(T: type, n: comptime_int) T {
 fn numValues(T: type) comptime_int {
     var total = 1;
     for (@typeInfo(T).@"struct".field_types, @typeInfo(T).@"struct".field_names) |@"type", name| {
-        if (!std.mem.eql(u8, name, "_")) total *= count(@"type");
+        if (name[0] != '_') total *= count(@"type");
     }
     return total;
 }
@@ -38,7 +38,7 @@ pub fn allValues(T: type) [numValues(T)]T {
         for (0..numValues(T)) |i| {
             var rem = i;
             for (field_names, field_types) |name, @"type"| {
-                if (std.mem.eql(u8, name, "_")) {
+                if (name[0] == '_') {
                     @field(values[i], name) = 0;
                     continue;
                 }
@@ -48,6 +48,34 @@ pub fn allValues(T: type) [numValues(T)]T {
         }
         break :blk values;
     };
+}
+
+test allValues {
+    const Foo = struct {
+        _0: u8 = 0,
+        a: u3,
+        b: bool,
+        c: enum { bar },
+        _1: u1 = 0,
+    };
+    try std.testing.expectEqualSlices(Foo, &.{
+        .{ .a = 0, .b = false, .c = .bar },
+        .{ .a = 1, .b = false, .c = .bar },
+        .{ .a = 2, .b = false, .c = .bar },
+        .{ .a = 3, .b = false, .c = .bar },
+        .{ .a = 4, .b = false, .c = .bar },
+        .{ .a = 5, .b = false, .c = .bar },
+        .{ .a = 6, .b = false, .c = .bar },
+        .{ .a = 7, .b = false, .c = .bar },
+        .{ .a = 0, .b = true, .c = .bar },
+        .{ .a = 1, .b = true, .c = .bar },
+        .{ .a = 2, .b = true, .c = .bar },
+        .{ .a = 3, .b = true, .c = .bar },
+        .{ .a = 4, .b = true, .c = .bar },
+        .{ .a = 5, .b = true, .c = .bar },
+        .{ .a = 6, .b = true, .c = .bar },
+        .{ .a = 7, .b = true, .c = .bar },
+    }, &allValues(Foo));
 }
 
 const std = @import("std");

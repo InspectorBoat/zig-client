@@ -33,6 +33,8 @@ pub fn fromRows(a: [4]f32, b: [4]f32, scale: f32) Plane {
 }
 
 pub fn intersectsAabb(self: @This(), min: Vector3(f32), max: Vector3(f32)) bool {
+    @setRuntimeSafety(false);
+
     for (self.planes) |plane| {
         const positive: Vector3(f32) = .{
             .x = if (plane.normal.x >= 0) max.x else min.x,

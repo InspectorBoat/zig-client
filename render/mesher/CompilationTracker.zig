@@ -12,7 +12,6 @@ const CompilationSlot = struct {
     revision: u32,
     future: std.Io.Future(CompilationTask.Error!CompilationTask.Mesh),
 };
-
 const CompletedCompilation = struct {
     section_pos: main.Vector3(i32),
     revision: u32,
@@ -26,8 +25,9 @@ pub fn init(gpa: std.mem.Allocator, capacity: usize) !@This() {
     };
 }
 
-pub fn take(self: *@This(), section_pos: main.Vector3(i32), revision: u32) error{QueueFull}!*CompilationSlot {
-    const slot = self.free_slots.create(undefined) catch return error.QueueFull;
+/// Claim an empty slot
+pub fn claimSlot(self: *@This(), section_pos: main.Vector3(i32), revision: u32) error{QueueFull}!*CompilationSlot {
+    const slot = self.free_slots.create(.failing) catch return error.QueueFull;
     slot.* = .{
         .next_outstanding = .{},
         .next_completed = .{},
@@ -37,6 +37,12 @@ pub fn take(self: *@This(), section_pos: main.Vector3(i32), revision: u32) error
     };
     self.outstanding.prepend(&slot.next_outstanding);
     return slot;
+}
+
+/// Release a slot whose task was never started
+pub fn releaseUnstarted(self: *@This(), slot: *CompilationSlot) void {
+    self.outstanding.remove(&slot.next_outstanding);
+    self.free_slots.destroy(slot);
 }
 
 pub fn addCompleted(self: *@This(), io: std.Io, completion_token: *std.SinglyLinkedList.Node) void {
@@ -62,17 +68,7 @@ pub fn popCompleted(self: *@This(), io: std.Io) ?CompletedCompilation {
     };
 }
 
-/// Release a slot whose task was never started, so `future` is still
-/// undefined. Callers must guarantee no task exists for it; otherwise this
-/// strands that task's `addCompleted`. Main thread only.
-pub fn releaseUnstarted(self: *@This(), slot: *CompilationSlot) void {
-    self.outstanding.remove(&slot.next_outstanding);
-    self.free_slots.destroy(slot);
-}
-
-/// Cancel everything still outstanding and free the pool. A task that finishes
-/// while we're draining will still link itself onto `completed` on the way out.
-/// Nothing reads that list after this, so this is fine.
+/// Cancel all outstanding tasks and free the pool
 pub fn deinit(self: *@This(), io: std.Io) void {
     while (self.outstanding.popFirst()) |node| {
         const slot: *CompilationSlot = @fieldParentPtr("next_outstanding", node);

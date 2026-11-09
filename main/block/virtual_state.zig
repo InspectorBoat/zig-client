@@ -164,8 +164,8 @@ pub const VirtualState = packed struct(u20) {
         dropper: packed struct(u12) { facing: PhysicalState.Facing, triggered: bool, _: u8 = 0 },
         stained_hardened_clay: packed struct(u12) { color: PhysicalState.Color, _: u8 = 0 },
         stained_glass_pane: packed struct(u12) { color: PhysicalState.Color, north: bool, east: bool, south: bool, west: bool, _: u4 = 0 },
-        leaves2: packed struct(u12) { variant: PhysicalState.WoodVariant2, not_decayable: bool, check_decay: bool, _: u9 = 0 },
-        log2: packed struct(u12) { variant: PhysicalState.WoodVariant2, axis: PhysicalState.LogAxis, _: u9 = 0 },
+        leaves2: packed struct(u12) { variant: PhysicalState.WoodVariant2, not_decayable: bool, check_decay: bool, _: u8 = 0 },
+        log2: packed struct(u12) { variant: PhysicalState.WoodVariant2, axis: PhysicalState.LogAxis, _: u8 = 0 },
         acacia_stairs: packed struct(u12) { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape, _: u6 = 0 },
         dark_oak_stairs: packed struct(u12) { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape, _: u6 = 0 },
         slime: packed struct(u12) { _: u12 = 0 },
@@ -173,7 +173,7 @@ pub const VirtualState = packed struct(u20) {
         iron_trapdoor: packed struct(u12) { facing: PhysicalState.TrapdoorFacing, open: bool, half: PhysicalState.Half, _: u8 = 0 },
         prismarine: packed struct(u12) { variant: PhysicalState.PrismarineVariant, _: u10 = 0 },
         sea_lantern: packed struct(u12) { _: u12 = 0 },
-        hay_block: packed struct(u12) { axis: PhysicalState.HayBlockAxis, _: u10 = 0 },
+        hay_block: packed struct(u12) { _0: u2, axis: PhysicalState.HayBlockAxis, _1: u8 = 0 },
         carpet: packed struct(u12) { color: PhysicalState.Color, _: u8 = 0 },
         hardened_clay: packed struct(u12) { _: u12 = 0 },
         coal_block: packed struct(u12) { _: u12 = 0 },
@@ -185,7 +185,7 @@ pub const VirtualState = packed struct(u20) {
         red_sandstone: packed struct(u12) { variant: PhysicalState.RedSandstoneVariant, _: u10 = 0 },
         red_sandstone_stairs: packed struct(u12) { facing: PhysicalState.StairFacing, half: PhysicalState.Half, shape: StairShape, _: u6 = 0 },
         double_stone_slab2: packed struct(u12) { seamless: bool, _: u11 = 0 },
-        stone_slab2: packed struct(u12) { half: PhysicalState.Half, _: u11 = 0 },
+        stone_slab2: packed struct(u12) { _0: u3 = 0, half: PhysicalState.Half, _1: u8 = 0 },
         spruce_fence_gate: packed struct(u12) { facing: PhysicalState.PackedHorizontalFacing, open: bool, powered: bool, in_wall: bool, _: u7 = 0 },
         birch_fence_gate: packed struct(u12) { facing: PhysicalState.PackedHorizontalFacing, open: bool, powered: bool, in_wall: bool, _: u7 = 0 },
         jungle_fence_gate: packed struct(u12) { facing: PhysicalState.PackedHorizontalFacing, open: bool, powered: bool, in_wall: bool, _: u7 = 0 },
@@ -203,8 +203,37 @@ pub const VirtualState = packed struct(u20) {
         dark_oak_door: packed struct(u12) { half: PhysicalState.DoorHalf, hinge: PhysicalState.DoorHinge, powered: bool, open: bool, facing: PhysicalState.DoorFacing, _: u6 = 0 },
     };
 
-    pub fn resolve(physical: PhysicalState, world: *const World, block_pos: Vector3(i32)) @This() {
-        const properties: Properties = switch (physical.block) {
+    comptime {
+        for (std.enums.values(Block)) |block| {
+            @setEvalBranchQuota(100000);
+            if (block_attributes.has_virtual_state.contains(block)) continue;
+
+            const VirtualProperty = @FieldType(VirtualState.Properties, @tagName(block));
+            const PhysicalProperty = @FieldType(PhysicalState.Properties, @tagName(block));
+
+            // Make sure all properties that exist on VirtualProperty exist on PhysicalProperty
+            for (@typeInfo(VirtualProperty).@"struct".field_names) |field_name| {
+                if (field_name[0] == '_') continue;
+                std.debug.assert(@bitOffsetOf(VirtualProperty, field_name) == @bitOffsetOf(PhysicalProperty, field_name));
+                std.debug.assert(@FieldType(VirtualProperty, field_name) == @FieldType(PhysicalProperty, field_name));
+            }
+            for (@typeInfo(PhysicalProperty).@"struct".field_names) |field_name| {
+                if (field_name[0] == '_') continue;
+                std.debug.assert(@hasField(VirtualProperty, field_name));
+            }
+        }
+    }
+
+    pub fn resolve(physical: PhysicalState, world: anytype, block_pos: Vector3(i32)) @This() {
+        @setRuntimeSafety(false);
+
+        if (!block_attributes.has_virtual_state.contains(physical.block)) {
+            return .{
+                .block = physical.block,
+                .properties = @fromBackingInt(@backingInt(physical.properties)),
+            };
+        }
+        return .{ .block = physical.block, .properties = switch (physical.block) {
             .grass => .{ .grass = .{
                 .snowy = blk: {
                     const up = world.getBlock(block_pos.up());
@@ -370,29 +399,8 @@ pub const VirtualState = packed struct(u20) {
                 .type = physical.payload(.piston_head).type,
                 .short = false,
             } },
-            inline else => |block| blk: {
-                @setEvalBranchQuota(1000000);
-
-                const VirtualProperty = @FieldType(VirtualState.Properties, @tagName(block));
-                const PhysicalProperty = @FieldType(PhysicalState.Properties, @tagName(block));
-
-                var properties: VirtualProperty = @fromBackingInt(0);
-
-                // Make sure all properties that exist on VirtualProperty exist on PhysicalProperty
-                inline for (@typeInfo(VirtualProperty).@"struct".field_names) |field_name| {
-                    if (comptime std.mem.eql(u8, field_name, "_")) continue;
-                    comptime std.debug.assert(@hasField(PhysicalProperty, field_name));
-                }
-
-                // Copy every field in PhysicalProperty into VirtualProperty (except for _)
-                inline for (@typeInfo(PhysicalProperty).@"struct".field_names) |field_name| {
-                    if (comptime std.mem.eql(u8, field_name, "_")) continue;
-                    @field(properties, field_name) = @field(physical.payload(block), field_name);
-                }
-                break :blk @unionInit(Properties, @tagName(block), properties);
-            },
-        };
-        return .{ .block = physical.block, .properties = properties };
+            else => unreachable,
+        } };
     }
 
     pub fn canBeReplaced(self: @This()) bool {
@@ -579,7 +587,7 @@ pub const VirtualState = packed struct(u20) {
     pub const RedstoneWireConnection = enum(u2) { up, side, none };
 };
 
-fn stemFacingFor(world: *const World, block_pos: Vector3(i32), stem: Block) VirtualState.StemFacing {
+fn stemFacingFor(world: anytype, block_pos: Vector3(i32), stem: Block) VirtualState.StemFacing {
     const plant: Block = if (stem == .pumpkin_stem) .melon_block else .pumpkin;
     if (world.getBlock(block_pos.north()) == plant) return .north;
     if (world.getBlock(block_pos.east()) == plant) return .east;
@@ -607,7 +615,7 @@ fn wallShouldConnectTo(neighbor: Block) bool {
         neighbor.getMaterial().blocksMovementAndNotTranslucent() and neighbor.isCube() and neighbor.getMaterial() != .pumpkin and neighbor != .barrier;
 }
 
-fn tripwireShouldConnectTo(world: *const World, block_pos: Vector3(i32), suspended: bool, dir: PhysicalState.HorizontalFacing) bool {
+fn tripwireShouldConnectTo(world: anytype, block_pos: Vector3(i32), suspended: bool, dir: PhysicalState.HorizontalFacing) bool {
     const neighbour = world.getBlockState(block_pos.dir(.from(dir)));
     return switch (neighbour.block) {
         .tripwire_hook => {
@@ -624,14 +632,14 @@ fn tripwireShouldConnectTo(world: *const World, block_pos: Vector3(i32), suspend
     };
 }
 
-fn isStairSameHalfSameFacing(world: *const World, other_pos: Vector3(i32), self_props: anytype) bool {
+fn isStairSameHalfSameFacing(world: anytype, other_pos: Vector3(i32), self_props: anytype) bool {
     const other = world.getBlockState(other_pos);
     if (!other.block.isStair()) return false;
     const p = other.properties.oak_stairs;
     return p.half == self_props.half and p.facing == self_props.facing;
 }
 
-fn isInnerStair(world: *const World, block_pos: Vector3(i32), self_props: anytype) bool {
+fn isInnerStair(world: anytype, block_pos: Vector3(i32), self_props: anytype) bool {
     const facing = self_props.facing;
 
     const first: PhysicalState.StairFacing, const second: PhysicalState.StairFacing = switch (facing) {
@@ -654,7 +662,7 @@ fn isInnerStair(world: *const World, block_pos: Vector3(i32), self_props: anytyp
     return true;
 }
 
-fn stairCorner(world: *const World, block_pos: Vector3(i32), self_props: anytype, inner: bool) u2 {
+fn stairCorner(world: anytype, block_pos: Vector3(i32), self_props: anytype, inner: bool) u2 {
     const top = self_props.half == .top;
     const facing = self_props.facing;
 
@@ -690,7 +698,7 @@ fn stairCorner(world: *const World, block_pos: Vector3(i32), self_props: anytype
     return 0;
 }
 
-fn resolveStairShape(world: *const World, block_pos: Vector3(i32)) VirtualState.StairShape {
+fn resolveStairShape(world: anytype, block_pos: Vector3(i32)) VirtualState.StairShape {
     const props = world.getBlockState(block_pos).properties.oak_stairs;
     if (isInnerStair(world, block_pos, props)) {
         return switch (stairCorner(world, block_pos, props, true)) {
@@ -1061,11 +1069,10 @@ const std = @import("std");
 
 const main = @import("main");
 
+const block_attributes = @import("block_attributes.zig");
 const physical_state = @import("physical_state.zig");
 const Block = @import("block.zig").Block;
 
 const Box = main.Box;
-const Direction = main.Direction;
 const Vector3 = main.Vector3;
-const World = main.World;
 const PhysicalState = physical_state.PhysicalState;
