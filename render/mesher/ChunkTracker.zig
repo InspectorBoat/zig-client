@@ -23,14 +23,21 @@ pub const MissingNeighbors = struct {
 
 pub const SectionCompileStatus = struct {
     /// Current revision of chunk.
-    current_revision: u32 = 0,
+    current_revision: u32,
     /// Latest revision of chunk sent to compile thread(s). Null if chunk has never been sent to compile threads.
     /// This can lag behind current_revision if the section is empty
-    latest_sent_revision: ?u32 = null,
+    latest_sent_revision: ?u32,
     /// Latest revision of chunk (as mesh data) received from compile thread. Null if chunk has never been received from compile thread.
-    latest_received_revision: ?u32 = null,
+    latest_received_revision: ?u32,
     /// Segment of memory uploaded into VRAM
-    render_info: ?SectionRenderInfo = null,
+    render_info: ?SectionRenderInfo,
+
+    pub const init: @This() = .{
+        .current_revision = 0,
+        .latest_sent_revision = null,
+        .latest_received_revision = null,
+        .render_info = null,
+    };
 
     pub fn markDirty(self: *@This()) void {
         self.current_revision += 1;

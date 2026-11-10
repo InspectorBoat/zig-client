@@ -1,87 +1,90 @@
-gpa: std.mem.Allocator,
-free_slots: std.heap.memory_pool.Extra(Slot, .{ .growable = false }),
-outstanding: std.SinglyLinkedList = .{},
-completed: std.SinglyLinkedList = .{},
-mutex: std.Io.Mutex = .init,
+//! This is basically a (specialized) thread pool backed by an Io.Group and an Io.Queue
 
-const Slot = struct {
-    next_outstanding: std.SinglyLinkedList.Node,
-    next_completed: std.SinglyLinkedList.Node,
-    future: std.Io.Future(Task.Error!Task.Mesh),
-    section_pos: main.Vector3(i32),
-    task: Task,
-    revision: u32,
-};
+group: *std.Io.Group,
+pending: *std.Io.Queue(Task),
+completed: *std.Io.Queue(Completed),
+live: usize,
+pending_count: *std.atomic.Value(usize),
+
 const Completed = struct {
-    section_pos: main.Vector3(i32),
-    revision: u32,
-    mesh: Task.Error!Task.Mesh,
+    task: Task,
+    result: Task.Error!Task.Mesh,
 };
 
-pub fn init(gpa: std.mem.Allocator, capacity: usize) !@This() {
+pub fn initCapacity(io: std.Io, gpa: std.mem.Allocator, pending_capacity: usize, workers: usize) !@This() {
+    const pending_buffer = try gpa.alloc(Task, pending_capacity);
+    errdefer gpa.free(pending_buffer);
+    const completed_buffer = try gpa.alloc(Completed, pending_capacity);
+    errdefer gpa.free(completed_buffer);
+
+    const pending: *std.Io.Queue(Task) = try gpa.create(std.Io.Queue(Task));
+    errdefer gpa.destroy(pending);
+    const completed: *std.Io.Queue(Completed) = try gpa.create(std.Io.Queue(Completed));
+    errdefer gpa.destroy(completed);
+
+    const group: *std.Io.Group = try gpa.create(std.Io.Group);
+    const count: *std.atomic.Value(usize) = try gpa.create(std.atomic.Value(usize));
+    count.* = .init(0);
+
+    pending.* = .init(pending_buffer);
+    completed.* = .init(completed_buffer);
+    group.* = .init;
+
+    for (0..workers) |_| {
+        try group.concurrent(io, worker, .{ io, gpa, pending, completed, count });
+    }
     return .{
-        .gpa = gpa,
-        .free_slots = try .initCapacity(gpa, capacity),
+        .group = group,
+        .pending = pending,
+        .completed = completed,
+        .live = 0,
+        .pending_count = count,
     };
 }
 
-/// Claim an empty slot
-pub fn claimSlot(self: *@This(), section_pos: main.Vector3(i32), revision: u32) error{QueueFull}!*Slot {
-    const slot = self.free_slots.create(.failing) catch return error.QueueFull;
-    slot.* = .{
-        .next_outstanding = .{},
-        .next_completed = .{},
-        .section_pos = section_pos,
-        .revision = revision,
-        .task = undefined,
-        .future = undefined,
-    };
-    self.outstanding.prepend(&slot.next_outstanding);
-    return slot;
+fn worker(io: std.Io, gpa: std.mem.Allocator, pending: *std.Io.Queue(Task), completed: *std.Io.Queue(Completed), pending_count: *std.atomic.Value(usize)) void {
+    while (true) {
+        const task = pending.getOne(io) catch return;
+        completed.putOneUncancelable(io, .{ .task = task, .result = task.compile(io, gpa) }) catch unreachable;
+        _ = pending_count.fetchSub(1, .monotonic);
+    }
 }
 
-/// Release a slot whose task was never started
-pub fn releaseUnstarted(self: *@This(), slot: *Slot) void {
-    self.outstanding.remove(&slot.next_outstanding);
-    self.free_slots.destroy(slot);
+pub fn spawn(self: *@This(), io: std.Io, world: *const World, section_pos: main.Vector3(i32), revision: u32) error{ Canceled, QueueFull, Closed }!void {
+    const task: Task = try .init(world, section_pos, revision);
+    errdefer task.deinit(.failing);
+    switch (try self.pending.put(io, &.{task}, 0)) {
+        0 => return error.QueueFull,
+        1 => {
+            self.live += 1;
+            _ = self.pending_count.fetchAdd(1, .monotonic);
+        },
+        else => unreachable,
+    }
 }
 
-pub fn addCompleted(self: *@This(), io: std.Io, completion_token: *std.SinglyLinkedList.Node) void {
-    self.mutex.lockUncancelable(io);
-    self.completed.prepend(completion_token);
-    self.mutex.unlock(io);
-}
-
-pub fn popCompleted(self: *@This(), io: std.Io, gpa: std.mem.Allocator) ?Completed {
-    self.mutex.lockUncancelable(io);
-    const maybe_node = self.completed.popFirst();
-    self.mutex.unlock(io);
-
-    const node = maybe_node orelse return null;
-
-    const slot: *Slot = @fieldParentPtr("next_completed", node);
-    slot.task.deinit(gpa);
-    self.outstanding.remove(&slot.next_outstanding);
-    defer self.free_slots.destroy(slot);
-    return .{
-        .section_pos = slot.section_pos,
-        .revision = slot.revision,
-        .mesh = slot.future.await(io),
-    };
+pub fn popCompleted(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !?Completed {
+    if (self.live == 0) return null;
+    var completed: Completed = undefined;
+    if (self.completed.getUncancelable(io, (&completed)[0..1], 0) catch unreachable == 1) {
+        completed.task.deinit(gpa);
+        self.live -= 1;
+        return completed;
+    } else return null;
 }
 
 /// Cancel all outstanding tasks and free the pool
 pub fn deinit(self: *@This(), gpa: std.mem.Allocator, io: std.Io) void {
-    while (self.outstanding.popFirst()) |node| {
-        const slot: *Slot = @fieldParentPtr("next_outstanding", node);
-        slot.task.deinit(gpa);
-        if (slot.future.cancel(io)) |mesh_const| {
-            var mesh = mesh_const;
-            mesh.buffer.deinit(self.gpa);
-        } else |_| {}
-        self.free_slots.destroy(slot);
+    for (0..self.live) |_| {
+        const completed = self.completed.getOneUncancelable(io) catch unreachable;
+        completed.task.deinit(gpa);
     }
-    self.free_slots.deinit(self.gpa);
+    self.group.cancel(io);
+    self.pending.close(io);
+    self.completed.close(io);
+
+    std.debug.assert(self.pending.getOneUncancelable(io) == error.Closed);
+    std.debug.assert(self.completed.getOneUncancelable(io) == error.Closed);
 }
 
 const std = @import("std");
@@ -90,3 +93,4 @@ const main = @import("main");
 const render = @import("render");
 
 const Task = render.mesher.CompilationTask;
+const World = main.World;

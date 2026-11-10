@@ -1,3 +1,5 @@
+section_pos: Vector3(i32),
+revision: u32,
 sections: [3][3][3]?*World.Section,
 
 pub const Error = error{ Canceled, OutOfMemory };
@@ -39,7 +41,7 @@ pub fn getLight(self: *const @This(), block_pos: Vector3(i32)) World.Light {
     return section.light[local_block_pos.y][local_block_pos.z][local_block_pos.x];
 }
 
-pub fn init(section_pos: Vector3(i32), world: *const World) !@This() {
+pub fn init(world: *const World, section_pos: Vector3(i32), revision: u32) !@This() {
     var sections: [3][3][3]?*World.Section = @splat(@splat(@splat(null)));
 
     for (0..3) |dy| {
@@ -61,19 +63,17 @@ pub fn init(section_pos: Vector3(i32), world: *const World) !@This() {
         }
     }
 
-    return .{ .sections = sections };
+    return .{ .sections = sections, .revision = revision, .section_pos = section_pos };
 }
 
 pub fn deinit(self: @This(), gpa: std.mem.Allocator) void {
     for (self.sections) |y| for (y) |z| for (z) |maybe_section| if (maybe_section) |section| section.release(gpa);
 }
 
-pub fn compile(task: @This(), io: std.Io, allocator: std.mem.Allocator, tracker: *CompilationTracker, completion_token: *std.SinglyLinkedList.Node) Error!Mesh {
+pub fn compile(task: @This(), io: std.Io, gpa: std.mem.Allocator) Error!Mesh {
     @setRuntimeSafety(false);
 
-    defer tracker.addCompleted(io, completion_token);
-
-    var staging: GpuStagingBuffer = try .initCapacity(allocator, 4096);
+    var staging: GpuStagingBuffer = try .initCapacity(gpa, 4096);
     errdefer staging.deinit();
 
     var cull_table: [16][16][16]CullMask = undefined;

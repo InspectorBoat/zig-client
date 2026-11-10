@@ -34,7 +34,7 @@ fps: FpsCounter = .init,
 pub const TextureHandle = enum(u16) { _ };
 
 const compilation_slots = 2048;
-const compile_budget = 3;
+const compile_budget = 6;
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -45,7 +45,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
 
-    const compilation_tracker: CompilationTracker = try .init(allocator, compilation_slots);
+    const compilation_tracker: CompilationTracker = try .initCapacity(io, allocator, compilation_slots, 14);
     const chunk_tracker: ChunkTracker = .init;
 
     const debug_program = try initProgram(io, allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
@@ -803,52 +803,49 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
     );
 }
 
-pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, allocator: std.mem.Allocator, start: std.Io.Timestamp, world: *const World) !void {
+pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, start: std.Io.Timestamp, world: *const World) !void {
     @setRuntimeSafety(false);
 
-    var iter = self.chunk_tracker.chunks.iterator();
+    for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, *chunk_info| {
+        if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
+        state: switch (chunk_info.*) {
+            .waiting => |waiting| if (waiting.isReady()) {
+                chunk_info.* = .{ .rendering = @splat(.init) };
+                continue :state chunk_info.*;
+            },
+            .rendering => |*rendering| {
+                const chunk: *const World.Chunk = world.chunks.get(chunk_pos).?;
 
-    while (iter.next()) |entry| {
-        const chunk_pos = entry.key_ptr.*;
-        const chunk_info = entry.value_ptr;
-        if (chunk_info.* == .waiting and chunk_info.waiting.isReady()) {
-            chunk_info.* = .{ .rendering = @splat(.{}) };
-        }
-        if (chunk_info.* == .rendering) {
-            const chunk: *const World.Chunk = world.chunks.get(chunk_pos).?;
+                // Only dispatch task if section actually exists, even if adjacent chunks update
+                for (rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
+                    if (section_info.needsRecompile()) {
+                        if (maybe_section) |_| {
+                            // Send recompilation request if section is non-null
+                            self.dispatchCompilationTask(
+                                io,
+                                world,
+                                .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
+                                section_info.current_revision,
+                            ) catch |err| switch (err) {
+                                // out of in-flight slots
+                                error.QueueFull => return,
+                                else => |e| return e,
+                            };
+                            section_info.alertCompilationDispatch();
+                        } else {
+                            // Fake recompilation and remove mesh data
+                            section_info.alertCompilationDispatch();
+                            section_info.alertCompilationRecieved(section_info.latest_sent_revision.?) catch unreachable;
 
-            // Only dispatch task if section actually exists, even if adjacent chunks update
-            for (&chunk_info.rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
-                if (section_info.needsRecompile()) {
-                    if (maybe_section) |_| {
-                        // Send recompilation request if section is non-null
-                        self.dispatchCompilationTask(
-                            io,
-                            allocator,
-                            world,
-                            .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
-                            section_info.current_revision,
-                        ) catch |err| switch (err) {
-                            // out of in-flight slots
-                            error.QueueFull => return,
-                            else => |e| return e,
-                        };
-                        section_info.alertCompilationDispatch();
-                    } else {
-                        // Fake recompilation and remove mesh data
-                        section_info.alertCompilationDispatch();
-                        section_info.alertCompilationRecieved(section_info.latest_sent_revision.?) catch unreachable;
-
-                        if (section_info.render_info) |render_info| {
-                            try self.gpu_memory_allocator.free(render_info.segment);
-                            section_info.render_info = null;
+                            if (section_info.render_info) |render_info| {
+                                try self.gpu_memory_allocator.free(render_info.segment);
+                                section_info.render_info = null;
+                            }
                         }
                     }
                 }
-            }
+            },
         }
-
-        if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
     }
 }
 
@@ -874,56 +871,49 @@ pub fn recompileAllChunks(self: *@This()) !void {
 pub fn dispatchCompilationTask(
     self: *@This(),
     io: std.Io,
-    allocator: std.mem.Allocator,
     world: *const World,
     section_pos: Vector3(i32),
     revision: u32,
 ) !void {
     @setRuntimeSafety(false);
 
-    const slot = try self.compilation_tracker.claimSlot(section_pos, revision);
-    errdefer self.compilation_tracker.releaseUnstarted(slot);
-
-    const task: CompilationTask = try .init(section_pos, world);
-    errdefer task.deinit(allocator);
-
-    slot.task = task;
-    slot.future = try io.concurrent(CompilationTask.compile, .{ task, io, allocator, &self.compilation_tracker, &slot.next_completed });
+    try self.compilation_tracker.spawn(io, world, section_pos, revision);
 }
 
 pub fn uploadCompilationResults(self: *@This(), io: std.Io, gpa: std.mem.Allocator, start: std.Io.Timestamp) !void {
-    while (self.compilation_tracker.popCompleted(io, gpa)) |completed| {
-        if (completed.mesh) |mesh_const| {
+    while (self.compilation_tracker.popCompleted(io, gpa) catch return) |completed| {
+        const section_pos = completed.task.section_pos;
+        const revision = completed.task.revision;
+        if (completed.result) |mesh_const| {
             var mesh = mesh_const;
             defer mesh.buffer.deinit(self.allocator);
 
-            const chunk_pos: Vector2xz(i32) = .{ .x = completed.section_pos.x, .z = completed.section_pos.z };
-            const section_y: usize = @intCast(completed.section_pos.y);
+            const chunk_pos: Vector2xz(i32) = .{ .x = section_pos.x, .z = section_pos.z };
+            const section_y: usize = @intCast(section_pos.y);
 
             // Return if chunk is no longer being tracked
             const section_compile_info = &(self.chunk_tracker.chunks.getPtr(chunk_pos) orelse continue).rendering[section_y];
 
             // Notify compile tracker
-            section_compile_info.alertCompilationRecieved(completed.revision) catch |e| switch (e) {
-                error.DuplicateRevision => std.debug.panic("duplicate revision recieved for {}", .{completed.section_pos}),
+            section_compile_info.alertCompilationRecieved(revision) catch |e| switch (e) {
+                error.DuplicateRevision => std.debug.panic("duplicate revision recieved for {}", .{section_pos}),
                 // Return if revision is outdated
-                error.OutdatedRevision => std.log.scoped(.section_revision).warn("recieved outdated revision {} for {}", .{ completed.revision, completed.section_pos }),
+                error.OutdatedRevision => std.log.scoped(.section_revision).info("recieved outdated revision {} for {}, current = {}", .{ revision, section_pos, section_compile_info.current_revision }),
             };
-            std.log.scoped(.section_revision).debug("recieved revision {} for {}", .{ completed.revision, completed.section_pos });
+            std.log.scoped(.section_revision).debug("recieved revision {} for {}", .{ revision, section_pos });
             const buffer_data = mesh.buffer.items;
-            var render_info: ?ChunkTracker.SectionRenderInfo = null;
-            if (buffer_data.len > 0) {
+
+            try section_compile_info.replaceRenderInfo(if (buffer_data.len > 0) blk: {
                 // Store rendering info
                 // Allocate gpu memory and upload segment
                 const segment = try self.gpu_memory_allocator.alloc(buffer_data.len);
                 self.gpu_memory_allocator.subData(segment, buffer_data);
-                render_info = .{
+                break :blk .{
                     .quads = mesh.buffer.items.len / 64,
                     .segment = segment,
                 };
-            }
-            try section_compile_info.replaceRenderInfo(render_info, &self.gpu_memory_allocator);
-        } else |e| std.log.scoped(.section_revision).err("error meshing section at {}: {}", .{ completed.section_pos, e });
+            } else null, &self.gpu_memory_allocator);
+        } else |e| std.log.scoped(.section_revision).err("error meshing section at {}: {}", .{ section_pos, e });
         if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
     }
 }

@@ -54,7 +54,7 @@ pub fn onFrame(frame: Events.Frame) !void {
         .game => |*game| {
             try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
             const start: std.Io.Timestamp = .now(frame.io, .real);
-            try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, start, &game.world);
+            try renderer.updateAndDispatchDirtySections(frame.io, start, &game.world);
             try renderer.uploadCompilationResults(frame.io, frame.allocator, start);
             try renderer.renderFrame(frame.io, frame.allocator, game);
             const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
