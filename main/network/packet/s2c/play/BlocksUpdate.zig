@@ -31,7 +31,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
                 .y = update.pos.y,
                 .z = self.chunk_pos.z * 16 + update.pos.z,
             },
-            .validateRaw(update.state),
+            .validate(update.state),
         );
     }
 }

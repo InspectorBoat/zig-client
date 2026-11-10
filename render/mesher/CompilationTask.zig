@@ -1,160 +1,125 @@
-block_states: [18][18][18]Block.PhysicalState,
-light: [18][18][18]packed struct { block: u4, sky: u4 },
+sections: [3][3][3]?*World.Section,
 
 pub const Error = error{ Canceled, OutOfMemory };
 
 pub const Mesh = struct {
-    quads: usize,
     buffer: std.ArrayList(u8),
 };
 
 pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.PhysicalState {
-    return self.block_states[@intCast(block_pos.y)][@intCast(block_pos.z)][@intCast(block_pos.x)];
+    const section_pos: Vector3(u2) = .{
+        .x = @intCast((block_pos.x >> 4) + 1),
+        .y = @intCast((block_pos.y >> 4) + 1),
+        .z = @intCast((block_pos.z >> 4) + 1),
+    };
+    const section = self.sections[section_pos.y][section_pos.z][section_pos.x] orelse return .air;
+    const local_block_pos: Vector3(u16) = .{
+        .x = @intCast(block_pos.x & 0xf),
+        .y = @intCast(block_pos.y & 0xf),
+        .z = @intCast(block_pos.z & 0xf),
+    };
+    return section.block_states[@intCast(local_block_pos.y << 8 | local_block_pos.z << 4 | local_block_pos.x << 0)];
 }
-pub fn getBlock(self: *const @This(), block_pos: Vector3(i32)) Block {
-    return self.block_states[@intCast(block_pos.y)][@intCast(block_pos.z)][@intCast(block_pos.x)].block;
+pub fn getBlock(self: *const @This(), block_pos: anytype) Block {
+    return self.getBlockState(block_pos).block;
 }
 
-pub fn create(allocator: std.mem.Allocator, section_pos: Vector3(i32), world: *const World) !*@This() {
-    @setRuntimeSafety(false);
+pub fn getLight(self: *const @This(), block_pos: Vector3(i32)) World.Light {
+    const section_pos: Vector3(u2) = .{
+        .x = @intCast((block_pos.x >> 4) + 1),
+        .y = @intCast((block_pos.y >> 4) + 1),
+        .z = @intCast((block_pos.z >> 4) + 1),
+    };
+    const section = self.sections[section_pos.y][section_pos.z][section_pos.x] orelse return .{ .block = 0, .sky = 0 };
+    const local_block_pos: Vector3(u16) = .{
+        .x = @intCast(block_pos.x & 0xf),
+        .y = @intCast(block_pos.y & 0xf),
+        .z = @intCast(block_pos.z & 0xf),
+    };
+    return section.light[local_block_pos.y][local_block_pos.z][local_block_pos.x];
+}
 
-    const task = try allocator.create(@This());
+pub fn init(section_pos: Vector3(i32), world: *const World) !@This() {
+    var sections: [3][3][3]?*World.Section = @splat(@splat(@splat(null)));
 
-    const chunk = world.chunks.get(.{ .x = section_pos.x, .z = section_pos.z }).?;
-    const section = chunk.sections[@intCast(section_pos.y)].?;
-
-    // 16^3 interior
-    var i: usize = 0;
-    for (1..17) |y| {
-        for (1..17) |z| {
-            @memcpy(task.block_states[y][z][1..17], section.block_states[i..][0..16]);
-
-            const light_bytes = i >> 1;
-            const block_bytes = section.block_light.bytes[light_bytes..][0..8];
-            const sky_bytes = section.sky_light.bytes[light_bytes..][0..8];
-            const dst = task.light[y][z][1..17];
-            for (0..8) |b| {
-                dst[2 * b + 0] = .{ .block = @truncate(block_bytes[b]), .sky = @truncate(sky_bytes[b]) };
-                dst[2 * b + 1] = .{ .block = @truncate(block_bytes[b] >> 4), .sky = @truncate(sky_bytes[b] >> 4) };
-            }
-
-            i += 16;
-        }
-    }
-
-    var neighbor_sections: [3][3][3]?*const World.Section = undefined;
     for (0..3) |dy| {
-        const section_y = section_pos.y + @as(i32, @intCast(dy)) - 1;
         for (0..3) |dz| {
             for (0..3) |dx| {
-                const neighbor_chunk_pos: Vector2xz(i32) = .{
+                const neighbor_pos: Vector3(i32) = .{
                     .x = section_pos.x + @as(i32, @intCast(dx)) - 1,
+                    .y = section_pos.y + @as(i32, @intCast(dy)) - 1,
                     .z = section_pos.z + @as(i32, @intCast(dz)) - 1,
                 };
-                neighbor_sections[dy][dz][dx] =
-                    if (section_y < 0 or section_y > 15)
+                sections[dy][dz][dx] =
+                    if (neighbor_pos.y < 0 or neighbor_pos.y > 15)
                         null
-                    else if (world.chunks.get(neighbor_chunk_pos)) |neighbor_chunk|
-                        neighbor_chunk.sections[@intCast(section_y)]
+                    else if (world.chunks.get(.{ .x = neighbor_pos.x, .z = neighbor_pos.z })) |neighbor_chunk|
+                        if (neighbor_chunk.sections[@intCast(neighbor_pos.y)]) |section| section.borrow() else null
                     else
                         null;
             }
         }
     }
 
-    for (0..18) |y| {
-        for (0..18) |z| {
-            for (0..18) |x| {
-                if (y != 0 and y != 17 and x != 0 and x != 17 and z != 0 and z != 17) continue;
-
-                const ny: usize = if (y == 0) 0 else if (y == 17) 2 else 1;
-                const nz: usize = if (z == 0) 0 else if (z == 17) 2 else 1;
-                const nx: usize = if (x == 0) 0 else if (x == 17) 2 else 1;
-                const ly: usize = if (y == 0) 15 else if (y == 17) 0 else y - 1;
-                const lz: usize = if (z == 0) 15 else if (z == 17) 0 else z - 1;
-                const lx: usize = if (x == 0) 15 else if (x == 17) 0 else x - 1;
-
-                if (neighbor_sections[ny][nz][nx]) |neighbor| {
-                    const index = (ly << 8) | (lz << 4) | lx;
-                    task.block_states[y][z][x] = neighbor.block_states[index];
-
-                    const block_light: u4 = @truncate(neighbor.block_light.bytes[index / 2] >> @intCast((index & 1) * 4));
-                    const sky_light: u4 = @truncate(neighbor.sky_light.bytes[index / 2] >> @intCast((index & 1) * 4));
-                    task.light[y][z][x] = .{ .block = block_light, .sky = sky_light };
-                } else {
-                    task.block_states[y][z][x] = .air;
-                    task.light[y][z][x] = .{ .block = 15, .sky = 15 };
-                }
-            }
-        }
-    }
-    return task;
+    return .{ .sections = sections };
 }
 
-pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker: *CompilationTracker, completion_token: *std.SinglyLinkedList.Node) Error!Mesh {
+pub fn deinit(self: @This(), gpa: std.mem.Allocator) void {
+    for (self.sections) |y| for (y) |z| for (z) |maybe_section| if (maybe_section) |section| section.release(gpa);
+}
+
+pub fn compile(task: @This(), io: std.Io, allocator: std.mem.Allocator, tracker: *CompilationTracker, completion_token: *std.SinglyLinkedList.Node) Error!Mesh {
     @setRuntimeSafety(false);
 
-    defer {
-        tracker.addCompleted(io, completion_token);
-        allocator.destroy(task);
-    }
+    defer tracker.addCompleted(io, completion_token);
 
-    var quad_count: usize = 0;
     var staging: GpuStagingBuffer = try .initCapacity(allocator, 4096);
     errdefer staging.deinit();
 
     var cull_table: [16][16][16]CullMask = undefined;
     const culling_blocks = block_attributes.culls_adjacent_faces;
-    for (1..17) |y| {
-        for (1..17) |z| {
-            for (1..17) |x| {
-                cull_table[y - 1][z - 1][x - 1] = .{
+    for (0..16) |y| {
+        for (0..16) |z| {
+            for (0..16) |x| {
+                const block_pos: Vector3(i32) = .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) };
+
+                cull_table[y][z][x] = .{
                     // zig fmt: off
-                    .west =  culling_blocks.contains(task.block_states[y][z][x - 1].block),
-                    .east =  culling_blocks.contains(task.block_states[y][z][x + 1].block),
-                    .down =  culling_blocks.contains(task.block_states[y - 1][z][x].block),
-                    .up =    culling_blocks.contains(task.block_states[y + 1][z][x].block),
-                    .north = culling_blocks.contains(task.block_states[y][z - 1][x].block),
-                    .south = culling_blocks.contains(task.block_states[y][z + 1][x].block),
+                    .west  = culling_blocks.contains(task.getBlock(block_pos.west())),
+                    .east  = culling_blocks.contains(task.getBlock(block_pos.east())),
+                    .down  = culling_blocks.contains(task.getBlock(block_pos.down())),
+                    .up    = culling_blocks.contains(task.getBlock(block_pos.up())),
+                    .north = culling_blocks.contains(task.getBlock(block_pos.north())),
+                    .south = culling_blocks.contains(task.getBlock(block_pos.south())),
                     // zig fmt: on
                 };
             }
         }
     }
 
-    for (1..17) |y| {
+    for (0..16) |y| {
         try io.checkCancel();
-        for (1..17) |z| {
-            for (1..17) |x| {
-                const cull = cull_table[y - 1][z - 1][x - 1];
+        for (0..16) |z| {
+            for (0..16) |x| {
+                const cull = cull_table[y][z][x];
                 if (cull == CullMask.all) continue;
 
-                const block_state: Block.VirtualState = .resolve(task.block_states[y][z][x], task, .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) });
+                const block_pos: Vector3(i32) = .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) };
+
+                const block_state: Block.VirtualState = .resolve(task.getBlockState(block_pos), task, block_pos);
                 const model = render.renderer.blockstate_to_model_lookup.get(block_state) orelse continue;
 
                 for (model.faces) |face| {
                     if (face.cullface) |cullface| if (cull.get(cullface)) continue;
 
-                    const pos_vec: Vector3(f32) = .{
-                        .x = @floatFromInt(x - 1),
-                        .y = @floatFromInt(y - 1),
-                        .z = @floatFromInt(z - 1),
-                    };
-
-                    const light = if (face.cullface) |cullface| switch (cullface) {
-                        // zig fmt: off
-                        .west =>  task.light[y][z][x - 1],
-                        .east =>  task.light[y][z][x + 1],
-                        .down =>  task.light[y - 1][z][x],
-                        .up =>    task.light[y + 1][z][x],
-                        .north => task.light[y][z - 1][x],
-                        .south => task.light[y][z + 1][x],
-                        // zig fmt: on
-                    } else task.light[y][z][x];
+                    const light: World.Light = if (face.cullface) |cullface|
+                        task.getLight(block_pos.dir(cullface))
+                    else
+                        .{ .block = 15, .sky = 15 };
 
                     for (face.pos, face.uv) |vertex_pos, uv| {
                         try staging.writeVertex(
-                            .add(pos_vec, vertex_pos),
+                            .add(.floatFromInt(block_pos), vertex_pos),
                             light.block,
                             light.sky,
                             face.texture,
@@ -162,14 +127,12 @@ pub fn compile(task: *@This(), io: std.Io, allocator: std.mem.Allocator, tracker
                             face.cullface,
                         );
                     }
-                    quad_count += 1;
                 }
             }
         }
     }
     return .{
         .buffer = staging.backer,
-        .quads = quad_count,
     };
 }
 
@@ -204,8 +167,8 @@ const block_attributes = @import("block_attributes.zig");
 
 const Block = main.Block;
 const Direction = main.Direction;
-const Vector3 = main.Vector3;
 const Vector2xz = main.Vector2xz;
+const Vector3 = main.Vector3;
 const World = main.World;
 const CompilationTracker = render.mesher.CompilationTracker;
 const GpuStagingBuffer = render.mesher.GpuStagingBuffer;

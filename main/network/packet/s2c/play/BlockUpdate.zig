@@ -19,7 +19,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     try game.world.setBlockState(
         allocator,
         self.block_pos,
-        .validateRaw(self.state),
+        .validate(self.state),
     );
 }
 

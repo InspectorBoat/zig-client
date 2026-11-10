@@ -55,7 +55,7 @@ pub fn onFrame(frame: Events.Frame) !void {
             try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
             const start: std.Io.Timestamp = .now(frame.io, .real);
             try renderer.updateAndDispatchDirtySections(frame.io, game.gpa, start, &game.world);
-            try renderer.uploadCompilationResults(frame.io, start);
+            try renderer.uploadCompilationResults(frame.io, frame.allocator, start);
             try renderer.renderFrame(frame.io, frame.allocator, game);
             const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
             renderer.fps.update(now);
@@ -84,7 +84,7 @@ pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
 }
 
 pub fn onExit(exit: Events.Exit) !void {
-    try renderer.deinit(exit.io);
+    try renderer.deinit(exit.io, exit.gpa);
     window_input.deinit();
     std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }

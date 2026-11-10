@@ -8,7 +8,7 @@ pub const PhysicalState = packed struct(u16) {
         .properties = .{ .air = .{} },
     };
 
-    pub fn validateRaw(raw: u16) @This() {
+    pub fn validate(raw: u16) @This() {
         const high_bits: u12 = @intCast(raw >> 4);
         const block: Block = if (high_bits <= 197) @fromBackingInt(@intCast(high_bits)) else return .air;
 

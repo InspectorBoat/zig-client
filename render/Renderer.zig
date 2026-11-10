@@ -33,8 +33,8 @@ fps: FpsCounter = .init,
 
 pub const TextureHandle = enum(u16) { _ };
 
-const compilation_slots = 4096;
-const compile_budget = 12;
+const compilation_slots = 2048;
+const compile_budget = 3;
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -883,20 +883,16 @@ pub fn dispatchCompilationTask(
 
     const slot = try self.compilation_tracker.claimSlot(section_pos, revision);
     errdefer self.compilation_tracker.releaseUnstarted(slot);
-    slot.future = io.async(
-        CompilationTask.compile,
-        .{
-            try .create(allocator, section_pos, world),
-            io,
-            allocator,
-            &self.compilation_tracker,
-            &slot.next_completed,
-        },
-    );
+
+    const task: CompilationTask = try .init(section_pos, world);
+    errdefer task.deinit(allocator);
+
+    slot.task = task;
+    slot.future = try io.concurrent(CompilationTask.compile, .{ task, io, allocator, &self.compilation_tracker, &slot.next_completed });
 }
 
-pub fn uploadCompilationResults(self: *@This(), io: std.Io, start: std.Io.Timestamp) !void {
-    while (self.compilation_tracker.popCompleted(io)) |completed| {
+pub fn uploadCompilationResults(self: *@This(), io: std.Io, gpa: std.mem.Allocator, start: std.Io.Timestamp) !void {
+    while (self.compilation_tracker.popCompleted(io, gpa)) |completed| {
         if (completed.mesh) |mesh_const| {
             var mesh = mesh_const;
             defer mesh.buffer.deinit(self.allocator);
@@ -922,7 +918,7 @@ pub fn uploadCompilationResults(self: *@This(), io: std.Io, start: std.Io.Timest
                 const segment = try self.gpu_memory_allocator.alloc(buffer_data.len);
                 self.gpu_memory_allocator.subData(segment, buffer_data);
                 render_info = .{
-                    .quads = mesh.quads,
+                    .quads = mesh.buffer.items.len / 64,
                     .segment = segment,
                 };
             }
@@ -961,11 +957,12 @@ pub fn unloadAllChunks(self: *@This(), allocator: std.mem.Allocator) !void {
     self.chunk_tracker.chunks.clearAndFree(allocator);
 }
 
-pub fn deinit(self: *@This(), io: std.Io) !void {
-    self.compilation_tracker.deinit(io);
+pub fn deinit(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !void {
+    self.compilation_tracker.deinit(gpa, io);
     self.chunk_tracker.chunks.deinit(self.allocator);
     self.gpu_memory_allocator.deinit();
     self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
+    self.@"2d_debug_staging_buffer".backer.deinit(self.allocator);
     self.past_visible.deinit(self.allocator);
 
     {

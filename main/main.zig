@@ -29,7 +29,7 @@ pub fn main(init: std.process.Init) !void {
     // threaded.setAsyncLimit(.unlimited);
 
     const io = init.io;
-    const gpa = init.gpa;
+    const gpa = std.heap.smp_allocator;
 
     const path = try init.gpa.print("{s}/.local/share/PrismLauncher/accounts.json", .{init.environ_map.get("HOME").?});
     defer init.gpa.free(path);
@@ -41,7 +41,7 @@ pub fn main(init: std.process.Init) !void {
     defer session.deinit(gpa);
 
     try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = io });
-    defer EventHandler.dispatch(Events.Exit, .{ .io = io }) catch |e| std.log.err("{} while shutting down", .{e});
+    defer EventHandler.dispatch(Events.Exit, .{ .io = io, .gpa = gpa }) catch |e| std.log.err("{} while shutting down", .{e});
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
@@ -82,7 +82,7 @@ pub const Events = struct {
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
     pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, allocator: std.mem.Allocator };
-    pub const Exit = struct { io: std.Io };
+    pub const Exit = struct { io: std.Io, gpa: std.mem.Allocator };
 };
 
 pub const EventHandler = struct {

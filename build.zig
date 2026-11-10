@@ -84,11 +84,10 @@ pub fn build(b: *std.Build) void {
 
     const graphics = b.option(enum { normal, headless, silent }, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
     const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
-    const use_zio = b.option(bool, "zio", "Use zio") orelse false;
+    const use_llvm = b.option(bool, "llvm", "Use llvm");
 
     const options = b.addOptions();
     options.addOption(@TypeOf(graphics), "graphics", graphics);
-    options.addOption(bool, "zio", use_zio);
     const options_module = options.createModule();
     {
         // Create main executable
@@ -98,6 +97,7 @@ pub fn build(b: *std.Build) void {
             .name = "zig-client",
             .root_module = mods.main,
         });
+        client.use_llvm = use_llvm;
 
         // Install exe
         const install = b.addInstallArtifact(client, .{});

@@ -189,7 +189,7 @@ pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Ve
         return;
     };
     const section = chunk.sections[@intCast(@divFloor(block_pos.y, 16))] orelse blk: {
-        const section = try allocator.create(Section);
+        const section: *Section = try .create(allocator);
         section.block_states = @splat(.air);
         chunk.sections[@intCast(@divFloor(block_pos.y, 16))] = section;
         break :blk section;
@@ -220,7 +220,7 @@ pub fn getBlockLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
         .y = @intCast(@mod(block_pos.y, 16)),
         .z = @intCast(@mod(block_pos.z, 16)),
     };
-    return section.block_light.get(section_block_pos.y, section_block_pos.z, section_block_pos.x);
+    return section.light[section_block_pos.y][section_block_pos.z][section_block_pos.x].block;
 }
 
 pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
@@ -235,7 +235,22 @@ pub fn getSkyLight(self: *const @This(), block_pos: Vector3(i32)) u4 {
         .y = @intCast(@mod(block_pos.y, 16)),
         .z = @intCast(@mod(block_pos.z, 16)),
     };
-    return section.sky_light.get(section_block_pos.y, section_block_pos.z, section_block_pos.x);
+    return section.light[section_block_pos.y][section_block_pos.z][section_block_pos.x].sky;
+}
+
+fn interleaveMask(comptime len: usize) @Vector(2 * len, i32) {
+    var mask: [2 * len]i32 = undefined;
+    for (0..len) |i| {
+        mask[2 * i + 0] = @intCast(i);
+        mask[2 * i + 1] = ~@as(i32, @intCast(i));
+    }
+    return mask;
+}
+
+inline fn expandNibbles(bytes: @Vector(64, u8), comptime shift: u3) @Vector(128, u8) {
+    const low = (bytes & @as(@Vector(64, u8), @splat(0x0F))) << @as(@Vector(64, u3), @splat(shift));
+    const high = (bytes >> @as(@Vector(64, u3), @splat(4))) << @as(@Vector(64, u3), @splat(shift));
+    return @shuffle(u8, low, high, interleaveMask(64));
 }
 
 pub fn receiveChunk(
@@ -243,7 +258,7 @@ pub fn receiveChunk(
     allocator: std.mem.Allocator,
     chunk_pos: Vector2xz(i32),
     chunk_data: S2C.Play.WorldChunk.ChunkData,
-    full: bool,
+    load_or_unload: bool,
     has_sky_light: bool,
 ) !void {
     @setRuntimeSafety(false);
@@ -256,43 +271,56 @@ pub fn receiveChunk(
     for (0..16) |section_y| {
         if (chunk_data.sections.isSet(@intCast(section_y))) {
             if (chunk.sections[section_y] == null) {
-                chunk.sections[section_y] = try allocator.create(Section);
+                chunk.sections[section_y] = try .create(allocator);
             }
             const section = chunk.sections[section_y].?;
 
-            const raw_block_states = @as(*align(1) const [4096]u16, @ptrCast(try buffer.readBytes(4096 * 2)));
-            for (raw_block_states, &section.block_states) |raw_block_state, *concrete_block_state| {
-                concrete_block_state.* = .validateRaw(raw_block_state);
+            const raw_block_states: *align(1) const [4096]u16 = @ptrCast(try buffer.readBytes(4096 * @sizeOf(u16)));
+            for (raw_block_states, &section.block_states) |raw_block_state, *block_state| {
+                block_state.* = .validate(raw_block_state);
             }
-        } else {
-            if (full) {
-                if (chunk.sections[section_y]) |section| {
-                    allocator.destroy(section);
-                    chunk.sections[section_y] = null;
+        } else if (load_or_unload) {
+            if (chunk.sections[section_y]) |section| {
+                section.destroy(allocator);
+                chunk.sections[section_y] = null;
+            }
+        }
+    }
+    // expand nibbles into bytes, copy into section.light
+    for (0..16) |section_y| {
+        if (chunk_data.sections.isSet(@intCast(section_y)) and false) {
+            const section = chunk.sections[section_y].?;
+            const light_bytes = try buffer.readBytes(2048);
+            const dst: *[4096]u8 = @ptrCast(&section.light);
+            var i: usize = 0;
+            while (i < 2048) : (i += 64) {
+                const src: @Vector(64, u8) = light_bytes[i..][0..64].*;
+                dst[2 * i ..][0..128].* = expandNibbles(src, 0);
+            }
+        }
+    }
+    // expand nibbles into bytes, shift right by 4, OR into section.light
+    if (has_sky_light) {
+        for (0..16) |section_y| {
+            if (chunk_data.sections.isSet(@intCast(section_y)) and false) {
+                const section = chunk.sections[section_y].?;
+                const light_bytes = try buffer.readBytes(2048);
+                const dst: *[4096]u8 = @ptrCast(&section.light);
+                var i: usize = 0;
+                while (i < 2048) : (i += 64) {
+                    const src: @Vector(64, u8) = light_bytes[i..][0..64].*;
+                    const sky: @Vector(128, u8) = expandNibbles(src, 4);
+                    const current: @Vector(128, u8) = dst[2 * i ..][0..128].*;
+                    dst[2 * i ..][0..128].* = current | sky;
                 }
             }
         }
     }
-    // copy block light data
-    for (0..16) |section_y| {
-        if (chunk_data.sections.isSet(@intCast(section_y))) {
-            const section = chunk.sections[section_y].?;
-            @memcpy(&section.block_light.bytes, try buffer.readBytes(2048));
-        }
-    }
-    // copy sky light data
-    if (has_sky_light) {
-        for (0..16) |section_y| {
-            if (chunk_data.sections.isSet(@intCast(section_y))) {
-                const section = chunk.sections[section_y].?;
-                @memcpy(&section.sky_light.bytes, try buffer.readBytes(2048));
-            }
-        }
-    }
+
     // copy biome data
-    if (full) {
-        @memcpy(&chunk.biomes, try buffer.readBytes(256));
-    }
+    // if (load_or_unload) {
+    //     @memcpy(&chunk.biomes, try buffer.readBytes(256));
+    // }
 
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
@@ -382,7 +410,6 @@ pub fn getEntityByNetworkId(self: *@This(), network_id: i32) ?*Entity {
 }
 
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    // free chunks
     var chunks = self.chunks.iterator();
     while (chunks.next()) |chunk| {
         std.log.scoped(.world).debug("freeing chunk at {}", .{chunk.chunk_pos});
@@ -400,14 +427,68 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     std.log.scoped(.world).info("average ms/tick: {d} ms", .{milliseconds_elapsed / @as(f64, @floatFromInt(self.tick_timer.total_ticks))});
 }
 
+pub const Chunk = struct {
+    sections: [16]?*Section,
+    biomes: [256]u8,
+    chunk_pos: Vector2xz(i32),
+
+    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+        for (self.sections) |maybe_section| if (maybe_section) |section| section.destroy(allocator);
+        allocator.destroy(self);
+    }
+};
+
+pub const Light = packed struct {
+    block: u4,
+    sky: u4,
+};
+
+pub const Section = struct {
+    block_states: [16 * 16 * 16]Block.PhysicalState,
+    light: [16][16][16]Light,
+    borrowers: u32,
+    orphaned: bool,
+
+    pub fn create(allocator: std.mem.Allocator) !*@This() {
+        @setRuntimeSafety(false);
+        const section = try allocator.create(@This());
+        section.* = .{
+            .block_states = undefined,
+            .light = undefined,
+            .borrowers = 0,
+            .orphaned = false,
+        };
+        return section;
+    }
+
+    pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
+        std.debug.assert(!self.orphaned);
+
+        self.orphaned = true;
+        if (self.borrowers > 0) return;
+
+        std.log.scoped(.world).debug("freeing section", .{});
+        allocator.destroy(self);
+    }
+
+    pub fn borrow(self: *@This()) *@This() {
+        self.borrowers += 1;
+        if (self.orphaned) std.log.scoped(.world).warn("borrowing orphaned section", .{});
+        return self;
+    }
+
+    pub fn release(self: *@This(), allocator: std.mem.Allocator) void {
+        self.borrowers -= 1;
+        if (self.orphaned and self.borrowers == 0) allocator.destroy(self);
+    }
+};
+
 const std = @import("std");
 
 const main = @import("main");
 
-pub const Chunk = @import("Chunk.zig");
 pub const ChunkMap = @import("ChunkMap.zig");
 pub const EntityTracker = @import("EntityTracker.zig");
-pub const Section = @import("Section.zig");
 pub const TickTimer = @import("TickTimer.zig");
 pub const Difficulty = @import("difficulty.zig").Difficulty;
 pub const GameMode = @import("gamemode.zig").GameMode;
