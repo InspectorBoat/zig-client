@@ -14,7 +14,6 @@ fn createModules(
     zgl: *std.Build.Module,
     zalgebra: *std.Build.Module,
     zigimg: *std.Build.Module,
-    zio: *std.Build.Module,
 ) ModuleSet {
     const main = b.createModule(.{
         .root_source_file = b.path("main/main.zig"),
@@ -54,7 +53,6 @@ fn createModules(
     render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
     render.addImport("zigimg", zigimg);
-    render.addImport("zio", zio);
 
     main.addImport("main", main);
     main.addImport("render", render);
@@ -62,7 +60,6 @@ fn createModules(
 
     main.addImport("util", util);
     main.addImport("llm-code-quarantine", quarantine);
-    main.addImport("zio", zio);
 
     return .{
         .main = main,
@@ -92,10 +89,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .target = target,
     }).module("zigimg");
-    const zio = b.dependency("zio", .{
-        .optimize = optimize,
-        .target = target,
-    }).module("zio");
 
     const graphics = b.option(enum { normal, headless, silent }, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
     const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
@@ -108,7 +101,7 @@ pub fn build(b: *std.Build) void {
     const options_module = options.createModule();
     {
         // Create main executable
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg, zio);
+        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
         mods.main.single_threaded = single_threaded;
         const client = b.addExecutable(.{
             .name = "zig-client",
@@ -152,7 +145,7 @@ pub fn build(b: *std.Build) void {
     // Add check step to see if client compiles without doing any codegen
     // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
     {
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg, zio);
+        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.main,
