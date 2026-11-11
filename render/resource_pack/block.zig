@@ -20,49 +20,72 @@ pub fn createBlockStateToModelTable(
 
     var lookup_table: BlockStateMap = .empty;
     try lookup_table.ensureTotalCapacity(gpa, 256 * 256);
+
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
-        const all_states = allValues(@FieldType(Block.VirtualState.Properties, @tagName(block)));
-        for (all_states) |properties| {
-            var block_name_buffer: [128]u8, var properties_buffer: [128]u8 = .{ undefined, undefined };
-
-            const block_name_key = getNameString(&block_name_buffer, block, properties) catch continue;
-            const properties_key = getPropertiesString(&properties_buffer, block, properties);
-
-            const state_to_model_map = state_to_model_maps.get(block_name_key) orelse {
-                std.log.scoped(.resource_pack).err("{s} uses missing blockstate to model file", .{block_name_key});
-                continue;
-            } catch |e| {
-                std.log.scoped(.resource_pack).err("{s} uses broken blockstate to model file ({})", .{ block_name_key, e });
-                continue;
-            };
-            const model_variants = state_to_model_map.variants.map.get(properties_key) orelse {
-                std.log.scoped(.resource_pack).err("no variant found for {s}:[{s}]", .{ block_name_key, properties_key });
-                continue;
-            };
-            const model_variant = switch (model_variants) {
-                .single => |single| single,
-                // TODO: support this
-                .multi => |multi| multi[0],
-            };
-
-            var model_name_buffer: [128]u8 = undefined;
-            const model_name = std.mem.print(&model_name_buffer, "block/{s}", .{model_variant.model}) catch unreachable;
-
-            const resolved_model = resolved_models.get(model_name) orelse {
-                std.log.scoped(.resource_pack).err("{s}:[{s}] uses missing model {s}", .{ block_name_key, properties_key, model_name });
-                continue;
-            } catch |e| {
-                std.log.scoped(.resource_pack).err("{s}:[{s}] uses broken model {s} ({})", .{ block_name_key, properties_key, model_name, e });
-                continue;
-            };
-
-            const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
-
-            try lookup_table.put(gpa, .{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) }, baked_model);
-        }
+        try blockToModel(gpa, block, &lookup_table, textures, resolved_models, state_to_model_maps);
     }
     return lookup_table;
+}
+
+noinline fn blockToModel(
+    gpa: std.mem.Allocator,
+    comptime block: Block,
+    lookup_table: *BlockStateMap,
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
+    resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
+    state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
+) !void {
+    for (allValues(@FieldType(Block.VirtualState.Properties, @tagName(block)))) |properties| {
+        try stateToModel(gpa, block, properties, lookup_table, textures, resolved_models, state_to_model_maps);
+    }
+}
+
+noinline fn stateToModel(
+    gpa: std.mem.Allocator,
+    comptime block: Block,
+    properties: @FieldType(Block.VirtualState.Properties, @tagName(block)),
+    lookup_table: *BlockStateMap,
+    textures: std.array_hash_map.String(ImageError!zigimg.Image),
+    resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
+    state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
+) !void {
+    var block_name_buffer: [128]u8, var properties_buffer: [128]u8 = .{ undefined, undefined };
+
+    const block_name_key = getNameString(&block_name_buffer, block, properties) catch return;
+    const properties_key = getPropertiesString(&properties_buffer, block, properties);
+
+    const state_to_model_map = state_to_model_maps.get(block_name_key) orelse {
+        std.log.scoped(.resource_pack).err("{s} uses missing blockstate to model file", .{block_name_key});
+        return;
+    } catch |e| {
+        std.log.scoped(.resource_pack).err("{s} uses broken blockstate to model file ({})", .{ block_name_key, e });
+        return;
+    };
+    const model_variants = state_to_model_map.variants.map.get(properties_key) orelse {
+        std.log.scoped(.resource_pack).err("no variant found for {s}:[{s}]", .{ block_name_key, properties_key });
+        return;
+    };
+    const model_variant = switch (model_variants) {
+        .single => |single| single,
+        // TODO: support this
+        .multi => |multi| multi[0],
+    };
+
+    var model_name_buffer: [128]u8 = undefined;
+    const model_name = std.mem.print(&model_name_buffer, "block/{s}", .{model_variant.model}) catch unreachable;
+
+    const resolved_model = resolved_models.get(model_name) orelse {
+        std.log.scoped(.resource_pack).err("{s}:[{s}] uses missing model {s}", .{ block_name_key, properties_key, model_name });
+        return;
+    } catch |e| {
+        std.log.scoped(.resource_pack).err("{s}:[{s}] uses broken model {s} ({})", .{ block_name_key, properties_key, model_name, e });
+        return;
+    };
+
+    const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
+
+    try lookup_table.put(gpa, .{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) }, baked_model);
 }
 
 pub fn getNameString(
@@ -184,9 +207,10 @@ pub fn getPropertiesString(
 pub fn skipField(comptime block: Block, comptime field_name: []const u8, properties: @FieldType(Block.VirtualState.Properties, @tagName(block))) bool {
     if (field_name[0] == '_') return true;
 
-    if (block == .dirt and properties.variant != .podzol and std.mem.eql(u8, field_name, "snowy")) return true;
-    if ((block == .leaves or block == .leaves2) and (std.mem.eql(u8, field_name, "not_decayable") or std.mem.eql(u8, field_name, "check_decay"))) return true;
-    if ((block == .double_stone_slab or block == .double_stone_slab2) and std.mem.eql(u8, field_name, "seamless")) return true;
+    if (block == .dirt) if (properties.variant != .podzol and std.mem.eql(u8, field_name, "snowy")) return true;
+    if (block == .leaves or block == .leaves2) if (std.mem.eql(u8, field_name, "not_decayable") or std.mem.eql(u8, field_name, "check_decay")) return true;
+    if (block == .double_stone_slab or block == .double_stone_slab2) if (std.mem.eql(u8, field_name, "seamless")) return true;
+
     switch (block) {
         .bed => if (std.mem.eql(u8, field_name, "occupied")) return true,
 

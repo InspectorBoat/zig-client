@@ -224,7 +224,7 @@ pub const VirtualState = packed struct(u20) {
         }
     }
 
-    pub fn resolve(physical: PhysicalState, world: anytype, block_pos: Vector3(i32)) @This() {
+    pub noinline fn resolve(physical: PhysicalState, world: anytype, block_pos: Vector3(i32)) @This() {
         @setRuntimeSafety(false);
 
         if (!block_attributes.has_virtual_state.contains(physical.block)) {
@@ -403,7 +403,7 @@ pub const VirtualState = packed struct(u20) {
         } };
     }
 
-    pub fn canBeReplaced(self: @This()) bool {
+    pub noinline fn canBeReplaced(self: @This()) bool {
         return switch (self.block) {
             .air, .deadbush, .tallgrass, .vine => true,
             .snow_layer => self.properties.snow_layer.layers == .@"1",
@@ -414,7 +414,7 @@ pub const VirtualState = packed struct(u20) {
 
     // TODO: ALl the code below this line is abysmal dogshit and I have not verified all of it
 
-    pub fn getCollisionHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
+    pub noinline fn getCollisionHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
         const properties = self.properties;
         switch (self.block) {
             .air, .sapling, .flowing_water, .water, .flowing_lava, .lava, .tallgrass, .deadbush, .web, .yellow_flower, .red_flower, .brown_mushroom, .red_mushroom, .fire, .golden_rail, .detector_rail, .rail, .activator_rail, .redstone_wire, .torch, .unlit_redstone_torch, .redstone_torch, .standing_sign, .wall_sign, .lever, .stone_pressure_plate, .wooden_pressure_plate, .light_weighted_pressure_plate, .heavy_weighted_pressure_plate, .stone_button, .wooden_button, .reeds, .wheat, .carrots, .potatoes, .nether_wart, .pumpkin_stem, .melon_stem, .double_plant, .vine, .tripwire, .tripwire_hook, .standing_banner, .wall_banner, .end_portal, .piston_extension, .portal => {},
@@ -491,7 +491,7 @@ pub const VirtualState = packed struct(u20) {
         }
     }
 
-    pub fn getRaytraceHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
+    pub noinline fn getRaytraceHitboxes(self: @This(), hitboxes: *std.ArrayList(Box(f64))) void {
         const properties = self.properties;
         switch (self.block) {
             .piston_extension, .air => return,

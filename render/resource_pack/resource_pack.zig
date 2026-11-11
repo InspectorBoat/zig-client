@@ -1,5 +1,4 @@
 /// Takes ownership of resource_pack_dir
-
 pub fn init(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -483,10 +482,10 @@ pub fn loadImageFromFile(
         return;
     };
     defer file.close(io);
-
     var buf: [1024]u8 = undefined;
 
-    image_out.* = zigimg.Image.fromFile(arena, io, file, &buf) catch |e| switch (e) {
+    var reader: zigimg.io.ReadStream = .initFile(io, file, &buf);
+    image_out.* = zigimg.formats.png.load(&reader, arena, .{}) catch |e| switch (e) {
         error.EndOfStream, error.StreamTooLong, error.InvalidData => error.BrokenImage,
         error.OutOfMemory => error.OutOfMemory,
         else => error.FileError,

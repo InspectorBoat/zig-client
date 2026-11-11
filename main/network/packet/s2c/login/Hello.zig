@@ -1,6 +1,5 @@
 /// Usually unused, but can be up to 20 bytes of Latin-1 encoded text.
 /// Only used as part of the hash used for authentication.
-
 key: []const u8,
 /// The server's public RSA key
 public_key: []const u8,
@@ -18,6 +17,11 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 }
 
 pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
+    if (comptime !options.auth) {
+        std.debug.panic("Builtin without auth support", .{});
+    }
+    comptime std.debug.assert(options.auth);
+
     var shared_secret: [16]u8 = undefined;
     try io.randomSecure(&shared_secret);
 
@@ -171,3 +175,4 @@ const main = @import("main");
 
 const Connection = main.network.Connection;
 const S2C = main.network.packet.S2C;
+const options = @import("build_options");

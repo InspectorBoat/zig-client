@@ -20,6 +20,8 @@ fn createModules(
         .root_source_file = b.path("main/main.zig"),
         .target = target,
         .optimize = optimize,
+        .omit_frame_pointer = optimize == .fast,
+        .strip = optimize == .fast,
     });
     const quarantine = b.createModule(.{
         .root_source_file = b.path("quarantine/quarantine.zig"),
@@ -85,9 +87,11 @@ pub fn build(b: *std.Build) void {
     const graphics = b.option(enum { normal, headless, silent }, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
     const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
     const use_llvm = b.option(bool, "llvm", "Use llvm");
+    const auth = b.option(bool, "auth", "Compile with auth support (requires http & crypto)") orelse (optimize == .debug);
 
     const options = b.addOptions();
     options.addOption(@TypeOf(graphics), "graphics", graphics);
+    options.addOption(bool, "auth", auth);
     const options_module = options.createModule();
     {
         // Create main executable

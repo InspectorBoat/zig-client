@@ -88,7 +88,7 @@ pub const C2S = union(enum) {
     pub const WritePacketError = error{ OutOfMemory, IllegalPacket };
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
-            pub fn write(packet: PacketMixin, buffer: *C2S.WriteBuffer) WritePacketError!void {
+            pub noinline fn write(packet: PacketMixin, buffer: *C2S.WriteBuffer) WritePacketError!void {
                 try buffer.writeVarInt(@backingInt(packet));
                 switch (packet) {
                     inline else => |specific_packet| {
@@ -289,7 +289,7 @@ pub const S2C = union(enum) {
     pub const ReadPacketError = error{ InvalidOpcode, MalformedPacket, OutOfMemory };
     pub fn Mixin(comptime PacketMixin: type) type {
         return struct {
-            pub fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadPacketError!PacketMixin {
+            pub noinline fn read(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ReadPacketError!PacketMixin {
                 const packet_type_info = @typeInfo(PacketMixin).@"union";
                 switch (buffer.readVarInt() catch return error.MalformedPacket) {
                     inline 0...packet_type_info.field_names.len - 1 => |opcode| {
