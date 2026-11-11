@@ -73,16 +73,29 @@ fn createModules(
 }
 
 pub fn build(b: *std.Build) void {
-    // Declare external dependencies
-    const mach_glfw = b.dependency("mach_glfw", .{}).module("mach_glfw");
-    const zgl = b.dependency("zgl", .{}).module("zgl");
-    const zalgebra = b.dependency("zalgebra", .{}).module("zalgebra");
-    const zigimg = b.dependency("zigimg", .{}).module("zigimg");
-    const zio = b.dependency("zio", .{}).module("zio");
-
-    // Target & optimize options
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    // Declare external dependencies
+    const mach_glfw = b.dependency("mach_glfw", .{
+        .optimize = optimize,
+        .target = target,
+    }).module("mach_glfw");
+    const zgl = b.dependency("zgl", .{
+        .optimize = optimize,
+        .target = target,
+    }).module("zgl");
+    const zalgebra = b.dependency("zalgebra", .{
+        .optimize = optimize,
+        .target = target,
+    }).module("zalgebra");
+    const zigimg = b.dependency("zigimg", .{
+        .optimize = optimize,
+        .target = target,
+    }).module("zigimg");
+    const zio = b.dependency("zio", .{
+        .optimize = optimize,
+        .target = target,
+    }).module("zio");
 
     const graphics = b.option(enum { normal, headless, silent }, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
     const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
