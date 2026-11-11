@@ -288,7 +288,7 @@ pub fn receiveChunk(
     }
     // expand nibbles into bytes, copy into section.light
     for (0..16) |section_y| {
-        if (chunk_data.sections.isSet(@intCast(section_y)) and false) {
+        if (chunk_data.sections.isSet(@intCast(section_y))) {
             const section = chunk.sections[section_y].?;
             const light_bytes = try buffer.readBytes(2048);
             const dst: *[4096]u8 = @ptrCast(&section.light);
@@ -302,7 +302,7 @@ pub fn receiveChunk(
     // expand nibbles into bytes, shift right by 4, OR into section.light
     if (has_sky_light) {
         for (0..16) |section_y| {
-            if (chunk_data.sections.isSet(@intCast(section_y)) and false) {
+            if (chunk_data.sections.isSet(@intCast(section_y))) {
                 const section = chunk.sections[section_y].?;
                 const light_bytes = try buffer.readBytes(2048);
                 const dst: *[4096]u8 = @ptrCast(&section.light);
@@ -318,9 +318,9 @@ pub fn receiveChunk(
     }
 
     // copy biome data
-    // if (load_or_unload) {
-    //     @memcpy(&chunk.biomes, try buffer.readBytes(256));
-    // }
+    if (load_or_unload) {
+        @memcpy(&chunk.biomes, try buffer.readBytes(256));
+    }
 
     try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
