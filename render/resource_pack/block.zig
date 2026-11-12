@@ -1,13 +1,4 @@
-pub const Context = struct {
-    pub fn hash(_: @This(), key: Block.VirtualState) u20 {
-        return @backingInt(key);
-    }
-    pub fn eql(_: @This(), key: Block.VirtualState, test_key: Block.VirtualState) bool {
-        return @backingInt(key) == @backingInt(test_key);
-    }
-};
-
-pub const BlockStateMap = std.HashMapUnmanaged(Block.VirtualState, BakedModel, Context, 75);
+pub const BlockStateMap = CustomMap(Block.VirtualState, BakedModel);
 
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
 pub fn createBlockStateToModelTable(
@@ -18,15 +9,16 @@ pub fn createBlockStateToModelTable(
 ) !BlockStateMap {
     @setRuntimeSafety(false);
 
-    var lookup_table: BlockStateMap = .empty;
-    try lookup_table.ensureTotalCapacity(gpa, 256 * 256);
-
+    var lookup_table: BlockStateMap = try .init(gpa, 8192);
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
         try blockToModel(gpa, block, &lookup_table, textures, resolved_models, state_to_model_maps);
     }
+    lookup_table.logDiagnostics();
     return lookup_table;
 }
+
+// 7434
 
 noinline fn blockToModel(
     gpa: std.mem.Allocator,
@@ -85,7 +77,7 @@ noinline fn stateToModel(
 
     const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
 
-    try lookup_table.put(gpa, .{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) }, baked_model);
+    lookup_table.put(.{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) }, baked_model);
 }
 
 pub fn getNameString(
@@ -308,3 +300,157 @@ const ImageError = render.resource_pack.ImageError;
 const ModelError = render.resource_pack.ModelError;
 const ResolvedModel = render.resource_pack.ResolvedModel;
 const StateError = render.resource_pack.StateError;
+
+fn CustomMap(
+    comptime K: type,
+    comptime V: type,
+) type {
+    return struct {
+        values: [*]V,
+        keys: [*]K,
+        capacity: u32,
+        size: u32,
+
+        // yes i know this is undefined behavior dont worry about it
+        pub const empty_key: K = @fromBackingInt(std.math.maxInt(u20));
+
+        // so we can read past the end without having to wrap
+        pub const bonus_capacity: usize = 32;
+
+        pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
+            const key_align = if (@sizeOf(K) == 0) 1 else @alignOf(K);
+            const val_align = if (@sizeOf(V) == 0) 1 else @alignOf(V);
+            const max_align: std.mem.Alignment = comptime .fromByteUnits(@max(key_align, val_align));
+
+            const keys_start: usize = 0;
+            const keys_end: usize = keys_start + (self.capacity + bonus_capacity) * @sizeOf(K);
+
+            const vals_start: usize = std.mem.alignForward(usize, keys_end, val_align);
+            const vals_end: usize = vals_start + (self.capacity + bonus_capacity) * @sizeOf(V);
+
+            const total_size = max_align.forward(vals_end);
+
+            const key_ptr: [*]align(max_align.toByteUnits()) u8 = @ptrCast(@alignCast(self.keys));
+            const slice_ptr = key_ptr - keys_start;
+            gpa.free(slice_ptr[0..total_size]);
+            self.* = undefined;
+        }
+
+        pub fn init(gpa: std.mem.Allocator, capacity: u32) std.mem.Allocator.Error!@This() {
+            std.debug.assert(std.math.isPowerOfTwo(capacity));
+
+            const key_align = if (@sizeOf(K) == 0) 1 else @alignOf(K);
+            const val_align = if (@sizeOf(V) == 0) 1 else @alignOf(V);
+            const max_align: std.mem.Alignment = comptime .fromByteUnits(@max(key_align, val_align));
+
+            const real_capacity = capacity + bonus_capacity;
+
+            const keys_start: usize = 0;
+            const keys_end: usize = keys_start + real_capacity * @sizeOf(K);
+
+            const vals_start: usize = std.mem.alignForward(usize, keys_end, val_align);
+            const vals_end: usize = vals_start + real_capacity * @sizeOf(V);
+
+            const total_size = max_align.forward(vals_end);
+
+            const slice = try gpa.alignedAlloc(u8, max_align, total_size);
+
+            const keys: [*]K = @ptrCast(@alignCast(slice.ptr + keys_start));
+            const values: [*]V = @ptrCast(@alignCast(slice.ptr + vals_start));
+
+            @memset(keys[0..real_capacity], empty_key);
+
+            return .{
+                .values = values,
+                .keys = keys,
+                .size = 0,
+                .capacity = capacity,
+            };
+        }
+
+        /// Reports how far keys have been displaced from their home slot by collisions.
+        pub fn logDiagnostics(self: @This()) void {
+            const mask: u32 = self.capacity - 1;
+
+            var count: usize = 0;
+            var total_displacement: usize = 0;
+            var min_displacement: usize = std.math.maxInt(usize);
+            var max_displacement: usize = 0;
+
+            for (self.keys[0 .. self.capacity + bonus_capacity], 0..) |key, idx| {
+                if (key == empty_key) continue;
+
+                const home_idx: usize = hash(key) & mask;
+                const displacement = idx - home_idx;
+
+                count += 1;
+                total_displacement += displacement;
+                min_displacement = @min(min_displacement, displacement);
+                max_displacement = @max(max_displacement, displacement);
+            }
+
+            if (count == 0) {
+                std.log.scoped(.resource_pack).info("hashmap diagnostics: empty", .{});
+                return;
+            }
+
+            const average_displacement = @as(f64, @floatFromInt(total_displacement)) / @as(f64, @floatFromInt(count));
+            std.log.scoped(.resource_pack).info(
+                "hashmap diagnostics: {} keys, average displacement {d:.2}, minimum {}, maximum {}",
+                .{ count, average_displacement, min_displacement, max_displacement },
+            );
+        }
+
+        pub fn hash(key: K) u32 {
+            // Computationally easy, spectrally good multipliers for congruential pseudorandom number generators
+            // https://arxiv.org/html/2001.05304v1
+            const backing: u32 = @backingInt(key);
+            // return backing;
+            return (backing *% 1870261802) >> 18;
+        }
+
+        pub inline fn getIndex(self: @This(), key: K) ?usize {
+            std.debug.assert(self.size != 0);
+
+            const mask: u32 = self.capacity - 1;
+            var idx: usize = hash(key) & mask;
+
+            while (true) : (idx += 1) {
+                const key_at = self.keys[idx];
+                if (key_at == empty_key) return null;
+                if (key_at == key) return idx;
+            }
+        }
+
+        /// clobbering not allowed
+        pub fn put(self: *@This(), key: K, value: V) void {
+            std.debug.assert(self.size < self.capacity);
+
+            const mask: u32 = self.capacity - 1;
+            var idx: usize = hash(key) & mask;
+            while (true) : (idx += 1) {
+                const key_at = self.keys[idx];
+                if (key_at == empty_key) break;
+                if (key_at == key) unreachable;
+
+                std.debug.assert(idx < self.capacity + bonus_capacity);
+            }
+
+            self.keys[idx] = key;
+            self.values[idx] = value;
+            self.size += 1;
+        }
+
+        pub fn getPtr(self: @This(), key: K) ?*V {
+            return if (self.getIndex(key)) |idx| &self.values[idx] else null;
+        }
+
+        pub fn get(self: @This(), key: K) ?V {
+            return if (self.getIndex(key)) |idx| self.values[idx] else null;
+        }
+
+        pub fn contains(self: @This(), key: K) bool {
+            return self.getIndex(key) != null;
+        }
+    };
+}

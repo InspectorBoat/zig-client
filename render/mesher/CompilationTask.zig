@@ -2,7 +2,7 @@ section_pos: Vector3(i32),
 revision: u32,
 sections: [3][3][3]?*World.Section,
 
-pub const Error = error{ Canceled, OutOfMemory };
+pub const Error = error{OutOfMemory};
 
 pub const Mesh = struct {
     buffer: std.ArrayList(u8),
@@ -70,7 +70,7 @@ pub fn deinit(self: @This(), gpa: std.mem.Allocator) void {
     for (self.sections) |y| for (y) |z| for (z) |maybe_section| if (maybe_section) |section| section.release(gpa);
 }
 
-pub fn compile(task: @This(), io: std.Io, gpa: std.mem.Allocator) Error!Mesh {
+pub fn compile(task: @This(), gpa: std.mem.Allocator) Error!Mesh {
     @setRuntimeSafety(false);
 
     var staging: GpuStagingBuffer = try .initCapacity(gpa, 4096);
@@ -98,7 +98,6 @@ pub fn compile(task: @This(), io: std.Io, gpa: std.mem.Allocator) Error!Mesh {
     }
 
     for (0..16) |y| {
-        try io.checkCancel();
         for (0..16) |z| {
             for (0..16) |x| {
                 const cull = cull_table[y][z][x];

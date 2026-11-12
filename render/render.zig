@@ -72,7 +72,7 @@ pub fn onFrame(frame: Events.Frame) !void {
 }
 
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
-    try renderer.onChunkUpdate(chunk_update.chunk_pos);
+    try renderer.onChunkUpdate(chunk_update.gpa, chunk_update.chunk_pos);
 }
 
 pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
@@ -132,7 +132,7 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 }
 
 var ignore_next_mouse_delta = false;
-pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
+pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
     var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
@@ -147,7 +147,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                                 window_input.mousePosInClipSpace(),
                                 @intCast(@backingInt(num) - @backingInt(glfw.Key.one)),
                             )) |action| {
-                                try input_queue.queueOnTick(allocator, .{ .inventory = action });
+                                try input_queue.queueOnTick(gpa, .{ .inventory = action });
                             }
                             continue;
                         },
@@ -158,7 +158,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                                 window_input.mousePosInClipSpace(),
                                 window_input.keys.contains(.left_control),
                             )) |action| {
-                                try input_queue.queueOnTick(allocator, .{ .inventory = action });
+                                try input_queue.queueOnTick(gpa, .{ .inventory = action });
                             }
                             continue;
                         },
@@ -177,9 +177,9 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                     },
                     .e => if (key.action == .press) {
                         if (game.world.menu_screen_open)
-                            try input_queue.queueOnTick(allocator, .close_screen)
+                            try input_queue.queueOnTick(gpa, .close_screen)
                         else
-                            try input_queue.queueOnTick(allocator, .open_screen);
+                            try input_queue.queueOnTick(gpa, .open_screen);
                         renderer.debug_options.inventory = !renderer.debug_options.inventory;
                     },
                     .f => if (key.action == .press) {
@@ -189,30 +189,30 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                             .point => unreachable,
                         };
                     },
-                    .k => if (key.action == .press) try renderer.recompileAllChunks(),
+                    .k => if (key.action == .press) try renderer.recompileAllChunks(io, gpa),
                     .r => if (key.action == .press) {
                         std.log.scoped(.render).info("reloading shaders", .{});
                         renderer.terrain_program.delete();
                         renderer.debug_program.delete();
-                        renderer.terrain_program = try Renderer.initProgram(io, renderer.allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
-                        renderer.debug_program = try Renderer.initProgram(io, renderer.allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
+                        renderer.terrain_program = try Renderer.initProgram(io, gpa, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
+                        renderer.debug_program = try Renderer.initProgram(io, gpa, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
                     },
                     .o => if (key.action == .press) {
                         renderer.occlusion_culling = !renderer.occlusion_culling;
                     },
 
-                    .w => try input_queue.queueOnTick(allocator, .{ .movement = .{ .forward = (key.action == .press) } }),
-                    .a => try input_queue.queueOnTick(allocator, .{ .movement = .{ .left = (key.action == .press) } }),
-                    .s => try input_queue.queueOnTick(allocator, .{ .movement = .{ .back = (key.action == .press) } }),
-                    .d => try input_queue.queueOnTick(allocator, .{ .movement = .{ .right = (key.action == .press) } }),
-                    .space => try input_queue.queueOnTick(allocator, .{ .movement = .{ .jump = (key.action == .press) } }),
-                    .left_shift => try input_queue.queueOnTick(allocator, .{ .movement = .{ .sneak = (key.action == .press) } }),
-                    .left_control => try input_queue.queueOnTick(allocator, .{ .movement = .{ .sprint = (key.action == .press) } }),
+                    .w => try input_queue.queueOnTick(gpa, .{ .movement = .{ .forward = (key.action == .press) } }),
+                    .a => try input_queue.queueOnTick(gpa, .{ .movement = .{ .left = (key.action == .press) } }),
+                    .s => try input_queue.queueOnTick(gpa, .{ .movement = .{ .back = (key.action == .press) } }),
+                    .d => try input_queue.queueOnTick(gpa, .{ .movement = .{ .right = (key.action == .press) } }),
+                    .space => try input_queue.queueOnTick(gpa, .{ .movement = .{ .jump = (key.action == .press) } }),
+                    .left_shift => try input_queue.queueOnTick(gpa, .{ .movement = .{ .sneak = (key.action == .press) } }),
+                    .left_control => try input_queue.queueOnTick(gpa, .{ .movement = .{ .sprint = (key.action == .press) } }),
 
-                    .q => try input_queue.queueOnTick(allocator, .{ .hand = .{ .drop = (key.action == .press) } }),
+                    .q => try input_queue.queueOnTick(gpa, .{ .hand = .{ .drop = (key.action == .press) } }),
 
                     .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| if (key.action == .press)
-                        try input_queue.queueOnTick(allocator, .{ .hand = .{ .hotkey = @backingInt(num) - @backingInt(glfw.Key.one) } }),
+                        try input_queue.queueOnTick(gpa, .{ .hand = .{ .hotkey = @backingInt(num) - @backingInt(glfw.Key.one) } }),
                     else => {},
                 }
             },
@@ -221,7 +221,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                 if (game.world.menu_screen_open) {
                     if (button.action == .release) continue;
                     if (button.button != .left and button.button != .right and button.button != .middle) continue;
-                    try input_queue.queueOnTick(allocator, .{
+                    try input_queue.queueOnTick(gpa, .{
                         .inventory = gui.onClick(
                             &game.world,
                             window_input.mousePosInClipSpace(),
@@ -233,8 +233,8 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                     continue;
                 }
                 switch (button.button) {
-                    .left => try input_queue.queueOnTick(allocator, .{ .hand = .{ .attack = (button.action == .press) } }),
-                    .right => try input_queue.queueOnTick(allocator, .{ .hand = .{ .use = (button.action == .press) } }),
+                    .left => try input_queue.queueOnTick(gpa, .{ .hand = .{ .attack = (button.action == .press) } }),
+                    .right => try input_queue.queueOnTick(gpa, .{ .hand = .{ .use = (button.action == .press) } }),
                     else => {},
                 }
             },
@@ -247,7 +247,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
                 cursor_delta = .add(cursor_delta, cursor_event.delta);
             },
             .Scroll => |scroll| {
-                try input_queue.queueOnTick(allocator, .{ .hand = .{ .scroll = @round(scroll.y) } });
+                try input_queue.queueOnTick(gpa, .{ .hand = .{ .scroll = @round(scroll.y) } });
             },
             .ContentScale => |content_scale| {
                 std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
@@ -269,7 +269,7 @@ pub fn handleInputIngame(io: std.Io, allocator: std.mem.Allocator, game: *const 
 
     if (game.world.menu_screen_open) return;
 
-    try input_queue.queueOnFrame(allocator, .{ .rotate = .round(cursor_delta) });
+    try input_queue.queueOnFrame(gpa, .{ .rotate = .round(cursor_delta) });
 }
 
 test {

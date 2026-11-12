@@ -255,7 +255,7 @@ inline fn expandNibbles(bytes: @Vector(64, u8), comptime shift: u3) @Vector(128,
 
 pub fn receiveChunk(
     self: *@This(),
-    allocator: std.mem.Allocator,
+    gpa: std.mem.Allocator,
     chunk_pos: Vector2xz(i32),
     chunk_data: S2C.Play.WorldChunk.ChunkData,
     load_or_unload: bool,
@@ -271,7 +271,7 @@ pub fn receiveChunk(
     for (0..16) |section_y| {
         if (chunk_data.sections.isSet(@intCast(section_y))) {
             if (chunk.sections[section_y] == null) {
-                chunk.sections[section_y] = try .create(allocator);
+                chunk.sections[section_y] = try .create(gpa);
             }
             const section = chunk.sections[section_y].?;
 
@@ -281,7 +281,7 @@ pub fn receiveChunk(
             }
         } else if (load_or_unload) {
             if (chunk.sections[section_y]) |section| {
-                section.destroy(allocator);
+                section.destroy(gpa);
                 chunk.sections[section_y] = null;
             }
         }
@@ -322,7 +322,7 @@ pub fn receiveChunk(
         @memcpy(&chunk.biomes, try buffer.readBytes(256));
     }
 
-    try EventHandler.dispatch(Events.ChunkUpdate, .{ .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
+    try EventHandler.dispatch(Events.ChunkUpdate, .{ .gpa = gpa, .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
 
 pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {

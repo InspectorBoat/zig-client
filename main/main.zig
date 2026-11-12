@@ -29,7 +29,7 @@ pub fn main(init: std.process.Init) !void {
     // threaded.setAsyncLimit(.unlimited);
 
     const io = init.io;
-    const gpa = std.heap.smp_allocator;
+    const gpa = init.gpa;
 
     const path = try init.gpa.print("{s}/.local/share/PrismLauncher/accounts.json", .{init.environ_map.get("HOME").?});
     defer init.gpa.free(path);
@@ -78,7 +78,7 @@ var done = false;
 
 pub const Events = struct {
     pub const Startup = struct { gpa: std.mem.Allocator, io: std.Io };
-    pub const ChunkUpdate = struct { chunk_pos: Vector2xz(i32), chunk: *const World.Chunk, world: *const World };
+    pub const ChunkUpdate = struct { gpa: std.mem.Allocator, chunk_pos: Vector2xz(i32), chunk: *const World.Chunk, world: *const World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
     pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, allocator: std.mem.Allocator };

@@ -1,4 +1,3 @@
-allocator: std.mem.Allocator,
 vao: gl.VertexArray,
 terrain_program: gl.Program,
 index_buffer: gl.Buffer,
@@ -10,7 +9,7 @@ past_visible: std.array_hash_map.Auto(Vector3(i32), ChunkTracker.SectionRenderIn
 occlusion_culling: bool = false,
 
 /// Collects compiled geometry from in-flight tasks
-compilation_tracker: CompilationTracker,
+compilation_tracker: *CompilationTracker,
 /// Tracks whether a chunk and its sections are ready to be compiled or rendered
 chunk_tracker: ChunkTracker,
 
@@ -33,8 +32,8 @@ fps: FpsCounter = .init,
 
 pub const TextureHandle = enum(u16) { _ };
 
-const compilation_slots = 2048;
-const compile_budget = 6;
+const compilation_queue_capacity = 16;
+const compile_budget = 3;
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     gl.enable(.depth_test);
@@ -45,7 +44,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
     const vao: gl.VertexArray = .create();
 
-    const compilation_tracker: CompilationTracker = try .initCapacity(io, allocator, compilation_slots, 14);
+    const compilation_tracker: *CompilationTracker = try .init(io, allocator, compilation_queue_capacity, 14);
     const chunk_tracker: ChunkTracker = .init;
 
     const debug_program = try initProgram(io, allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
@@ -84,8 +83,6 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
     std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
     return .{
-        .allocator = allocator,
-
         .vao = vao,
         .terrain_program = terrain_program,
         .index_buffer = index_buffer,
@@ -789,8 +786,8 @@ pub fn getMvMatrix(player: Entity.LocalPlayer, partial_tick: f64) Mat4 {
     return .mul(view, model);
 }
 
-pub fn onChunkUpdate(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
-    self.chunk_tracker.markChunkPresent(self.allocator, chunk_pos) catch |e| switch (e) {
+pub fn onChunkUpdate(self: *@This(), gpa: std.mem.Allocator, chunk_pos: Vector2xz(i32)) !void {
+    self.chunk_tracker.markChunkPresent(gpa, chunk_pos) catch |e| switch (e) {
         error.ChunkAlreadyExists => {}, // TODO: Figure out why this happens
         else => return e,
     };
@@ -849,7 +846,10 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, start: std.Io.
     }
 }
 
-pub fn recompileAllChunks(self: *@This()) !void {
+pub fn recompileAllChunks(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !void {
+    self.compilation_tracker.pauseAndCancelAll(io, gpa);
+    defer self.compilation_tracker.unpaused.set(io);
+
     var iter = self.chunk_tracker.chunks.iterator();
     while (iter.next()) |entry| {
         const chunk = entry.value_ptr;
@@ -865,7 +865,7 @@ pub fn recompileAllChunks(self: *@This()) !void {
     }
     std.debug.assert(self.gpu_memory_allocator.detectLeaks() == false);
     self.gpu_memory_allocator.deinit();
-    self.gpu_memory_allocator = try .init(self.allocator, 1024 * 1024 * 1024 * 2 - 1);
+    self.gpu_memory_allocator = try .init(gpa, 1024 * 1024 * 1024 * 2 - 1);
 }
 
 pub fn dispatchCompilationTask(
@@ -886,7 +886,7 @@ pub fn uploadCompilationResults(self: *@This(), io: std.Io, gpa: std.mem.Allocat
         const revision = completed.task.revision;
         if (completed.result) |mesh_const| {
             var mesh = mesh_const;
-            defer mesh.buffer.deinit(self.allocator);
+            defer mesh.buffer.deinit(gpa);
 
             const chunk_pos: Vector2xz(i32) = .{ .x = section_pos.x, .z = section_pos.z };
             const section_y: usize = @intCast(section_pos.y);
@@ -931,7 +931,7 @@ pub fn onUnloadChunk(self: *@This(), chunk_pos: Vector2xz(i32)) !void {
     self.chunk_tracker.removeChunk(chunk_pos);
 }
 
-pub fn unloadAllChunks(self: *@This(), allocator: std.mem.Allocator) !void {
+pub fn unloadAllChunks(self: *@This(), gpa: std.mem.Allocator) !void {
     var iter = self.chunk_tracker.chunks.iterator();
     while (iter.next()) |entry| {
         const chunk = entry.value_ptr;
@@ -944,30 +944,30 @@ pub fn unloadAllChunks(self: *@This(), allocator: std.mem.Allocator) !void {
             .waiting => {},
         }
     }
-    self.chunk_tracker.chunks.clearAndFree(allocator);
+    self.chunk_tracker.chunks.clearAndFree(gpa);
 }
 
 pub fn deinit(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !void {
-    self.compilation_tracker.deinit(gpa, io);
-    self.chunk_tracker.chunks.deinit(self.allocator);
+    self.compilation_tracker.deinit(io, gpa);
+    self.chunk_tracker.chunks.deinit(gpa);
     self.gpu_memory_allocator.deinit();
-    self.@"3d_debug_staging_buffer".backer.deinit(self.allocator);
-    self.@"2d_debug_staging_buffer".backer.deinit(self.allocator);
-    self.past_visible.deinit(self.allocator);
+    self.@"3d_debug_staging_buffer".backer.deinit(gpa);
+    self.@"2d_debug_staging_buffer".backer.deinit(gpa);
+    self.past_visible.deinit(gpa);
 
     {
-        var iter = self.blockstate_to_model_lookup.iterator();
-        while (iter.next()) |entry| {
-            self.allocator.free(entry.value_ptr.faces);
+        for (self.blockstate_to_model_lookup.keys, self.blockstate_to_model_lookup.values, 0..(self.blockstate_to_model_lookup.capacity + BlockStateMap.bonus_capacity)) |key, value, _| {
+            if (key == BlockStateMap.empty_key) continue;
+            gpa.free(value.faces);
         }
-        self.blockstate_to_model_lookup.deinit(self.allocator);
+        self.blockstate_to_model_lookup.deinit(gpa);
     }
     {
         var iter = self.item_to_model_lookup.iterator();
         while (iter.next()) |entry| {
-            self.allocator.free(entry.value_ptr.model.faces);
+            gpa.free(entry.value_ptr.model.faces);
         }
-        self.item_to_model_lookup.deinit(self.allocator);
+        self.item_to_model_lookup.deinit(gpa);
     }
 }
 
