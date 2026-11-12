@@ -36,13 +36,9 @@ const compilation_queue_capacity = 16;
 const compile_budget = 3;
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
-    gl.enable(.depth_test);
-    gl.enable(.cull_face);
-
     const terrain_program = try initProgram(io, allocator, "shader/terrain.glsl.vert", "shader/terrain.glsl.frag");
     const index_buffer = try initIndexBuffer(allocator);
-    const gpu_memory_allocator: GpuMemoryAllocator = try .init(allocator, 1024 * 1024 * 1024 * 2 - 1);
-    const vao: gl.VertexArray = .create();
+    const gpu_memory_allocator: GpuMemoryAllocator = try .init();
 
     const compilation_tracker: *CompilationTracker = try .init(io, allocator, compilation_queue_capacity, 14);
     const chunk_tracker: ChunkTracker = .init;
@@ -50,15 +46,9 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     const debug_program = try initProgram(io, allocator, "shader/debug.glsl.vert", "shader/debug.glsl.frag");
     const debug_buffer: gl.Buffer = .create();
     debug_buffer.storage(f32, 6 * 5 * 1024, null, .{ .dynamic_storage = true });
-    const @"3d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
-    const @"2d_debug_staging_buffer": GpuStagingBuffer = .{ .backer = .empty, .allocator = allocator };
 
     const @"3d_vao" = try init3dVao();
     const @"2d_vao" = try init2dVao();
-
-    vao.elementBuffer(index_buffer);
-    @"3d_vao".elementBuffer(index_buffer);
-    @"2d_vao".elementBuffer(index_buffer);
 
     const main_fbo: gl.Framebuffer = .invalid;
     const small_fbo: gl.Framebuffer = .create();
@@ -81,9 +71,8 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
     );
     const texture = try initTexture(allocator, named_textures);
 
-    std.log.scoped(.resource_pack).debug("resource pack loading used {} mb", .{arena.queryCapacity() / 1024 / 1024});
     return .{
-        .vao = vao,
+        .vao = undefined,
         .terrain_program = terrain_program,
         .index_buffer = index_buffer,
         .gpu_memory_allocator = gpu_memory_allocator,
@@ -100,8 +89,8 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
         .debug_buffer = debug_buffer,
         .debug_program = debug_program,
-        .@"3d_debug_staging_buffer" = @"3d_debug_staging_buffer",
-        .@"2d_debug_staging_buffer" = @"2d_debug_staging_buffer",
+        .@"3d_debug_staging_buffer" = undefined,
+        .@"2d_debug_staging_buffer" = undefined,
         .@"3d_vao" = @"3d_vao",
         .@"2d_vao" = @"2d_vao",
     };
@@ -793,13 +782,6 @@ pub fn onChunkUpdate(self: *@This(), gpa: std.mem.Allocator, chunk_pos: Vector2x
     };
 }
 
-pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
-    try self.chunk_tracker.markAreaDirty(
-        .sub(block_pos, .splat(1)),
-        .add(block_pos, .splat(1)),
-    );
-}
-
 pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, start: std.Io.Timestamp, world: *const World) !void {
     @setRuntimeSafety(false);
 
@@ -807,37 +789,16 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, start: std.Io.
         if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
         state: switch (chunk_info.*) {
             .waiting => |waiting| if (waiting.isReady()) {
-                chunk_info.* = .{ .rendering = @splat(.init) };
                 continue :state chunk_info.*;
             },
             .rendering => |*rendering| {
                 const chunk: *const World.Chunk = world.chunks.get(chunk_pos).?;
 
-                // Only dispatch task if section actually exists, even if adjacent chunks update
                 for (rendering, chunk.sections, 0..) |*section_info, maybe_section, y| {
+                    _ = y;
                     if (section_info.needsRecompile()) {
                         if (maybe_section) |_| {
-                            // Send recompilation request if section is non-null
-                            self.dispatchCompilationTask(
-                                io,
-                                world,
-                                .{ .x = chunk_pos.x, .y = @intCast(y), .z = chunk_pos.z },
-                                section_info.current_revision,
-                            ) catch |err| switch (err) {
-                                // out of in-flight slots
-                                error.QueueFull => return,
-                                else => |e| return e,
-                            };
-                            section_info.alertCompilationDispatch();
-                        } else {
-                            // Fake recompilation and remove mesh data
-                            section_info.alertCompilationDispatch();
-                            section_info.alertCompilationRecieved(section_info.latest_sent_revision.?) catch unreachable;
-
-                            if (section_info.render_info) |render_info| {
-                                try self.gpu_memory_allocator.free(render_info.segment);
-                                section_info.render_info = null;
-                            }
+                            self.dispatchCompilationTask(undefined, undefined, undefined, undefined) catch {};
                         }
                     }
                 }
@@ -848,24 +809,11 @@ pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, start: std.Io.
 
 pub fn recompileAllChunks(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !void {
     self.compilation_tracker.pauseAndCancelAll(io, gpa);
-    defer self.compilation_tracker.unpaused.set(io);
 
     var iter = self.chunk_tracker.chunks.iterator();
     while (iter.next()) |entry| {
-        const chunk = entry.value_ptr;
-        switch (chunk.*) {
-            .rendering => |*sections| {
-                for (sections) |*section| {
-                    try section.replaceRenderInfo(null, &self.gpu_memory_allocator);
-                    section.markDirty();
-                }
-            },
-            .waiting => {},
-        }
+        _ = entry;
     }
-    std.debug.assert(self.gpu_memory_allocator.detectLeaks() == false);
-    self.gpu_memory_allocator.deinit();
-    self.gpu_memory_allocator = try .init(gpa, 1024 * 1024 * 1024 * 2 - 1);
 }
 
 pub fn dispatchCompilationTask(
@@ -995,7 +943,6 @@ const Frustum = render.Frustum;
 const GpuMemoryAllocator = render.GpuMemoryAllocator;
 const gui = render.gui;
 const ChunkTracker = render.mesher.ChunkTracker;
-const CompilationTask = render.mesher.CompilationTask;
 const CompilationTracker = render.mesher.CompilationTracker;
 const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
 const resource_pack = render.resource_pack;

@@ -19,7 +19,6 @@ fn createModules(
         .root_source_file = b.path("main/main.zig"),
         .target = target,
         .optimize = optimize,
-        .omit_frame_pointer = optimize == .fast,
         .strip = optimize == .fast,
     });
     const quarantine = b.createModule(.{

@@ -24,62 +24,34 @@ pub const std_options: std.Options = .{
     },
 };
 
-pub fn main(init: std.process.Init) !void {
-    // const threaded: *std.Io.Threaded = @ptrCast(@alignCast(init.io.userdata));
-    // threaded.setAsyncLimit(.unlimited);
-
-    const io = init.io;
-    const gpa = init.gpa;
-
-    const path = try init.gpa.print("{s}/.local/share/PrismLauncher/accounts.json", .{init.environ_map.get("HOME").?});
-    defer init.gpa.free(path);
-    const session: network.Session = try .parseFromPrismLauncher(
-        io,
-        gpa,
-        try std.Io.Dir.openFile(.cwd(), io, path, .{}),
+pub fn main(_: std.process.Init) !void {
+    _ = try network.Session.parseFromPrismLauncher(
+        undefined,
+        undefined,
+        undefined,
     );
-    defer session.deinit(gpa);
 
-    try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = io });
-    defer EventHandler.dispatch(Events.Exit, .{ .io = io, .gpa = gpa }) catch |e| std.log.err("{} while shutting down", .{e});
-
-    var client: Client = .{ .idle = .{
-        .gpa = gpa,
-    } };
-
-    client.idle.initConnection(io, gpa, "127.0.0.1", 25565, session) catch |e| {
-        std.log.debug("failed to connect: {}", .{e});
-        if (@errorReturnTrace()) |error_trace| std.debug.dumpErrorReturnTrace(error_trace);
-        return;
-    };
-
-    defer if (client != .idle) client.disconnect(io);
+    @import("render").onStartup(undefined) catch {};
+    defer @import("render").onExit(undefined) catch {};
 
     while (true) {
-        try EventHandler.dispatch(Events.Frame, .{
-            .client = &client,
-            .input_queue = if (client == .game) &client.game.input_queue else null,
-            .io = io,
-            .allocator = gpa,
-        });
+        try @import("render").onFrame(undefined);
 
-        if (client != .idle) try client.tickConnection(io);
-        if (client == .game) try client.updateGame(io);
-
-        if (done) break;
+        while (true) {
+            var p: network.packet.S2C.Play = undefined;
+            switch (p) {
+                inline else => |*p2| {
+                    if (p2.handle_on_network_thread) unreachable;
+                    try p2.handleOnMainThread(undefined, undefined, undefined);
+                },
+            }
+        }
     }
 }
-
-pub fn signalExit() void {
-    done = true;
-}
-
-var done = false;
 
 pub const Events = struct {
     pub const Startup = struct { gpa: std.mem.Allocator, io: std.Io };
     pub const ChunkUpdate = struct { gpa: std.mem.Allocator, chunk_pos: Vector2xz(i32), chunk: *const World.Chunk, world: *const World };
-    pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
     pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, allocator: std.mem.Allocator };
     pub const Exit = struct { io: std.Io, gpa: std.mem.Allocator };

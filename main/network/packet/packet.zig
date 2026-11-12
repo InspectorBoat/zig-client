@@ -125,13 +125,7 @@ pub const S2C = union(enum) {
         pub const LoginSuccess = @import("s2c/login/LoginSuccess.zig");
     };
     pub const Play = union(enum) {
-        keep_alive: KeepAlive,
         login: S2C.Play.Login,
-        chat_message: ChatMessage,
-        world_time: WorldTime,
-        entity_equipment: EntityEquipment,
-        spawn_point: SpawnPoint,
-        player_health: PlayerHealth,
         player_respawn: PlayerRespawn,
         player_move: PlayerMove,
         select_slot: SelectSlot,
@@ -159,8 +153,6 @@ pub const S2C = union(enum) {
         player_xp: PlayerXp,
         entity_attributes: EntityAttributes,
         world_chunk: WorldChunk,
-        blocks_update: BlocksUpdate,
-        block_update: BlockUpdate,
         block_event: BlockEvent,
         block_mining_progress: BlockMiningProgress,
         world_chunks: WorldChunks,

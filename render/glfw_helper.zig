@@ -5,30 +5,11 @@ pub fn initGlfw() error{GlfwInitFailed}!void {
     }
 }
 
-pub fn initGlfwWindow(visible: bool) error{GlfwWindowFailed}!glfw.Window {
-    const window = glfw.Window.create(640, 640, "zig-client", null, null, .{
-        .opengl_profile = .opengl_core_profile,
-        .context_version_major = 4,
-        .context_version_minor = 6,
-        .visible = visible,
-        .maximized = true,
-        .client_api = .opengl_api,
-        .auto_iconify = false,
-        .scale_to_monitor = true,
-        .decorated = false,
-        .floating = false,
-        .wayland_app_id = "zig-client",
-    }) orelse {
-        std.log.err("failed to create glfw window: {?s}", .{glfw.getErrorString()});
-        return error.GlfwWindowFailed;
-    };
-    glfw.makeContextCurrent(window);
-    return window;
+pub fn initGlfwWindow(_: bool) error{GlfwWindowFailed}!glfw.Window {
+    return glfw.Window.create(0, 0, "", null, null, .{}).?;
 }
 
-pub fn setGlfwErrorCallback() void {
-    glfw.setErrorCallback(glfwErrorCallback);
-}
+pub fn setGlfwErrorCallback() void {}
 
 pub fn glfwErrorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });

@@ -1,5 +1,6 @@
 /// Usually unused, but can be up to 20 bytes of Latin-1 encoded text.
 /// Only used as part of the hash used for authentication.
+
 key: []const u8,
 /// The server's public RSA key
 public_key: []const u8,
@@ -170,9 +171,9 @@ test "SHA-1 digest" {
 
 const std = @import("std");
 
+const options = @import("build_options");
 const quarantine = @import("llm-code-quarantine");
 const main = @import("main");
 
 const Connection = main.network.Connection;
 const S2C = main.network.packet.S2C;
-const options = @import("build_options");

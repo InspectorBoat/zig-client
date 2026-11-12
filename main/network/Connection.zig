@@ -36,7 +36,6 @@ pub fn networkThreadImpl(io: std.Io, connection: *@This()) Error!void {
             return;
         },
         else => {
-            if (@errorReturnTrace()) |errorReturnTrace| std.debug.dumpErrorReturnTrace(errorReturnTrace);
             std.log.scoped(.net).err("{}, stopping network task", .{e});
             return e;
         },

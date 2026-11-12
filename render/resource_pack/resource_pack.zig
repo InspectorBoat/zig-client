@@ -1,4 +1,5 @@
 /// Takes ownership of resource_pack_dir
+
 pub fn init(
     io: std.Io,
     gpa: std.mem.Allocator,

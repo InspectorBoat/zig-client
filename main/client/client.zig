@@ -252,7 +252,7 @@ pub const Client = union(enum) {
     }
 
     /// Handles incoming packets and disconnects if connection is closed
-    pub fn tickConnection(self: *@This(), io: std.Io) !void {
+    pub inline fn tickConnection(self: *@This(), io: std.Io) !void {
         const gpa, const connection_handle, const incoming_packets, const incoming_allocator = switch (self.*) {
             inline .game, .connecting => |client_state| .{
                 client_state.gpa,

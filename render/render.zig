@@ -6,130 +6,46 @@ pub const event_listeners = .{
     onFrame,
     onChunkUpdate,
     onUnloadChunk,
-    onBlockUpdate,
     onExit,
 };
 
-pub fn onStartup(startup: Events.Startup) !void {
-    const gpa = startup.gpa;
-    // initialize glfw
-    glfw_helper.setGlfwErrorCallback();
-    try glfw_helper.initGlfw();
+pub fn onStartup(_: Events.Startup) !void {
+    const window = try glfw_helper.initGlfwWindow(undefined);
+    window.setInputModeCursor(undefined);
 
-    // initialize window
-    const window = try glfw_helper.initGlfwWindow(switch (build_options.graphics) {
-        .normal => true,
-        .silent => false,
-        .headless => comptime unreachable,
-    });
-    window.setInputModeCursor(.disabled);
-
-    // initialize opengl
     try glfw_helper.loadGlPointers();
-    glfw_helper.setGlErrorCallback();
-
-    // initialize window_input
-    window_input = .init(gpa, window);
-    window_input.setGlfwInputCallbacks();
-
-    // initialize renderer
-    renderer = try .init(startup.io, gpa);
+    renderer = try .init(undefined, undefined);
 }
 
 pub fn onFrame(frame: Events.Frame) !void {
-    if (window_input.window.shouldClose()) {
-        main.signalExit();
+    _ = window_input.window.shouldClose();
+    switch (frame.client.*) {
+        else => {},
     }
-    const client = frame.client;
-    glfw.pollEvents();
 
-    switch (client.*) {
-        .idle => gl.clearColor(1.0, 0.75, 0.75, 1),
-        .connecting => gl.clearColor(0.75, 1.0, 0.75, 1),
-        .game => gl.clearColor(0.72, 0.77, 0.92, 1),
-    }
-    gl.clear(.{ .color = true, .depth = true });
+    gl.clearColor(undefined, undefined, undefined, undefined);
+    gl.clear(undefined);
 
-    switch (client.*) {
-        .game => |*game| {
-            try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
-            const start: std.Io.Timestamp = .now(frame.io, .real);
-            try renderer.updateAndDispatchDirtySections(frame.io, start, &game.world);
-            try renderer.uploadCompilationResults(frame.io, frame.allocator, start);
-            try renderer.renderFrame(frame.io, frame.allocator, game);
-            const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
-            renderer.fps.update(now);
-            std.log.scoped(.fps).info("fps: {:.1}", .{renderer.fps.fps(now)});
-        },
-        .connecting => |*connecting_game| {
-            handleInputConnecting(connecting_game);
-        },
-        .idle => |*idle_game| {
-            handleInputIdle(idle_game);
-        },
-    }
-    window_input.window.swapBuffers();
+    try handleInputIngame(undefined, undefined, undefined, undefined);
+    try renderer.updateAndDispatchDirtySections(undefined, undefined, undefined);
+    try renderer.uploadCompilationResults(undefined, undefined, undefined);
+    try renderer.renderFrame(undefined, undefined, undefined);
+    renderer.fps.update(undefined);
+    std.log.scoped(.fps).info("fps: {}", .{renderer.fps.fps(undefined)});
 }
 
-pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
-    try renderer.onChunkUpdate(chunk_update.gpa, chunk_update.chunk_pos);
-}
+pub fn onChunkUpdate(_: Events.ChunkUpdate) !void {}
 
-pub fn onUnloadChunk(unload_chunk: Events.UnloadChunk) !void {
-    try renderer.onUnloadChunk(unload_chunk.chunk_pos);
-}
+pub fn onUnloadChunk(_: Events.UnloadChunk) !void {}
 
-pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
-    try renderer.onBlockUpdate(block_update.block_pos);
-}
-
-pub fn onExit(exit: Events.Exit) !void {
-    try renderer.deinit(exit.io, exit.gpa);
+pub fn onExit(_: Events.Exit) !void {
+    try renderer.deinit(undefined, undefined);
     window_input.deinit();
-    std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
 }
 
-pub fn handleInputIdle(_: *const Client.Idle) void {
-    while (window_input.events.popFront()) |event| {
-        switch (event) {
-            .Key => |key| {
-                switch (key.key) {
-                    .escape => window_input.window.setShouldClose(true),
-                    else => {},
-                }
-            },
-            .ContentScale => |content_scale| {
-                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
-            },
-            .FramebufferSize => |framebuffer_size| {
-                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
-                gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
-            },
-            else => {},
-        }
-    }
-}
+pub fn handleInputIdle() void {}
 
-pub fn handleInputConnecting(_: *const Client.Connecting) void {
-    while (window_input.events.popFront()) |event| {
-        switch (event) {
-            .Key => |key| {
-                switch (key.key) {
-                    .escape => window_input.window.setShouldClose(true),
-                    else => {},
-                }
-            },
-            .ContentScale => |content_scale| {
-                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
-            },
-            .FramebufferSize => |framebuffer_size| {
-                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
-                gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
-            },
-            else => {},
-        }
-    }
-}
+pub fn handleInputConnecting(_: *const Client.Connecting) void {}
 
 var ignore_next_mouse_delta = false;
 pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
@@ -272,17 +188,8 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
     try input_queue.queueOnFrame(gpa, .{ .rotate = .round(cursor_delta) });
 }
 
-test {
-    try glfw_helper.initGlfw();
-    _ = try glfw_helper.initGlfwWindow(false);
-    try glfw_helper.loadGlPointers();
-
-    _ = GpuMemoryAllocator;
-}
-
 const std = @import("std");
 
-const build_options = @import("build_options");
 const quarantine = @import("llm-code-quarantine");
 const glfw = @import("mach-glfw");
 const main = @import("main");
