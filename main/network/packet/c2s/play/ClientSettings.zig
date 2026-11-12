@@ -2,17 +2,7 @@ language: []const u8,
 view_distance: i8,
 chat_visibility: ChatVisibility,
 chat_colors: bool,
-skin_layers: SkinLayersFlags,
-
-pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
-    try buffer.writeString(self.language);
-    try buffer.write(i8, self.view_distance);
-    try buffer.write(i8, @backingInt(self.chat_visibility));
-    try buffer.write(bool, self.chat_colors);
-    try buffer.writePacked(SkinLayersFlags, self.skin_layers);
-}
-
-pub const SkinLayersFlags = packed struct(u8) {
+skin_layers: packed struct(u8) {
     cape: bool = true,
     jacket: bool = true,
     left_sleeve: bool = true,
@@ -21,7 +11,7 @@ pub const SkinLayersFlags = packed struct(u8) {
     right_pants_leg: bool = true,
     hat: bool = true,
     _: u1 = 0,
-};
+},
 
 const main = @import("main");
 

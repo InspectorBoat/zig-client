@@ -1,5 +1,4 @@
 /// the network id of the player
-
 network_id: i32,
 hardcore: bool,
 game_mode: GameMode,

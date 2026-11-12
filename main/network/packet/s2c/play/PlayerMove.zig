@@ -69,7 +69,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     try game.connection_handle.sendPlayPacket(
         io,
         .{ .client_status = .{
-            .status = .PerformRespawn,
+            .status = .a,
         } },
     );
 }

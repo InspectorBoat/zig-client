@@ -1,29 +1,3 @@
-pub const opengl_error_handling = if (builtin.mode.runtimeSafety()) .none else .assert;
-
-pub const std_options: std.Options = .{
-    .log_scope_levels = &.{
-        .{ .scope = .tick_late, .level = .warn },
-        .{ .scope = .keepalive, .level = .warn },
-        .{ .scope = .tick_on_time, .level = .warn },
-        .{ .scope = .send_packet, .level = .warn },
-        .{ .scope = .handle_packet_main, .level = .warn },
-        .{ .scope = .handle_packet_net, .level = .warn },
-        .{ .scope = .world, .level = .warn },
-        .{ .scope = .decode_packet, .level = .warn },
-        .{ .scope = .entity, .level = .warn },
-        .{ .scope = .local_player_moved, .level = .warn },
-        .{ .scope = .player, .level = .warn },
-        .{ .scope = .net, .level = .warn },
-        .{ .scope = .resource_pack_states, .level = .warn },
-        .{ .scope = .resource_pack, .level = .info },
-        .{ .scope = .section_revision, .level = .warn },
-        .{ .scope = .backpressure, .level = .warn },
-        .{ .scope = .transaction, .level = .warn },
-        .{ .scope = .tick_timing_noisy, .level = .warn },
-        .{ .scope = .fps, .level = .warn },
-    },
-};
-
 pub fn main(_: std.process.Init) !void {
     _ = try network.Session.parseFromPrismLauncher(
         undefined,
@@ -33,15 +7,14 @@ pub fn main(_: std.process.Init) !void {
 
     @import("render").onStartup(undefined) catch {};
     defer @import("render").onExit(undefined) catch {};
+    try @import("render").onFrame(undefined);
 
     while (true) {
-        try @import("render").onFrame(undefined);
-
         while (true) {
             var p: network.packet.S2C.Play = undefined;
             switch (p) {
                 inline else => |*p2| {
-                    if (p2.handle_on_network_thread) unreachable;
+                    if (p2.handle_on_network_thread) continue;
                     try p2.handleOnMainThread(undefined, undefined, undefined);
                 },
             }
@@ -62,14 +35,6 @@ pub const EventHandler = struct {
 
     pub const dispatch = util.events.getDispatcher(Events, listeners).dispatch;
 };
-
-test {
-    _ = World.ChunkMap;
-    _ = Nbt;
-    _ = network.packet.C2S.WriteBuffer;
-    _ = network.packet.S2C.ReadBuffer;
-    _ = Menu;
-}
 
 const builtin = @import("builtin");
 const std = @import("std");

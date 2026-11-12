@@ -1,5 +1,4 @@
 pub const C2S = union(enum) {
-    handshake: Handshake,
     login: Login,
     play: Play,
 
@@ -20,29 +19,25 @@ pub const C2S = union(enum) {
         pub const Key = @import("c2s/login/Key.zig");
     };
     pub const Play = union(enum) {
-        keep_alive: KeepAlive,
-        chat_message: ChatMessage,
-        player_interact_entity: PlayerInteractEntity,
         player_move: PlayerMove,
         player_move_position: PlayerMove.Position,
         player_move_angles: PlayerMove.Angles,
         player_move_position_and_angles: PlayerMove.PositionAndAngles,
         player_hand_action: PlayerHandAction,
         player_use: PlayerUse,
-        select_slot: SelectSlot,
         hand_swing: HandSwing,
         player_movement_action: PlayerMovementAction,
-        player_input: PlayerInput,
-        close_menu: CloseMenu,
-        menu_click_slot: MenuClickSlot,
         confirm_menu_action: ConfirmMenuAction,
-        creative_menu_slot: CreativeMenuSlot,
         menu_click_button: MenuClickButton,
-        sign_update: SignUpdate,
         player_abilities: PlayerAbilities,
-        command_suggestions: CommandSuggestions,
         client_settings: ClientSettings,
-        client_status: ClientStatus,
+        client_status: struct {
+            status: enum(i32) {
+                a = 0,
+                b = 1,
+                c = 2,
+            },
+        },
         custom_payload: CustomPayload,
         player_spectate: PlayerSpectate,
         resource_pack: ResourcePack,
@@ -106,8 +101,6 @@ pub const C2S = union(enum) {
 };
 
 pub const S2C = union(enum) {
-    // only the client ever sends packets in the handshake protocol
-    // handshake: Handshake
     login: Login,
     play: Play,
 
@@ -128,143 +121,24 @@ pub const S2C = union(enum) {
         login: S2C.Play.Login,
         player_respawn: PlayerRespawn,
         player_move: PlayerMove,
-        select_slot: SelectSlot,
-        player_sleep: PlayerSleep,
-        entity_animation: EntityAnimation,
-        add_player: AddPlayer,
-        entity_pickup: EntityPickup,
         add_entity: AddEntity,
-        add_mob: AddMob,
-        add_painting: AddPainting,
-        add_xp_orb: AddXpOrb,
         entity_velocity: EntityVelocity,
         remove_entities: RemoveEntities,
-        entity_move: EntityMove,
-        entity_move_position: EntityMove.Position,
         entity_move_angles: EntityMove.Angles,
         entity_move_position_angles: EntityMove.PositionAndAngles,
         entity_teleport: EntityTeleport,
-        entity_head_angles: EntityHeadAngles,
-        entity_event: EntityEvent,
-        entity_attach: EntityAttach,
-        entity_data: EntityData,
-        entity_status_effect: EntityStatusEffect,
-        entity_remove_status_effect: EntityRemoveStatusEffect,
-        player_xp: PlayerXp,
-        entity_attributes: EntityAttributes,
         world_chunk: WorldChunk,
-        block_event: BlockEvent,
-        block_mining_progress: BlockMiningProgress,
-        world_chunks: WorldChunks,
-        explosion: Explosion,
-        world_event: WorldEvent,
-        sound_event: SoundEvent,
-        particle: Particle,
-        game_event: GameEvent,
-        add_global_entity: AddGlobalEntity,
-        open_menu: OpenMenu,
-        close_menu: CloseMenu,
-        menu_slot_update: MenuSlotUpdate,
-        inventory_menu: InventoryMenu,
-        menu_data: MenuData,
-        confirm_menu_action: ConfirmMenuAction,
-        sign_update: SignUpdate,
-        map_data: MapData,
-        block_entity_update: BlockEntityUpdate,
-        open_sign_editor: OpenSignEditor,
-        statistics: Statistics,
-        player_info: PlayerInfo,
-        player_abilities: PlayerAbilities,
-        command_suggestions: CommandSuggestions,
-        scoreboard_objective: ScoreboardObjective,
-        scoreboard_score: ScoreboardScore,
-        scoreboard_display: ScoreboardDisplay,
-        team: Team,
-        custom_payload: CustomPayload,
-        disconnect: Disconnect,
-        difficulty: Difficulty,
-        player_combat: PlayerCombat,
-        camera: Camera,
-        world_border: WorldBorder,
-        titles: Titles,
-        compression_threshold: CompressionThreshold,
-        tab_list: TabList,
-        resource_pack: ResourcePack,
-        entity_sync: EntitySync,
 
         pub const read = Mixin(@This()).read;
-
-        pub const KeepAlive = @import("s2c/play/KeepAlive.zig");
         pub const Login = @import("s2c/play/Login.zig");
-        pub const ChatMessage = @import("s2c/play/ChatMessage.zig");
-        pub const WorldTime = @import("s2c/play/WorldTime.zig");
-        pub const EntityEquipment = @import("s2c/play/EntityEquipment.zig");
-        pub const SpawnPoint = @import("s2c/play/SpawnPoint.zig");
-        pub const PlayerHealth = @import("s2c/play/PlayerHealth.zig");
         pub const PlayerRespawn = @import("s2c/play/PlayerRespawn.zig");
         pub const PlayerMove = @import("s2c/play/PlayerMove.zig");
-        pub const SelectSlot = @import("s2c/play/SelectSlot.zig");
-        pub const PlayerSleep = @import("s2c/play/PlayerSleep.zig");
-        pub const EntityAnimation = @import("s2c/play/EntityAnimation.zig");
-        pub const AddPlayer = @import("s2c/play/AddPlayer.zig");
-        pub const EntityPickup = @import("s2c/play/EntityPickup.zig");
         pub const AddEntity = @import("s2c/play/AddEntity.zig");
-        pub const AddMob = @import("s2c/play/AddMob.zig");
-        pub const AddPainting = @import("s2c/play/AddPainting.zig");
-        pub const AddXpOrb = @import("s2c/play/AddXpOrb.zig");
         pub const EntityVelocity = @import("s2c/play/EntityVelocity.zig");
         pub const RemoveEntities = @import("s2c/play/RemoveEntities.zig");
         pub const EntityMove = @import("s2c/play/EntityMove.zig");
         pub const EntityTeleport = @import("s2c/play/EntityTeleport.zig");
-        pub const EntityHeadAngles = @import("s2c/play/EntityHeadAngles.zig");
-        pub const EntityEvent = @import("s2c/play/EntityEvent.zig");
-        pub const EntityAttach = @import("s2c/play/EntityAttach.zig");
-        pub const EntityData = @import("s2c/play/EntityData.zig");
-        pub const EntityStatusEffect = @import("s2c/play/EntityStatusEffect.zig");
-        pub const EntityRemoveStatusEffect = @import("s2c/play/EntityRemoveStatusEffect.zig");
-        pub const PlayerXp = @import("s2c/play/PlayerXp.zig");
-        pub const EntityAttributes = @import("s2c/play/EntityAttributes.zig");
         pub const WorldChunk = @import("s2c/play/WorldChunk.zig");
-        pub const BlocksUpdate = @import("s2c/play/BlocksUpdate.zig");
-        pub const BlockUpdate = @import("s2c/play/BlockUpdate.zig");
-        pub const BlockEvent = @import("s2c/play/BlockEvent.zig");
-        pub const BlockMiningProgress = @import("s2c/play/BlockMiningProgress.zig");
-        pub const WorldChunks = @import("s2c/play/WorldChunks.zig");
-        pub const Explosion = @import("s2c/play/Explosion.zig");
-        pub const WorldEvent = @import("s2c/play/WorldEvent.zig");
-        pub const SoundEvent = @import("s2c/play/SoundEvent.zig");
-        pub const Particle = @import("s2c/play/Particle.zig");
-        pub const GameEvent = @import("s2c/play/GameEvent.zig");
-        pub const AddGlobalEntity = @import("s2c/play/AddGlobalEntity.zig");
-        pub const OpenMenu = @import("s2c/play/OpenMenu.zig");
-        pub const CloseMenu = @import("s2c/play/CloseMenu.zig");
-        pub const MenuSlotUpdate = @import("s2c/play/MenuSlotUpdate.zig");
-        pub const InventoryMenu = @import("s2c/play/InventoryMenu.zig");
-        pub const MenuData = @import("s2c/play/MenuData.zig");
-        pub const ConfirmMenuAction = @import("s2c/play/ConfirmMenuAction.zig");
-        pub const SignUpdate = @import("s2c/play/SignUpdate.zig");
-        pub const MapData = @import("s2c/play/MapData.zig");
-        pub const BlockEntityUpdate = @import("s2c/play/BlockEntityUpdate.zig");
-        pub const OpenSignEditor = @import("s2c/play/OpenSignEditor.zig");
-        pub const Statistics = @import("s2c/play/Statistics.zig");
-        pub const PlayerInfo = @import("s2c/play/PlayerInfo.zig");
-        pub const PlayerAbilities = @import("s2c/play/PlayerAbilities.zig");
-        pub const CommandSuggestions = @import("s2c/play/CommandSuggestions.zig");
-        pub const ScoreboardObjective = @import("s2c/play/ScoreboardObjective.zig");
-        pub const ScoreboardScore = @import("s2c/play/ScoreboardScore.zig");
-        pub const ScoreboardDisplay = @import("s2c/play/ScoreboardDisplay.zig");
-        pub const Team = @import("s2c/play/Team.zig");
-        pub const CustomPayload = @import("s2c/play/CustomPayload.zig");
-        pub const Disconnect = @import("s2c/play/Disconnect.zig");
-        pub const Difficulty = @import("s2c/play/Difficulty.zig");
-        pub const PlayerCombat = @import("s2c/play/PlayerCombat.zig");
-        pub const Camera = @import("s2c/play/Camera.zig");
-        pub const WorldBorder = @import("s2c/play/WorldBorder.zig");
-        pub const Titles = @import("s2c/play/Titles.zig");
-        pub const CompressionThreshold = @import("s2c/play/CompressionThreshold.zig");
-        pub const TabList = @import("s2c/play/TabList.zig");
-        pub const ResourcePack = @import("s2c/play/ResourcePack.zig");
-        pub const EntitySync = @import("s2c/play/EntitySync.zig");
     };
     pub const Status = union(enum) {
         ping: Ping,
@@ -288,17 +162,10 @@ pub const S2C = union(enum) {
                         return @unionInit(
                             PacketMixin,
                             packet_type_info.field_names[opcode],
-                            packet_type_info.field_types[opcode].decode(allocator, buffer) catch |e|
-                                return if (e == error.OutOfMemory)
-                                    error.OutOfMemory
-                                else
-                                    error.MalformedPacket,
+                            packet_type_info.field_types[opcode].decode(allocator, buffer) catch return error.MalformedPacket,
                         );
                     },
-                    else => |opcode| {
-                        std.log.scoped(.net).err("invalid opcode {}", .{opcode});
-                        return error.InvalidOpcode;
-                    },
+                    else => unreachable,
                 }
             }
         };

@@ -178,25 +178,7 @@ pub const Entity = union(Type) {
 
                     // lifts the entity out of blocks
                     const contracted = specific_entity.base.hitbox.contract(.{ .x = 0.03125, .y = 0.0, .z = 0.03125 });
-                    const collisions = try world.getCollisions(allocator, contracted);
-                    defer allocator.free(collisions);
-
-                    var highest: f64 = 0.0;
-                    var overlapping = false;
-                    for (collisions) |block| {
-                        // ours doesn't filter (yet?), vanilla does
-                        if (!block.intersects(contracted)) continue;
-                        overlapping = true;
-                        if (block.max.y > highest) highest = block.max.y;
-                    }
-
-                    if (overlapping) {
-                        specific_entity.base.setPosition(.{
-                            .x = pos.x,
-                            .y = pos.y + (highest - contracted.min.y),
-                            .z = pos.z,
-                        });
-                    }
+                    _ = try world.getCollisions(allocator, contracted);
 
                     std.log.scoped(.entity).debug("entity {any} moved to {any}", .{ self, specific_entity.base.pos });
                 }

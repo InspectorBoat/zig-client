@@ -98,71 +98,16 @@ pub fn build(b: *std.Build) void {
     options.addOption(@TypeOf(graphics), "graphics", graphics);
     options.addOption(bool, "auth", auth);
     const options_module = options.createModule();
-    {
-        // Create main executable
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
-        mods.main.single_threaded = single_threaded;
-        const client = b.addExecutable(.{
-            .name = "zig-client",
-            .root_module = mods.main,
-        });
-        client.use_llvm = use_llvm;
 
-        // Install exe
-        const install = b.addInstallArtifact(client, .{});
-        b.getInstallStep().dependOn(&install.step);
-
-        // Install shader source
-        const install_shader = b.addInstallDirectory(.{
-            .source_dir = b.path("render/shader"),
-            .install_dir = .bin,
-            .install_subdir = "shader",
-        });
-        b.getInstallStep().dependOn(&install_shader.step);
-
-        // Run exe
-        const run_exe = b.addRunArtifact(client);
-        run_exe.setCwd(b.path("zig-out/bin"));
-        run_exe.step.dependOn(b.getInstallStep());
-
-        const run_step = b.step("run", "Run the application");
-        run_step.dependOn(&run_exe.step);
-
-        // Run unit tests
-        const test_main = b.addTest(.{ .root_module = mods.main });
-        const test_render = b.addTest(.{ .root_module = mods.render });
-        const test_util = b.addTest(.{ .root_module = mods.util });
-        const test_quarantine = b.addTest(.{ .root_module = mods.quarantine });
-
-        const test_step = b.step("test", "Run unit tests");
-        test_step.dependOn(&b.addRunArtifact(test_render).step);
-        test_step.dependOn(&b.addRunArtifact(test_util).step);
-        test_step.dependOn(&b.addRunArtifact(test_quarantine).step);
-        test_step.dependOn(&b.addRunArtifact(test_main).step);
-    }
-
-    // Add check step to see if client compiles without doing any codegen
-    // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
-    {
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
-        const client = b.addExecutable(.{
-            .name = "zig-client",
-            .root_module = mods.main,
-        });
-
-        const check = b.step("check", "Check if client compiles");
-        check.dependOn(&client.step);
-    }
-
-    const zsort = (b.lazyDependency("zsort", .{
-        .target = b.graph.host,
-        .optimize = .fast,
-    }) orelse return).artifact("zsort");
-
-    const run_fix = b.addRunArtifact(zsort);
-    run_fix.setCwd(b.path("."));
-    run_fix.addArgs(&.{ "fix", ".", "--remove-unused", "--bottom" });
-    b.step("fix", "Fix imports").dependOn(&run_fix.step);
+    // Create main executable
+    const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
+    mods.main.single_threaded = single_threaded;
+    const client = b.addExecutable(.{
+        .name = "zig-client",
+        .root_module = mods.main,
+    });
+    b.installArtifact(client);
+    client.use_llvm = use_llvm;
 }
 
 const std = @import("std");
