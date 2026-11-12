@@ -86,7 +86,7 @@ pub fn onBlockUpdate(block_update: Events.BlockUpdate) !void {
 pub fn onExit(exit: Events.Exit) !void {
     try renderer.deinit(exit.io, exit.gpa);
     window_input.deinit();
-    std.debug.print("gpu memory leaks: {}\n", .{renderer.gpu_memory_allocator.detectLeaks()});
+    if (renderer.gpu_memory_allocator.detectLeaks()) std.log.scoped(.render).err("gpu memory leak detected", .{});
 }
 
 pub fn handleInputIdle(_: *const Client.Idle) void {
@@ -99,10 +99,10 @@ pub fn handleInputIdle(_: *const Client.Idle) void {
                 }
             },
             .ContentScale => |content_scale| {
-                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
+                std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
             .FramebufferSize => |framebuffer_size| {
-                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
+                std.log.scoped(.window).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
             else => {},
@@ -120,10 +120,10 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
                 }
             },
             .ContentScale => |content_scale| {
-                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
+                std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
             .FramebufferSize => |framebuffer_size| {
-                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
+                std.log.scoped(.window).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
             else => {},
@@ -250,10 +250,10 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
                 try input_queue.queueOnTick(gpa, .{ .hand = .{ .scroll = @round(scroll.y) } });
             },
             .ContentScale => |content_scale| {
-                std.log.scoped(.content_scale).info("content scale: {[x]}x{[y]}", content_scale);
+                std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
             .FramebufferSize => |framebuffer_size| {
-                std.log.scoped(.framebuffer_size).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
+                std.log.scoped(.window).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
             else => {},

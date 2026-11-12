@@ -2,6 +2,11 @@ pub const opengl_error_handling = if (builtin.mode.runtimeSafety()) .none else .
 
 pub const std_options: std.Options = .{
     .log_scope_levels = &.{
+        .{ .scope = .switch_protocol, .level = .warn },
+        .{ .scope = .hotbar, .level = .warn },
+        .{ .scope = .client, .level = .warn },
+        .{ .scope = .render, .level = .warn },
+        .{ .scope = .window, .level = .warn },
         .{ .scope = .chat, .level = .warn },
         .{ .scope = .tick_late, .level = .warn },
         .{ .scope = .keepalive, .level = .warn },
