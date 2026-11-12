@@ -9,7 +9,7 @@ pub fn createBlockStateToModelTable(
 ) !BlockStateMap {
     @setRuntimeSafety(false);
 
-    var lookup_table: BlockStateMap = try .init(gpa, 8192);
+    var lookup_table: BlockStateMap = try .init(gpa, 8192 * 2);
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
         try blockToModel(gpa, block, &lookup_table, textures, resolved_models, state_to_model_maps);
@@ -17,8 +17,6 @@ pub fn createBlockStateToModelTable(
     lookup_table.logDiagnostics();
     return lookup_table;
 }
-
-// 7434
 
 noinline fn blockToModel(
     gpa: std.mem.Allocator,
@@ -29,7 +27,13 @@ noinline fn blockToModel(
     state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
 ) !void {
     for (allValues(@FieldType(Block.VirtualState.Properties, @tagName(block)))) |properties| {
-        try stateToModel(gpa, block, properties, lookup_table, textures, resolved_models, state_to_model_maps);
+        const baked_model: BakedModel = stateToModel(gpa, block, properties, textures, resolved_models, state_to_model_maps) catch .{
+            .faces = &.{},
+        };
+        lookup_table.put(
+            .{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) },
+            baked_model,
+        );
     }
 }
 
@@ -37,26 +41,25 @@ noinline fn stateToModel(
     gpa: std.mem.Allocator,
     comptime block: Block,
     properties: @FieldType(Block.VirtualState.Properties, @tagName(block)),
-    lookup_table: *BlockStateMap,
     textures: std.array_hash_map.String(ImageError!zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
     state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
-) !void {
+) !BakedModel {
     var block_name_buffer: [128]u8, var properties_buffer: [128]u8 = .{ undefined, undefined };
 
-    const block_name_key = getNameString(&block_name_buffer, block, properties) catch return;
+    const block_name_key = try getNameString(&block_name_buffer, block, properties);
     const properties_key = getPropertiesString(&properties_buffer, block, properties);
 
     const state_to_model_map = state_to_model_maps.get(block_name_key) orelse {
         std.log.scoped(.resource_pack).err("{s} uses missing blockstate to model file", .{block_name_key});
-        return;
+        return error.MissingBlockstateModelFile;
     } catch |e| {
         std.log.scoped(.resource_pack).err("{s} uses broken blockstate to model file ({})", .{ block_name_key, e });
-        return;
+        return e;
     };
     const model_variants = state_to_model_map.variants.map.get(properties_key) orelse {
         std.log.scoped(.resource_pack).err("no variant found for {s}:[{s}]", .{ block_name_key, properties_key });
-        return;
+        return error.MissingVariant;
     };
     const model_variant = switch (model_variants) {
         .single => |single| single,
@@ -69,15 +72,13 @@ noinline fn stateToModel(
 
     const resolved_model = resolved_models.get(model_name) orelse {
         std.log.scoped(.resource_pack).err("{s}:[{s}] uses missing model {s}", .{ block_name_key, properties_key, model_name });
-        return;
+        return error.MissingModel;
     } catch |e| {
         std.log.scoped(.resource_pack).err("{s}:[{s}] uses broken model {s} ({})", .{ block_name_key, properties_key, model_name, e });
-        return;
+        return e;
     };
 
-    const baked_model: BakedModel = try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
-
-    lookup_table.put(.{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) }, baked_model);
+    return try .bake(gpa, textures, resolved_model, model_variant.x, model_variant.y, model_variant.uvlock);
 }
 
 pub fn getNameString(
@@ -405,7 +406,6 @@ fn CustomMap(
             // Computationally easy, spectrally good multipliers for congruential pseudorandom number generators
             // https://arxiv.org/html/2001.05304v1
             const backing: u32 = @backingInt(key);
-            // return backing;
             return (backing *% 1870261802) >> 18;
         }
 
