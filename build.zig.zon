@@ -33,5 +33,9 @@
             .hash = "zsort-0.8.0-D-hm6aYfAwA1tmaf4nY5wos_QgIwiOx0pFwFtQ8_pZnp",
             .lazy = true,
         },
+        .localasm = .{
+            .url = "git+https://github.com/InspectorBoat/localasm#a9c2e0467dd9eacf21386ab3c82d6e0de21cb1d3",
+            .hash = "localasm-0.1.0-PlBRSD5RAAA_ohacsFC4V38LUb2s9aa375EmkbU9L3GA",
+        },
     },
 }

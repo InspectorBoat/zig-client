@@ -424,8 +424,13 @@ fn CustomMap(
     };
 }
 
+comptime {
+    localasm.referenceFunctions(.{BlockStateMap.get});
+}
+
 const std = @import("std");
 
+const localasm = @import("localasm");
 const main = @import("main");
 const render = @import("render");
 const zigimg = @import("zigimg");

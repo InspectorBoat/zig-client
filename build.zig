@@ -14,6 +14,7 @@ fn createModules(
     zgl: *std.Build.Module,
     zalgebra: *std.Build.Module,
     zigimg: *std.Build.Module,
+    assembly_helper: *std.Build.Module,
 ) ModuleSet {
     const main = b.createModule(.{
         .root_source_file = b.path("main/main.zig"),
@@ -53,10 +54,12 @@ fn createModules(
     render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
     render.addImport("zigimg", zigimg);
+    render.addImport("localasm", assembly_helper);
 
     main.addImport("main", main);
     main.addImport("render", render);
     main.addImport("build_options", options);
+    main.addImport("localasm", assembly_helper);
 
     main.addImport("util", util);
     main.addImport("llm-code-quarantine", quarantine);
@@ -101,13 +104,18 @@ pub fn build(b: *std.Build) !void {
     const options_module = options.createModule();
     {
         // Create main executable
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
+        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg, b.dependency("localasm", .{}).module("localasm"));
         mods.main.single_threaded = single_threaded;
         const client = b.addExecutable(.{
             .name = "zig-client",
             .root_module = mods.main,
         });
         client.use_llvm = use_llvm;
+
+        // Emit cleaned assembly via localasm
+        const asm_file = localasm.addAsm(b, client, .prefix, "asm/asm.s");
+        const asm_step = b.step("asm", "Emit cleaned assembly");
+        asm_step.dependOn(&asm_file.step);
 
         // Install exe
         const install = b.addInstallArtifact(client, .{});
@@ -154,3 +162,5 @@ pub fn build(b: *std.Build) !void {
 }
 
 const std = @import("std");
+
+const localasm = @import("localasm");
