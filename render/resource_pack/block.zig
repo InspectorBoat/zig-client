@@ -1,4 +1,4 @@
-pub const BlockStateMap = CustomMap(Block.VirtualState, packed struct { idx: u16, len: u16 });
+pub const BlockStateMap = CustomMap(Block.VirtualState, packed struct { idx: u16, len: u16 }, 16384);
 
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
 pub fn createBlockStateToModelTable(
@@ -9,7 +9,7 @@ pub fn createBlockStateToModelTable(
 ) !struct { BlockStateMap, []const BakedModel.Face } {
     @setRuntimeSafety(false);
 
-    var lookup_table: BlockStateMap = try .init(gpa, 8192 * 2);
+    var lookup_table: BlockStateMap = try .init(gpa);
     var faces: std.ArrayList(BakedModel.Face) = .empty;
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
@@ -288,60 +288,72 @@ pub fn skipField(comptime block: Block, comptime field_name: []const u8, propert
 }
 
 fn CustomMap(
-    comptime K: type,
-    comptime V: type,
+    K: type,
+    V: type,
+    capacity: u32,
 ) type {
     return struct {
-        entries: [*]align(64) Entry,
-        capacity: u32,
+        groups: *align(64) [group_count]Group,
         size: u32,
 
-        const Entry = struct { key: K, value: V };
+        const group_size = 8;
+        const group_count: usize = capacity / group_size;
+        const mask: u32 = capacity - 1;
+        const Group = struct { keys: [group_size]K align(32), values: [group_size]V align(32) };
+
         comptime {
-            std.debug.assert(@sizeOf(Entry) == 8);
+            std.debug.assert(@sizeOf(K) == 4);
+            std.debug.assert(@sizeOf(V) == 4);
+            std.debug.assert(@sizeOf(Group) == 64);
+            std.debug.assert(@offsetOf(Group, "keys") == 0);
+            std.debug.assert(@offsetOf(Group, "values") == 32);
+            std.debug.assert(std.math.isPowerOfTwo(capacity));
+            std.debug.assert(capacity >= group_size);
         }
 
         // yes i know this is undefined behavior dont worry about it
         pub const empty_key: K = @fromBackingInt(std.math.maxInt(u20));
 
+        inline fn valueAt(self: @This(), idx: usize) *V {
+            return &self.groups[idx / group_size].values[idx % group_size];
+        }
+
         pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
-            gpa.free(self.entries[0..self.capacity]);
+            gpa.destroy(self.groups[0..group_count]);
             self.* = undefined;
         }
 
-        pub fn init(gpa: std.mem.Allocator, capacity: u32) std.mem.Allocator.Error!@This() {
-            std.debug.assert(std.math.isPowerOfTwo(capacity));
-
-            const entries = try gpa.allocWithOptions(Entry, capacity, .@"64", null);
-            @memset(entries, .{ .key = empty_key, .value = undefined });
+        pub fn init(gpa: std.mem.Allocator) std.mem.Allocator.Error!@This() {
+            const groups = try gpa.alignedCreate([group_count]Group, .@"64");
+            for (groups) |*group| group.keys = @splat(empty_key);
             return .{
-                .entries = entries.ptr,
+                .groups = groups,
                 .size = 0,
-                .capacity = capacity,
             };
         }
 
         /// Reports how far keys have been displaced from their home slot by collisions.
         pub fn logDiagnostics(self: @This()) void {
-            const mask: u32 = self.capacity - 1;
-
             var count: usize = 0;
             var total_displacement: usize = 0;
             var min_displacement: usize = std.math.maxInt(usize);
             var max_displacement: usize = 0;
             var displacements: [64]u16 = @splat(0);
 
-            for (self.entries[0..self.capacity], 0..) |entry, idx| {
-                if (entry.key == empty_key) continue;
+            for (self.groups, 0..) |group, group_idx| {
+                for (group.keys, 0..) |key, lane| {
+                    if (key == empty_key) continue;
 
-                const home_idx: usize = hash(entry.key) & mask;
-                const displacement = idx - home_idx;
+                    const idx = group_idx * group_size + lane;
+                    const home_group: usize = (hash(key) & mask) / group_size;
+                    const displacement = idx - home_group * group_size;
 
-                count += 1;
-                displacements[displacement] += 1;
-                total_displacement += displacement;
-                min_displacement = @min(min_displacement, displacement);
-                max_displacement = @max(max_displacement, displacement);
+                    count += 1;
+                    displacements[displacement] += 1;
+                    total_displacement += displacement;
+                    min_displacement = @min(min_displacement, displacement);
+                    max_displacement = @max(max_displacement, displacement);
+                }
             }
 
             if (count == 0) {
@@ -362,47 +374,48 @@ fn CustomMap(
 
         pub fn hash(key: K) u32 {
             const backing: u32 = @backingInt(key);
-            return ((backing *% 1870261805) >> 18) & 0xff_ff_ff_f8;
+            return ((backing *% 1870261805) >> 18);
         }
 
-        pub inline fn getIndex(self: @This(), key: K) ?usize {
+        pub fn getIndex(self: @This(), key: K) ?usize {
             std.debug.assert(self.size != 0);
+            std.debug.assert(key != empty_key);
 
-            const mask: u32 = self.capacity - 1;
-            const home_idx: usize = hash(key) & mask;
+            const home_group: usize = (hash(key) & mask) / group_size;
+            const group = &self.groups[home_group];
 
-            return for (home_idx..home_idx + 8) |idx| {
-                const key_at = self.entries[idx].key;
-                if (key_at == empty_key) break null;
-                if (key_at == key) break idx;
-            } else null;
+            const Vec = @Vector(group_size, u32);
+            const keys: *Vec = @ptrCast(&group.keys);
+            const matches: u8 = @bitCast(keys.* == @as(Vec, @splat(@backingInt(key))));
+            if (matches == 0) return null;
+            return home_group * group_size + @ctz(matches);
         }
 
         /// clobbering not allowed
         pub fn put(self: *@This(), key: K, value: V) void {
-            std.debug.assert(self.size < self.capacity);
+            std.debug.assert(self.size < capacity);
 
-            const mask: u32 = self.capacity - 1;
-            const home_idx: usize = hash(key) & mask;
+            const home_group: usize = (hash(key) & mask) / group_size;
+            const group = &self.groups[home_group];
 
-            for (home_idx..home_idx + 8) |idx| {
-                const key_at = self.entries[idx].key;
+            for (0..group_size) |lane| {
+                const key_at = group.keys[lane];
                 if (key_at == empty_key) {
-                    self.entries[idx] = .{ .key = key, .value = value };
+                    group.keys[lane] = key;
+                    group.values[lane] = value;
                     self.size += 1;
                     return;
                 }
                 std.debug.assert(key_at != key);
-                std.debug.assert(idx < self.capacity);
             } else unreachable;
         }
 
         pub fn getPtr(self: @This(), key: K) ?*V {
-            return if (self.getIndex(key)) |idx| &self.entries[idx].value else null;
+            return if (self.getIndex(key)) |idx| self.valueAt(idx) else null;
         }
 
         pub fn get(self: @This(), key: K) ?V {
-            return if (self.getIndex(key)) |idx| self.entries[idx].value else null;
+            return if (self.getIndex(key)) |idx| self.valueAt(idx).* else null;
         }
 
         pub fn contains(self: @This(), key: K) bool {
