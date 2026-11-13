@@ -106,9 +106,9 @@ pub fn compile(task: @This(), gpa: std.mem.Allocator) Error!Mesh {
                 const block_pos: Vector3(i32) = .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) };
 
                 const block_state: Block.VirtualState = .resolve(task.getBlockState(block_pos), task, block_pos);
-                const model = render.renderer.blockstate_to_model_lookup.get(block_state).?;
+                const model = render.renderer.blockstate_to_model_lookup.get(block_state) orelse continue;
 
-                for (model.faces) |face| {
+                for (render.renderer.faces[model.idx..][0..model.len]) |face| {
                     if (face.cullface) |cullface| if (cull.get(cullface)) continue;
 
                     const light: World.Light = if (face.cullface) |cullface|

@@ -1,4 +1,4 @@
-pub const BlockStateMap = CustomMap(Block.VirtualState, BakedModel);
+pub const BlockStateMap = CustomMap(Block.VirtualState, packed struct { idx: u16, len: u16 });
 
 /// Create a lookup table mapping from Block.VirtualState -> BakedModel
 pub fn createBlockStateToModelTable(
@@ -6,33 +6,38 @@ pub fn createBlockStateToModelTable(
     textures: std.array_hash_map.String(ImageError!zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
     state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
-) !BlockStateMap {
+) !struct { BlockStateMap, []const BakedModel.Face } {
     @setRuntimeSafety(false);
 
     var lookup_table: BlockStateMap = try .init(gpa, 8192 * 2);
+    var faces: std.ArrayList(BakedModel.Face) = .empty;
     @setEvalBranchQuota(1000000);
     inline for (std.enums.values(Block)) |block| {
-        try blockToModel(gpa, block, &lookup_table, textures, resolved_models, state_to_model_maps);
+        try blockToModel(gpa, block, &lookup_table, &faces, textures, resolved_models, state_to_model_maps);
     }
     lookup_table.logDiagnostics();
-    return lookup_table;
+    return .{ lookup_table, try faces.toOwnedSlice(gpa) };
 }
 
 noinline fn blockToModel(
     gpa: std.mem.Allocator,
     comptime block: Block,
     lookup_table: *BlockStateMap,
+    faces: *std.ArrayList(BakedModel.Face),
     textures: std.array_hash_map.String(ImageError!zigimg.Image),
     resolved_models: std.array_hash_map.String(ModelError!ResolvedModel),
     state_to_model_maps: std.array_hash_map.String(StateError!StateToModelMap),
 ) !void {
     for (allValues(@FieldType(Block.VirtualState.Properties, @tagName(block)))) |properties| {
-        const baked_model: BakedModel = stateToModel(gpa, block, properties, textures, resolved_models, state_to_model_maps) catch .{
-            .faces = &.{},
-        };
+        const baked_model: BakedModel = stateToModel(gpa, block, properties, textures, resolved_models, state_to_model_maps) catch continue;
+        defer gpa.free(baked_model.faces);
+
+        const idx = faces.items.len;
+        try faces.appendSlice(gpa, baked_model.faces);
+
         lookup_table.put(
             .{ .block = block, .properties = @unionInit(Block.VirtualState.Properties, @tagName(block), properties) },
-            baked_model,
+            .{ .idx = @intCast(idx), .len = @intCast(baked_model.faces.len) },
         );
     }
 }
@@ -307,63 +312,30 @@ fn CustomMap(
     comptime V: type,
 ) type {
     return struct {
-        values: [*]V,
-        keys: [*]K,
+        entries: [*]align(64) Entry,
         capacity: u32,
         size: u32,
+
+        const Entry = struct { key: K, value: V };
+        comptime {
+            std.debug.assert(@sizeOf(Entry) == 8);
+        }
 
         // yes i know this is undefined behavior dont worry about it
         pub const empty_key: K = @fromBackingInt(std.math.maxInt(u20));
 
-        // so we can read past the end without having to wrap
-        pub const bonus_capacity: usize = 32;
-
         pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
-            const key_align = if (@sizeOf(K) == 0) 1 else @alignOf(K);
-            const val_align = if (@sizeOf(V) == 0) 1 else @alignOf(V);
-            const max_align: std.mem.Alignment = comptime .fromByteUnits(@max(key_align, val_align));
-
-            const keys_start: usize = 0;
-            const keys_end: usize = keys_start + (self.capacity + bonus_capacity) * @sizeOf(K);
-
-            const vals_start: usize = std.mem.alignForward(usize, keys_end, val_align);
-            const vals_end: usize = vals_start + (self.capacity + bonus_capacity) * @sizeOf(V);
-
-            const total_size = max_align.forward(vals_end);
-
-            const key_ptr: [*]align(max_align.toByteUnits()) u8 = @ptrCast(@alignCast(self.keys));
-            const slice_ptr = key_ptr - keys_start;
-            gpa.free(slice_ptr[0..total_size]);
+            gpa.free(self.entries[0..self.capacity]);
             self.* = undefined;
         }
 
         pub fn init(gpa: std.mem.Allocator, capacity: u32) std.mem.Allocator.Error!@This() {
             std.debug.assert(std.math.isPowerOfTwo(capacity));
 
-            const key_align = if (@sizeOf(K) == 0) 1 else @alignOf(K);
-            const val_align = if (@sizeOf(V) == 0) 1 else @alignOf(V);
-            const max_align: std.mem.Alignment = comptime .fromByteUnits(@max(key_align, val_align));
-
-            const real_capacity = capacity + bonus_capacity;
-
-            const keys_start: usize = 0;
-            const keys_end: usize = keys_start + real_capacity * @sizeOf(K);
-
-            const vals_start: usize = std.mem.alignForward(usize, keys_end, val_align);
-            const vals_end: usize = vals_start + real_capacity * @sizeOf(V);
-
-            const total_size = max_align.forward(vals_end);
-
-            const slice = try gpa.alignedAlloc(u8, max_align, total_size);
-
-            const keys: [*]K = @ptrCast(@alignCast(slice.ptr + keys_start));
-            const values: [*]V = @ptrCast(@alignCast(slice.ptr + vals_start));
-
-            @memset(keys[0..real_capacity], empty_key);
-
+            const entries = try gpa.allocWithOptions(Entry, capacity, .@"64", null);
+            @memset(entries, .{ .key = empty_key, .value = undefined });
             return .{
-                .values = values,
-                .keys = keys,
+                .entries = entries.ptr,
                 .size = 0,
                 .capacity = capacity,
             };
@@ -377,14 +349,16 @@ fn CustomMap(
             var total_displacement: usize = 0;
             var min_displacement: usize = std.math.maxInt(usize);
             var max_displacement: usize = 0;
+            var displacements: [64]u16 = @splat(0);
 
-            for (self.keys[0 .. self.capacity + bonus_capacity], 0..) |key, idx| {
-                if (key == empty_key) continue;
+            for (self.entries[0..self.capacity], 0..) |entry, idx| {
+                if (entry.key == empty_key) continue;
 
-                const home_idx: usize = hash(key) & mask;
+                const home_idx: usize = hash(entry.key) & mask;
                 const displacement = idx - home_idx;
 
                 count += 1;
+                displacements[displacement] += 1;
                 total_displacement += displacement;
                 min_displacement = @min(min_displacement, displacement);
                 max_displacement = @max(max_displacement, displacement);
@@ -395,31 +369,33 @@ fn CustomMap(
                 return;
             }
 
-            const average_displacement = @as(f64, @floatFromInt(total_displacement)) / @as(f64, @floatFromInt(count));
+            const average_displacement = @as(f128, total_displacement) / @as(f128, count);
             std.log.scoped(.resource_pack).info(
                 "hashmap diagnostics: {} keys, average displacement {d:.2}, minimum {}, maximum {}",
                 .{ count, average_displacement, min_displacement, max_displacement },
             );
+            std.log.scoped(.resource_pack).info(
+                "displacements: {any}",
+                .{displacements[0 .. max_displacement + 1]},
+            );
         }
 
         pub fn hash(key: K) u32 {
-            // Computationally easy, spectrally good multipliers for congruential pseudorandom number generators
-            // https://arxiv.org/html/2001.05304v1
             const backing: u32 = @backingInt(key);
-            return (backing *% 1870261802) >> 18;
+            return ((backing *% 1870261805) >> 18) & 0xff_ff_ff_f8;
         }
 
         pub inline fn getIndex(self: @This(), key: K) ?usize {
             std.debug.assert(self.size != 0);
 
             const mask: u32 = self.capacity - 1;
-            var idx: usize = hash(key) & mask;
+            const home_idx: usize = hash(key) & mask;
 
-            while (true) : (idx += 1) {
-                const key_at = self.keys[idx];
-                if (key_at == empty_key) return null;
-                if (key_at == key) return idx;
-            }
+            return for (home_idx..home_idx + 8) |idx| {
+                const key_at = self.entries[idx].key;
+                if (key_at == empty_key) break null;
+                if (key_at == key) break idx;
+            } else null;
         }
 
         /// clobbering not allowed
@@ -427,26 +403,26 @@ fn CustomMap(
             std.debug.assert(self.size < self.capacity);
 
             const mask: u32 = self.capacity - 1;
-            var idx: usize = hash(key) & mask;
-            while (true) : (idx += 1) {
-                const key_at = self.keys[idx];
-                if (key_at == empty_key) break;
-                if (key_at == key) unreachable;
+            const home_idx: usize = hash(key) & mask;
 
-                std.debug.assert(idx < self.capacity + bonus_capacity);
-            }
-
-            self.keys[idx] = key;
-            self.values[idx] = value;
-            self.size += 1;
+            for (home_idx..home_idx + 8) |idx| {
+                const key_at = self.entries[idx].key;
+                if (key_at == empty_key) {
+                    self.entries[idx] = .{ .key = key, .value = value };
+                    self.size += 1;
+                    return;
+                }
+                std.debug.assert(key_at != key);
+                std.debug.assert(idx < self.capacity);
+            } else unreachable;
         }
 
         pub fn getPtr(self: @This(), key: K) ?*V {
-            return if (self.getIndex(key)) |idx| &self.values[idx] else null;
+            return if (self.getIndex(key)) |idx| &self.entries[idx].value else null;
         }
 
         pub fn get(self: @This(), key: K) ?V {
-            return if (self.getIndex(key)) |idx| self.values[idx] else null;
+            return if (self.getIndex(key)) |idx| self.entries[idx].value else null;
         }
 
         pub fn contains(self: @This(), key: K) bool {

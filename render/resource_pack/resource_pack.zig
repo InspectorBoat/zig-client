@@ -6,6 +6,7 @@ pub fn init(
     resource_pack_dir: std.Io.Dir,
 ) !struct {
     BlockStateMap,
+    []const BakedModel.Face,
     std.AutoHashMapUnmanaged(u16, BakedItemModel),
     std.array_hash_map.String(ImageError!zigimg.Image),
 } {
@@ -55,7 +56,7 @@ pub fn init(
     std.log.scoped(.resource_pack).debug("resolve took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
     start = .now(io, .real);
 
-    const block_state_to_model_table = try createBlockStateToModelTable(gpa, textures, resolved_models, state_to_model_maps);
+    const block_state_to_model_table, const faces = try createBlockStateToModelTable(gpa, textures, resolved_models, state_to_model_maps);
 
     std.log.scoped(.resource_pack).debug("block_state_to_model took {} ms", .{start.untilNow(io, .real).toMilliseconds()});
     start = .now(io, .real);
@@ -66,6 +67,7 @@ pub fn init(
 
     return .{
         block_state_to_model_table,
+        faces,
         item_stack_to_model_table,
         textures,
     };

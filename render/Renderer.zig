@@ -14,6 +14,7 @@ compilation_tracker: *CompilationTracker,
 chunk_tracker: ChunkTracker,
 
 blockstate_to_model_lookup: BlockStateMap,
+faces: []const resource_pack.BakedModel.Face,
 item_to_model_lookup: std.AutoHashMapUnmanaged(u16, resource_pack.BakedItemModel),
 
 // Debug
@@ -73,7 +74,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
 
     var arena: std.heap.ArenaAllocator = .init(allocator);
     defer arena.deinit();
-    const blockstate_to_model_lookup_table, const item_to_model_lookup_table, const named_textures = try resource_pack.init(
+    const blockstate_to_model_lookup_table, const faces, const item_to_model_lookup_table, const named_textures = try resource_pack.init(
         io,
         allocator,
         arena.allocator(),
@@ -95,6 +96,7 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !@This() {
         .compilation_tracker = compilation_tracker,
         .chunk_tracker = chunk_tracker,
 
+        .faces = faces,
         .blockstate_to_model_lookup = blockstate_to_model_lookup_table,
         .item_to_model_lookup = item_to_model_lookup_table,
 
@@ -955,13 +957,8 @@ pub fn deinit(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !void {
     self.@"2d_debug_staging_buffer".backer.deinit(gpa);
     self.past_visible.deinit(gpa);
 
-    {
-        for (self.blockstate_to_model_lookup.keys, self.blockstate_to_model_lookup.values, 0..(self.blockstate_to_model_lookup.capacity + BlockStateMap.bonus_capacity)) |key, value, _| {
-            if (key == BlockStateMap.empty_key) continue;
-            gpa.free(value.faces);
-        }
-        self.blockstate_to_model_lookup.deinit(gpa);
-    }
+    self.blockstate_to_model_lookup.deinit(gpa);
+    gpa.free(self.faces);
     {
         var iter = self.item_to_model_lookup.iterator();
         while (iter.next()) |entry| {
