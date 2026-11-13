@@ -142,19 +142,6 @@ pub fn build(b: *std.Build) void {
         test_step.dependOn(&b.addRunArtifact(test_main).step);
     }
 
-    // Add check step to see if client compiles without doing any codegen
-    // https://github.com/tigerbeetle/tigerbeetle/pull/1538/commits/840308a4c5155f4af88257b8fc8143bf10e1a91a
-    {
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg);
-        const client = b.addExecutable(.{
-            .name = "zig-client",
-            .root_module = mods.main,
-        });
-
-        const check = b.step("check", "Check if client compiles");
-        check.dependOn(&client.step);
-    }
-
     const zsort = (b.lazyDependency("zsort", .{
         .target = b.graph.host,
         .optimize = .fast,
