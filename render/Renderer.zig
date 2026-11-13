@@ -992,7 +992,6 @@ const Frustum = render.Frustum;
 const GpuMemoryAllocator = render.GpuMemoryAllocator;
 const gui = render.gui;
 const ChunkTracker = render.mesher.ChunkTracker;
-const CompilationTask = render.mesher.CompilationTask;
 const CompilationTracker = render.mesher.CompilationTracker;
 const GpuStagingBuffer = render.mesher.GpuStagingBuffer;
 const resource_pack = render.resource_pack;

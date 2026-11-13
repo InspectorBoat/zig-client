@@ -287,26 +287,6 @@ pub fn skipField(comptime block: Block, comptime field_name: []const u8, propert
     return false;
 }
 
-const std = @import("std");
-
-const main = @import("main");
-const render = @import("render");
-const zigimg = @import("zigimg");
-const allValues = @import("util").allValues;
-
-pub const ModelTemplate = @import("ModelTemplate.zig");
-pub const StateToModelMap = @import("StateToModelMap.zig");
-
-const Block = main.Block;
-const Direction = main.Direction;
-const Vector3 = main.Vector3;
-const Renderer = render.Renderer;
-const BakedModel = render.resource_pack.BakedModel;
-const ImageError = render.resource_pack.ImageError;
-const ModelError = render.resource_pack.ModelError;
-const ResolvedModel = render.resource_pack.ResolvedModel;
-const StateError = render.resource_pack.StateError;
-
 fn CustomMap(
     comptime K: type,
     comptime V: type,
@@ -430,3 +410,23 @@ fn CustomMap(
         }
     };
 }
+
+const std = @import("std");
+
+const main = @import("main");
+const render = @import("render");
+const zigimg = @import("zigimg");
+const allValues = @import("util").allValues;
+
+pub const ModelTemplate = @import("ModelTemplate.zig");
+pub const StateToModelMap = @import("StateToModelMap.zig");
+
+const Block = main.Block;
+const Direction = main.Direction;
+const Vector3 = main.Vector3;
+const Renderer = render.Renderer;
+const BakedModel = render.resource_pack.BakedModel;
+const ImageError = render.resource_pack.ImageError;
+const ModelError = render.resource_pack.ModelError;
+const ResolvedModel = render.resource_pack.ResolvedModel;
+const StateError = render.resource_pack.StateError;

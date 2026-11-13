@@ -123,5 +123,5 @@ const std = @import("std");
 const main = @import("main");
 const render = @import("render");
 
-const Task = render.mesher.CompilationTask;
 const World = main.World;
+const Task = render.mesher.CompilationTask;

@@ -69,7 +69,7 @@ fn createModules(
     };
 }
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     // Declare external dependencies
@@ -142,10 +142,10 @@ pub fn build(b: *std.Build) void {
         test_step.dependOn(&b.addRunArtifact(test_main).step);
     }
 
-    const zsort = (b.lazyDependency("zsort", .{
+    const zsort = (try b.dependencyLazy("zsort", .{
         .target = b.graph.host,
-        .optimize = .fast,
-    }) orelse return).artifact("zsort");
+        .optimize = .debug,
+    })).artifact("zsort");
 
     const run_fix = b.addRunArtifact(zsort);
     run_fix.setCwd(b.path("."));
