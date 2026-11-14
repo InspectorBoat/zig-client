@@ -50,6 +50,9 @@ fn worker(io: std.Io, gpa: std.mem.Allocator, tracker: *@This()) void {
 }
 
 pub fn spawn(self: *@This(), io: std.Io, world: *const World, section_pos: main.Vector3(i32), revision: u32) error{ Canceled, QueueFull, Closed }!void {
+    const zone: tracy.Zone = .begin(.{ .name = "Queue compilation", .src = @src(), .color = .light_green });
+    defer zone.end();
+
     const task: Task = try .init(world, section_pos, revision);
     errdefer task.deinit(.failing);
     switch (try self.pending.put(io, &.{task}, 0)) {
@@ -63,6 +66,9 @@ pub fn spawn(self: *@This(), io: std.Io, world: *const World, section_pos: main.
 }
 
 pub fn popCompleted(self: *@This(), io: std.Io, gpa: std.mem.Allocator) !?Completed {
+    const zone: tracy.Zone = .begin(.{ .name = "Pop completed compilation", .src = @src(), .color = .blue });
+    defer zone.end();
+
     if (self.completed_count.load(.acquire) == 0) return null;
     var completed: Completed = undefined;
     switch (self.completed.getUncancelable(io, (&completed)[0..1], 0) catch unreachable) {
@@ -122,6 +128,7 @@ const std = @import("std");
 
 const main = @import("main");
 const render = @import("render");
+const tracy = @import("tracy");
 
 const World = main.World;
 const Task = render.mesher.CompilationTask;

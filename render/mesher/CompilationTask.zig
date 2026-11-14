@@ -42,6 +42,9 @@ pub fn getLight(self: *const @This(), block_pos: Vector3(i32)) World.Light {
 }
 
 pub fn init(world: *const World, section_pos: Vector3(i32), revision: u32) !@This() {
+    const zone: tracy.Zone = .begin(.{ .name = "Create compilation task", .src = @src(), .color = .light_green });
+    defer zone.end();
+
     var sections: [3][3][3]?*World.Section = @splat(@splat(@splat(null)));
 
     for (0..3) |dy| {
@@ -67,36 +70,46 @@ pub fn init(world: *const World, section_pos: Vector3(i32), revision: u32) !@Thi
 }
 
 pub fn deinit(self: @This(), gpa: std.mem.Allocator) void {
+    const zone: tracy.Zone = .begin(.{ .name = "Free compilation task", .src = @src(), .color = .light_green });
+    defer zone.end();
+
     for (self.sections) |y| for (y) |z| for (z) |maybe_section| if (maybe_section) |section| section.release(gpa);
 }
 
 pub fn compile(task: @This(), gpa: std.mem.Allocator) Error!Mesh {
     @setRuntimeSafety(false);
 
+    const zone: tracy.Zone = .begin(.{ .name = "Compile chunk", .src = @src(), .color = .light_green });
+    defer zone.end();
+
     var staging: GpuStagingBuffer = try .initCapacity(gpa, 4096);
     errdefer staging.deinit();
 
     var cull_table: [16][16][16]CullMask = undefined;
     const culling_blocks = block_attributes.culls_adjacent_faces;
-    for (0..16) |y| {
-        for (0..16) |z| {
-            for (0..16) |x| {
-                const block_pos: Vector3(i32) = .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) };
+    {
+        const cull_zone: tracy.Zone = .begin(.{ .name = "Create cull table", .src = @src(), .color = .red });
+        defer cull_zone.end();
 
-                cull_table[y][z][x] = .{
-                    // zig fmt: off
-                    .west  = culling_blocks.contains(task.getBlock(block_pos.west())),
-                    .east  = culling_blocks.contains(task.getBlock(block_pos.east())),
-                    .down  = culling_blocks.contains(task.getBlock(block_pos.down())),
-                    .up    = culling_blocks.contains(task.getBlock(block_pos.up())),
-                    .north = culling_blocks.contains(task.getBlock(block_pos.north())),
-                    .south = culling_blocks.contains(task.getBlock(block_pos.south())),
-                    // zig fmt: on
-                };
+        for (0..16) |y| {
+            for (0..16) |z| {
+                for (0..16) |x| {
+                    const block_pos: Vector3(i32) = .{ .x = @intCast(x), .y = @intCast(y), .z = @intCast(z) };
+
+                    cull_table[y][z][x] = .{
+                        // zig fmt: off
+                        .west  = culling_blocks.contains(task.getBlock(block_pos.west())),
+                        .east  = culling_blocks.contains(task.getBlock(block_pos.east())),
+                        .down  = culling_blocks.contains(task.getBlock(block_pos.down())),
+                        .up    = culling_blocks.contains(task.getBlock(block_pos.up())),
+                        .north = culling_blocks.contains(task.getBlock(block_pos.north())),
+                        .south = culling_blocks.contains(task.getBlock(block_pos.south())),
+                        // zig fmt: on
+                    };
+                }
             }
         }
     }
-
     for (0..16) |y| {
         for (0..16) |z| {
             for (0..16) |x| {
@@ -115,6 +128,9 @@ pub fn compile(task: @This(), gpa: std.mem.Allocator) Error!Mesh {
                         task.getLight(block_pos.dir(cullface))
                     else
                         .{ .block = 15, .sky = 15 };
+
+                    const vertex_zone: tracy.Zone = .begin(.{ .name = "Push vertex", .src = @src(), .color = .rebecca_purple });
+                    defer vertex_zone.end();
 
                     for (face.pos, face.uv) |vertex_pos, uv| {
                         try staging.writeVertex(
@@ -161,6 +177,7 @@ const std = @import("std");
 
 const main = @import("main");
 const render = @import("render");
+const tracy = @import("tracy");
 
 const block_attributes = @import("block_attributes.zig");
 

@@ -415,6 +415,9 @@ fn CustomMap(
         }
 
         pub fn get(self: @This(), key: K) ?V {
+            const zone: tracy.Zone = .begin(.{ .name = "Hashmap get", .src = @src(), .color = .orange });
+            defer zone.end();
+
             return if (self.getIndex(key)) |idx| self.valueAt(idx).* else null;
         }
 
@@ -433,6 +436,7 @@ const std = @import("std");
 const localasm = @import("localasm");
 const main = @import("main");
 const render = @import("render");
+const tracy = @import("tracy");
 const zigimg = @import("zigimg");
 const allValues = @import("util").allValues;
 

@@ -225,6 +225,9 @@ pub const VirtualState = packed struct(u20) {
     }
 
     pub noinline fn resolve(physical: PhysicalState, world: anytype, block_pos: Vector3(i32)) @This() {
+        const zone: tracy.Zone = .begin(.{ .name = "Resolve virtual state", .src = @src(), .color = .brown });
+        defer zone.end();
+
         @setRuntimeSafety(false);
 
         if (!block_attributes.has_virtual_state.contains(physical.block)) {
@@ -1068,6 +1071,7 @@ const collision = opaque {
 const std = @import("std");
 
 const main = @import("main");
+const tracy = @import("tracy");
 
 const block_attributes = @import("block_attributes.zig");
 const physical_state = @import("physical_state.zig");

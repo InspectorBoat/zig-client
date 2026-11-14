@@ -9,24 +9,36 @@ fn createModules(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    tracy_enabled: bool,
     options: *std.Build.Module,
     mach_glfw: *std.Build.Module,
     zgl: *std.Build.Module,
     zalgebra: *std.Build.Module,
     zigimg: *std.Build.Module,
+    tracy: *std.Build.Module,
+    tracy_options: *std.Build.Module,
     assembly_helper: *std.Build.Module,
 ) ModuleSet {
     const main = b.createModule(.{
         .root_source_file = b.path("main/main.zig"),
         .target = target,
         .optimize = optimize,
-        .omit_frame_pointer = optimize == .fast,
-        .strip = optimize == .fast,
+        .omit_frame_pointer = optimize == .fast and !tracy_enabled,
+        .strip = optimize == .fast and !tracy_enabled,
+        .imports = &.{
+            .{ .name = "build_options", .module = options },
+            .{ .name = "localasm", .module = assembly_helper },
+            .{ .name = "tracy", .module = tracy },
+            .{ .name = "tracy_options", .module = tracy_options },
+        },
     });
     const quarantine = b.createModule(.{
         .root_source_file = b.path("quarantine/quarantine.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zalgebra", .module = zalgebra },
+        },
     });
     const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),
@@ -37,30 +49,28 @@ fn createModules(
         .root_source_file = b.path("render/render.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "build_options", .module = options },
+            .{ .name = "localasm", .module = assembly_helper },
+            .{ .name = "tracy", .module = tracy },
+            .{ .name = "zgl", .module = zgl },
+            .{ .name = "mach-glfw", .module = mach_glfw },
+            .{ .name = "zalgebra", .module = zalgebra },
+            .{ .name = "zigimg", .module = zigimg },
+        },
     });
 
     quarantine.addImport("main", main);
-    quarantine.addImport("zalgebra", zalgebra);
 
     util.addImport("llm-code-quarantine", quarantine);
 
     render.addImport("main", main);
     render.addImport("render", render);
-    render.addImport("build_options", options);
-
-    render.addImport("zgl", zgl);
-    render.addImport("mach-glfw", mach_glfw);
-    render.addImport("zalgebra", zalgebra);
     render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
-    render.addImport("zigimg", zigimg);
-    render.addImport("localasm", assembly_helper);
 
     main.addImport("main", main);
     main.addImport("render", render);
-    main.addImport("build_options", options);
-    main.addImport("localasm", assembly_helper);
-
     main.addImport("util", util);
     main.addImport("llm-code-quarantine", quarantine);
 
@@ -75,7 +85,20 @@ fn createModules(
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    // Declare external dependencies
+
+    const tracy_options_pkg = @import("tracy_options");
+    var tracy_defs: tracy_options_pkg.Defs = .standard(b);
+    const tracy_enabled = b.option(bool, "tracy", "Enable Tracy profiling") orelse false;
+    tracy_defs.TRACY_ENABLE = tracy_enabled;
+
+    const tracy = b.dependency("tracy", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("tracy");
+    const tracy_options = b.dependency("tracy_options", tracy_defs.toArgs(.{
+        .target = target,
+        .optimize = optimize,
+    })).module("tracy_options");
     const mach_glfw = b.dependency("mach_glfw", .{
         .optimize = optimize,
         .target = target,
@@ -93,62 +116,76 @@ pub fn build(b: *std.Build) !void {
         .target = target,
     }).module("zigimg");
 
-    const graphics = b.option(enum { normal, headless, silent }, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
+    const GraphicsMode = enum(u8) { normal, headless, silent };
+
+    const graphics = b.option(GraphicsMode, "graphics", "Graphics mode: normal (default), headless (no rendering), silent (hidden window)") orelse .normal;
     const single_threaded = b.option(bool, "singlethreaded", "Build as single threaded") orelse false;
     const use_llvm = b.option(bool, "llvm", "Use llvm");
     const auth = b.option(bool, "auth", "Compile with auth support (requires http & crypto)") orelse (optimize == .debug);
 
     const options = b.addOptions();
-    options.addOption(@TypeOf(graphics), "graphics", graphics);
+    options.addOption(GraphicsMode, "graphics", graphics);
     options.addOption(bool, "auth", auth);
+    options.addOption(bool, "tracy", tracy_enabled);
     const options_module = options.createModule();
-    {
-        // Create main executable
-        const mods = createModules(b, target, optimize, options_module, mach_glfw, zgl, zalgebra, zigimg, b.dependency("localasm", .{}).module("localasm"));
-        mods.main.single_threaded = single_threaded;
-        const client = b.addExecutable(.{
-            .name = "zig-client",
-            .root_module = mods.main,
-        });
-        client.use_llvm = use_llvm;
+    // Create main executable
+    const mods = createModules(
+        b,
+        target,
+        optimize,
+        tracy_enabled,
+        options_module,
+        mach_glfw,
+        zgl,
+        zalgebra,
+        zigimg,
+        tracy,
+        tracy_options,
+        b.dependency("localasm", .{}).module("localasm"),
+    );
+    mods.main.single_threaded = single_threaded;
+    const client = b.addExecutable(.{
+        .name = "zig-client",
+        .root_module = mods.main,
+    });
+    client.use_llvm = use_llvm;
 
-        // Emit cleaned assembly via localasm
-        const asm_file = localasm.addAsm(b, client, .prefix, "asm/asm.s");
-        const asm_step = b.step("asm", "Emit cleaned assembly");
-        asm_step.dependOn(&asm_file.step);
+    // Emit cleaned assembly via localasm
+    const asm_file = localasm.addAsm(b, client, .prefix, "asm/asm.s");
+    const asm_step = b.step("asm", "Emit cleaned assembly");
+    asm_step.dependOn(&asm_file.step);
 
-        // Install exe
-        const install = b.addInstallArtifact(client, .{});
-        b.getInstallStep().dependOn(&install.step);
+    // Install exe
+    const install = b.addInstallArtifact(client, .{});
+    b.getInstallStep().dependOn(&install.step);
 
-        // Install shader source
-        const install_shader = b.addInstallDirectory(.{
-            .source_dir = b.path("render/shader"),
-            .install_dir = .bin,
-            .install_subdir = "shader",
-        });
-        b.getInstallStep().dependOn(&install_shader.step);
+    // Install shader source
+    const install_shader = b.addInstallDirectory(.{
+        .source_dir = b.path("render/shader"),
+        .install_dir = .bin,
+        .install_subdir = "shader",
+    });
+    b.getInstallStep().dependOn(&install_shader.step);
 
-        // Run exe
-        const run_exe = b.addRunArtifact(client);
-        run_exe.setCwd(b.path("zig-out/bin"));
-        run_exe.step.dependOn(b.getInstallStep());
+    // Run exe
+    const run_exe = b.addRunArtifact(client);
+    run_exe.setCwd(b.path("zig-out/bin"));
+    run_exe.step.dependOn(b.getInstallStep());
 
-        const run_step = b.step("run", "Run the application");
-        run_step.dependOn(&run_exe.step);
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_exe.step);
 
-        // Run unit tests
-        const test_main = b.addTest(.{ .root_module = mods.main });
-        const test_render = b.addTest(.{ .root_module = mods.render });
-        const test_util = b.addTest(.{ .root_module = mods.util });
-        const test_quarantine = b.addTest(.{ .root_module = mods.quarantine });
+    // Run unit tests
+    const test_main = b.addTest(.{ .root_module = mods.main });
+    const test_render = b.addTest(.{ .root_module = mods.render });
+    const test_util = b.addTest(.{ .root_module = mods.util });
+    const test_quarantine = b.addTest(.{ .root_module = mods.quarantine });
 
-        const test_step = b.step("test", "Run unit tests");
-        test_step.dependOn(&b.addRunArtifact(test_render).step);
-        test_step.dependOn(&b.addRunArtifact(test_util).step);
-        test_step.dependOn(&b.addRunArtifact(test_quarantine).step);
-        test_step.dependOn(&b.addRunArtifact(test_main).step);
-    }
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&b.addRunArtifact(test_render).step);
+    test_step.dependOn(&b.addRunArtifact(test_util).step);
+    test_step.dependOn(&b.addRunArtifact(test_quarantine).step);
+    test_step.dependOn(&b.addRunArtifact(test_main).step);
 
     const zsort = (try b.dependencyLazy("zsort", .{
         .target = b.graph.host,

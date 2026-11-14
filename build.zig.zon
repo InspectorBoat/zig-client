@@ -37,5 +37,13 @@
             .url = "git+https://github.com/InspectorBoat/localasm#a9c2e0467dd9eacf21386ab3c82d6e0de21cb1d3",
             .hash = "localasm-0.1.0-PlBRSD5RAAA_ohacsFC4V38LUb2s9aa375EmkbU9L3GA",
         },
+        .tracy_options = .{
+            .url = "git+https://codeberg.org/Games-by-Mason/tracy_options#9cdddf9e6ff175f3975307b6a834a3697316bf1d",
+            .hash = "tracy_options-1.0.0+0.13.1-dtgOxE0eAACGuEeQfCFv0wTQZWTUVH5V1AUWWrA55qqg",
+        },
+        .tracy = .{
+            .url = "git+https://codeberg.org/Games-by-Mason/tracy_zig#72b10ac2abe7e27bde96947f268d9457b5d68434",
+            .hash = "tracy-1.1.0+0.13.1-R7l8BXdBAQB4IKHbmH2Raz_vg96J356CuLKxZx6H-ni3",
+        },
     },
 }

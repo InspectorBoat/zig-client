@@ -328,6 +328,9 @@ pub fn initTexture(allocator: std.mem.Allocator, named_block_textures: std.array
 }
 
 pub fn renderFrame(self: *@This(), io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game) !void {
+    const zone: tracy.Zone = .begin(.{ .name = "Render frame", .src = @src(), .color = .green });
+    defer zone.end();
+
     const mvp = getMvpMatrix(game.world.player, game.partial_tick);
 
     try self.renderTerrain(io, gpa, game);
@@ -803,7 +806,8 @@ pub fn onBlockUpdate(self: *@This(), block_pos: Vector3(i32)) !void {
 }
 
 pub fn updateAndDispatchDirtySections(self: *@This(), io: std.Io, start: std.Io.Timestamp, world: *const World) !void {
-    @setRuntimeSafety(false);
+    const zone: tracy.Zone = .begin(.{ .name = "Update dirty sections", .src = @src(), .color = .light_green });
+    defer zone.end();
 
     for (self.chunk_tracker.chunks.keys(), self.chunk_tracker.chunks.values()) |chunk_pos, *chunk_info| {
         if (start.untilNow(io, .real).toMilliseconds() > compile_budget) return;
@@ -883,6 +887,9 @@ pub fn dispatchCompilationTask(
 }
 
 pub fn uploadCompilationResults(self: *@This(), io: std.Io, gpa: std.mem.Allocator, start: std.Io.Timestamp) !void {
+    const zone: tracy.Zone = .begin(.{ .name = "Upload compilation results", .src = @src(), .color = .light_green });
+    defer zone.end();
+
     while (self.compilation_tracker.popCompleted(io, gpa) catch return) |completed| {
         const section_pos = completed.task.section_pos;
         const revision = completed.task.revision;
@@ -976,6 +983,7 @@ const std = @import("std");
 
 const main = @import("main");
 const render = @import("render");
+const tracy = @import("tracy");
 const za = @import("zalgebra");
 const gl = @import("zgl");
 const zigimg = @import("zigimg");

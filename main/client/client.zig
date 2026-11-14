@@ -230,7 +230,11 @@ pub const Client = union(enum) {
     pub fn updateGame(self: *@This(), io: std.Io) !void {
         switch (self.*) {
             .game => |*game| {
-                game.handleInputOnFrame();
+                {
+                    const zone = main.tracy.Zone.begin(.{ .name = "Handle input on frame", .src = @src(), .color = .light_blue });
+                    defer zone.end();
+                    game.handleInputOnFrame();
+                }
 
                 const ticks_elapsed, game.partial_tick = game.world.tick_timer.advance(io);
                 if (ticks_elapsed == 0) return;
@@ -239,6 +243,9 @@ pub const Client = union(enum) {
                 logTickStatistics(game.partial_tick, ticks_elapsed);
 
                 for (0..ticks_elapsed) |_| {
+                    const tick_zone = main.tracy.Zone.begin(.{ .name = "World tick", .src = @src(), .color = .green });
+                    defer tick_zone.end();
+
                     const start: std.Io.Clock.Timestamp = .now(io, .cpu_thread);
                     defer std.log.scoped(.tick_timing_noisy).debug("tick took {} ms", .{@as(f128, start.untilNow(io).raw.nanoseconds) / std.time.ns_per_ms});
 
@@ -267,6 +274,10 @@ pub const Client = union(enum) {
         while (true) {
             var s2c_packet, const tail_mark = incoming_packets.pop() orelse break;
             defer incoming_allocator.freeFromTail(tail_mark);
+
+            const zone = main.tracy.Zone.begin(.{ .name = "Handle S2C packet", .src = @src(), .color = .light_green });
+            defer zone.end();
+            zone.text(@tagName(std.meta.activeTag(s2c_packet)));
 
             std.log.scoped(.handle_packet_main).debug("handling packet - {s}", .{@tagName(std.meta.activeTag(s2c_packet))});
 

@@ -6,23 +6,23 @@ pub const empty: @This() = .{
     .on_tick = .empty,
 };
 
-pub fn initCapacity(allocator: std.mem.Allocator, capacity: usize) !@This() {
+pub fn initCapacity(gpa: std.mem.Allocator, capacity: usize) !@This() {
     return .{
-        .on_frame = try .initCapacity(allocator, capacity),
-        .on_tick = try .initCapacity(allocator, capacity),
+        .on_frame = try .initCapacity(gpa, capacity),
+        .on_tick = try .initCapacity(gpa, capacity),
     };
 }
 
-pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    self.on_frame.deinit(allocator);
-    self.on_tick.deinit(allocator);
+pub fn deinit(self: *@This(), gpa: std.mem.Allocator) void {
+    self.on_frame.deinit(gpa);
+    self.on_tick.deinit(gpa);
 }
 
-pub fn queueOnFrame(self: *@This(), allocator: std.mem.Allocator, input: Input) !void {
-    try self.on_frame.pushBack(allocator, input);
+pub fn queueOnFrame(self: *@This(), gpa: std.mem.Allocator, input: Input) !void {
+    try self.on_frame.pushBack(gpa, input);
 }
-pub fn queueOnTick(self: *@This(), allocator: std.mem.Allocator, input: Input) !void {
-    try self.on_tick.pushBack(allocator, input);
+pub fn queueOnTick(self: *@This(), gpa: std.mem.Allocator, input: Input) !void {
+    try self.on_tick.pushBack(gpa, input);
 }
 
 pub const Input = union(enum) {

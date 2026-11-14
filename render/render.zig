@@ -12,11 +12,9 @@ pub const event_listeners = .{
 
 pub fn onStartup(startup: Events.Startup) !void {
     const gpa = startup.gpa;
-    // initialize glfw
     glfw_helper.setGlfwErrorCallback();
     try glfw_helper.initGlfw();
 
-    // initialize window
     const window = try glfw_helper.initGlfwWindow(switch (build_options.graphics) {
         .normal => true,
         .silent => false,
@@ -24,15 +22,12 @@ pub fn onStartup(startup: Events.Startup) !void {
     });
     window.setInputModeCursor(.disabled);
 
-    // initialize opengl
     try glfw_helper.loadGlPointers();
     glfw_helper.setGlErrorCallback();
 
-    // initialize window_input
     window_input = .init(gpa, window);
     window_input.setGlfwInputCallbacks();
 
-    // initialize renderer
     renderer = try .init(startup.io, gpa);
 }
 
@@ -41,25 +36,31 @@ pub fn onFrame(frame: Events.Frame) !void {
         main.signalExit();
     }
     const client = frame.client;
-    glfw.pollEvents();
+    {
+        const zone = tracy.Zone.begin(.{ .name = "Poll events", .src = @src(), .color = .light_blue });
+        defer zone.end();
+        glfw.pollEvents();
+    }
 
     switch (client.*) {
         .idle => gl.clearColor(1.0, 0.75, 0.75, 1),
         .connecting => gl.clearColor(0.75, 1.0, 0.75, 1),
         .game => gl.clearColor(0.72, 0.77, 0.92, 1),
     }
-    gl.clear(.{ .color = true, .depth = true });
+    {
+        const zone: tracy.Zone = .begin(.{ .name = "Clear", .src = @src(), .color = .light_blue });
+        defer zone.end();
+        gl.clear(.{ .color = true, .depth = true });
+    }
 
     switch (client.*) {
         .game => |*game| {
-            try handleInputIngame(frame.io, frame.allocator, game, frame.input_queue.?);
+            try handleInputIngame(frame.io, frame.gpa, game, frame.input_queue.?);
             const start: std.Io.Timestamp = .now(frame.io, .real);
+
             try renderer.updateAndDispatchDirtySections(frame.io, start, &game.world);
-            try renderer.uploadCompilationResults(frame.io, frame.allocator, start);
-            try renderer.renderFrame(frame.io, frame.allocator, game);
-            const now = std.Io.Timestamp.now(frame.io, .real).nanoseconds;
-            renderer.fps.update(now);
-            std.log.scoped(.fps).info("fps: {:.1}", .{renderer.fps.fps(now)});
+            try renderer.uploadCompilationResults(frame.io, frame.gpa, start);
+            try renderer.renderFrame(frame.io, frame.gpa, game);
         },
         .connecting => |*connecting_game| {
             handleInputConnecting(connecting_game);
@@ -68,7 +69,11 @@ pub fn onFrame(frame: Events.Frame) !void {
             handleInputIdle(idle_game);
         },
     }
-    window_input.window.swapBuffers();
+    {
+        const zone = tracy.Zone.begin(.{ .name = "Swap buffers", .src = @src(), .color = .light_blue });
+        defer zone.end();
+        window_input.window.swapBuffers();
+    }
 }
 
 pub fn onChunkUpdate(chunk_update: Events.ChunkUpdate) !void {
@@ -133,6 +138,9 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 
 var ignore_next_mouse_delta = false;
 pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
+    const zone: tracy.Zone = .begin(.{ .name = "Handle input", .src = @src(), .color = .light_blue });
+    defer zone.end();
+
     var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
@@ -286,6 +294,7 @@ const build_options = @import("build_options");
 const quarantine = @import("llm-code-quarantine");
 const glfw = @import("mach-glfw");
 const main = @import("main");
+const tracy = @import("tracy");
 const gl = @import("zgl");
 
 pub const GpuMemoryAllocator = @import("GpuMemoryAllocator.zig");

@@ -31,14 +31,24 @@ pub const std_options: std.Options = .{
 };
 
 pub fn main(init: std.process.Init) !void {
-    // const threaded: *std.Io.Threaded = @ptrCast(@alignCast(init.io.userdata));
-    // threaded.setAsyncLimit(.unlimited);
+    std.posix.sigaction(.TERM, &.{
+        .handler = .{
+            .handler = struct {
+                fn handler(signal: std.posix.SIG) callconv(.c) void {
+                    signalExit();
+                    _ = signal;
+                }
+            }.handler,
+        },
+        .mask = std.posix.sigemptyset(),
+        .flags = 0,
+    }, null);
 
-    const io = init.io;
     const gpa = init.gpa;
+    const io = init.io;
 
-    const path = try init.gpa.print("{s}/.local/share/PrismLauncher/accounts.json", .{init.environ_map.get("HOME").?});
-    defer init.gpa.free(path);
+    const path = try gpa.print("{s}/.local/share/PrismLauncher/accounts.json", .{init.environ_map.get("HOME").?});
+    defer gpa.free(path);
     const session: network.Session = try .parseFromPrismLauncher(
         io,
         gpa,
@@ -46,8 +56,8 @@ pub fn main(init: std.process.Init) !void {
     );
     defer session.deinit(gpa);
 
-    try EventHandler.dispatch(Events.Startup, .{ .gpa = gpa, .io = io });
-    defer EventHandler.dispatch(Events.Exit, .{ .io = io, .gpa = gpa }) catch |e| std.log.err("{} while shutting down", .{e});
+    try EventHandler.dispatch(Events.Startup, .{ .gpa = init.gpa, .io = io });
+    defer EventHandler.dispatch(Events.Exit, .{ .io = io, .gpa = init.gpa }) catch |e| std.log.err("{} while shutting down", .{e});
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
@@ -62,16 +72,32 @@ pub fn main(init: std.process.Init) !void {
     defer if (client != .idle) client.disconnect(io);
 
     while (true) {
-        try EventHandler.dispatch(Events.Frame, .{
-            .client = &client,
-            .input_queue = if (client == .game) &client.game.input_queue else null,
-            .io = io,
-            .allocator = gpa,
-        });
+        const frame_zone: tracy.Zone = .begin(.{ .name = "Frame", .src = @src(), .color = .slate_blue });
+        defer frame_zone.end();
 
-        if (client != .idle) try client.tickConnection(io);
-        if (client == .game) try client.updateGame(io);
+        {
+            const zone: tracy.Zone = .begin(.{ .name = "Frame events", .src = @src(), .color = .light_blue });
+            defer zone.end();
+            try EventHandler.dispatch(Events.Frame, .{
+                .client = &client,
+                .input_queue = if (client == .game) &client.game.input_queue else null,
+                .io = io,
+                .gpa = init.gpa,
+            });
+        }
 
+        if (client != .idle) {
+            const zone: tracy.Zone = .begin(.{ .name = "Tick connection", .src = @src(), .color = .light_green });
+            defer zone.end();
+            try client.tickConnection(io);
+        }
+        if (client == .game) {
+            const zone: tracy.Zone = .begin(.{ .name = "Update game", .src = @src(), .color = .green });
+            defer zone.end();
+            try client.updateGame(io);
+        }
+
+        tracy.frameMark("Frame");
         if (done) break;
     }
 }
@@ -87,7 +113,7 @@ pub const Events = struct {
     pub const ChunkUpdate = struct { gpa: std.mem.Allocator, chunk_pos: Vector2xz(i32), chunk: *const World.Chunk, world: *const World };
     pub const BlockUpdate = struct { block_pos: Vector3(i32), world: *const World };
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
-    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, allocator: std.mem.Allocator };
+    pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, gpa: std.mem.Allocator };
     pub const Exit = struct { io: std.Io, gpa: std.mem.Allocator };
 };
 
@@ -110,6 +136,8 @@ const std = @import("std");
 
 const build_options = @import("build_options");
 const render = @import("render");
+pub const tracy = @import("tracy");
+pub const tracy_options = @import("tracy_options");
 const util = @import("util");
 
 pub const block = @import("block/block.zig");
