@@ -40,10 +40,12 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
-    _ = game;
-    _ = self;
+
+    for (self.damaged_blocks) |block_pos| {
+        game.world.setBlockState(.failing, block_pos, .air) catch {};
+    }
+    game.world.player.base.velocity = game.world.player.base.velocity.add(.cast(self.player_velocity));
 }
 
 const std = @import("std");
