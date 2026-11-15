@@ -16,7 +16,7 @@ pub fn init(network_id: i32, pos: Vector3(f64)) @This() {
 pub fn tick(self: *@This(), game: *Client.Game) !void {
     self.base.tick();
 
-    self.tickWaterCollisions(game);
+    self.in_water = Entity.Generic(@This()).isInWater(self.base.hitbox, game);
 
     if (self.block_pos) |block_pos| {
         const block = game.world.resolveVirtualBlockState(block_pos);
@@ -78,38 +78,6 @@ pub fn tick(self: *@This(), game: *Client.Game) !void {
     self.base.setPosition(.add(self.base.pos, self.base.velocity));
     self.base.velocity = .mul(self.base.velocity, .splat(friction));
     self.base.velocity.y -= 0.05;
-}
-
-fn tickWaterCollisions(self: *@This(), game: *const Client.Game) void {
-    const bounds: Box(f64) = .contract(
-        .grow(self.base.hitbox, .{ .x = 0, .y = -0.4, .z = 0 }),
-        .splat(0.001),
-    );
-
-    var in_water = false;
-
-    // TODO: Check area loaded
-    const min: Vector3(i32) = .floor(bounds.min);
-    const max: Vector3(i32) = .floor(bounds.max.add(.splat(1)));
-
-    var x: i32 = min.x;
-    while (x < max.x) : (x += 1) {
-        var y: i32 = min.y;
-        while (y < max.y) : (y += 1) {
-            var z: i32 = min.z;
-            while (z < max.z) : (z += 1) {
-                const pos: Vector3(i32) = .{ .x = x, .y = y, .z = z };
-                const block_state = game.world.getBlockState(pos);
-                if (block_state.block.getMaterial() != .water) continue;
-                const level = block_state.properties.water.level;
-                const height_loss: f32 = if (level >= 8) 0 else @as(f32, @floatFromInt(level + 1)) / 9.0;
-                if (@as(f32, @floatFromInt(y)) + 1 - height_loss > @as(f32, @floatFromInt(max.y))) continue;
-                in_water = true;
-            }
-        }
-    }
-
-    self.in_water = in_water;
 }
 
 const std = @import("std");

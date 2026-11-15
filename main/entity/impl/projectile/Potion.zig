@@ -1,10 +1,10 @@
 base: Entity.Base,
 
-pub fn init(network_id: i32, pos: Vector3(f64)) @This() {
-    return .{ .base = .init(network_id, pos) };
-}
+pub const gravity: f32 = 0.05;
+
+pub const init = Entity.Generic(@This()).initThrown;
+pub const tick = Entity.Generic(@This()).thrownTick;
 
 const main = @import("main");
 
 const Entity = main.Entity;
-const Vector3 = main.Vector3;

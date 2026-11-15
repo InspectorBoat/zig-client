@@ -521,7 +521,7 @@ pub fn isClimbing(self: *const @This(), game: *const Client.Game) bool {
 }
 
 pub fn setSprinting(self: *@This(), sprint_state: bool) !void {
-    if (sprint_state) std.log.scoped(.player).debug("begin sprinting", .{}) else std.log.scoped(.player).debug("stop sprinting", .{});
+    std.log.scoped(.player).debug("{s} sprinting", .{if (sprint_state) "start" else "stop"});
     self.remaining_sprint_ticks = if (sprint_state) 600 else 0;
     try self.base.setSprinting(sprint_state);
 }
