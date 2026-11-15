@@ -1,32 +1,13 @@
 base: Entity.Base,
 living: Entity.LivingBase,
-interpolate: Entity.InterpolatedBase = .{},
+interpolate: Entity.InterpolatedBase,
 
-pub fn init(network_id: i32, pos: Vector3(f64)) @This() {
-    return .{ .base = .init(network_id, pos) };
-}
+pub const width = 0.9;
+pub const height = 0.9;
 
-pub fn initLiving(network_id: i32, pos: Vector3(f64), rotation: Rotation2(f32)) @This() {
-    var pig: @This() = .{ .base = .initRotation(network_id, pos, rotation), .living = .{} };
-    pig.base.setSize(0.9, 0.9);
-    return pig;
-}
-
-pub fn tick(self: *@This(), game: *Client.Game) !void {
-    _ = game;
-
-    self.base.tick();
-
-    self.interpolate.tick(&self.base);
-
-    if (@abs(self.base.velocity.x) < 0.005) self.base.velocity.x = 0;
-    if (@abs(self.base.velocity.y) < 0.005) self.base.velocity.y = 0;
-    if (@abs(self.base.velocity.z) < 0.005) self.base.velocity.z = 0;
-}
+pub const initLiving = Entity.Generic(@This()).initLiving;
+pub const tick = Entity.Generic(@This()).interpolatedTick;
 
 const main = @import("main");
 
-const Client = main.Client;
 const Entity = main.Entity;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;

@@ -16,8 +16,8 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
+
     _ = self.health; // TODO
     game.world.player.player.hunger.food_level = self.hunger;
     game.world.player.player.hunger.saturation_level = self.saturation;

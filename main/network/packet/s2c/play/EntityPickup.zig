@@ -15,10 +15,9 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
-    _ = game;
-    _ = self;
+
+    try game.world.queueEntityRemoval(self.picked_network_id);
 }
 
 const std = @import("std");

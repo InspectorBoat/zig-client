@@ -1,4 +1,4 @@
-type: i32,
+type: Type,
 network_id: i32,
 holder_network_id: i32,
 
@@ -11,7 +11,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
         .network_id = try buffer.read(i32),
         .holder_network_id = try buffer.read(i32),
-        .type = try buffer.read(u8),
+        .type = @fromBackingInt(try buffer.read(u8)),
     };
 }
 
@@ -22,6 +22,12 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = game;
     _ = self;
 }
+
+const Type = enum(u8) {
+    boat = 0,
+    leash = 1,
+    _,
+};
 
 const std = @import("std");
 

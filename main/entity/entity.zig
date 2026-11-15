@@ -150,7 +150,7 @@ pub const Entity = union(Type) {
         }
     }
 
-    pub fn setVelocityFromPacket(self: *@This(), velocity: Vector3(f64)) void {
+    pub noinline fn setVelocityFromPacket(self: *@This(), velocity: Vector3(f64)) void {
         switch (self.*) {
             .removed => return,
             inline else => |*specific_entity| {
@@ -311,6 +311,23 @@ pub const Entity = union(Type) {
     pub const InterpolatedBase = @import("impl/InterpolatedBase.zig");
 
     pub const DataTracker = @import("datatracker/DataTracker.zig");
+
+    pub fn Generic(E: type) type {
+        return struct {
+            pub fn initLiving(network_id: i32, pos: Vector3(f64), rotation: Rotation2(f32)) E {
+                var entity: E = .{ .base = .initRotation(network_id, pos, rotation), .living = .{}, .interpolate = .{} };
+                entity.base.setSize(E.width, E.height);
+                return entity;
+            }
+            pub fn interpolatedTick(self: *E, _: *Client.Game) !void {
+                self.base.tick();
+                self.interpolate.tick(&self.base);
+                if (@abs(self.base.velocity.x) < 0.005) self.base.velocity.x = 0;
+                if (@abs(self.base.velocity.y) < 0.005) self.base.velocity.y = 0;
+                if (@abs(self.base.velocity.z) < 0.005) self.base.velocity.z = 0;
+            }
+        };
+    }
 };
 
 const std = @import("std");

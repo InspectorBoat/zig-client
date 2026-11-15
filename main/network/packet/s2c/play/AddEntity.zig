@@ -41,16 +41,18 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
-    const pos = self.pos.normalize();
-    _ = pos;
 
-    if (self.getEntity(game)) |entity| {
-        _ = try game.world.addEntity(entity);
-    } else {
+    var entity = self.getEntity(game) orelse {
         std.log.scoped(.entity).warn("server sent AddEntity with unknown type!", .{});
-    }
+        return;
+    };
+
+    if (self.data > 0) if (self.velocity) |velocity| {
+        entity.setVelocityFromPacket(velocity.normalize());
+    };
+
+    _ = try game.world.addEntity(entity);
 }
 
 pub fn getEntity(self: *@This(), game: *Client.Game) ?Entity {

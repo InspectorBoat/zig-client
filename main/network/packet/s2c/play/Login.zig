@@ -21,7 +21,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const dimension = try buffer.read(i8);
     const difficulty = (try buffer.readPacked(packed struct(u8) { difficulty: Difficulty, _: u6 })).difficulty;
     const max_player_count = try buffer.read(u8);
-    const generator_type = GeneratorType.keys.get(try buffer.readString(16)) orelse .Default;
+    const generator_type = std.meta.stringToEnum(GeneratorType, try buffer.readString(16)) orelse .default;
     const reduced_debug_info = try buffer.read(bool);
     return .{
         .network_id = network_id,

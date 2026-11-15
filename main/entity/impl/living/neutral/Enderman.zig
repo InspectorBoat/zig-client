@@ -1,16 +1,13 @@
 base: Entity.Base,
 living: Entity.LivingBase,
+interpolate: Entity.InterpolatedBase,
 
-pub fn init(network_id: i32, pos: Vector3(f64)) @This() {
-    return .{ .base = .init(network_id, pos) };
-}
+pub const width = 0.6;
+pub const height = 2.9;
 
-pub fn initLiving(network_id: i32, pos: Vector3(f64), rotation: Rotation2(f32)) @This() {
-    return .{ .base = .initRotation(network_id, pos, rotation), .living = .{} };
-}
+pub const initLiving = Entity.Generic(@This()).initLiving;
+pub const tick = Entity.Generic(@This()).interpolatedTick;
 
 const main = @import("main");
 
 const Entity = main.Entity;
-const Rotation2 = main.Rotation2;
-const Vector3 = main.Vector3;

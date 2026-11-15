@@ -10,9 +10,8 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection) !void {
     _ = io;
-
-    connection.wants_disconnect.store(true, .release);
     _ = self;
+    connection.wants_disconnect.store(true, .release);
 }
 
 const std = @import("std");
