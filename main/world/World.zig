@@ -212,7 +212,7 @@ pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Ve
 
     const ptr = &section.block_states[@intCast(section_block_pos.y << 8 | section_block_pos.z << 4 | section_block_pos.x << 0)];
     const prev = ptr.*;
-    ptr.* = state;
+    @atomicStore(Block.PhysicalState, ptr, state, .unordered);
     if (prev != state) {
         try EventHandler.dispatch(Events.BlockUpdate, .{ .block_pos = block_pos, .world = self });
     }

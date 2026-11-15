@@ -20,8 +20,9 @@ pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.Physic
         .y = @intCast(block_pos.y & 0xf),
         .z = @intCast(block_pos.z & 0xf),
     };
-    return section.block_states[@intCast(local_block_pos.y << 8 | local_block_pos.z << 4 | local_block_pos.x << 0)];
+    return @atomicLoad(Block.PhysicalState, &section.block_states[@intCast(local_block_pos.y << 8 | local_block_pos.z << 4 | local_block_pos.x << 0)], .unordered);
 }
+
 pub fn getBlock(self: *const @This(), block_pos: anytype) Block {
     return self.getBlockState(block_pos).block;
 }
@@ -38,7 +39,7 @@ pub fn getLight(self: *const @This(), block_pos: Vector3(i32)) World.Light {
         .y = @intCast(block_pos.y & 0xf),
         .z = @intCast(block_pos.z & 0xf),
     };
-    return section.light[local_block_pos.y][local_block_pos.z][local_block_pos.x];
+    return @atomicLoad(World.Light, &section.light[local_block_pos.y][local_block_pos.z][local_block_pos.x], .unordered);
 }
 
 pub fn init(world: *const World, section_pos: Vector3(i32), revision: u32) !@This() {
