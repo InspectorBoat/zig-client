@@ -84,7 +84,17 @@ pub fn init(
 }
 
 pub fn pick(self: *@This()) void {
-    self.crosshair = .rayTraceWorld(.{}, self, self.player.getEyePos(), self.player.base.rotation, 30);
+    const from = self.player.getEyePos();
+    const to: Vector3(f64) = .add(
+        from,
+        .mul(HitResult.rotationToVec(self.player.base.rotation), .splat(30)),
+    );
+
+    self.crosshair = switch (HitResult.rayTraceWorld(.{}, self, from, to)) {
+        .block => |hit| if (hit.distance > 4) .miss else .{ .block = hit },
+        .entity => |hit| if (hit.distance > 3) .miss else .{ .entity = hit },
+        .miss => .miss,
+    };
 }
 
 pub fn tick(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {

@@ -2,7 +2,7 @@ pub fn attack(io: std.Io, game: *Game, player: *LocalPlayer) !void {
     if (game.input_manager.cooldown.attack > 0) return;
     try game.connection_handle.sendPlayPacket(io, .{ .hand_swing = .{} });
     switch (game.world.crosshair) {
-        .entity => |entity| try attackEntity(io, game, entity.entity_network_id),
+        .entity => |entity| try attackEntity(io, game, entity.entity_id),
         .block => |block| try startMiningBlock(io, game, player, block.pos, block.face),
         .miss => game.input_manager.cooldown.attack = 10,
     }
@@ -202,10 +202,9 @@ pub fn useItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
 /// No entities have a client-side interact-at interaction in 1.8.9
 pub fn interactEntityAt(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
     try updateHotbarSlot(io, game, player);
-
     try game.connection_handle.sendPlayPacket(io, .{ .player_interact_entity = .{
         .action = .{ .interact_at = game.world.crosshair.entity.offset },
-        .target_network_id = game.world.crosshair.entity.entity_network_id,
+        .target_network_id = game.world.crosshair.entity.entity_id,
     } });
     return false;
 }
@@ -216,7 +215,7 @@ pub fn interactEntity(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
 
     try game.connection_handle.sendPlayPacket(io, .{ .player_interact_entity = .{
         .action = .interact,
-        .target_network_id = game.world.crosshair.entity.entity_network_id,
+        .target_network_id = game.world.crosshair.entity.entity_id,
     } });
     return false;
 }

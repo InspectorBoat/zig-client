@@ -1,14 +1,16 @@
 pub const HitResult = union(Type) {
     block: struct {
         pos: Vector3(i32),
-        /// in local space already
         offset: Vector3(f64),
         face: Direction,
+        distance: f64,
     },
     entity: struct {
-        entity_network_id: i32,
+        entity_id: i32,
+        pos: Vector3(f64),
         offset: Vector3(f64),
-        face: Direction,
+        face: ?Direction = null,
+        distance: f64,
     },
     miss,
 
@@ -22,12 +24,11 @@ pub const HitResult = union(Type) {
     pub fn rayTraceBlocks(
         comptime options: RayTraceOptions,
         world: *const World,
-        origin: Vector3(f64),
-        rotation: Rotation2(f32),
-        range: f64,
+        start: Vector3(f64),
+        end: Vector3(f64),
     ) @This() {
-        var from = origin;
-        const to: Vector3(f64) = .add(origin, .mul(rotationToVec(rotation), .splat(range)));
+        var from = start;
+        const to = end;
 
         if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
@@ -42,7 +43,9 @@ pub const HitResult = union(Type) {
             .z = floor(to.z),
         };
 
-        for (0..10) |_| {
+        if (rayTraceBlock(options, world, from_block_pos, from, to, start)) |hit| return hit;
+
+        for (0..201) |_| {
             if (from.anyNaN() or to.anyNaN()) @panic("NaN");
 
             if (from_block_pos.equals(to_block_pos)) {
@@ -105,63 +108,77 @@ pub const HitResult = union(Type) {
                 .z = floor(from.z) - if (dir == .south) @as(i32, 1) else 0,
             };
 
-            const state = world.resolveVirtualBlockState(from_block_pos);
-
-            var local_hitboxes_buffer: [5]Box(f64) = undefined;
-            var local_hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&local_hitboxes_buffer);
-
-            state.getRaytraceHitboxes(&local_hitboxes);
-
-            for (local_hitboxes.items) |hitbox| {
-                if (Vector3(f64).equals(hitbox.min, .origin) and Vector3(f64).equals(hitbox.max, .origin)) continue;
-
-                if (options.ignore_blocks_without_collision and false) continue; // TODO: implement block#getCollisionShape
-                if (options.ignore_liquids and state.block == .water) continue; // TODO: implement water level
-
-                const hit_result = rayTraceHitbox(
-                    hitbox,
-                    .sub(from, .{
-                        .x = from_block_pos.x,
-                        .y = from_block_pos.y,
-                        .z = from_block_pos.z,
-                    }),
-                    .sub(to, .{
-                        .x = from_block_pos.x,
-                        .y = from_block_pos.y,
-                        .z = from_block_pos.z,
-                    }),
-                );
-                if (hit_result == .block) {
-                    return .{
-                        .block = .{
-                            .pos = from_block_pos,
-                            .face = hit_result.block.face,
-                            .offset = hit_result.block.offset,
-                        },
-                    };
-                }
-            }
+            if (rayTraceBlock(options, world, from_block_pos, from, to, start)) |hit| return hit;
         }
 
         return .miss;
     }
 
+    fn rayTraceBlock(
+        comptime options: RayTraceOptions,
+        world: *const World,
+        block_pos: Vector3(i32),
+        from: Vector3(f64),
+        to: Vector3(f64),
+        start: Vector3(f64),
+    ) ?@This() {
+        const state = world.resolveVirtualBlockState(block_pos);
+        var local_hitboxes_buffer: [5]Box(f64) = undefined;
+
+        if (options.ignore_blocks_without_collision) {
+            var collisions: std.ArrayList(Box(f64)) = .initBuffer(&local_hitboxes_buffer);
+            state.getCollisionHitboxes(&collisions);
+            if (collisions.items.len == 0) return null;
+        }
+        if (options.ignore_liquids and state.block.getMaterial().isLiquid()) return null;
+
+        var local_hitboxes: std.ArrayList(Box(f64)) = .initBuffer(&local_hitboxes_buffer);
+        state.getRaytraceHitboxes(&local_hitboxes);
+
+        const block_origin: Vector3(f64) = .cast(block_pos);
+        const local_from: Vector3(f64) = .sub(from, block_origin);
+        const local_to: Vector3(f64) = .sub(to, block_origin);
+
+        var closest_hit: ?struct {
+            pos: Vector3(f64),
+            face: Direction,
+        } = null;
+        var closest_distance: f64 = std.math.inf(f64);
+
+        for (local_hitboxes.items) |hitbox| {
+            if (Vector3(f64).equals(hitbox.min, .origin) and Vector3(f64).equals(hitbox.max, .origin)) continue;
+
+            if (rayTraceHitbox(hitbox, local_from, local_to)) |hit| {
+                const distance = Vector3(f64).distance(start, .add(hit.pos, block_origin));
+                if (distance < closest_distance) {
+                    closest_distance = distance;
+                    closest_hit = .{ .pos = hit.pos, .face = hit.face };
+                }
+            }
+        }
+
+        return if (closest_hit) |hit| .{ .block = .{
+            .pos = block_pos,
+            .face = hit.face,
+            .offset = hit.pos,
+            .distance = closest_distance,
+        } } else null;
+    }
+
     pub fn rayTraceEntities(
         world: *const World,
         origin: Vector3(f64),
-        rotation: Rotation2(f32),
-        range: f64,
+        to: Vector3(f64),
     ) @This() {
-        const to: Vector3(f64) = .add(origin, .mul(rotationToVec(rotation), .splat(range)));
-        var closest_hit_distance: f64 = std.math.inf(f64);
+        var closest_hit_distance_squared: f64 = std.math.inf(f64);
         var hit_result: @This() = .miss;
 
         var iter = world.entity_tracker.entities_by_network_id.iterator();
         while (iter.next()) |entry| {
             const entity = entry.value_ptr.*;
-            const entity_network_id = entry.key_ptr.*;
+            const entity_id = entry.key_ptr.*;
 
-            const hitbox: Box(f64) = switch (entity.*) {
+            const hitbox: Box(f64), const pos: Vector3(f64) = switch (entity.*) {
                 .removed => continue,
                 inline else => |specific_entity| blk: {
                     const pos: Vector3(f64) = specific_entity.base.pos;
@@ -175,23 +192,41 @@ pub const HitResult = union(Type) {
                         .y = specific_entity.base.height,
                         .z = specific_entity.base.width * 0.5,
                     });
-                    break :blk .{ .min = min, .max = max };
+                    break :blk .{
+                        .{ .min = min, .max = max },
+                        pos,
+                    };
                 },
             };
 
-            switch (rayTraceHitbox(hitbox, origin, to)) {
-                .block => |hit| {
-                    const dist = hit.offset.distanceSquared(origin);
-                    if (dist < closest_hit_distance) {
-                        closest_hit_distance = dist;
-                        hit_result = .{ .entity = .{
-                            .entity_network_id = entity_network_id,
-                            .offset = hit.offset,
-                            .face = hit.face,
-                        } };
-                    }
-                },
-                else => {},
+            // TODO: Implement Entity::getPickRadius
+            const expanded_hitbox = hitbox.expandUniform(0.1);
+            const maybe_hit = rayTraceHitbox(expanded_hitbox, origin, to);
+
+            if (containsStrict(expanded_hitbox, origin)) {
+                if (closest_hit_distance_squared > 0) {
+                    closest_hit_distance_squared = 0;
+                    const hit_pos = if (maybe_hit) |hit| hit.pos else origin;
+                    hit_result = .{ .entity = .{
+                        .entity_id = entity_id,
+                        .pos = hit_pos,
+                        .offset = .sub(hit_pos, pos),
+                        .face = if (maybe_hit) |hit| hit.face else null,
+                        .distance = 0,
+                    } };
+                }
+            } else if (maybe_hit) |hit| {
+                const dist_squared = hit.pos.distanceSquared(origin);
+                if (dist_squared < closest_hit_distance_squared) {
+                    closest_hit_distance_squared = dist_squared;
+                    hit_result = .{ .entity = .{
+                        .entity_id = entity_id,
+                        .pos = hit.pos,
+                        .offset = .sub(hit.pos, pos),
+                        .face = hit.face,
+                        .distance = std.math.sqrt(dist_squared),
+                    } };
+                }
             }
         }
         return hit_result;
@@ -200,34 +235,41 @@ pub const HitResult = union(Type) {
     pub fn rayTraceWorld(
         comptime options: RayTraceOptions,
         world: *const World,
-        origin: Vector3(f64),
-        rotation: Rotation2(f32),
-        range: f64,
+        from: Vector3(f64),
+        to: Vector3(f64),
     ) @This() {
-        const block_hit_result = rayTraceBlocks(options, world, origin, rotation, range);
-        const entity_hit_result = rayTraceEntities(world, origin, rotation, range);
+        const block_hit_result = rayTraceBlocks(options, world, from, to);
+        const entity_hit_result = rayTraceEntities(world, from, to);
         const block_hit_distance = switch (block_hit_result) {
-            .block => |hit| hit.offset.distanceSquared(origin),
+            .block => |hit| hit.distance,
             else => std.math.inf(f64),
         };
         const entity_hit_distance = switch (entity_hit_result) {
-            .entity => |hit| hit.offset.distanceSquared(origin),
+            .entity => |hit| hit.distance,
             else => std.math.inf(f64),
         };
-        return if (block_hit_distance < entity_hit_distance) block_hit_result else entity_hit_result;
+        return if (block_hit_distance <= entity_hit_distance) block_hit_result else entity_hit_result;
     }
 
     fn between(min: anytype, mid: anytype, max: anytype) bool {
         return mid >= min and mid <= max;
     }
 
-    pub fn rayTraceHitbox(hitbox: Box(f64), from: Vector3(f64), to: Vector3(f64)) @This() {
-        const maybe_clip_min_x = interpolateToTargetX(from, to, hitbox.min.x);
-        const maybe_clip_min_y = interpolateToTargetY(from, to, hitbox.min.y);
-        const maybe_clip_min_z = interpolateToTargetZ(from, to, hitbox.min.z);
+    fn containsStrict(hitbox: Box(f64), pos: Vector3(f64)) bool {
+        return pos.x > hitbox.min.x and pos.x < hitbox.max.x and
+            pos.y > hitbox.min.y and pos.y < hitbox.max.y and
+            pos.z > hitbox.min.z and pos.z < hitbox.max.z;
+    }
 
+    pub fn rayTraceHitbox(hitbox: Box(f64), from: Vector3(f64), to: Vector3(f64)) ?struct {
+        pos: Vector3(f64),
+        face: Direction,
+    } {
+        const maybe_clip_min_x = interpolateToTargetX(from, to, hitbox.min.x);
         const maybe_clip_max_x = interpolateToTargetX(from, to, hitbox.max.x);
+        const maybe_clip_min_y = interpolateToTargetY(from, to, hitbox.min.y);
         const maybe_clip_max_y = interpolateToTargetY(from, to, hitbox.max.y);
+        const maybe_clip_min_z = interpolateToTargetZ(from, to, hitbox.min.z);
         const maybe_clip_max_z = interpolateToTargetZ(from, to, hitbox.max.z);
 
         var hit_pos: ?Vector3(f64) = null;
@@ -238,53 +280,50 @@ pub const HitResult = union(Type) {
                 dir = .west;
             }
         }
-        if (maybe_clip_min_y) |clip_min_y| {
-            if (between(hitbox.min.x, clip_min_y.x, hitbox.max.x) and between(hitbox.min.z, clip_min_y.z, hitbox.max.z)) {
-                if (hit_pos == null or clip_min_y.distance(from) < hit_pos.?.distance(from)) {
-                    hit_pos = clip_min_y;
-                    dir = .down;
-                }
-            }
-        }
-        if (maybe_clip_min_z) |clip_min_z| {
-            if (between(hitbox.min.x, clip_min_z.x, hitbox.max.x) and between(hitbox.min.y, clip_min_z.y, hitbox.max.y)) {
-                if (hit_pos == null or clip_min_z.distance(from) < hit_pos.?.distance(from)) {
-                    hit_pos = clip_min_z;
-                    dir = .north;
-                }
-            }
-        }
         if (maybe_clip_max_x) |clip_max_x| {
             if (between(hitbox.min.y, clip_max_x.y, hitbox.max.y) and between(hitbox.min.z, clip_max_x.z, hitbox.max.z)) {
-                if (hit_pos == null or clip_max_x.distance(from) < hit_pos.?.distance(from)) {
+                if (hit_pos == null or clip_max_x.distanceSquared(from) < hit_pos.?.distanceSquared(from)) {
                     hit_pos = clip_max_x;
                     dir = .east;
                 }
             }
         }
+        if (maybe_clip_min_y) |clip_min_y| {
+            if (between(hitbox.min.x, clip_min_y.x, hitbox.max.x) and between(hitbox.min.z, clip_min_y.z, hitbox.max.z)) {
+                if (hit_pos == null or clip_min_y.distanceSquared(from) < hit_pos.?.distanceSquared(from)) {
+                    hit_pos = clip_min_y;
+                    dir = .down;
+                }
+            }
+        }
         if (maybe_clip_max_y) |clip_max_y| {
             if (between(hitbox.min.x, clip_max_y.x, hitbox.max.x) and between(hitbox.min.z, clip_max_y.z, hitbox.max.z)) {
-                if (hit_pos == null or clip_max_y.distance(from) < hit_pos.?.distance(from)) {
+                if (hit_pos == null or clip_max_y.distanceSquared(from) < hit_pos.?.distanceSquared(from)) {
                     hit_pos = clip_max_y;
                     dir = .up;
                 }
             }
         }
+        if (maybe_clip_min_z) |clip_min_z| {
+            if (between(hitbox.min.x, clip_min_z.x, hitbox.max.x) and between(hitbox.min.y, clip_min_z.y, hitbox.max.y)) {
+                if (hit_pos == null or clip_min_z.distanceSquared(from) < hit_pos.?.distanceSquared(from)) {
+                    hit_pos = clip_min_z;
+                    dir = .north;
+                }
+            }
+        }
         if (maybe_clip_max_z) |clip_max_z| {
             if (between(hitbox.min.x, clip_max_z.x, hitbox.max.x) and between(hitbox.min.y, clip_max_z.y, hitbox.max.y)) {
-                if (hit_pos == null or clip_max_z.distance(from) < hit_pos.?.distance(from)) {
+                if (hit_pos == null or clip_max_z.distanceSquared(from) < hit_pos.?.distanceSquared(from)) {
                     hit_pos = clip_max_z;
                     dir = .south;
                 }
             }
         }
-        return if (hit_pos != null) .{
-            .block = .{
-                .pos = undefined,
-                .face = dir.?,
-                .offset = hit_pos.?,
-            },
-        } else .miss;
+        return if (hit_pos) |pos| .{
+            .pos = pos,
+            .face = dir.?,
+        } else null;
     }
 
     pub fn interpolateToTargetX(from: Vector3(f64), to: Vector3(f64), x_plane: f64) ?Vector3(f64) {

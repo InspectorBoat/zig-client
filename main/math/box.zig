@@ -133,137 +133,10 @@ pub fn Box(comptime Element: type) type {
                 self.max.z == other.max.z;
         }
 
-        pub fn rayTrace(self: *@This(), from: Vector3(Element), to: Vector3(Element)) ?HitResult {
-            if (@typeInfo(Element) != .float) @compileError("Box.rayTrace is only available for floating point numbers!");
-
-            const min_x_pos = @This().traceToPlane(.x, from, to, self.min.x);
-            const max_x_pos = @This().traceToPlane(.x, from, to, self.max.x);
-            const min_y_pos = @This().traceToPlane(.y, from, to, self.min.y);
-            const max_y_pos = @This().traceToPlane(.y, from, to, self.max.y);
-            const min_z_pos = @This().traceToPlane(.z, from, to, self.min.z);
-            const max_z_pos = @This().traceToPlane(.z, from, to, self.max.z);
-
-            var hit: ?Vector3(Element) = null;
-            var hit_dir: Direction = null;
-
-            if (min_x_pos) |min_x_hit| {
-                // check to see hit is valid
-                if (self.isWithinY(min_x_hit) and self.isWithinZ(min_x_hit)) {
-                    // check that this hit is closer
-                    if (hit == null or from.distance_squared(min_x_hit) < from.distance_squared(hit.?)) {
-                        hit = min_x_hit;
-                        hit_dir = .west;
-                    }
-                }
-            }
-            if (max_x_pos) |max_x_hit| {
-                // check to see hit is valid
-                if (self.isWithinY(max_x_hit) and self.isWithinZ(max_x_hit)) {
-                    // check that this hit is closer
-                    if (hit == null or from.distance_squared(max_x_hit) < from.distance_squared(hit.?)) {
-                        hit = max_x_hit;
-                        hit_dir = .east;
-                    }
-                }
-            }
-
-            if (min_y_pos) |min_y_hit| {
-                // check to see hit is valid
-                if (self.isWithinX(min_y_hit) and self.isWithinZ(min_y_hit)) {
-                    // check that this hit is closer
-                    if (hit == null or from.distance_squared(min_y_hit) < from.distance_squared(hit.?)) {
-                        hit = min_y_hit;
-                        hit_dir = .down;
-                    }
-                }
-            }
-            if (max_y_pos) |max_y_hit| {
-                // check to see hit is valid
-                if (self.isWithinX(max_y_hit) and self.isWithinZ(max_y_hit)) {
-                    // check that this hit is closer
-                    if (hit == null or from.distance_squared(max_y_hit) < from.distance_squared(hit.?)) {
-                        hit = max_y_hit;
-                        hit_dir = .up;
-                    }
-                }
-            }
-
-            if (min_z_pos) |min_z_hit| {
-                // check to see hit is valid
-                if (self.isWithinX(min_z_hit) and self.isWithinY(min_z_hit)) {
-                    // check that this hit is closer
-                    if (hit == null or from.distance_squared(min_z_hit) < from.distance_squared(hit.?)) {
-                        hit = min_z_hit;
-                        hit_dir = .north;
-                    }
-                }
-            }
-            if (max_z_pos) |max_z_hit| {
-                // check to see hit is valid
-                if (self.isWithinX(max_z_hit) and self.isWithinY(max_z_hit)) {
-                    // check that this hit is closer
-                    if (hit == null or from.distance_squared(max_z_hit) < from.distance_squared(hit.?)) {
-                        hit = max_z_hit;
-                        hit_dir = .south;
-                    }
-                }
-            }
-
-            return .{
-                .hit_pos = hit,
-            };
-        }
-
-        pub fn isWithinX(self: @This(), pos: Vector3(Element)) bool {
-            return self.min.x <= pos.x and pos.x <= self.max.x;
-        }
-
-        pub fn isWithinY(self: @This(), pos: Vector3(Element)) bool {
-            return self.min.y <= pos.y and pos.y <= self.max.y;
-        }
-
-        pub fn isWithinZ(self: @This(), pos: Vector3(Element)) bool {
-            return self.min.z <= pos.z and pos.z <= self.max.z;
-        }
-
         pub fn contains(self: @This(), pos: Vector3(Element)) bool {
             return self.min.x <= pos.x and pos.x <= self.max.x and
                 self.min.y <= pos.y and pos.y <= self.max.y and
                 self.min.z <= pos.z and pos.z <= self.max.z;
-        }
-
-        /// Given an origin vector3 and a target vector3, travels
-        /// from the origin vector3 to the target vector3 until
-        /// colliding with the given plane
-        pub fn traceToPlane(comptime axis: enum { x, y, z }, from: Vector3(Element), to: Vector3(Element), pos: Element) ?Vector3(Element) {
-            if (@typeInfo(Element) != .float) @compileError("Box.traceToPlane is only available for floating point numbers!");
-
-            const delta: Vector3(Element) = .sub(from, to);
-            const ray_progress = switch (axis) {
-                .x => x: {
-                    if (delta.x * delta.x < 0.0001 * 0.0001) {
-                        return null;
-                    } else {
-                        break :x (pos - from.x) / delta.x;
-                    }
-                },
-                .y => y: {
-                    if (delta.y * delta.y < 0.0001 * 0.0001) {
-                        return null;
-                    } else {
-                        break :y (pos - from.y) / delta.y;
-                    }
-                },
-                .y => z: {
-                    if (delta.z * delta.z < 0.0001 * 0.0001) {
-                        return null;
-                    } else {
-                        break :z (pos - from.z) / delta.z;
-                    }
-                },
-            };
-            if (ray_progress < 0 or ray_progress > 1) return null;
-            return .add(from, .mul(delta, .splat(ray_progress)));
         }
 
         /// `@param mover:` the box that is moving
@@ -401,6 +274,4 @@ const std = @import("std");
 
 const main = @import("main");
 
-const Direction = main.Direction;
-const HitResult = main.HitResult;
 const Vector3 = main.Vector3;
