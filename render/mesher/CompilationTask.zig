@@ -8,6 +8,11 @@ pub const Mesh = struct {
     buffer: std.ArrayList(u8),
 };
 
+// We use .unordered atomic loads here, and the main thread also uses .unordered atomic
+// stores when modifying blocks. This prevents concurrent modification (data races) from
+// becoming UB. Concurrent modification may cause a task to see a mix of old and new values,
+// producing an inconsistent mesh. However, this will not cause undefined *behavior*.
+// We guarantee the rendered mesh is eventually consistent.
 pub fn getBlockState(self: *const @This(), block_pos: Vector3(i32)) Block.PhysicalState {
     const section_pos: Vector3(u2) = .{
         .x = @intCast((block_pos.x >> 4) + 1),
