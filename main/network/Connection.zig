@@ -7,13 +7,13 @@ ip: std.Io.net.IpAddress,
 stream: std.Io.net.Stream,
 session: Session,
 
-unread_bytes: quarantine.Fifo,
+unread_bytes: RingBuffer,
 
 incoming_packets: SpscQueue(S2CWrapper),
 outgoing_packets: SpscQueue(C2SWrapper),
 
-incoming_allocator: RingBufferWithFallback,
-outgoing_allocator: RingBufferWithFallback,
+incoming_allocator: RingAllocatorWithFallback,
+outgoing_allocator: RingAllocatorWithFallback,
 
 encryption: ?AesCfb8 = null,
 
@@ -68,7 +68,7 @@ pub fn sendC2SPackets(self: *@This(), io: std.Io) SendPacketError!void {
 }
 
 pub const DispatchPacketError = error{ PacketHandlingError, QueueFull };
-pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: RingBufferWithFallback.RewindMark) DispatchPacketError!void {
+pub fn dispatchS2CPacket(self: *@This(), io: std.Io, packet: S2C, rewind_mark: RingAllocatorWithFallback.RewindMark) DispatchPacketError!void {
     var packet_mut = packet;
     switch (packet_mut) {
         inline else => |*known_protocol| {
@@ -93,11 +93,9 @@ pub fn receiveBytes(
     self: *@This(),
     io: std.Io,
 ) ReceiveBytesError!void {
-    var buffer: [262144]u8 = undefined;
-
     const message = self.stream.socket.receiveTimeout(
         io,
-        &buffer,
+        self.unread_bytes.writeableSliceGreedy(),
         .{ .duration = .{ .clock = .real, .raw = .fromMilliseconds(5) } },
     ) catch |err| switch (err) {
         error.Timeout => return,
@@ -107,14 +105,11 @@ pub fn receiveBytes(
     if (self.encryption) |*encryption| encryption.decrypt(message.data);
 
     std.log.scoped(.net).debug("read {} bytes", .{message.data.len});
-    // TODO: Fix our queue implementation, make it growable
-    // In fact, we should probably use a memory mapped ring buffer
-    // so we never have to compact the buffer
-    try self.unread_bytes.write(message.data);
+    self.unread_bytes.advance(message.data.len);
 }
 
 pub const DecodePacketError = DecompressPacketError || PacketHeaderError || S2C.ReadPacketError;
-pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingBufferWithFallback.RewindMark } {
+pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingAllocatorWithFallback.RewindMark } {
     var packet_buffer: S2C.ReadBuffer = .fromOwnedSlice(self.unread_bytes.readableSlice());
 
     const packet_body_size, const packet_header_size = packet_buffer.readVarIntExtra(3) catch |err| switch (err) {
@@ -311,12 +306,12 @@ pub const Handle = struct {
 
         self.connection.stream.close(io);
 
-        self.connection.unread_bytes.deinit(allocator);
+        self.connection.unread_bytes.deinit();
 
         self.connection.incoming_packets.deinit(allocator);
         self.connection.outgoing_packets.deinit(allocator);
-        self.connection.incoming_allocator.deinit(allocator);
-        self.connection.outgoing_allocator.deinit(allocator);
+        self.connection.incoming_allocator.deinit();
+        self.connection.outgoing_allocator.deinit();
 
         allocator.destroy(self.connection);
 
@@ -342,18 +337,18 @@ pub const Handle = struct {
         const connection = try allocator.create(Connection);
         errdefer allocator.destroy(connection);
 
-        var unread_bytes: quarantine.Fifo = try .initCapacity(allocator, 1024 * 1024);
-        errdefer unread_bytes.deinit(allocator);
+        var unread_bytes: RingBuffer = try .initCapacity(io, 1024 * 1024);
+        errdefer unread_bytes.deinit();
 
         var incoming_packets: SpscQueue(S2CWrapper) = try .initCapacity(allocator, 1024);
         errdefer incoming_packets.deinit(allocator);
         var outgoing_packets: SpscQueue(C2SWrapper) = try .initCapacity(allocator, 1024);
         errdefer outgoing_packets.deinit(allocator);
 
-        var incoming_allocator: RingBufferWithFallback = try .initCapacity(allocator, 1024 * 1024 * 2);
-        errdefer incoming_allocator.deinit(allocator);
-        var outgoing_allocator: RingBufferWithFallback = try .initCapacity(allocator, 1024 * 1024 * 2);
-        errdefer outgoing_allocator.deinit(allocator);
+        var incoming_allocator: RingAllocatorWithFallback = try .initCapacity(io, allocator, 1024 * 1024 * 2);
+        errdefer incoming_allocator.deinit();
+        var outgoing_allocator: RingAllocatorWithFallback = try .initCapacity(io, allocator, 1024 * 1024 * 2);
+        errdefer outgoing_allocator.deinit();
 
         connection.* = .{
             .ip = ip,
@@ -389,12 +384,11 @@ pub const Handle = struct {
     }
 };
 
-pub const S2CWrapper = struct { S2C.Play, RingBufferWithFallback.TailMark };
-pub const C2SWrapper = struct { C2S, RingBufferWithFallback.TailMark };
+pub const S2CWrapper = struct { S2C.Play, RingAllocatorWithFallback.TailMark };
+pub const C2SWrapper = struct { C2S, RingAllocatorWithFallback.TailMark };
 
 const std = @import("std");
 
-const quarantine = @import("llm-code-quarantine");
 const main = @import("main");
 const util = @import("util");
 
@@ -405,5 +399,6 @@ const Protocol = network.Protocol;
 const Session = network.Session;
 const C2S = network.packet.C2S;
 const S2C = network.packet.S2C;
-const RingBufferWithFallback = util.RingBufferWithFallback;
+const RingAllocatorWithFallback = util.RingAllocatorWithFallback;
+const RingBuffer = util.RingBuffer;
 const SpscQueue = util.SpscQueue;

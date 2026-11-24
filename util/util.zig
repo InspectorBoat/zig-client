@@ -1,12 +1,14 @@
 test {
     _ = PackedNibbleArray;
+    _ = RingAllocator;
     _ = RingBuffer;
-    _ = RingBufferWithFallback;
+    _ = RingAllocatorWithFallback;
     _ = allValues;
 }
 
+pub const RingAllocator = @import("RingAllocator.zig");
+pub const RingAllocatorWithFallback = @import("RingAllocatorWithFallback.zig");
 pub const RingBuffer = @import("RingBuffer.zig");
-pub const RingBufferWithFallback = @import("RingBufferWithFallback.zig");
 pub const Uuid = @import("Uuid.zig");
 pub const events = @import("events.zig");
 pub const allValues = @import("all_combos.zig").allValues;

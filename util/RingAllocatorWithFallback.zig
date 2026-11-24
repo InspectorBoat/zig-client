@@ -1,41 +1,41 @@
-ringbuffer: RingBuffer,
+ring_allocator: RingAllocator,
 gpa: std.heap.SafeAllocator,
 active_arena: ?std.heap.ArenaAllocator.State = null,
 
 pub const TailMark = struct {
-    inner: RingBuffer.TailMark,
+    inner: RingAllocator.TailMark,
     arena: std.heap.ArenaAllocator.State,
 };
 
 pub const RewindMark = struct {
-    inner: RingBuffer.RewindMark,
+    inner: RingAllocator.RewindMark,
 };
 
-pub fn initCapacity(backing_allocator: std.mem.Allocator, capacity: usize) !@This() {
+pub fn initCapacity(io: std.Io, backing_allocator: std.mem.Allocator, capacity: usize) !@This() {
     return .{
-        .ringbuffer = try .initCapacity(backing_allocator, capacity),
+        .ring_allocator = try .initCapacity(io, capacity),
         .gpa = .init(backing_allocator, .{}),
     };
 }
 
-pub fn deinit(self: *@This(), backing_allocator: std.mem.Allocator) void {
-    self.ringbuffer.deinit(backing_allocator);
+pub fn deinit(self: *@This()) void {
+    self.ring_allocator.deinit();
     _ = self.gpa.deinitLog(false);
 }
 
 pub fn ringBufferUsed(self: *@This()) usize {
-    return self.ringbuffer.usedBytes();
+    return self.ring_allocator.usedBytes();
 }
 
 pub fn beginRegion(self: *@This()) RewindMark {
     std.debug.assert(self.active_arena == null);
     self.active_arena = .init;
-    return .{ .inner = self.ringbuffer.beginRegion() };
+    return .{ .inner = self.ring_allocator.beginRegion() };
 }
 
 pub fn rewind(self: *@This(), mark: RewindMark) void {
     std.debug.assert(self.active_arena != null);
-    self.ringbuffer.rewind(mark.inner);
+    self.ring_allocator.rewind(mark.inner);
     self.active_arena.?.promote(self.gpa.allocator()).deinit();
     self.active_arena = null;
 }
@@ -43,23 +43,23 @@ pub fn rewind(self: *@This(), mark: RewindMark) void {
 pub fn commit(self: *@This(), mark: RewindMark) TailMark {
     std.debug.assert(self.active_arena != null);
     defer self.active_arena = null;
-    return .{ .inner = self.ringbuffer.commit(mark.inner), .arena = self.active_arena.? };
+    return .{ .inner = self.ring_allocator.commit(mark.inner), .arena = self.active_arena.? };
 }
 
 pub fn freeFromTail(self: *@This(), mark: TailMark) void {
-    self.ringbuffer.freeFromTail(mark.inner);
+    self.ring_allocator.freeFromTail(mark.inner);
     mark.arena.promote(self.gpa.allocator()).deinit();
 }
 
 fn isRingBufferAlloc(self: *@This(), memory: []u8) bool {
-    return @intFromPtr(memory.ptr) >= @intFromPtr(self.ringbuffer.buffer.ptr) and
-        @intFromPtr(memory.ptr) < @intFromPtr(self.ringbuffer.buffer.ptr) + self.ringbuffer.buffer.len;
+    return @intFromPtr(memory.ptr) >= @intFromPtr(self.ring_allocator.buffer) and
+        @intFromPtr(memory.ptr) < @intFromPtr(self.ring_allocator.buffer) + self.ring_allocator.capacity;
 }
 
 pub fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
-    return self.ringbuffer.allocInner(len, alignment) catch {
+    return RingAllocator.alloc(&self.ring_allocator, len, alignment, ret_addr) orelse {
         var arena = self.active_arena.?.promote(self.gpa.allocator());
         defer self.active_arena = arena.state;
         return arena.allocator().rawAlloc(len, alignment, ret_addr);
@@ -70,7 +70,7 @@ pub fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_l
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
     if (self.isRingBufferAlloc(memory)) {
-        return RingBuffer.resize(&self.ringbuffer, memory, alignment, new_len, ret_addr);
+        return RingAllocator.resize(&self.ring_allocator, memory, alignment, new_len, ret_addr);
     } else {
         var arena = self.active_arena.?.promote(self.gpa.allocator());
         defer self.active_arena = arena.state;
@@ -82,7 +82,7 @@ pub fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_le
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
     if (self.isRingBufferAlloc(memory)) {
-        return RingBuffer.remap(&self.ringbuffer, memory, alignment, new_len, ret_addr);
+        return RingAllocator.remap(&self.ring_allocator, memory, alignment, new_len, ret_addr);
     } else {
         var arena = self.active_arena.?.promote(self.gpa.allocator());
         defer self.active_arena = arena.state;
@@ -94,11 +94,11 @@ pub fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_add
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
     if (self.isRingBufferAlloc(memory)) {
-        RingBuffer.free(&self.ringbuffer, memory, alignment, ret_addr);
+        RingAllocator.free(&self.ring_allocator, memory, alignment, ret_addr);
     } else {
         var arena = self.active_arena.?.promote(self.gpa.allocator());
         defer self.active_arena = arena.state;
-        return arena.allocator().rawFree(memory, alignment, ret_addr);
+        arena.allocator().rawFree(memory, alignment, ret_addr);
     }
 }
 
@@ -116,4 +116,4 @@ pub fn allocator(self: *@This()) std.mem.Allocator {
 
 const std = @import("std");
 
-const RingBuffer = @import("RingBuffer.zig");
+const RingAllocator = @import("RingAllocator.zig");
