@@ -1,7 +1,6 @@
 const ModuleSet = struct {
     main: *std.Build.Module,
     render: *std.Build.Module,
-    util: *std.Build.Module,
     quarantine: *std.Build.Module,
 };
 
@@ -40,11 +39,6 @@ fn createModules(
             .{ .name = "zalgebra", .module = zalgebra },
         },
     });
-    const util = b.createModule(.{
-        .root_source_file = b.path("util/util.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
     const render = b.createModule(.{
         .root_source_file = b.path("render/render.zig"),
         .target = target,
@@ -62,22 +56,17 @@ fn createModules(
 
     quarantine.addImport("main", main);
 
-    util.addImport("llm-code-quarantine", quarantine);
-
     render.addImport("main", main);
     render.addImport("render", render);
-    render.addImport("util", util);
     render.addImport("llm-code-quarantine", quarantine);
 
     main.addImport("main", main);
     main.addImport("render", render);
-    main.addImport("util", util);
     main.addImport("llm-code-quarantine", quarantine);
 
     return .{
         .main = main,
         .render = render,
-        .util = util,
         .quarantine = quarantine,
     };
 }
@@ -178,12 +167,10 @@ pub fn build(b: *std.Build) !void {
     // Run unit tests
     const test_main = b.addTest(.{ .root_module = mods.main });
     const test_render = b.addTest(.{ .root_module = mods.render });
-    const test_util = b.addTest(.{ .root_module = mods.util });
     const test_quarantine = b.addTest(.{ .root_module = mods.quarantine });
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(test_render).step);
-    test_step.dependOn(&b.addRunArtifact(test_util).step);
     test_step.dependOn(&b.addRunArtifact(test_quarantine).step);
     test_step.dependOn(&b.addRunArtifact(test_main).step);
 

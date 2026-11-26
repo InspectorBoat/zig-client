@@ -21,7 +21,8 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
 const std = @import("std");
 
 const main = @import("main");
-const Uuid = @import("util").Uuid;
 
-const Connection = main.network.Connection;
-const S2C = main.network.packet.S2C;
+const network = main.network;
+const Connection = network.Connection;
+const Uuid = network.Uuid;
+const S2C = network.packet.S2C;

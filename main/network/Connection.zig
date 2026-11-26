@@ -386,15 +386,14 @@ pub const C2SWrapper = struct { C2S, RingAllocatorWithFallback.TailMark };
 const std = @import("std");
 
 const main = @import("main");
-const util = @import("util");
 
 const Connection = @This();
 const network = main.network;
 const AesCfb8 = network.AesCfb8;
 const Protocol = network.Protocol;
+const RingAllocatorWithFallback = network.RingAllocatorWithFallback;
+const RingBuffer = network.RingBuffer;
 const Session = network.Session;
+const SpscQueue = network.SpscQueue;
 const C2S = network.packet.C2S;
 const S2C = network.packet.S2C;
-const RingAllocatorWithFallback = util.RingAllocatorWithFallback;
-const RingBuffer = util.RingBuffer;
-const SpscQueue = util.SpscQueue;

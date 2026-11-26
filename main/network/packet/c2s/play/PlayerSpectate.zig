@@ -5,6 +5,7 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
 }
 
 const main = @import("main");
-const Uuid = @import("util").Uuid;
 
-const C2S = main.network.packet.C2S;
+const network = main.network;
+const Uuid = network.Uuid;
+const C2S = network.packet.C2S;

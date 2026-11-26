@@ -253,11 +253,11 @@ test writeItemStack {
 const std = @import("std");
 
 const main = @import("main");
-const Uuid = @import("util").Uuid;
 
 const Item = main.Item;
 const Nbt = main.Nbt;
 const Vector3 = main.Vector3;
 const network = main.network;
+const Uuid = network.Uuid;
 const VarIntByte = network.VarIntByte;
 const ReadBuffer = network.packet.S2C.ReadBuffer;

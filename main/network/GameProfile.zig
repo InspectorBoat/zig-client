@@ -10,4 +10,7 @@ pub const Property = struct {
 
 const std = @import("std");
 
-const Uuid = @import("util").Uuid;
+const main = @import("main");
+
+const network = main.network;
+const Uuid = network.Uuid;

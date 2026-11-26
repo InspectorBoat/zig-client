@@ -49,9 +49,10 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 const std = @import("std");
 
 const main = @import("main");
-const Uuid = @import("util").Uuid;
 
 const Client = main.Client;
+const network = main.network;
 const ScaledRotation2 = main.network.ScaledRotation2;
 const ScaledVector = main.network.ScaledVector;
+const Uuid = network.Uuid;
 const S2C = main.network.packet.S2C;

@@ -59,7 +59,8 @@ pub const Modifier = struct {
 const std = @import("std");
 
 const main = @import("main");
-const Uuid = @import("util").Uuid;
 
 const Client = main.Client;
-const S2C = main.network.packet.S2C;
+const network = main.network;
+const Uuid = network.Uuid;
+const S2C = network.packet.S2C;
