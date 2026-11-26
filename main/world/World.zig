@@ -5,7 +5,7 @@ tick_timer: TickTimer,
 difficulty: Difficulty,
 dimension: i8,
 hardcore: bool,
-game_mode: GameMode = .Survival,
+game_mode: GameMode = .survival,
 
 main_inventory: *Inventory,
 crafting_inventory: *Inventory,

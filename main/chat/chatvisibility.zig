@@ -1,5 +1,5 @@
 pub const ChatVisibility = enum(i8) {
-    Full = 0,
-    System = 1,
-    Hidden = 2,
+    full = 0,
+    system = 1,
+    hidden = 2,
 };

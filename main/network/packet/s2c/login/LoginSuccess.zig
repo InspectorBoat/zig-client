@@ -14,8 +14,8 @@ pub fn handleOnNetworkThread(self: *@This(), io: std.Io, connection: *Connection
     _ = io;
 
     _ = self;
-    std.debug.assert(connection.protocol == .Login);
-    connection.switchProtocol(.Play);
+    std.debug.assert(connection.protocol == .login);
+    connection.switchProtocol(.play);
 }
 
 const std = @import("std");

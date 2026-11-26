@@ -17,7 +17,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const network_id = try buffer.read(i32);
     const i = try buffer.read(u8);
     const hardcore = i & 8 == 8;
-    const game_mode = std.enums.fromInt(GameMode, i & ~@as(u8, 8)) orelse .Survival;
+    const game_mode = std.enums.fromInt(GameMode, i & ~@as(u8, 8)) orelse .survival;
     const dimension = try buffer.read(i8);
     const difficulty = (try buffer.readPacked(packed struct(u8) { difficulty: Difficulty, _: u6 })).difficulty;
     const max_player_count = try buffer.read(u8);
@@ -76,7 +76,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     try connecting.connection_handle.sendPlayPacket(io, .{ .client_settings = .{
         .language = "English",
         .view_distance = 2,
-        .chat_visibility = .Full,
+        .chat_visibility = .full,
         .chat_colors = true,
         .skin_layers = .{},
     } });

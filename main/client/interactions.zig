@@ -28,7 +28,7 @@ pub fn startMiningBlock(io: std.Io, game: *Game, player: *LocalPlayer, block_pos
     // todo: world border
 
     // creative instabreak
-    if (game.world.game_mode == .Creative) {
+    if (game.world.game_mode == .creative) {
         try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
             .action = .start_breaking_block,
             .block_pos = block_pos,
@@ -105,7 +105,7 @@ pub fn updateBlockMining(io: std.Io, game: *Game, player: *LocalPlayer, block_po
         game.input_manager.cooldown.mining -|= 1;
         return;
     }
-    if (game.world.game_mode == .Creative) {
+    if (game.world.game_mode == .creative) {
         try game.connection_handle.sendPlayPacket(io, .{ .player_hand_action = .{
             .action = .start_breaking_block,
             .block_pos = block_pos,
@@ -172,7 +172,7 @@ pub fn use(io: std.Io, game: *Game, player: *LocalPlayer) !void {
 }
 
 pub fn useItem(io: std.Io, game: *Game, player: *LocalPlayer) !void {
-    if (game.world.game_mode == .Spectator) return;
+    if (game.world.game_mode == .spectator) return;
 
     try updateHotbarSlot(io, game, player);
 
@@ -233,7 +233,7 @@ pub fn useBlock(io: std.Io, game: *Game, player: *LocalPlayer) !bool {
 
     const maybe_held_item_stack = player.getHeldStack(game);
 
-    if (game.world.game_mode == .Spectator) {
+    if (game.world.game_mode == .spectator) {
         try game.connection_handle.sendPlayPacket(io, .{ .player_use = .{
             .block_pos = crosshair.block.pos,
             .face = crosshair.block.face,
@@ -338,7 +338,7 @@ pub fn closeScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void 
 pub fn openScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
     if (game.world.menu_screen_open) return;
     try game.connection_handle.sendPlayPacket(io, .{ .client_status = .{
-        .status = .OpenInventoryAchievement,
+        .status = .open_inventory_achievement,
     } });
     game.world.openMenu(allocator, .player_menu);
 }

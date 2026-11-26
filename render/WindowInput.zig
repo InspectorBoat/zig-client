@@ -10,23 +10,23 @@ window_size: Vector2xy(i32) = .{ .x = 640, .y = 640 },
 framebuffer_size: Vector2xy(u32) = .{ .x = 640, .y = 640 },
 
 pub const Event = union(enum) {
-    Pos: Vector2xy(i32),
-    Size: Vector2xy(i32),
-    Close,
-    Refresh,
-    Focus: bool,
-    Iconify: bool,
-    Maximize: bool,
-    FramebufferSize: Vector2xy(u32),
-    ContentScale: Vector2xy(f32),
-    Key: struct { key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods },
+    pos: Vector2xy(i32),
+    size: Vector2xy(i32),
+    close,
+    refresh,
+    focus: bool,
+    iconify: bool,
+    maximize: bool,
+    framebuffer_size: Vector2xy(u32),
+    content_scale: Vector2xy(f32),
+    key: struct { key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods },
     /// Codepoint
-    Char: u21,
-    MouseButton: struct { button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods },
-    CursorPos: struct { pos: Vector2xy(f64), delta: Vector2xy(f64) },
-    CursorEnter: bool,
-    Scroll: Vector2xy(f64),
-    Drop: struct { paths: [][*:0]const u8 },
+    char: u21,
+    mouse_button: struct { button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods },
+    cursor_pos: struct { pos: Vector2xy(f64), delta: Vector2xy(f64) },
+    cursor_enter: bool,
+    scroll: Vector2xy(f64),
+    drop: struct { paths: [][*:0]const u8 },
 };
 
 pub fn init(allocator: std.mem.Allocator, window: glfw.Window) @This() {
@@ -81,7 +81,7 @@ pub fn posCallback(window: glfw.Window, xpos: i32, ypos: i32) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.pushBack(window_input.allocator, .{ .Pos = .{
+    window_input.events.pushBack(window_input.allocator, .{ .pos = .{
         .x = xpos,
         .y = ypos,
     } }) catch unreachable;
@@ -91,7 +91,7 @@ pub fn sizeCallback(window: glfw.Window, width: i32, height: i32) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.pushBack(window_input.allocator, .{ .Size = .{
+    window_input.events.pushBack(window_input.allocator, .{ .size = .{
         .x = width,
         .y = height,
     } }) catch unreachable;
@@ -102,14 +102,14 @@ pub fn closeCallback(window: glfw.Window) void {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.pushBack(window_input.allocator, .Close) catch unreachable;
+    window_input.events.pushBack(window_input.allocator, .close) catch unreachable;
 }
 pub fn refreshCallback(window: glfw.Window) void {
     var window_input = window.getUserPointer(@This()) orelse {
         std.log.err("glfw user pointer not found!", .{});
         return;
     };
-    window_input.events.pushBack(window_input.allocator, .Refresh) catch unreachable;
+    window_input.events.pushBack(window_input.allocator, .refresh) catch unreachable;
 }
 pub fn focusCallback(window: glfw.Window, focused: bool) void {
     var window_input = window.getUserPointer(@This()) orelse {
@@ -117,7 +117,7 @@ pub fn focusCallback(window: glfw.Window, focused: bool) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Focus = focused,
+        .focus = focused,
     }) catch unreachable;
 }
 pub fn iconifyCallback(window: glfw.Window, iconified: bool) void {
@@ -126,7 +126,7 @@ pub fn iconifyCallback(window: glfw.Window, iconified: bool) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Iconify = iconified,
+        .iconify = iconified,
     }) catch unreachable;
 }
 pub fn maximizeCallback(window: glfw.Window, maximized: bool) void {
@@ -135,7 +135,7 @@ pub fn maximizeCallback(window: glfw.Window, maximized: bool) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Maximize = maximized,
+        .maximize = maximized,
     }) catch unreachable;
     std.log.scoped(.window).debug("maximized: {}", .{maximized});
     window_input.maximized = maximized;
@@ -146,7 +146,7 @@ pub fn framebufferSizeCallback(window: glfw.Window, width: u32, height: u32) voi
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .FramebufferSize = .{ .x = width, .y = height },
+        .framebuffer_size = .{ .x = width, .y = height },
     }) catch unreachable;
     window_input.framebuffer_size = .{ .x = width, .y = height };
 }
@@ -156,7 +156,7 @@ pub fn contentScaleCallback(window: glfw.Window, xscale: f32, yscale: f32) void 
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .ContentScale = .{ .x = xscale, .y = yscale },
+        .content_scale = .{ .x = xscale, .y = yscale },
     }) catch unreachable;
 }
 pub fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
@@ -165,7 +165,7 @@ pub fn keyCallback(window: glfw.Window, key: glfw.Key, scancode: i32, action: gl
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods },
+        .key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods },
     }) catch unreachable;
     window_input.keys.setPresent(key, if (action == .release) false else true);
 }
@@ -175,7 +175,7 @@ pub fn charCallback(window: glfw.Window, codepoint: u21) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Char = codepoint,
+        .char = codepoint,
     }) catch unreachable;
 }
 pub fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) void {
@@ -184,7 +184,7 @@ pub fn mouseButtonCallback(window: glfw.Window, button: glfw.MouseButton, action
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .MouseButton = .{ .button = button, .action = action, .mods = mods },
+        .mouse_button = .{ .button = button, .action = action, .mods = mods },
     }) catch unreachable;
 }
 
@@ -197,7 +197,7 @@ pub fn cursorPosCallback(window: glfw.Window, xpos: f64, ypos: f64) void {
     const delta: Vector2xy(f64) = .sub(window_input.mouse_pos, pos);
 
     window_input.events.pushBack(window_input.allocator, .{
-        .CursorPos = .{ .pos = pos, .delta = delta },
+        .cursor_pos = .{ .pos = pos, .delta = delta },
     }) catch unreachable;
 
     window_input.mouse_pos = pos;
@@ -208,7 +208,7 @@ pub fn cursorEnterCallback(window: glfw.Window, entered: bool) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .CursorEnter = entered,
+        .cursor_enter = entered,
     }) catch unreachable;
 }
 pub fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
@@ -217,7 +217,7 @@ pub fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Scroll = .{ .x = xoffset, .y = yoffset },
+        .scroll = .{ .x = xoffset, .y = yoffset },
     }) catch unreachable;
 }
 pub fn dropCallback(window: glfw.Window, paths: [][*:0]const u8) void {
@@ -226,7 +226,7 @@ pub fn dropCallback(window: glfw.Window, paths: [][*:0]const u8) void {
         return;
     };
     window_input.events.pushBack(window_input.allocator, .{
-        .Drop = .{ .paths = paths },
+        .drop = .{ .paths = paths },
     }) catch unreachable;
 }
 

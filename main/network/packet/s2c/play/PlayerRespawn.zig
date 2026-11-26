@@ -11,7 +11,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     return .{
         .dimension_id = try buffer.read(i32),
         .difficulty = (try buffer.readPacked(packed struct(u8) { difficulty: Difficulty, _: u6 })).difficulty,
-        .game_mode = std.enums.fromInt(GameMode, try buffer.read(u8)) orelse .Survival,
+        .game_mode = std.enums.fromInt(GameMode, try buffer.read(u8)) orelse .survival,
         .generator_type = std.meta.stringToEnum(GeneratorType, try buffer.readString(16)) orelse .default,
     };
 }

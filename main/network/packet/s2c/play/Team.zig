@@ -19,7 +19,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
         .prefix = "",
         .suffix = "",
         .members = &.{},
-        .name_tag_visibility = .Always,
+        .name_tag_visibility = .always,
         .color = -1,
         .flags = 0,
     };
@@ -46,10 +46,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 }
 
 fn visibilityFromKey(key: []const u8) NametagVisibility {
-    if (std.mem.eql(u8, key, "never")) return .Never;
-    if (std.mem.eql(u8, key, "hideForOtherTeams")) return .HideForOtherTeams;
-    if (std.mem.eql(u8, key, "hideForOwnTeam")) return .HideForOwnTeam;
-    return .Always;
+    return std.meta.stringToEnum(NametagVisibility, key) orelse .always;
 }
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {

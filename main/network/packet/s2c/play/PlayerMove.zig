@@ -27,33 +27,33 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 
     const player = &game.world.player;
 
-    if (self.relative_arguments.x == .Absolute) player.base.velocity.x = 0;
-    if (self.relative_arguments.y == .Absolute) player.base.velocity.y = 0;
-    if (self.relative_arguments.z == .Absolute) player.base.velocity.z = 0;
+    if (self.relative_arguments.x == .absolute) player.base.velocity.x = 0;
+    if (self.relative_arguments.y == .absolute) player.base.velocity.y = 0;
+    if (self.relative_arguments.z == .absolute) player.base.velocity.z = 0;
 
     player.base.teleport(
         .{
             .x = switch (self.relative_arguments.x) {
-                .Absolute => self.pos.x,
-                .Relative => self.pos.x + player.base.pos.x,
+                .absolute => self.pos.x,
+                .relative => self.pos.x + player.base.pos.x,
             },
             .y = switch (self.relative_arguments.y) {
-                .Absolute => self.pos.y,
-                .Relative => self.pos.y + player.base.pos.y,
+                .absolute => self.pos.y,
+                .relative => self.pos.y + player.base.pos.y,
             },
             .z = switch (self.relative_arguments.z) {
-                .Absolute => self.pos.z,
-                .Relative => self.pos.z + player.base.pos.z,
+                .absolute => self.pos.z,
+                .relative => self.pos.z + player.base.pos.z,
             },
         },
         .{
             .yaw = switch (self.relative_arguments.yaw) {
-                .Absolute => self.rotation.yaw,
-                .Relative => self.rotation.yaw + player.base.rotation.yaw,
+                .absolute => self.rotation.yaw,
+                .relative => self.rotation.yaw + player.base.rotation.yaw,
             },
             .pitch = switch (self.relative_arguments.pitch) {
-                .Absolute => self.rotation.pitch,
-                .Relative => self.rotation.pitch + player.base.rotation.pitch,
+                .absolute => self.rotation.pitch,
+                .relative => self.rotation.pitch + player.base.rotation.pitch,
             },
         },
     );
@@ -69,7 +69,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     try game.connection_handle.sendPlayPacket(
         io,
         .{ .client_status = .{
-            .status = .PerformRespawn,
+            .status = .perform_respawn,
         } },
     );
 }
@@ -82,19 +82,19 @@ pub const RelativeArguments = packed struct(u8) {
     pitch: Mode,
     _: u3,
     pub const Mode = enum(u1) {
-        Absolute,
-        Relative,
+        absolute,
+        relative,
     };
 
     pub fn format(self: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
         try writer.print("{{ x: {s} y: {s} z: {s} yaw: {s} pitch: {s} }}", .{
-            if (self.x == .Absolute) "abs" else "rel",
-            if (self.y == .Absolute) "abs" else "rel",
-            if (self.z == .Absolute) "abs" else "rel",
-            if (self.yaw == .Absolute) "abs" else "rel",
-            if (self.pitch == .Absolute) "abs" else "rel",
+            if (self.x == .absolute) "abs" else "rel",
+            if (self.y == .absolute) "abs" else "rel",
+            if (self.z == .absolute) "abs" else "rel",
+            if (self.yaw == .absolute) "abs" else "rel",
+            if (self.pitch == .absolute) "abs" else "rel",
         });
     }
 };

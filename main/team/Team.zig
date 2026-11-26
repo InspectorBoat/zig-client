@@ -1,6 +1,6 @@
 pub const NametagVisibility = enum {
-    Always,
-    Never,
-    HideForOtherTeams,
-    HideForOwnTeam,
+    always,
+    never,
+    hideForOtherTeams,
+    hideForOwnTeam,
 };

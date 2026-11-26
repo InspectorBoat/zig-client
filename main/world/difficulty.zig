@@ -1,6 +1,6 @@
 pub const Difficulty = enum(u2) {
-    Peaceful = 0,
-    Easy = 1,
-    Normal = 2,
-    Hard = 3,
+    peaceful = 0,
+    easy = 1,
+    normal = 2,
+    hard = 3,
 };

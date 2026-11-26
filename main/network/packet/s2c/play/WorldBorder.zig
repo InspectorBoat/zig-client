@@ -27,21 +27,21 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     };
 
     switch (border_type) {
-        .SetSize => {
+        .set_size => {
             packet.size_lerp_target = try buffer.read(f64);
         },
-        .LerpSize => {
+        .lerp_size => {
             packet.lerp_size = try buffer.read(f64);
             packet.size_lerp_target = try buffer.read(f64);
             packet.lerp_time = try readVarLong(buffer);
         },
-        .SetCenter => packet.center_pos = .{
+        .set_center => packet.center_pos = .{
             .x = try buffer.read(f64),
             .z = try buffer.read(f64),
         },
-        .SetWarningTime => packet.warning_time = try buffer.readVarInt(),
-        .SetWarningBlocks => packet.warning_blocks = try buffer.readVarInt(),
-        .Initialize => {
+        .set_warning_time => packet.warning_time = try buffer.readVarInt(),
+        .set_warning_blocks => packet.warning_blocks = try buffer.readVarInt(),
+        .initialize => {
             packet.center_pos = .{
                 .x = try buffer.read(f64),
                 .z = try buffer.read(f64),
@@ -77,12 +77,12 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 }
 
 pub const Type = enum(i32) {
-    SetSize,
-    LerpSize,
-    SetCenter,
-    Initialize,
-    SetWarningTime,
-    SetWarningBlocks,
+    set_size,
+    lerp_size,
+    set_center,
+    initialize,
+    set_warning_time,
+    set_warning_blocks,
 };
 
 const std = @import("std");

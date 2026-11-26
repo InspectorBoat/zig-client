@@ -24,11 +24,11 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     };
     const velocity_scale = try buffer.read(f32);
     const count = try buffer.read(i32);
-    const particle_type = std.enums.fromInt(ParticleType, raw_type) orelse .BARRIER;
+    const particle_type = std.enums.fromInt(ParticleType, raw_type) orelse .barrier;
 
     const parameter_count: usize = switch (particle_type) {
-        .ITEM_CRACK => 2,
-        .BLOCK_CRACK, .BLOCK_DUST => 1,
+        .item_crack => 2,
+        .block_crack, .block_dust => 1,
         else => 0,
     };
 

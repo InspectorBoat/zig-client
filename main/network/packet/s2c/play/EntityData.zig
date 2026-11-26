@@ -23,10 +23,10 @@ pub fn readDataEntries(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) ![
                 .i16 => .{ .i16 = try buffer.read(i16) },
                 .i32 => .{ .i32 = try buffer.read(i32) },
                 .f32 => .{ .f32 = try buffer.read(f32) },
-                .String => .{ .String = try buffer.allocString(allocator, 32767) },
-                .ItemStack => .{ .ItemStack = try buffer.allocItemStack(allocator) },
-                .BlockPos => .{ .BlockPos = .{ .x = try buffer.read(i32), .y = try buffer.read(i32), .z = try buffer.read(i32) } },
-                .Rotation => .{ .Rotation = .{ .yaw = try buffer.read(f32), .pitch = try buffer.read(f32), .roll = try buffer.read(f32) } },
+                .string => .{ .string = try buffer.allocString(allocator, 32767) },
+                .item_stack => .{ .item_stack = try buffer.allocItemStack(allocator) },
+                .block_pos => .{ .block_pos = .{ .x = try buffer.read(i32), .y = try buffer.read(i32), .z = try buffer.read(i32) } },
+                .rotation => .{ .rotation = .{ .yaw = try buffer.read(f32), .pitch = try buffer.read(f32), .roll = try buffer.read(f32) } },
             },
         });
         entry_info = try buffer.readPacked(DataTrackerEntryInfo);

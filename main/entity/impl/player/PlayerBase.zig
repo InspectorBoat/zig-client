@@ -1,4 +1,4 @@
-game_mode: GameMode = .NotSet,
+game_mode: GameMode = .not_set,
 hunger: struct {
     food_level: i32 = 20,
     saturation_level: f32 = 0,

@@ -1,4 +1,4 @@
-protocol: Protocol = .Login,
+protocol: Protocol = .login,
 compression_threshold: i32 = -1,
 
 wants_disconnect: std.atomic.Value(bool) = .init(false),
@@ -145,11 +145,11 @@ pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingAllocat
 
     return switch (self.protocol) {
         // only the client ever sends packets in the handshake protocol
-        .Handshake => unreachable,
+        .handshake => unreachable,
         // this does not occur in a normal connection
-        .Status => unreachable,
-        .Login => .{ .{ .login = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark },
-        .Play => .{ .{ .play = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark },
+        .status => unreachable,
+        .login => .{ .{ .login = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark },
+        .play => .{ .{ .play = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark },
     };
 }
 

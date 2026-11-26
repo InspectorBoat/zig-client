@@ -10,7 +10,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const entries = try allocator.alloc(Entry, entry_count);
     for (entries) |*entry| {
         entry.* = switch (action) {
-            .AddPlayer => .{
+            .add_player => .{
                 .game_profile = .{
                     .uuid = try buffer.readUuid(),
                     .name = try buffer.allocString(allocator, 16),
@@ -31,23 +31,23 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
                         break :get_properties properties;
                     },
                 },
-                .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
+                .game_mode = try buffer.readEnum(GameMode) orelse .survival,
                 .ping = try buffer.readVarInt(),
                 .display_name = if (try buffer.read(bool)) try buffer.allocString(allocator, 32767) else null,
             },
-            .UpdateGameMode => .{
+            .update_game_mode => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },
-                .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
+                .game_mode = try buffer.readEnum(GameMode) orelse .survival,
             },
-            .UpdatePing => .{
+            .update_ping => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },
-                .game_mode = try buffer.readEnum(GameMode) orelse .Survival,
+                .game_mode = try buffer.readEnum(GameMode) orelse .survival,
             },
-            .UpdateDisplayName => .{
+            .update_display_name => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },
                 .display_name = if (try buffer.read(bool)) try buffer.allocString(allocator, 32767) else null,
             },
-            .RemovePlayer => .{
+            .remove_player => .{
                 .game_profile = .{ .uuid = try buffer.readUuid() },
             },
         };
@@ -67,11 +67,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 }
 
 pub const Action = enum(i32) {
-    AddPlayer,
-    UpdateGameMode,
-    UpdatePing,
-    UpdateDisplayName,
-    RemovePlayer,
+    add_player,
+    update_game_mode,
+    update_ping,
+    update_display_name,
+    remove_player,
 };
 
 pub const Entry = struct {

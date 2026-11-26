@@ -97,16 +97,16 @@ pub fn onExit(exit: Events.Exit) !void {
 pub fn handleInputIdle(_: *const Client.Idle) void {
     while (window_input.events.popFront()) |event| {
         switch (event) {
-            .Key => |key| {
+            .key => |key| {
                 switch (key.key) {
                     .escape => window_input.window.setShouldClose(true),
                     else => {},
                 }
             },
-            .ContentScale => |content_scale| {
+            .content_scale => |content_scale| {
                 std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
-            .FramebufferSize => |framebuffer_size| {
+            .framebuffer_size => |framebuffer_size| {
                 std.log.scoped(.window).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
@@ -118,16 +118,16 @@ pub fn handleInputIdle(_: *const Client.Idle) void {
 pub fn handleInputConnecting(_: *const Client.Connecting) void {
     while (window_input.events.popFront()) |event| {
         switch (event) {
-            .Key => |key| {
+            .key => |key| {
                 switch (key.key) {
                     .escape => window_input.window.setShouldClose(true),
                     else => {},
                 }
             },
-            .ContentScale => |content_scale| {
+            .content_scale => |content_scale| {
                 std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
-            .FramebufferSize => |framebuffer_size| {
+            .framebuffer_size => |framebuffer_size| {
                 std.log.scoped(.window).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },
@@ -144,7 +144,7 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
     var cursor_delta: Vector2xy(f64) = .origin;
     while (window_input.events.popFront()) |event| {
         switch (event) {
-            .Key => |key| {
+            .key => |key| {
                 if (key.action == .repeat) continue;
                 if (game.world.menu_screen_open) {
                     switch (key.key) {
@@ -224,7 +224,7 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
                     else => {},
                 }
             },
-            .MouseButton => |button| {
+            .mouse_button => |button| {
                 if (button.action == .repeat) continue;
                 if (game.world.menu_screen_open) {
                     if (button.action == .release) continue;
@@ -246,7 +246,7 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
                     else => {},
                 }
             },
-            .CursorPos => |cursor_event| {
+            .cursor_pos => |cursor_event| {
                 if (game.world.menu_screen_open) continue;
                 if (ignore_next_mouse_delta) {
                     ignore_next_mouse_delta = false;
@@ -254,13 +254,13 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
                 }
                 cursor_delta = .add(cursor_delta, cursor_event.delta);
             },
-            .Scroll => |scroll| {
+            .scroll => |scroll| {
                 try input_queue.queueOnTick(gpa, .{ .hand = .{ .scroll = @round(scroll.y) } });
             },
-            .ContentScale => |content_scale| {
+            .content_scale => |content_scale| {
                 std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
-            .FramebufferSize => |framebuffer_size| {
+            .framebuffer_size => |framebuffer_size| {
                 std.log.scoped(.window).info("framebuffer size: {[x]}x{[y]}", framebuffer_size);
                 gl.viewport(0, 0, framebuffer_size.x, framebuffer_size.y);
             },

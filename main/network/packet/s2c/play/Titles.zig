@@ -9,7 +9,7 @@ comptime required_client_state: Client.State = .game,
 
 pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     var packet: @This() = .{
-        .type = .Clear,
+        .type = .clear,
         .text = "",
         .fade_in = 0,
         .duration = 0,
@@ -18,13 +18,13 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
     packet.type = try buffer.readEnum(Type) orelse return error.InvalidTitleType;
     switch (packet.type) {
-        .Title, .Subtitle => packet.text = try buffer.allocString(allocator, 32767),
-        .Times => {
+        .title, .subtitle => packet.text = try buffer.allocString(allocator, 32767),
+        .times => {
             packet.fade_in = try buffer.read(i32);
             packet.duration = try buffer.read(i32);
             packet.fade_out = try buffer.read(i32);
         },
-        .Clear, .Reset => {},
+        .clear, .reset => {},
     }
 
     return packet;
@@ -39,11 +39,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 }
 
 pub const Type = enum(i32) {
-    Title,
-    Subtitle,
-    Times,
-    Clear,
-    Reset,
+    title,
+    subtitle,
+    times,
+    clear,
+    reset,
 };
 
 const std = @import("std");

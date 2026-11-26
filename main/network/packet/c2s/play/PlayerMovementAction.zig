@@ -9,13 +9,13 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
 }
 
 pub const Action = enum(i32) {
-    StartSneaking,
-    StopSneaking,
-    StopSleeping,
-    StartSprinting,
-    StopSprinting,
-    RidingJump,
-    OpenHorseInventory,
+    start_sneaking,
+    stop_sneaking,
+    stop_sleeping,
+    start_sprinting,
+    stop_sprinting,
+    riding_jump,
+    open_horse_inventory,
 };
 
 const main = @import("main");

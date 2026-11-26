@@ -26,10 +26,10 @@ pub const DataTypes = enum(u3) {
     i16,
     i32,
     f32,
-    String,
-    ItemStack,
-    BlockPos,
-    Rotation,
+    string,
+    item_stack,
+    block_pos,
+    rotation,
 };
 
 pub const DataValue = union(DataTypes) {
@@ -37,10 +37,10 @@ pub const DataValue = union(DataTypes) {
     i16: i16,
     i32: i32,
     f32: f32,
-    String: []const u8,
-    ItemStack: ?Item.Stack,
-    BlockPos: Vector3(i32),
-    Rotation: Rotation3(f32),
+    string: []const u8,
+    item_stack: ?Item.Stack,
+    block_pos: Vector3(i32),
+    rotation: Rotation3(f32),
 };
 
 const std = @import("std");

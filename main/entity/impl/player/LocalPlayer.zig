@@ -294,7 +294,7 @@ pub fn sendMovementPackets(self: *@This(), io: std.Io, game: *Client.Game) !void
         try game.connection_handle.sendPlayPacket(io, .{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
-            .action = if (try self.base.isSprinting()) .StartSprinting else .StopSprinting,
+            .action = if (try self.base.isSprinting()) .start_sprinting else .stop_sprinting,
         } });
         self.server_movement_status.sprinting = try self.base.isSprinting();
     }
@@ -302,7 +302,7 @@ pub fn sendMovementPackets(self: *@This(), io: std.Io, game: *Client.Game) !void
         try game.connection_handle.sendPlayPacket(io, .{ .player_movement_action = .{
             .network_id = self.base.network_id,
             .data = 0,
-            .action = if (self.isSneaking()) .StartSneaking else .StopSneaking,
+            .action = if (self.isSneaking()) .start_sneaking else .stop_sneaking,
         } });
         self.server_movement_status.sneaking = self.isSneaking();
     }

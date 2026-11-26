@@ -10,7 +10,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
     const owner = try buffer.allocString(allocator, 40);
     const action = try buffer.readEnum(Action) orelse return error.InvalidScoreboardScoreAction;
     const objective = try buffer.allocString(allocator, 16);
-    const score = if (action == .Change)
+    const score = if (action == .change)
         try buffer.readVarInt()
     else
         null;
@@ -32,8 +32,8 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 }
 
 pub const Action = enum(i32) {
-    Change,
-    Remove,
+    change,
+    remove,
 };
 
 const std = @import("std");

@@ -22,11 +22,11 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
 }
 
 pub const Action = enum(u8) {
-    SwingHand = 0,
-    AnimateDamage = 1,
-    WakeUp = 2,
-    Crit = 4,
-    MagicCrit = 5,
+    swing_hand = 0,
+    animate_damage = 1,
+    wake_up = 2,
+    crit = 4,
+    magic_crit = 5,
     _,
 };
 

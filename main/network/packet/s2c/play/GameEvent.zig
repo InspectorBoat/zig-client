@@ -18,35 +18,35 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = allocator;
 
     switch (self.event) {
-        .InvalidBed => {},
-        .BeginRaining => {},
-        .StopRaining => {},
-        .SetGameMode => {
+        .invalid_bed => {},
+        .begin_raining => {},
+        .stop_raining => {},
+        .set_game_mode => {
             // TODO: THIS IS FUCKED
             // use MathHelper.floor when it gets added
-            game.world.game_mode = std.enums.fromInt(World.GameMode, @as(i32, @trunc(self.data))) orelse .Survival;
+            game.world.game_mode = std.enums.fromInt(World.GameMode, @as(i32, @trunc(self.data))) orelse .survival;
         },
-        .OpenCredits => {},
-        .DemoMessage => {},
-        .PlayArrowHitSound => {},
-        .SetRainDuration => {},
-        .SetThunderDuration => {},
-        .PlayElderGuardianJumpscare => {},
+        .open_credits => {},
+        .demo_message => {},
+        .play_arrow_hit_sound => {},
+        .set_rain_duration => {},
+        .set_thunder_duration => {},
+        .play_elder_guardian_jumpscare => {},
         _ => {},
     }
 }
 
 pub const Event = enum(i32) {
-    InvalidBed = 0,
-    BeginRaining = 1,
-    StopRaining = 2,
-    SetGameMode = 3,
-    OpenCredits = 4,
-    DemoMessage = 5,
-    PlayArrowHitSound = 6,
-    SetRainDuration = 7,
-    SetThunderDuration = 8,
-    PlayElderGuardianJumpscare = 10,
+    invalid_bed = 0,
+    begin_raining = 1,
+    stop_raining = 2,
+    set_game_mode = 3,
+    open_credits = 4,
+    demo_message = 5,
+    play_arrow_hit_sound = 6,
+    set_rain_duration = 7,
+    set_thunder_duration = 8,
+    play_elder_guardian_jumpscare = 10,
     _,
 };
 

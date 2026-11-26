@@ -5,9 +5,9 @@ pub fn write(self: @This(), buffer: *C2S.WriteBuffer) !void {
 }
 
 pub const Status = enum(i32) {
-    PerformRespawn = 0,
-    RequestStats = 1,
-    OpenInventoryAchievement = 2,
+    perform_respawn = 0,
+    request_stats = 1,
+    open_inventory_achievement = 2,
 };
 
 const main = @import("main");

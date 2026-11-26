@@ -1,6 +1,6 @@
 pub const Protocol = enum(i32) {
-    Handshake = -1,
-    Play = 0,
-    Status = 1,
-    Login = 2,
+    handshake = -1,
+    play = 0,
+    status = 1,
+    login = 2,
 };

@@ -1,11 +1,11 @@
 pub const GameMode = enum(i32) {
-    NotSet = -1,
-    Survival = 0,
-    Creative = 1,
-    Adventure = 2,
-    Spectator = 3,
+    not_set = -1,
+    survival = 0,
+    creative = 1,
+    adventure = 2,
+    spectator = 3,
 
     pub fn restrictsWorldModification(self: @This()) bool {
-        return self == .Adventure or self == .Spectator;
+        return self == .adventure or self == .spectator;
     }
 };
