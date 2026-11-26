@@ -183,6 +183,11 @@ pub fn build(b: *std.Build) !void {
     run_fix.setCwd(b.path("."));
     run_fix.addArgs(&.{ "fix", ".", "--remove-unused", "--bottom" });
     b.step("fix", "Fix imports").dependOn(&run_fix.step);
+
+    const run_check = b.addRunArtifact(zsort);
+    run_check.setCwd(b.path("."));
+    run_check.addArgs(&.{ "check", ".", "--remove-unused", "--bottom" });
+    b.step("check", "Check imports").dependOn(&run_check.step);
 }
 
 const std = @import("std");
