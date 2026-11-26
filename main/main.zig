@@ -56,8 +56,8 @@ pub fn main(init: std.process.Init) !void {
     );
     defer session.deinit(gpa);
 
-    try EventHandler.dispatch(Events.Startup, .{ .gpa = init.gpa, .io = io });
-    defer EventHandler.dispatch(Events.Exit, .{ .io = io, .gpa = init.gpa }) catch |e| std.log.err("{} while shutting down", .{e});
+    try Events.dispatch(Events.Startup, .{ .gpa = init.gpa, .io = io });
+    defer Events.dispatch(Events.Exit, .{ .io = io, .gpa = init.gpa }) catch |e| std.log.err("{} while shutting down", .{e});
 
     var client: Client = .{ .idle = .{
         .gpa = gpa,
@@ -78,7 +78,7 @@ pub fn main(init: std.process.Init) !void {
         {
             const zone: tracy.Zone = .begin(.{ .name = "Frame events", .src = @src(), .color = .light_blue });
             defer zone.end();
-            try EventHandler.dispatch(Events.Frame, .{
+            try Events.dispatch(Events.Frame, .{
                 .client = &client,
                 .input_queue = if (client == .game) &client.game.input_queue else null,
                 .io = io,
@@ -115,12 +115,20 @@ pub const Events = struct {
     pub const UnloadChunk = struct { chunk_pos: Vector2xz(i32) };
     pub const Frame = struct { client: *const Client, input_queue: ?*Client.InputQueue, io: std.Io, gpa: std.mem.Allocator };
     pub const Exit = struct { io: std.Io, gpa: std.mem.Allocator };
-};
 
-pub const EventHandler = struct {
     pub const listeners = if (build_options.graphics == .headless) .{} else render.event_listeners;
-
-    pub const dispatch = util.events.getDispatcher(Events, listeners).dispatch;
+    pub inline fn dispatch(comptime Event: type, event: Event) !void {
+        inline for (listeners) |listener| {
+            const listener_info = @typeInfo(@TypeOf(listener)).@"fn";
+            if (listener_info.param_types[0] == Event) {
+                if (@typeInfo(listener_info.return_type.?) == .error_union) {
+                    try listener(event);
+                } else {
+                    listener(event);
+                }
+            }
+        }
+    }
 };
 
 test {
@@ -138,7 +146,6 @@ const build_options = @import("build_options");
 const render = @import("render");
 pub const tracy = @import("tracy");
 pub const tracy_options = @import("tracy_options");
-const util = @import("util");
 
 pub const block = @import("block/block.zig");
 pub const Inventory = @import("inventory/Inventory.zig");

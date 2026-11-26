@@ -128,7 +128,7 @@ pub fn unloadChunk(self: *@This(), allocator: std.mem.Allocator, chunk_pos: Vect
     std.log.scoped(.world).debug("unloaded chunk at {}", .{chunk_pos});
 
     (try self.chunks.fetchRemove(chunk_pos)).deinit(allocator);
-    try EventHandler.dispatch(Events.UnloadChunk, .{ .chunk_pos = chunk_pos });
+    try Events.dispatch(Events.UnloadChunk, .{ .chunk_pos = chunk_pos });
 }
 
 pub fn isChunkLoadedAtBlockPos(self: *const @This(), block_pos: Vector3(i32)) bool {
@@ -214,7 +214,7 @@ pub fn setBlockState(self: *@This(), allocator: std.mem.Allocator, block_pos: Ve
     const prev = ptr.*;
     @atomicStore(Block.PhysicalState, ptr, state, .unordered);
     if (prev != state) {
-        try EventHandler.dispatch(Events.BlockUpdate, .{ .block_pos = block_pos, .world = self });
+        try Events.dispatch(Events.BlockUpdate, .{ .block_pos = block_pos, .world = self });
     }
 }
 
@@ -332,7 +332,7 @@ pub fn receiveChunk(
         @memcpy(&chunk.biomes, try buffer.readBytes(256));
     }
 
-    try EventHandler.dispatch(Events.ChunkUpdate, .{ .gpa = gpa, .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
+    try Events.dispatch(Events.ChunkUpdate, .{ .gpa = gpa, .chunk_pos = chunk_pos, .chunk = chunk, .world = self });
 }
 
 pub fn getCollisionCount(self: *const @This(), hitbox: Box(f64)) usize {
@@ -509,7 +509,6 @@ const Box = main.Box;
 const Client = main.Client;
 const Direction = main.Direction;
 const Entity = main.Entity;
-const EventHandler = main.EventHandler;
 const Events = main.Events;
 const HitResult = main.HitResult;
 const Inventory = main.Inventory;

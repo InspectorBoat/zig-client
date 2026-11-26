@@ -86,6 +86,8 @@ pub fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr
     _ = ret_addr;
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
+    std.debug.assert(self.safety.active_rewind_index != null);
+
     const padding = std.mem.alignPointerOffset(self.buffer + self.logical_alloc_index, alignment.toByteUnits()) orelse return null;
     const next = self.logical_alloc_index + padding + len;
 

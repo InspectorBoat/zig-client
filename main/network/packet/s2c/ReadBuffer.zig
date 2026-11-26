@@ -1,49 +1,38 @@
 /// A buffer to read incoming packet data (s2c)
 
 backer: []const u8,
-read_location: usize,
-
-pub fn initCapacity(allocator: std.mem.Allocator, bytes: usize) !@This() {
-    return .{
-        .backer = try allocator.alloc(u8, bytes),
-        .read_location = 0,
-    };
-}
+seek: usize,
 
 pub fn fromOwnedSlice(slice: []const u8) @This() {
     return .{
         .backer = slice,
-        .read_location = 0,
+        .seek = 0,
     };
-}
-
-pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    allocator.free(self.backer);
 }
 
 /// resets the buffer
 pub fn clear(self: *@This()) void {
     self.backer.items.len = 0;
-    self.read_location = 0;
+    self.seek = 0;
 }
 
 pub fn unread(self: @This()) usize {
-    return self.backer.len - self.read_location;
+    return self.backer.len - self.seek;
 }
 
 /// T must be a boolean, integer or float type with nonzero size and have a bit size divisible by 8
 pub fn read(self: *@This(), comptime T: type) !T {
-    if (self.read_location + @sizeOf(T) > self.backer.len) return error.EndOfBuffer;
+    if (self.seek + @sizeOf(T) > self.backer.len) return error.EndOfBuffer;
 
     // booleans have to be special cased because their bit size is 1
     if (T == bool) return try self.read(u8) != 0;
 
-    defer self.read_location += @sizeOf(T);
+    defer self.seek += @sizeOf(T);
 
     return @bitCast(
         std.mem.readInt(
             @Int(.unsigned, @bitSizeOf(T)),
-            self.backer[self.read_location..][0..@sizeOf(T)],
+            self.backer[self.seek..][0..@sizeOf(T)],
             .big,
         ),
     );
@@ -60,9 +49,9 @@ pub fn readEnum(self: *@This(), comptime T: type) !?T {
 }
 
 pub fn readBytes(self: *@This(), len: usize) ![]const u8 {
-    if (self.read_location + len > self.backer.len) return error.EndOfBuffer;
-    const slice = self.backer[self.read_location..][0..len];
-    self.read_location += len;
+    if (self.seek + len > self.backer.len) return error.EndOfBuffer;
+    const slice = self.backer[self.seek..][0..len];
+    self.seek += len;
     return slice;
 }
 
@@ -235,11 +224,11 @@ test readVarInt {
 test readJavaUtf {
     var buffer: @This() = .{
         .backer = &.{ 0x00, 0x02, 'h', 'i' },
-        .read_location = 0,
+        .seek = 0,
     };
     const utf = try buffer.readJavaUtf();
     try std.testing.expectEqualStrings("hi", utf);
-    try std.testing.expectEqual(buffer.backer.len, buffer.read_location);
+    try std.testing.expectEqual(buffer.backer.len, buffer.seek);
 }
 
 const std = @import("std");

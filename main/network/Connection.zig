@@ -119,7 +119,7 @@ pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingAllocat
 
     // we don't have enough bytes, so the packet is not complete
     if (packet_buffer.unread() < packet_body_size) return null;
-    std.log.scoped(.decode_packet).debug("decoding packet - {} bytes header + {} bytes body", .{ packet_buffer.read_location, packet_body_size });
+    std.log.scoped(.decode_packet).debug("decoding packet - {} bytes header + {} bytes body", .{ packet_buffer.seek, packet_body_size });
 
     const packet_size = packet_header_size + @as(usize, @intCast(packet_body_size));
 
@@ -143,18 +143,14 @@ pub fn decodePacket(self: *@This()) DecodePacketError!?struct { S2C, RingAllocat
     const allocator_rewind_mark = self.incoming_allocator.beginRegion();
     errdefer self.incoming_allocator.rewind(allocator_rewind_mark);
 
-    switch (self.protocol) {
+    return switch (self.protocol) {
         // only the client ever sends packets in the handshake protocol
         .Handshake => unreachable,
         // this does not occur in a normal connection
         .Status => unreachable,
-        .Login => {
-            return .{ .{ .login = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark };
-        },
-        .Play => {
-            return .{ .{ .play = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark };
-        },
-    }
+        .Login => .{ .{ .login = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark },
+        .Play => .{ .{ .play = try .read(self.incoming_allocator.allocator(), &packet_buffer) }, allocator_rewind_mark },
+    };
 }
 
 /// check if the buffer needs to be decompressed

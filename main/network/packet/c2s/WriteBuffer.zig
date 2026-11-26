@@ -23,7 +23,7 @@ pub fn clear(self: *@This()) void {
 pub fn toReadBuffer(self: *@This()) ReadBuffer {
     return .{
         .backer = self.backer.items,
-        .read_location = 0,
+        .seek = 0,
     };
 }
 

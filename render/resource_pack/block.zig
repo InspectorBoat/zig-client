@@ -438,10 +438,10 @@ const main = @import("main");
 const render = @import("render");
 const tracy = @import("tracy");
 const zigimg = @import("zigimg");
-const allValues = @import("util").allValues;
 
 pub const ModelTemplate = @import("ModelTemplate.zig");
 pub const StateToModelMap = @import("StateToModelMap.zig");
+const allValues = @import("all_values.zig").allValues;
 
 const Block = main.Block;
 const Direction = main.Direction;

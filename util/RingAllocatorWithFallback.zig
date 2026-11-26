@@ -59,6 +59,8 @@ fn isRingBufferAlloc(self: *@This(), memory: []u8) bool {
 pub fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
+    std.debug.assert(self.ring_allocator.safety.active_rewind_index != null);
+
     return RingAllocator.alloc(&self.ring_allocator, len, alignment, ret_addr) orelse {
         var arena = self.active_arena.?.promote(self.gpa.allocator());
         defer self.active_arena = arena.state;
@@ -68,6 +70,8 @@ pub fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr
 
 pub fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
     const self: *@This() = @ptrCast(@alignCast(ctx));
+
+    std.debug.assert(self.ring_allocator.safety.active_rewind_index != null);
 
     if (self.isRingBufferAlloc(memory)) {
         return RingAllocator.resize(&self.ring_allocator, memory, alignment, new_len, ret_addr);
@@ -81,6 +85,8 @@ pub fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_l
 pub fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
     const self: *@This() = @ptrCast(@alignCast(ctx));
 
+    std.debug.assert(self.ring_allocator.safety.active_rewind_index != null);
+
     if (self.isRingBufferAlloc(memory)) {
         return RingAllocator.remap(&self.ring_allocator, memory, alignment, new_len, ret_addr);
     } else {
@@ -92,6 +98,8 @@ pub fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_le
 
 pub fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
     const self: *@This() = @ptrCast(@alignCast(ctx));
+
+    std.debug.assert(self.ring_allocator.safety.active_rewind_index != null);
 
     if (self.isRingBufferAlloc(memory)) {
         RingAllocator.free(&self.ring_allocator, memory, alignment, ret_addr);
