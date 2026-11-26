@@ -23,8 +23,12 @@ pub const SkinLayersFlags = packed struct(u8) {
     _: u1 = 0,
 };
 
-const main = @import("main");
+pub const ChatVisibility = enum(i8) {
+    full = 0,
+    system = 1,
+    hidden = 2,
+};
 
-const ChatVisibility = @import("../../../../chat/chatvisibility.zig").ChatVisibility;
+const main = @import("main");
 
 const C2S = main.network.packet.C2S;
