@@ -47,6 +47,13 @@ pub const Input = union(enum) {
     open_screen,
     close_screen,
     inventory: Menu.Action,
+    menu_button: struct {
+        button_id: i8,
+    },
+    /// Text input for anvil renaming / sign editing.
+    char: u21,
+    text_backspace,
+    sign_row: i8,
 };
 
 const std = @import("std");

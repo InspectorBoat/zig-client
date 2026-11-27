@@ -17,10 +17,14 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
-
     _ = allocator;
-    _ = game;
-    _ = self;
+
+    if (game.world.menu == .other and
+        game.world.menu.other.network_id == self.menu_network_id and
+        self.data_id >= 0 and self.data_id < game.world.menu.other.data.len)
+    {
+        game.world.menu.other.data[@intCast(self.data_id)] = self.value;
+    }
 }
 
 const std = @import("std");

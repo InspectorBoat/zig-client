@@ -312,35 +312,143 @@ pub fn updateHotbarSlot(io: std.Io, game: *Game, player: *LocalPlayer) !void {
 }
 
 pub fn click(io: std.Io, allocator: std.mem.Allocator, game: *Game, menu: *Menu, action: Menu.Action) !void {
-    const stack = try action.performOn(allocator, &game.world, menu);
+    if (menu.type == .creative_inventory) return clickCreative(io, allocator, game, menu, action);
+
     const wire_format: Menu.Action.WireFormat = .convert(action, menu);
+    const stack = try action.performOn(allocator, &game.world, menu);
     try game.connection_handle.sendPlayPacket(io, .{
         .menu_click_slot = .{
             .menu_network_id = @intCast(menu.network_id),
             .slot_id = wire_format.slot_id,
             .action = wire_format.action,
-            .transaction_id = game.world.player_inventory_menu.nextTransactionId(), // yes, this is correct
+            .transaction_id = menu.nextTransactionId(),
             .click_data = wire_format.click_data,
             .item_stack = stack,
         },
     });
 }
 
+/// Creative inventory tabs are client-only; acquiring an item gives an infinite
+/// stack to the cursor, and only changes to the real player inventory are sent
+/// as creative-menu slot packets.
+fn clickCreative(io: std.Io, allocator: std.mem.Allocator, game: *Game, menu: *Menu, action: Menu.Action) !void {
+    switch (action) {
+        .click => |click_action| {
+            const index: usize = if (click_action.maybe_slot_index) |slot| @backingInt(slot) else return;
+            if (index < 45) {
+                if (game.world.maybe_cursor_stack != null) return;
+                const source = menu.getSlot(@fromBackingInt(@intCast(index))) orelse return;
+                game.world.maybe_cursor_stack = try Item.Stack.dupe(allocator, source);
+            } else {
+                _ = try action.performOn(allocator, &game.world, menu);
+                try setCreativeSlot(io, game, @intCast(36 + index - 45), menu.getSlot(@fromBackingInt(@intCast(index))));
+            }
+        },
+        .quick_move => |move| {
+            const index: usize = @backingInt(move.slot_index);
+            if (index < 45) {
+                const source = menu.getSlot(@fromBackingInt(@intCast(index))) orelse return;
+                var copy = (try Item.Stack.dupe(allocator, source)).?;
+                copy.size = copy.item.maxStackSize();
+                game.world.maybe_cursor_stack = copy;
+            } else {
+                // CreativePlayerMenu.quickMoveItem clears the hotbar slot.
+                menu.clearSlot(allocator, @fromBackingInt(@intCast(index)));
+                try setCreativeSlot(io, game, @intCast(36 + index - 45), null);
+            }
+        },
+        .throw => |throw| {
+            const index: usize = @backingInt(throw.slot_index);
+            if (index < 45) {
+                const stack = menu.getSlot(@fromBackingInt(@intCast(index))) orelse return;
+                var copy = (try Item.Stack.dupe(allocator, stack)).?;
+                copy.size = if (throw.count == .all) copy.size else 1;
+                try setCreativeSlot(io, game, -1, copy);
+            } else {
+                _ = try action.performOn(allocator, &game.world, menu);
+                try setCreativeSlot(io, game, @intCast(36 + index - 45), menu.getSlot(@fromBackingInt(@intCast(index))));
+            }
+        },
+        .clone => |clone| {
+            const index: usize = @backingInt(clone.slot_index);
+            const stack = menu.getSlot(@fromBackingInt(@intCast(index))) orelse return;
+            var copy = (try Item.Stack.dupe(allocator, stack)).?;
+            copy.size = copy.item.maxStackSize();
+            game.world.maybe_cursor_stack = copy;
+        },
+        .drag => |drag| {
+            _ = try action.performOn(allocator, &game.world, menu);
+            if (drag == .finish) {
+                // Vanilla re-syncs all nine hotbar slots after a creative drag.
+                for (0..9) |i| {
+                    try setCreativeSlot(io, game, @intCast(36 + i), menu.getSlot(@fromBackingInt(@intCast(45 + i))));
+                }
+            }
+        },
+        else => _ = try action.performOn(allocator, &game.world, menu),
+    }
+}
+
+pub fn clickMenuButton(io: std.Io, game: *Game, menu_id: i32, button_id: i8) !void {
+    try game.connection_handle.sendPlayPacket(io, .{ .menu_click_button = .{
+        .menu_network_id = @intCast(menu_id),
+        .button_id = button_id,
+    } });
+}
+
+pub fn sendCustomPayload(io: std.Io, game: *Game, channel: []const u8, data: []const u8) !void {
+    try game.connection_handle.sendPlayPacket(io, .{ .custom_payload = .{
+        .channel = channel,
+        .data = data,
+    } });
+}
+
+pub fn sendAnvilName(io: std.Io, allocator: std.mem.Allocator, game: *Game, name: []const u8) !void {
+    var list: std.ArrayList(u8) = try .initCapacity(allocator, name.len + 5);
+    defer list.deinit(allocator);
+    var buffer: main.network.packet.C2S.WriteBuffer = .{ .backer = list };
+    try buffer.writeString(name);
+    try sendCustomPayload(io, game, "MC|ItemName", buffer.backer.items);
+}
+
+pub fn setCreativeSlot(io: std.Io, game: *Game, slot_id: i16, stack: ?Item.Stack) !void {
+    try game.connection_handle.sendPlayPacket(io, .{ .creative_menu_slot = .{
+        .slot_id = slot_id,
+        .item_stack = stack,
+    } });
+}
+
 pub fn closeScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
+    if (game.world.sign_editor) |editor| {
+        try game.connection_handle.sendPlayPacket(io, .{ .sign_update = .{
+            .block_pos = editor.pos,
+            .lines = editor.lines,
+            .lens = editor.lens,
+        } });
+        game.world.sign_editor = null;
+        game.world.menu_screen_open = false;
+        return;
+    }
     if (game.world.menu_screen_open) {
         try game.connection_handle.sendPlayPacket(io, .{ .close_menu = .{
             .menu_network_id = @intCast(game.world.getMenu().network_id),
         } });
+        Item.Stack.deinit(allocator, &game.world.maybe_cursor_stack);
+        game.world.maybe_cursor_stack = null;
         game.world.closeMenu(allocator);
     }
 }
 
 pub fn openScreen(io: std.Io, allocator: std.mem.Allocator, game: *Game) !void {
-    if (game.world.menu_screen_open) return;
+    if (game.world.menu_screen_open or game.world.sign_editor != null) return;
     try game.connection_handle.sendPlayPacket(io, .{ .client_status = .{
         .status = .open_inventory_achievement,
     } });
-    game.world.openMenu(allocator, .player_menu);
+    if (game.world.player.abilities.creative_mode) {
+        game.world.openMenu(allocator, .{ .other = try Menu.initCreativeMenu(allocator, game.world.main_inventory) });
+    } else {
+        game.world.openMenu(allocator, .player_menu);
+    }
 }
 
 const std = @import("std");
@@ -350,5 +458,6 @@ const main = @import("main");
 const Game = main.Client.Game;
 const Direction = main.Direction;
 const LocalPlayer = main.Entity.LocalPlayer;
+const Item = main.Item;
 const Menu = main.Menu;
 const Vector3 = main.Vector3;

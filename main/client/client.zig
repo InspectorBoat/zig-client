@@ -59,6 +59,10 @@ pub const Client = union(enum) {
                     .inventory => std.debug.panic("Inventory action on frame - don't do this! Queue on tick instead!", .{}),
                     .open_screen => std.debug.panic("Screen action on frame - don't do this! Queue on tick instead!", .{}),
                     .close_screen => std.debug.panic("Screen action on frame - don't do this! Queue on tick instead!", .{}),
+                    .menu_button => std.debug.panic("Menu button on frame - don't do this! Queue on tick instead!", .{}),
+                    .char => std.debug.panic("Char input on frame - don't do this! Queue on tick instead!", .{}),
+                    .text_backspace => std.debug.panic("Backspace on frame - don't do this! Queue on tick instead!", .{}),
+                    .sign_row => std.debug.panic("Sign row on frame - don't do this! Queue on tick instead!", .{}),
                 }
             }
         }
@@ -148,6 +152,7 @@ pub const Client = union(enum) {
                     .close_screen => try interactions.closeScreen(io, allocator, self),
                     .open_screen => try interactions.openScreen(io, allocator, self),
                     .inventory => |action| {
+                        if (!self.world.menu_screen_open or self.world.sign_editor != null) continue;
                         try interactions.click(
                             io,
                             allocator,
@@ -155,6 +160,58 @@ pub const Client = union(enum) {
                             self.world.getMenuPtr(),
                             action,
                         );
+                    },
+                    .menu_button => |button| {
+                        const current_id: i32 = if (self.world.menu == .other) self.world.menu.other.network_id else 0;
+                        if (self.world.menu_screen_open and button.button_id >= 0) {
+                            const menu = self.world.getMenu();
+                            if (menu.canClickEnchantButton(&self.world.player, @intCast(button.button_id))) {
+                                try interactions.clickMenuButton(io, self, current_id, button.button_id);
+                            }
+                        }
+                    },
+                    .char => |codepoint| {
+                        if (self.world.sign_editor) |*editor| {
+                            var utf8: [4]u8 = undefined;
+                            const n = std.unicode.utf8Encode(codepoint, &utf8) catch continue;
+                            const line = &editor.lines[editor.line];
+                            const len = &editor.lens[editor.line];
+                            if (len.* + n > line.len) continue;
+                            @memcpy(line[len.*..][0..n], utf8[0..n]);
+                            len.* += n;
+                            continue;
+                        }
+                        if (self.world.menu == .other and self.world.menu.other.type == .anvil) {
+                            var utf8: [4]u8 = undefined;
+                            const n = std.unicode.utf8Encode(codepoint, &utf8) catch continue;
+                            const units: usize = if (codepoint > 0xFFFF) 2 else 1; // Java UTF-16 length
+                            if (self.world.anvil_text.units + units > 30) continue;
+                            @memcpy(self.world.anvil_text.buf[self.world.anvil_text.len..][0..n], utf8[0..n]);
+                            self.world.anvil_text.len += n;
+                            self.world.anvil_text.units += units;
+                            try interactions.sendAnvilName(io, allocator, self, self.world.anvil_text.buf[0..self.world.anvil_text.len]);
+                        }
+                    },
+                    .text_backspace => {
+                        if (self.world.sign_editor) |*editor| {
+                            const len = &editor.lens[editor.line];
+                            if (len.* > 0) len.* -= 1;
+                        } else if (self.world.menu == .other and self.world.menu.other.type == .anvil) {
+                            const text = &self.world.anvil_text;
+                            if (text.len > 0) {
+                                var start = text.len - 1;
+                                while (start > 0 and (text.buf[start] & 0xC0) == 0x80) start -= 1;
+                                const codepoint = std.unicode.utf8Decode(text.buf[start..text.len]) catch 0;
+                                text.units -|= if (codepoint > 0xFFFF) 2 else 1;
+                                text.len = start;
+                                try interactions.sendAnvilName(io, allocator, self, text.buf[0..text.len]);
+                            }
+                        }
+                    },
+                    .sign_row => |delta| {
+                        if (self.world.sign_editor) |*editor| {
+                            editor.line = @intCast(@mod(@as(i32, @intCast(editor.line)) + delta, 4));
+                        }
                     },
                     .rotate => std.debug.panic("Rotated on tick - don't do this! Queue on frame instead", .{}),
                 }
@@ -164,6 +221,7 @@ pub const Client = union(enum) {
                 attack_presses = 0;
                 use_presses = 0;
                 pick_presses = 0;
+                drop_presses = 0;
                 inputs.hand = .{};
                 inputs.movement = .{};
                 inputs.cooldown.attack = 10000;

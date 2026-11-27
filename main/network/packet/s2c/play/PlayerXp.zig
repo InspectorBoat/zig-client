@@ -19,8 +19,7 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = io;
 
     _ = allocator;
-    _ = game;
-    _ = self;
+    game.world.player.xp_level = self.level;
 }
 
 const std = @import("std");

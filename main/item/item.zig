@@ -394,6 +394,33 @@ pub const Item = enum(u16) {
         return item_attributes.max_stack_size.get(self);
     }
 
+    pub fn isFuel(self: @This()) bool {
+        return item_attributes.is_fuel.contains(self);
+    }
+
+    pub fn isPotionIngredient(self: @This()) bool {
+        return item_attributes.is_potion_ingredient.contains(self);
+    }
+
+    pub fn isSmeltable(self: @This(), metadata: i32) bool {
+        return item_attributes.always_smeltable.contains(self) or switch (self) {
+            .stonebrick => metadata == 0,
+            .sponge => metadata == 1,
+            .fish => metadata == 0 or metadata == 1,
+            else => true,
+        };
+    }
+
+    pub fn armorSlot(self: @This()) ?ArmorType {
+        return switch (self) {
+            .leather_helmet, .chainmail_helmet, .iron_helmet, .diamond_helmet, .golden_helmet, .pumpkin, .skull => .helmet,
+            .leather_chestplate, .chainmail_chestplate, .iron_chestplate, .diamond_chestplate, .golden_chestplate => .chestplate,
+            .leather_leggings, .chainmail_leggings, .iron_leggings, .diamond_leggings, .golden_leggings => .leggings,
+            .leather_boots, .chainmail_boots, .iron_boots, .diamond_boots, .golden_boots => .boots,
+            else => null,
+        };
+    }
+
     pub fn isBlock(self: @This()) bool {
         return @backingInt(self) <= @backingInt(Block.dark_oak_door);
     }
@@ -439,3 +466,4 @@ pub const Item = enum(u16) {
 const main = @import("main");
 
 const Block = main.Block;
+const ArmorType = main.Menu.ArmorType;

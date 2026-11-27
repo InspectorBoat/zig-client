@@ -137,6 +137,14 @@ pub fn handleInputConnecting(_: *const Client.Connecting) void {
 }
 
 var ignore_next_mouse_delta = false;
+var suppress_mouse_release = false;
+var pending_collect: ?usize = null;
+var drag_armed: ?Menu.Action.Drag.Mode = null;
+var drag_button: glfw.MouseButton = .left;
+var last_click_slot: ?usize = null;
+var last_click_button: glfw.MouseButton = .left;
+var last_click_time: f64 = 0;
+
 pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client.Game, input_queue: *Client.InputQueue) !void {
     const zone: tracy.Zone = .begin(.{ .name = "Handle input", .src = @src(), .color = .light_blue });
     defer zone.end();
@@ -146,7 +154,21 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
         switch (event) {
             .key => |key| {
                 if (key.action == .repeat) continue;
-                if (game.world.menu_screen_open) {
+                if (game.world.menu_screen_open and key.key == .backspace and key.action == .press) {
+                    try input_queue.queueOnTick(gpa, .text_backspace);
+                    continue;
+                }
+                if (game.world.sign_editor != null and key.action == .press) {
+                    switch (key.key) {
+                        .up, .down, .enter, .kp_enter => {
+                            const delta: i8 = if (key.key == .up) -1 else 1;
+                            try input_queue.queueOnTick(gpa, .{ .sign_row = delta });
+                            continue;
+                        },
+                        else => {},
+                    }
+                }
+                if (game.world.menu_screen_open and game.world.sign_editor == null) {
                     switch (key.key) {
                         .one, .two, .three, .four, .five, .six, .seven, .eight, .nine => |num| {
                             if (key.action == .release) continue;
@@ -179,7 +201,13 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
                     .tab => if (key.action == .press) {
                         if (window_input.maximized) window_input.window.restore() else window_input.window.maximize();
                     },
-                    .escape => window_input.window.setShouldClose(true),
+                    .escape => if (key.action == .press) {
+                        if (game.world.menu_screen_open) {
+                            try input_queue.queueOnTick(gpa, .close_screen);
+                        } else {
+                            window_input.window.setShouldClose(true);
+                        }
+                    },
                     .h => if (key.action == .press) {
                         renderer.debug_options.chunk_borders = !renderer.debug_options.chunk_borders;
                     },
@@ -227,17 +255,71 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
             .mouse_button => |button| {
                 if (button.action == .repeat) continue;
                 if (game.world.menu_screen_open) {
-                    if (button.action == .release) continue;
+                    if (game.world.sign_editor != null) continue;
                     if (button.button != .left and button.button != .right and button.button != .middle) continue;
-                    try input_queue.queueOnTick(gpa, .{
-                        .inventory = gui.onClick(
+                    const cursor_pos = window_input.mousePosInClipSpace();
+                    if (button.action == .press) {
+                        if (button.button == .left and game.world.menu == .other and
+                            game.world.menu.other.type == .enchanting_table)
+                        {
+                            if (gui.enchantButtonAt(cursor_pos)) |button_id| {
+                                try input_queue.queueOnTick(gpa, .{ .menu_button = .{
+                                    .button_id = button_id,
+                                } });
+                                continue;
+                            }
+                        }
+                        if (game.world.maybe_cursor_stack != null) {
+                            // Vanilla arms the drag on press but sends all packets on release.
+                            drag_armed = switch (button.button) {
+                                .left => .split,
+                                .right => .single,
+                                else => .duplicate,
+                            };
+                            drag_button = button.button;
+                            try input_queue.queueOnTick(gpa, .{ .inventory = .{ .drag = .{ .begin = drag_armed.? } } });
+                        } else {
+                            suppress_mouse_release = true;
+                            const clicked: ?usize = if (gui.hoveredSlot(&game.world, cursor_pos)) |idx| @backingInt(idx) else null;
+                            const is_double = clicked != null and clicked.? == (last_click_slot orelse std.math.maxInt(usize)) and
+                                button.button == last_click_button and glfw.getTime() - last_click_time < 0.250;
+                            pending_collect = if (is_double) clicked else null;
+                            last_click_slot = clicked;
+                            last_click_button = button.button;
+                            last_click_time = glfw.getTime();
+                            if (gui.onClick(&game.world, cursor_pos, button.button, window_input.keys.contains(.left_shift))) |action| {
+                                try input_queue.queueOnTick(gpa, .{ .inventory = action });
+                            }
+                        }
+                    } else {
+                        if (suppress_mouse_release) {
+                            suppress_mouse_release = false;
+                            if (pending_collect) |slot_index| {
+                                try input_queue.queueOnTick(gpa, .{ .inventory = .{ .collect = .{ .slot_index = @fromBackingInt(@intCast(slot_index)) } } });
+                                pending_collect = null;
+                            }
+                            continue;
+                        }
+                        var actions: std.ArrayList(Menu.Action) = .empty;
+                        defer actions.deinit(gpa);
+                        try gui.onRelease(
                             &game.world,
-                            window_input.mousePosInClipSpace(),
+                            cursor_pos,
                             button.button,
                             window_input.keys.contains(.left_shift),
-                        ),
-                    });
-
+                            drag_armed,
+                            false,
+                            &actions,
+                            gpa,
+                        );
+                        for (actions.items) |action| try input_queue.queueOnTick(gpa, .{ .inventory = action });
+                        if (drag_armed != null and button.button != drag_button) {
+                            // Wrong-button release cancels the drag (no packets).
+                            drag_armed = null;
+                        } else if (drag_armed != null) {
+                            drag_armed = null;
+                        }
+                    }
                     continue;
                 }
                 switch (button.button) {
@@ -247,7 +329,15 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
                 }
             },
             .cursor_pos => |cursor_event| {
-                if (game.world.menu_screen_open) continue;
+                if (game.world.menu_screen_open) {
+                    // Accumulate slots crossed during a click-drag.
+                    if (drag_armed != null) {
+                        if (gui.hoveredSlot(&game.world, window_input.mousePosInClipSpace())) |slot_index| {
+                            try input_queue.queueOnTick(gpa, .{ .inventory = .{ .drag = .{ .add_slot = slot_index } } });
+                        }
+                    }
+                    continue;
+                }
                 if (ignore_next_mouse_delta) {
                     ignore_next_mouse_delta = false;
                     continue;
@@ -257,6 +347,7 @@ pub fn handleInputIngame(io: std.Io, gpa: std.mem.Allocator, game: *const Client
             .scroll => |scroll| {
                 try input_queue.queueOnTick(gpa, .{ .hand = .{ .scroll = @round(scroll.y) } });
             },
+            .char => |codepoint| try input_queue.queueOnTick(gpa, .{ .char = codepoint }),
             .content_scale => |content_scale| {
                 std.log.scoped(.window).info("content scale: {[x]}x{[y]}", content_scale);
             },
@@ -309,4 +400,5 @@ pub const FpsCounter = quarantine.FpsCounter;
 pub const Frustum = quarantine.Frustum;
 const Client = main.Client;
 const Events = main.Events;
+const Menu = main.Menu;
 const Vector2xy = main.Vector2xy;

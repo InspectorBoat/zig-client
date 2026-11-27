@@ -25,6 +25,7 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
     if (self.menu_network_id == -1) {
+        Item.Stack.deinit(allocator, &game.world.maybe_cursor_stack);
         game.world.maybe_cursor_stack = try .dupe(allocator, self.item_stack);
     } else if (self.menu_network_id == 0 and self.slot_id >= 36 and self.slot_id < 45) {
         game.world.player_inventory_menu.setSlot(
@@ -32,8 +33,18 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
             @fromBackingInt(@intCast(self.slot_id)),
             try .dupe(allocator, self.item_stack),
         );
-    } else if (self.menu_network_id == game.world.getMenuPtr().network_id) {
-        game.world.getMenuPtr().setSlot(
+    } else if (game.world.menu == .other and self.menu_network_id == game.world.menu.other.network_id and
+        self.slot_id >= 0 and self.slot_id < game.world.menu.other.slots.len)
+    {
+        game.world.menu.other.setSlot(
+            allocator,
+            @fromBackingInt(@intCast(self.slot_id)),
+            try .dupe(allocator, self.item_stack),
+        );
+    } else if (game.world.menu == .player_menu and self.menu_network_id == 0 and
+        self.slot_id >= 0 and self.slot_id < game.world.player_inventory_menu.slots.len)
+    {
+        game.world.player_inventory_menu.setSlot(
             allocator,
             @fromBackingInt(@intCast(self.slot_id)),
             try .dupe(allocator, self.item_stack),

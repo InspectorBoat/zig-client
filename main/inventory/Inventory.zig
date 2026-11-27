@@ -13,6 +13,10 @@ pub const Type = enum {
     brewing_stand,
     horse,
     furnace,
+    enchanting,
+    beacon,
+    villager,
+    creative,
 };
 
 pub fn getEmptyIndex(self: @This()) ?usize {
@@ -22,7 +26,9 @@ pub fn getEmptyIndex(self: @This()) ?usize {
             if (stack == null) return i;
         } else return null,
 
-        else => std.debug.panic("TODO!", .{}),
+        else => for (self.stacks, 0..) |stack, i| {
+            if (stack == null) return i;
+        } else return null,
     }
 }
 

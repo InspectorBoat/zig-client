@@ -25,22 +25,38 @@ pub fn decode(allocator: std.mem.Allocator, buffer: *S2C.ReadBuffer) !@This() {
 pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocator, game: *Client.Game) !void {
     _ = io;
 
-    const menu: main.Menu = if (std.mem.eql(u8, "minecraft:chest", self.menu_type)) try .initChestMenu(
-        allocator,
-        self.menu_network_id,
-        game.world.main_inventory,
-        try .init(allocator, .chest, @intCast(self.size)),
-    ) else if (std.mem.eql(u8, "minecraft:hopper", self.menu_type)) try .initHopperMenu(
-        allocator,
-        self.menu_network_id,
-        game.world.main_inventory,
-        try .init(allocator, .hopper, @intCast(self.size)),
-    ) else if (std.mem.eql(u8, "minecraft:dispenser", self.menu_type) or std.mem.eql(u8, "minecraft:dropper", self.menu_type)) try .initDispenserMenu(
-        allocator,
-        self.menu_network_id,
-        game.world.main_inventory,
-        try .init(allocator, .dispenser, @intCast(self.size)),
-    ) else std.debug.panic("TODO!", .{});
+    const menu_type_name = self.menu_type;
+    const id: i32 = self.menu_network_id;
+    const player_inventory = game.world.main_inventory;
+    const size: usize = @intCast(@max(self.size, 0));
+
+    const menu: main.Menu = if (std.mem.eql(u8, menu_type_name,"minecraft:chest") or std.mem.eql(u8, menu_type_name,"minecraft:container"))
+        try .initChestMenu(allocator, id, player_inventory, @max(size, 9))
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:hopper"))
+        try .initHopperMenu(allocator, id, player_inventory, @max(size, 5))
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:dispenser") or std.mem.eql(u8, menu_type_name,"minecraft:dropper"))
+        try .initDispenserMenu(allocator, id, player_inventory, @max(size, 9))
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:crafting_table"))
+        try .initCraftingTableMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:furnace"))
+        try .initFurnaceMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:anvil"))
+        try .initAnvilMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:enchanting_table"))
+        try .initEnchantingMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:brewing_stand"))
+        try .initBrewingMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:beacon"))
+        try .initBeaconMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"minecraft:villager"))
+        try .initTraderMenu(allocator, id, player_inventory)
+    else if (std.mem.eql(u8, menu_type_name,"EntityHorse"))
+        try .initHorseMenu(allocator, id, player_inventory, (size -| 2) / 5)
+    else blk: {
+        // Vanilla falls back to a generic chest-style menu for unknown types.
+        std.log.warn("unsupported menu type {s}, using chest menu", .{menu_type_name});
+        break :blk try main.Menu.initChestMenu(allocator, id, player_inventory, @max(size, 9));
+    };
 
     game.world.openMenu(allocator, .{ .other = menu });
 }

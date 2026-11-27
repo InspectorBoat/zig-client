@@ -19,6 +19,12 @@ menu: union(enum) { player_menu, other: Menu } = .player_menu,
 
 menu_screen_open: bool = false,
 
+/// Current text of the anvil rename field (max 30 characters, as in vanilla).
+anvil_text: struct { buf: [64]u8 = undefined, len: usize = 0, units: usize = 0 } = .{},
+
+/// Active sign editor screen (not a container menu).
+sign_editor: ?SignEditor = null,
+
 crosshair: HitResult = .miss,
 
 mining_state: ?struct {
@@ -26,6 +32,13 @@ mining_state: ?struct {
     progress: f32 = 0,
     face: Direction,
 } = null,
+
+pub const SignEditor = struct {
+    pos: Vector3(i32),
+    lines: [4][384]u8 = undefined,
+    lens: [4]usize = .{ 0, 0, 0, 0 },
+    line: usize = 0,
+};
 
 pub fn getMenu(self: *const @This()) *const Menu {
     if (self.menu == .other) std.debug.assert(self.menu_screen_open);
@@ -51,6 +64,8 @@ pub fn closeMenu(self: *@This(), allocator: std.mem.Allocator) void {
     if (!self.menu_screen_open) return;
 
     if (self.menu == .other) self.menu.other.deinit(allocator);
+    self.anvil_text.len = 0;
+    self.anvil_text.units = 0;
 
     self.menu = .player_menu;
     self.menu_screen_open = false;

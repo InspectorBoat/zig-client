@@ -27,6 +27,8 @@ sneaking: bool = false,
 
 hotbar_slot: u8 = 0,
 server_hotbar_slot: u8 = 0,
+/// Used by anvil result pickup gating (AnvilMenu.canPickUp).
+xp_level: i32 = 0,
 
 pub fn tick(self: *@This(), io: std.Io, game: *Client.Game) !void {
     // tick spectator onground and noclip

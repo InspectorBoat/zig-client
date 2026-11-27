@@ -15,8 +15,8 @@ pub fn handleOnMainThread(self: *@This(), io: std.Io, allocator: std.mem.Allocat
     _ = io;
 
     _ = allocator;
-    _ = game;
-    _ = self;
+    game.world.sign_editor = .{ .pos = self.pos };
+    game.world.menu_screen_open = true;
 }
 
 const std = @import("std");
